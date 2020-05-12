@@ -311,7 +311,7 @@ namespace Quickstarts.ReferenceServer
         #endregion
 
         #region Private Fields
-        private X509CertificateValidator m_userCertificateValidator;
+        private ICertificateValidator m_userCertificateValidator;
         #endregion
     }
 }

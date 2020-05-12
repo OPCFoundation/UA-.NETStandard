@@ -331,11 +331,13 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
+                UpdateStatus(false, DateTime.Now, "Connected, loading complex type system.");
                 var typeSystemLoader = new ComplexTypeSystem(m_session);
                 await typeSystemLoader.Load();
             }
             catch (Exception e)
             {
+                UpdateStatus(true, DateTime.Now, "Connected, failed to load complex type system.");
                 Utils.Trace(e, "Failed to load complex type system.");
             }
 
@@ -394,11 +396,13 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
+                UpdateStatus(false, DateTime.Now, "Connected, loading complex type system.");
                 var typeSystemLoader = new ComplexTypeSystem(m_session);
                 await typeSystemLoader.Load();
             }
             catch (Exception e)
             {
+                UpdateStatus(true, DateTime.Now, "Connected, failed to load complex type system.");
                 Utils.Trace(e, "Failed to load complex type system.");
             }
 
@@ -455,8 +459,7 @@ namespace Opc.Ua.Client.Controls
                 throw new ArgumentException("Endpoint URL is not valid.");
             }
 
-            var endpointUrl = connection.EndpointUrl.ToString();
-            UrlCB.Text = endpointUrl;
+            UrlCB.Text = connection.EndpointUrl.ToString();
             UseSecurityCK.Checked = useSecurity;
 
             EndpointDescription endpointDescription = null;

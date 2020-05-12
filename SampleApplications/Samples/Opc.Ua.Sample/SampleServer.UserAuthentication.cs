@@ -173,7 +173,7 @@ namespace Opc.Ua.Sample
         #endregion
         
         #region Private Fields
-        private X509CertificateValidator m_certificateValidator;
+        private ICertificateValidator m_certificateValidator;
         #endregion 
     }
 }
