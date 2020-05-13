@@ -218,7 +218,7 @@ namespace Quickstarts.ReferenceServer
                 args.Identity = new UserIdentity(x509Token);
                 Utils.Trace("X509 Token Accepted: {0}", args.Identity.DisplayName);
 
-                // set AuthenticatedUser role for accepted user/password authentication
+                // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
 
                 return;
