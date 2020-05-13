@@ -364,7 +364,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         complexType = AddStructuredType(
                                             complexTypeBuilder,
                                             structureDefinition,
-                                            dataTypeNode.BrowseName.Name,
+                                            dataTypeNode.BrowseName,
                                             typeId,
                                             binaryEncodingId,
                                             xmlEncodingId
@@ -977,7 +977,7 @@ namespace Opc.Ua.Client.ComplexTypes
             Type newType = null;
             if (enumTypeNode != null)
             {
-                string name = enumTypeNode.BrowseName.Name;
+                QualifiedName name = enumTypeNode.BrowseName;
                 if (enumTypeNode.DataTypeDefinition != null)
                 {
                     // 1. use DataTypeDefinition 
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private Type AddStructuredType(
             IComplexTypeBuilder complexTypeBuilder,
             StructureDefinition structureDefinition,
-            string typeName,
+            QualifiedName typeName,
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
@@ -1183,13 +1183,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private Session m_session;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
         private const string kOpcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
-#endregion
+        #endregion
     }
 }//namespace
