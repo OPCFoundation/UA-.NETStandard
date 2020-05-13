@@ -195,6 +195,17 @@ namespace Quickstarts.ReferenceServer
             if (userNameToken != null)
             {
                 args.Identity = VerifyPassword(userNameToken);
+
+                // set AuthenticatedUser role for accepted user/password authentication
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
+                if (args.Identity is SystemConfigurationIdentity)
+                {
+                    // set ConfigureAdmin and  role for user with permission to configure server
+                    args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_ConfigureAdmin);
+                    args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_SecurityAdmin);
+                }
+
                 return;
             }
 
@@ -206,8 +217,16 @@ namespace Quickstarts.ReferenceServer
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 args.Identity = new UserIdentity(x509Token);
                 Utils.Trace("X509 Token Accepted: {0}", args.Identity.DisplayName);
+
+                // set AuthenticatedUser role for accepted user/password authentication
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
+
                 return;
             }
+
+            // allow anonymous authentication and set Anonymous role for this authentication
+            args.Identity = new UserIdentity();
+            args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_Anonymous);
         }
 
         /// <summary>

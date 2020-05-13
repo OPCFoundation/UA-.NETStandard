@@ -159,7 +159,7 @@ namespace Opc.Ua
         private void Initialize(UserIdentityToken token)
         {
             if (token == null) throw new ArgumentNullException(nameof(token));
-            GrantedRoleIds = new NodeIdCollection();
+            m_grantedRoleIds = new NodeIdCollection();
             m_token = token;
 
             UserNameIdentityToken usernameToken = token as UserNameIdentityToken;

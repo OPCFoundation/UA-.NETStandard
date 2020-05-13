@@ -41,7 +41,6 @@ namespace Opc.Ua.Gds.Server
     {
         private IUserIdentity m_identity;
         private GdsRole m_role;
-        private NodeIdCollection m_grantedRoleIds;
 
         public RoleBasedIdentity(IUserIdentity identity, GdsRole role)
         {
@@ -51,8 +50,8 @@ namespace Opc.Ua.Gds.Server
 
         public NodeIdCollection GrantedRoleIds
         {
-            get { return m_grantedRoleIds; }
-            set { m_grantedRoleIds = value; }
+            get { return m_identity.GrantedRoleIds; }
+            set { m_identity.GrantedRoleIds = value; }
         }
 
         public GdsRole Role

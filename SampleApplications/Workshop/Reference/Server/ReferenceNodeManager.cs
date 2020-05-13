@@ -47,8 +47,7 @@ namespace Quickstarts.ReferenceServer
         /// Initializes the node manager.
         /// </summary>
         public EmptyNodeManager(IServerInternal server, ApplicationConfiguration configuration)
-        :
-            base(server, configuration, Namespaces.ReferenceApplications)
+            : base(server, configuration, Namespaces.ReferenceApplications)
         {
             SystemContext.NodeIdFactory = this;
 
@@ -754,13 +753,85 @@ namespace Quickstarts.ReferenceServer
                     arGroupRW.AccessLevel = AccessLevels.CurrentReadOrWrite;
                     arGroupRW.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                     variables.Add(arGroupRW);
+
+                    // sub folder for "RolePermissions"
+                    FolderState folderRolePermissions = CreateFolder(folderAccessRights, "AccessRights_RolePermissions", "RolePermissions");
+                    const string rolePermissions = "AccessRights_RolePermissions_";
+
+                    BaseDataVariableState rpAnonymous = CreateVariable(folderRolePermissions, rolePermissions + "AnonymousAccess", "AnonymousAccess", BuiltInType.Int16, ValueRanks.Scalar);
+                    rpAnonymous.Description = "This node can be accessed by users that have Anonymous Role";
+                    rpAnonymous.RolePermissions = new RolePermissionTypeCollection()
+                    {
+                        // allow access to users with Anonymous role
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                    };
+                    variables.Add(rpAnonymous);
+
+                    BaseDataVariableState rpAuthenticatedUser = CreateVariable(folderRolePermissions, rolePermissions + "AuthenticatedUser", "AuthenticatedUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    rpAuthenticatedUser.Description = "This node can be accessed by users that have AuthenticatedUser Role";
+                    rpAuthenticatedUser.RolePermissions = new RolePermissionTypeCollection()
+                    {
+                        // allow access to users with AuthenticatedUser role
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                    };
+                    variables.Add(rpAuthenticatedUser);
+
+                    BaseDataVariableState rpAdminUser = CreateVariable(folderRolePermissions, rolePermissions + "AdminUser", "AdminUser", BuiltInType.Int16, ValueRanks.Scalar);
+                    rpAdminUser.Description = "This node can be accessed by users that have SecurityAdmin Role over an encrypted connection";
+                    rpAdminUser.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                    rpAdminUser.RolePermissions = new RolePermissionTypeCollection()
+                    {
+                        // allow access to users with SecurityAdmin role
+                        new RolePermissionType()
+                        {
+                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                            Permissions = (uint)(PermissionType.Browse |PermissionType.Read|PermissionType.ReadRolePermissions | PermissionType.Write)
+                        },
+                    };
+                    variables.Add(rpAdminUser);
+
+                    // sub-folder for "AccessRestrictions"
+                    FolderState folderAccessRestrictions = CreateFolder(folderAccessRights, "AccessRights_AccessRestrictions", "AccessRestrictions");
+                    const string accessRestrictions = "AccessRights_AccessRestrictions_";
+
+                    BaseDataVariableState arNone = CreateVariable(folderAccessRestrictions, accessRestrictions + "None", "None", BuiltInType.Int16, ValueRanks.Scalar);
+                    arNone.AccessLevel = AccessLevels.CurrentRead;
+                    arNone.UserAccessLevel = AccessLevels.CurrentRead;
+                    arNone.AccessRestrictions = AccessRestrictionType.None;
+                    variables.Add(arNone);
+
+                    BaseDataVariableState arSigningRequired = CreateVariable(folderAccessRestrictions, accessRestrictions + "SigningRequired", "SigningRequired", BuiltInType.Int16, ValueRanks.Scalar);
+                    arSigningRequired.AccessLevel = AccessLevels.CurrentRead;
+                    arSigningRequired.UserAccessLevel = AccessLevels.CurrentRead;
+                    arSigningRequired.AccessRestrictions = AccessRestrictionType.SigningRequired;
+                    variables.Add(arSigningRequired);
+
+                    BaseDataVariableState arEncryptionRequired = CreateVariable(folderAccessRestrictions, accessRestrictions + "EncryptionRequired", "EncryptionRequired", BuiltInType.Int16, ValueRanks.Scalar);
+                    arEncryptionRequired.AccessLevel = AccessLevels.CurrentRead;
+                    arEncryptionRequired.UserAccessLevel = AccessLevels.CurrentRead;
+                    arEncryptionRequired.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                    variables.Add(arEncryptionRequired);
+
+                    BaseDataVariableState arSessionRequired = CreateVariable(folderAccessRestrictions, accessRestrictions + "SessionRequired", "SessionRequired", BuiltInType.Int16, ValueRanks.Scalar);
+                    arSessionRequired.AccessLevel = AccessLevels.CurrentRead;
+                    arSessionRequired.UserAccessLevel = AccessLevels.CurrentRead;
+                    arSessionRequired.AccessRestrictions = AccessRestrictionType.SessionRequired;
+                    variables.Add(arSessionRequired);
                     #endregion
 
                     #region NodeIds
                     FolderState nodeIdsFolder = CreateFolder(root, "NodeIds", "NodeIds");
                     const string nodeIds = "NodeIds_";
 
-                    BaseDataVariableState nodeIdsInstructions = CreateVariable(folderAccessRights, nodeIds + "Instructions", "Instructions", DataTypeIds.String, ValueRanks.Scalar);
+                    BaseDataVariableState nodeIdsInstructions = CreateVariable(nodeIdsFolder, nodeIds + "Instructions", "Instructions", DataTypeIds.String, ValueRanks.Scalar);
                     nodeIdsInstructions.Value = "All supported Node types are available except whichever is in use for the other nodes.";
                     variables.Add(nodeIdsInstructions);
 
