@@ -588,7 +588,25 @@ namespace Opc.Ua.Server
                         metadata.TypeDefinition = target.TypeDefinitionId;
                     }
                 }
-                
+
+                // Set AccessRestrictions and RolePermissions
+                Node node = (Node)target;
+                metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString()); 
+                metadata.RolePermissions = node.RolePermissions;
+                metadata.UserRolePermissions = node.UserRolePermissions;
+
+                // check if NamespaceMetadata is defined for NamespaceUri
+                string namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
+                NamespaceMetadataState namespaceMetadataState = Server.NodeManager.ConfigurationNodeManager.GetNamespaceMetadataState(namespaceUri);
+                if (namespaceMetadataState != null)
+                {
+                    metadata.DefaultAccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType),
+                        namespaceMetadataState.DefaultAccessRestrictions.Value);
+                  
+                    metadata.DefaultRolePermissions = namespaceMetadataState.DefaultRolePermissions.Value;
+                    metadata.DefaultUserRolePermissions = namespaceMetadataState.DefaultUserRolePermissions.Value;
+                }
+
                 #if LEGACY_NODEMANAGER
                 // check if a source is defined for the node.
                 SourceHandle handle = target.Handle as SourceHandle;

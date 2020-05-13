@@ -41,11 +41,18 @@ namespace Opc.Ua.Gds.Server
     {
         private IUserIdentity m_identity;
         private GdsRole m_role;
+        private NodeIdCollection m_grantedRoleIds;
 
         public RoleBasedIdentity(IUserIdentity identity, GdsRole role)
         {
             m_identity = identity;
             m_role = role;
+        }
+
+        public NodeIdCollection GrantedRoleIds
+        {
+            get { return m_grantedRoleIds; }
+            set { m_grantedRoleIds = value; }
         }
 
         public GdsRole Role
