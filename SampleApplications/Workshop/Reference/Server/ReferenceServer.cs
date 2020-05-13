@@ -65,7 +65,7 @@ namespace Quickstarts.ReferenceServer
             List<INodeManager> nodeManagers = new List<INodeManager>();
 
             // create the custom node managers.
-            nodeManagers.Add(new EmptyNodeManager(server, configuration));
+            nodeManagers.Add(new ReferenceNodeManager(server, configuration));
 
             // create master node manager.
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());

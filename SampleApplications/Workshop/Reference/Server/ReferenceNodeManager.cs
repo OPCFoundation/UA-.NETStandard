@@ -40,13 +40,13 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class EmptyNodeManager : CustomNodeManager2
+    public class ReferenceNodeManager : CustomNodeManager2
     {
         #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public EmptyNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        public ReferenceNodeManager(IServerInternal server, ApplicationConfiguration configuration)
             : base(server, configuration, Namespaces.ReferenceApplications)
         {
             SystemContext.NodeIdFactory = this;
