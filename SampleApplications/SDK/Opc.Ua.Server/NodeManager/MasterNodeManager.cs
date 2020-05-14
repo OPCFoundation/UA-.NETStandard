@@ -1721,8 +1721,7 @@ namespace Opc.Ua.Server
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
         }
-        #region Validate Role Permissions
-        #endregion
+
         /// <summary>
         /// Updates the history for a set of nodes.
         /// </summary>
