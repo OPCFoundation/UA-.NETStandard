@@ -560,7 +560,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     newType = AddStructuredType(
                                         complexTypeBuilder,
                                         structureDefinition,
-                                        dataTypeNode.BrowseName.Name,
+                                        dataTypeNode.BrowseName,
                                         structType.NodeId,
                                         binaryEncodingId,
                                         xmlEncodingId
