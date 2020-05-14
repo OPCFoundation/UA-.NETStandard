@@ -48,6 +48,12 @@ namespace Opc.Ua.Gds.Server
             m_role = role;
         }
 
+        public NodeIdCollection GrantedRoleIds
+        {
+            get { return m_identity.GrantedRoleIds; }
+            set { m_identity.GrantedRoleIds = value; }
+        }
+
         public GdsRole Role
         {
             get { return m_role; }

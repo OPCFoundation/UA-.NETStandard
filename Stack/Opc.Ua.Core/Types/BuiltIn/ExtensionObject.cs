@@ -326,7 +326,7 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                m_typeId = ExpandedNodeId.Null;
+                m_typeId = encodeable.TypeId;
                 m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 m_body = encodeable;
             }
@@ -415,6 +415,7 @@ namespace Opc.Ua
 
                 else if (m_body is IEncodeable)
                 {
+                    m_typeId = ((IEncodeable)m_body).TypeId;
                     m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 }
 
@@ -668,6 +669,42 @@ namespace Opc.Ua
             }
 
             return output;
+        }
+
+        /// <summary>
+        /// Converts an array of extension objects to a List of the specified type.
+        /// </summary>
+        /// <param name="extensions">The array to convert.</param>
+        /// <returns>The new typed List</returns>
+        /// <remarks>
+        /// Will add null elements if individual elements cannot be converted.
+        /// </remarks>
+        public static List<T> ToList<T>(object source) where T : class
+        {
+            var extensions = source as Array;
+
+            if (extensions == null)
+            {
+                return null;
+            }
+
+            List<T> list = new List<T>();
+
+            for (int ii = 0; ii < extensions.Length; ii++)
+            {
+                IEncodeable element = ToEncodeable(extensions.GetValue(ii) as ExtensionObject);
+
+                if (typeof(T).IsInstanceOfType(element))
+                {
+                    list.Add((T)element);
+                }
+                else
+                {
+                    list.Add(null);
+                }
+            }
+
+            return list;
         }
 
         /// <summary>
