@@ -128,7 +128,7 @@
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
-      <ua:String>Standard UA Server Profile</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA</ua:String>
     </ServerProfileArray>
 
     <ShutdownDelay>5</ShutdownDelay>
@@ -141,6 +141,19 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+
+    <ReverseConnect>
+      <Clients>
+        <ReverseConnectClient>
+          <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
+          <Timeout>60000</Timeout>
+        </ReverseConnectClient>
+      </Clients>
+      <ConnectInterval>15000</ConnectInterval>
+      <ConnectTimeout>30000</ConnectTimeout>
+      <RejectTimeout>60000</RejectTimeout>
+    </ReverseConnect>
+    
   </ServerConfiguration>
 
   <ClientConfiguration>
@@ -150,23 +163,7 @@
     </WellKnownDiscoveryUrls>
     <DiscoveryServers></DiscoveryServers>
     <EndpointCacheFilePath>ReverseHelloServer.Endpoints.xml</EndpointCacheFilePath>
-
   </ClientConfiguration>
-
-  <Extensions>
-    <ua:XmlElement>
-      <ReverseConnectServerConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
-        <ReverseConnectClients>
-          <ReverseConnectClient>
-            <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
-            <MaxConnections>1</MaxConnections>
-            <Timeout>60000</Timeout>
-          </ReverseConnectClient>
-        </ReverseConnectClients>
-        <ConnectInterval>15000</ConnectInterval>
-      </ReverseConnectServerConfiguration>
-    </ua:XmlElement>
-  </Extensions>
 
   <TraceConfiguration>
     <OutputFilePath>.\Logs\ReverseHelloServer.log.txt</OutputFilePath>

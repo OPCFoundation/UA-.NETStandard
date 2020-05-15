@@ -29,10 +29,46 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Reverse connection states.
+    /// </summary>
+    public enum ReverseConnectState
+    {
+        Closed,
+        Connecting,
+        Connected,
+        Rejected,
+        Errored
+    }
+
+    /// <summary>
+    /// Describes the properties of a reverse connection.
+    /// </summary>
+    public class ReverseConnectProperty
+    {
+        public ReverseConnectProperty(
+            Uri clientUrl,
+            int timeout,
+            bool configEntry)
+        {
+            ClientUrl = clientUrl;
+            Timeout = timeout > 0 ? timeout : ReverseConnectServer.DefaultReverseConnectTimeout;
+            ConfigEntry = true;
+        }
+
+        public readonly Uri ClientUrl;
+        public readonly int Timeout;
+        public readonly bool ConfigEntry;
+        public ServiceResult ServiceResult;
+        public ReverseConnectState State = ReverseConnectState.Closed;
+        public DateTime RejectTime;
+    }
+
     /// <summary>
     /// The standard implementation of a UA server with reverse connect.
     /// </summary>
@@ -42,114 +78,56 @@ namespace Opc.Ua.Server
         public static int DefaultReverseConnectTimeout => 30000;
         public static int DefaultReverseConnectRejectTimeout => 60000;
 
-        private enum ReverseConnectState
-        {
-            Closed,
-            Connecting,
-            Connected,
-            Rejected,
-            Errored
-        }
-
         public ReverseConnectServer()
         {
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;
+            m_rejectTimeout = DefaultReverseConnectRejectTimeout;
+            m_connections = new Dictionary<Uri, ReverseConnectProperty>();
         }
 
-        /// <summary>
-        /// Describes the properties of a reverse connection.
-        /// </summary>
-        private class ReverseConnection
-        {
-            public ReverseConnection(
-                Uri clientUrl,
-                int timeout)
-            {
-                ClientUrl = clientUrl;
-                Timeout = timeout > 0 ? timeout : DefaultReverseConnectTimeout;
-            }
-
-            public readonly Uri ClientUrl;
-            public readonly int Timeout;
-            public ServiceResult ServiceResult;
-            public ReverseConnectState State = ReverseConnectState.Closed;
-            public DateTime RejectTime;
-        }
-
+        #region StandardServer overrides
+        /// <inheritdoc />
         protected override void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
             base.OnUpdateConfiguration(configuration);
-            lock (m_connections)
-            {
-                m_connections.Clear();
-            }
             UpdateConfiguration(configuration);
         }
 
-        private void UpdateConfiguration(ApplicationConfiguration configuration)
-        {
-            // get the configuration for the reverse connections.
-            m_configuration = configuration.ServerConfiguration.ReverseConnect;
 
-            // add configuration reverse client connection properties.
-            if (m_configuration != null)
-            {
-                lock (m_connections)
-                {
-                    m_connectInterval = m_configuration.ConnectInterval > 0 ? m_configuration.ConnectInterval : DefaultReverseConnectInterval;
-                    m_connectTimeout = m_configuration.ConnectTimeout > 0 ? m_configuration.ConnectTimeout : DefaultReverseConnectTimeout;
-                    m_rejectTimeout = m_configuration.RejectTimeout > 0 ? m_configuration.RejectTimeout : DefaultReverseConnectRejectTimeout;
-                    foreach (var client in m_configuration.Clients)
-                    {
-                        var uri = Utils.ParseUri(client.EndpointUrl);
-                        if (uri != null)
-                        {
-                            m_connections[uri] = new ReverseConnection(uri, client.Timeout);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Starts the server application.
-        /// </summary>
-        /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <inheritdoc />
         protected override void StartApplication(ApplicationConfiguration configuration)
         {
             base.StartApplication(configuration);
             StartTimer(false);
         }
 
-        /// <summary>
-        /// Called before the server stops.
-        /// </summary>
+        /// <inheritdoc />
         protected override void OnServerStopping()
         {
             DisposeTimer();
             base.OnServerStopping();
         }
 
-        /// <summary>
-        /// Called before the server starts.
-        /// </summary>
+        /// <inheritdoc />
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
             base.OnServerStarting(configuration);
             UpdateConfiguration(configuration);
             StartTimer(true);
         }
+        #endregion
 
+        #region Public Properties
         /// <summary>
         /// Add a reverse connection url.
         /// </summary>
-        public virtual void AddReverseConnection(Uri url, int timeout = 0, int rejectTimeout = 0)
+        public virtual void AddReverseConnection(Uri url, int timeout = 0)
         {
-            var reverseConnection = new ReverseConnection(url, timeout);
+            var reverseConnection = new ReverseConnectProperty(url, timeout, false);
             lock (m_connections)
             {
-                m_connections.Add(url, reverseConnection);
+                m_connections[url] = reverseConnection;
                 StartTimer(false);
             }
         }
@@ -169,6 +147,20 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Return a dictionary of configured reverse connection Urls.
+        /// </summary>
+        /// <returns></returns>
+        public virtual Dictionary<Uri, ReverseConnectProperty> GetReverseConnections()
+        {
+            lock (m_connections)
+            {
+                return m_connections;
+            }
+        }
+        #endregion
+
+        #region Private Properties
         /// <summary>
         /// Timer callback to establish new reverse connections.
         /// </summary>
@@ -207,13 +199,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Track number of connections per reverse connection.
+        /// Track reverse connection status.
         /// </summary>
         protected override void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
         {
             lock (m_connections)
             {
-                ReverseConnection reverseConnection = null;
+                ReverseConnectProperty reverseConnection = null;
                 if (m_connections.TryGetValue(e.EndpointUrl, out reverseConnection))
                 {
                     ServiceResult priorStatus = reverseConnection.ServiceResult;
@@ -280,11 +272,58 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Remove a reverse connection url.
+        /// </summary>
+        private void ClearConnections(bool configEntry)
+        {
+            lock (m_connections)
+            {
+                var toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
+                foreach (var entry in toRemove)
+                {
+                    m_connections.Remove(entry.Key);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update the reverse connect configuration from the application configuration.
+        /// </summary>
+        private void UpdateConfiguration(ApplicationConfiguration configuration)
+        {
+            ClearConnections(true);
+
+            // get the configuration for the reverse connections.
+            var reverseConnect = configuration.ServerConfiguration.ReverseConnect;
+
+            // add configuration reverse client connection properties.
+            if (reverseConnect != null)
+            {
+                lock (m_connections)
+                {
+                    m_connectInterval = reverseConnect.ConnectInterval > 0 ? reverseConnect.ConnectInterval : DefaultReverseConnectInterval;
+                    m_connectTimeout = reverseConnect.ConnectTimeout > 0 ? reverseConnect.ConnectTimeout : DefaultReverseConnectTimeout;
+                    m_rejectTimeout = reverseConnect.RejectTimeout > 0 ? reverseConnect.RejectTimeout : DefaultReverseConnectRejectTimeout;
+                    foreach (var client in reverseConnect.Clients)
+                    {
+                        var uri = Utils.ParseUri(client.EndpointUrl);
+                        if (uri != null)
+                        {
+                            m_connections[uri] = new ReverseConnectProperty(uri, client.Timeout, true);
+                        }
+                    }
+                }
+            }
+        }
+        #endregion
+
+        #region Private Fields
         private Timer m_reverseConnectTimer;
-        private ReverseConnectServerConfiguration m_configuration;
         private int m_connectInterval;
         private int m_connectTimeout;
         private int m_rejectTimeout;
-        private Dictionary<Uri, ReverseConnection> m_connections = new Dictionary<Uri, ReverseConnection>();
+        private Dictionary<Uri, ReverseConnectProperty> m_connections;
+        #endregion
     }
 }

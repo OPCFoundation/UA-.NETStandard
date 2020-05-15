@@ -101,11 +101,13 @@ namespace NetCoreConsoleServer
             bool showHelp = false;
             int stopTimeout = 0;
             bool autoAccept = false;
+            Uri reverseConnectUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t }
+                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t },
+                { "r|reverse=", "a url for a reverse connection", (string r) => reverseConnectUrl = new Uri(r) }
             };
 
             try
@@ -133,7 +135,7 @@ namespace NetCoreConsoleServer
                 return (int)ExitCode.ErrorInvalidCommandLine;
             }
 
-            MySampleServer server = new MySampleServer(autoAccept, stopTimeout);
+            MySampleServer server = new MySampleServer(autoAccept, stopTimeout, reverseConnectUrl);
             server.Run();
 
             return (int)MySampleServer.ExitCode;
@@ -148,12 +150,13 @@ namespace NetCoreConsoleServer
         public int ServerRunTime { get; private set; } = Timeout.Infinite;
         public static bool AutoAccept { get; private set; }
         public static ExitCode ExitCode { get; private set; }
+        public static Uri ReverseConnectUrl { get; private set; }
 
-
-        public MySampleServer(bool _autoAccept, int _stopTimeout)
+        public MySampleServer(bool _autoAccept, int _stopTimeout, Uri _reverseConnectUrl)
         {
             AutoAccept = _autoAccept;
             ServerRunTime = _stopTimeout == 0 ? Timeout.Infinite : _stopTimeout * 1000;
+            ReverseConnectUrl = _reverseConnectUrl;
         }
 
         public void Run()
@@ -250,8 +253,22 @@ namespace NetCoreConsoleServer
             Server = new SampleServer();
             await application.Start(Server);
 
+            if (ReverseConnectUrl != null)
+            {
+                Server.AddReverseConnection(ReverseConnectUrl);
+            }
+
+            // print reverse connect info
+            Console.WriteLine("Reverse Connect Clients:");
+            var reverseConnections = Server.GetReverseConnections();
+            foreach (var connection in reverseConnections)
+            {
+                Console.WriteLine(connection.Key);
+            }
+
             // print endpoint info
-            var endpoints = application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+            Console.WriteLine("Server Endpoints:");
+            var endpoints = Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
             foreach (var endpoint in endpoints)
             {
                 Console.WriteLine(endpoint);

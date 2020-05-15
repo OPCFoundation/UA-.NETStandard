@@ -120,6 +120,7 @@
       </ua:UserTokenPolicy>
       -->
     </UserTokenPolicies>
+
     <DiagnosticsEnabled>false</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
@@ -162,9 +163,9 @@
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
-      <ua:String>Standard UA Server Profile</ua:String>
-      <ua:String>Data Access Server Facet</ua:String>
-      <ua:String>Method Server Facet</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/Methods</ua:String>
     </ServerProfileArray>
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
@@ -177,6 +178,19 @@
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
 
+    <ReverseConnect>
+      <Clients>
+        <!--
+        <ReverseConnectClient>
+          <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
+          <Timeout>30000</Timeout>
+        </ReverseConnectClient>
+        -->
+      </Clients>
+      <ConnectInterval>15000</ConnectInterval>
+      <ConnectTimeout>60000</ConnectTimeout>
+      <RejectTimeout>60000</RejectTimeout>
+    </ReverseConnect>
   </ServerConfiguration>
 
   <Extensions>
