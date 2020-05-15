@@ -673,10 +673,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a socket error.
         /// </summary>
-        protected override void HandleSocketError(ServiceResult result)
-        {
-            ForceReconnect(result);
-        }
+        protected override void HandleSocketError(ServiceResult result) => ForceReconnect(result);
 
         /// <summary>
         /// Called when a write operation completes.
@@ -860,7 +857,10 @@ namespace Opc.Ua.Bindings
 
                     State = TcpChannelState.Connecting;
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () => await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation, new CancellationTokenSource(10000).Token));
+                    task = Task.Run(async () =>
+                        await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation,
+                            CancellationToken.None).ConfigureAwait(false)
+                            );
                 }
             }
             catch (Exception e)

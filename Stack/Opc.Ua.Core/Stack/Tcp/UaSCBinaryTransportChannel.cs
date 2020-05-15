@@ -240,9 +240,10 @@ namespace Opc.Ua.Bindings
                         {
                             channel.Close(1000);
                         }
-                        catch (Exception)
+                        catch (Exception e)
                         {
                             // do nothing.
+                            Utils.Trace(e, "Ignoring exception while closing transport channel during Reconnect.");
                         }
                         finally
                         {

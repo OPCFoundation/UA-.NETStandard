@@ -1838,6 +1838,15 @@ namespace Opc.Ua
             set { m_multicastDnsEnabled = value; }
         }
 
+        /// <summary>
+        /// Gets or sets reverse connect server configuration.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 34)]
+        public ReverseConnectServerConfiguration ReverseConnect
+        {
+            get { return m_reverseConnect; }
+            set { m_reverseConnect = value; }
+        }
         #endregion
 
         #region Private Members
@@ -1872,6 +1881,144 @@ namespace Opc.Ua
         private StringCollection m_supportedPrivateKeyFormats;
         private int m_maxTrustListSize;
         private bool m_multicastDnsEnabled;
+        private ReverseConnectServerConfiguration m_reverseConnect;
+        #endregion
+    }
+    #endregion
+
+    #region ReverseConnectServerConfiguration Class
+    /// <summary>
+    /// Stores the configuration of the reverse connections.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public class ReverseConnectServerConfiguration
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ReverseConnectServerConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Order = 10)]
+        public ReverseConnectClientCollection Clients { get; set; }
+
+        /// <summary>
+        /// The interval after which a new reverse connection is attempted.
+        /// </summary>
+        [DataMember(Order = 20)]
+        public int ConnectInterval { get; set; }
+
+        /// <summary>
+        /// The default timeout to wait for a response to a reverse connection.
+        /// </summary>
+        [DataMember(Order = 30)]
+        public int ConnectTimeout { get; set; }
+
+        /// <summary>
+        /// The timeout to wait to establish a new reverse
+        /// connection after a rejected attempt.
+        /// </summary>
+        [DataMember(Order = 40)]
+        public int RejectTimeout { get; set; }
+        #endregion
+    }
+    #endregion
+
+    #region ReverseConnectClient Class
+    /// <summary>
+    /// Stores the configuration of the reverse connections.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public class ReverseConnectClient
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ReverseConnectClient()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Persistent Properties
+        /// <summary>
+        /// The endpoint Url of the reverse connect client endpoint.
+        /// </summary>
+        [DataMember(Order = 10)]
+        public string EndpointUrl { get; set; }
+
+        /// <summary>
+        /// The timeout to wait for a response to a reverse connection.
+        /// Overrides the default reverse connection setting.
+        /// </summary>
+        [DataMember(Order = 20)]
+        public int Timeout { get; set; }
+        #endregion
+    }
+    #endregion
+
+    #region ReverseConnectClientCollection Class
+    [CollectionDataContract(Name = "ListOfReverseConnectClient", Namespace = Namespaces.OpcUaConfig, ItemName = "ReverseConnectClient")]
+    public class ReverseConnectClientCollection : List<ReverseConnectClient>
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public ReverseConnectClientCollection() { }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// 	<paramref name="collection"/> is null.
+        /// </exception>
+        public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection) : base(collection) { }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The capacity.</param>
+        public ReverseConnectClientCollection(int capacity) : base(capacity) { }
         #endregion
     }
     #endregion

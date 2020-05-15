@@ -63,9 +63,17 @@ namespace Opc.Ua.Client
             Errored = 3
         };
 
+        /// <summary>
+        /// Specify the strategy for the reverse connect registration.
+        /// </summary>
         [Flags]
         public enum ReverseConnectStrategy
         {
+            /// <summary>
+            /// Undefined strategy, defaults to Once.
+            /// </summary>
+            Undefined = 0,
+
             /// <summary>
             /// Remove entry after reverse connect callback.
             /// </summary>
@@ -77,7 +85,7 @@ namespace Opc.Ua.Client
             Always = 2,
 
             /// <summary>
-            /// Flag for masking any.
+            /// Flag for masking any connection.
             /// </summary>
             Any = 0x80,
 
@@ -124,6 +132,7 @@ namespace Opc.Ua.Client
             public readonly EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting;
             public ReverseConnectStrategy ReverseConnectStrategy;
         }
+
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -159,7 +168,6 @@ namespace Opc.Ua.Client
             DisposeHosts();
         }
         #endregion
-
 
         #region Protected Members
         /// <summary>

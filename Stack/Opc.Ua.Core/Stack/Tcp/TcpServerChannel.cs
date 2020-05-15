@@ -88,7 +88,7 @@ namespace Opc.Ua.Bindings
         private class ReverseConnectAsyncResult : AsyncResultBase
         {
             public ReverseConnectAsyncResult(AsyncCallback callback, object callbackData, int timeout) :
-                base(callback, callbackData, timeout, new CancellationTokenSource(timeout))
+                base(callback, callbackData, timeout)
             {
             }
             public IMessageSocket Socket;
