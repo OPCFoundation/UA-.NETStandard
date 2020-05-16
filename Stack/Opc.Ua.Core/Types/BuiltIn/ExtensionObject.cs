@@ -321,19 +321,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="body">The body of the object: IEncodeable, XmlElement or Byte-array</param>
         public ExtensionObject(object body)
+            : this (ExpandedNodeId.Null, body)
         {
-            IEncodeable encodeable = body as IEncodeable;
-
-            if (encodeable != null)
-            {
-                m_typeId = ExpandedNodeId.Null;
-                m_encoding = ExtensionObjectEncoding.EncodeableObject;
-                m_body = encodeable;
-            }
-            else
-            {
-                Body = body;
-            }
         }
 
         /// <summary>
@@ -350,7 +339,7 @@ namespace Opc.Ua
             Body = body;
         }
 
-        [OnSerializing()]
+        [OnSerializing]
         private void UpdateContext(StreamingContext context)
         {
             m_context = MessageContextExtension.CurrentContext;
@@ -359,7 +348,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             m_typeId = ExpandedNodeId.Null;
