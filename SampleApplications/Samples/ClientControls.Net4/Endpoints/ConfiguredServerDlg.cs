@@ -74,17 +74,6 @@ namespace Opc.Ua.Client.Controls
         }
 
         /// <summary>
-        /// The possible COM identities.
-        /// </summary>
-        private enum ComIdentityType
-        {
-            None = -1,
-            DA = (int)ComSpecification.DA,
-            AE = (int)ComSpecification.AE,
-            HDA = (int)ComSpecification.HDA
-        }
-
-        /// <summary>
         /// The type of status (for coloring the status textbox).
         /// </summary>
         private enum StatusType
@@ -336,7 +325,6 @@ namespace Opc.Ua.Client.Controls
         private bool m_updating;
         private bool m_selecting;
         private Dictionary<string, UserIdentityToken> m_userIdentities;
-        private EndpointComIdentity m_comIdentity;
         private EndpointConfiguration m_endpointConfiguration;
         private bool m_discoverySucceeded;
         private Uri m_discoveryUrl;
@@ -459,9 +447,6 @@ namespace Opc.Ua.Client.Controls
                     m_userIdentities[userTokenItem.ToString()] = m_endpoint.UserIdentity;
                 }
             }
-
-            // copy com identity.
-            m_comIdentity = endpoint.ComIdentity;
 
             // initializing the protocol will trigger an update to all other controls.
             InitializeProtocols(m_availableEndpoints);
