@@ -208,7 +208,28 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
                 {
                     IEventMonitoredItem monitoredItem = EventMonitoredItems[ii];
-                    monitoredItem.QueueEvent(e);
+                    BaseEventState baseEventState = e as BaseEventState;
+                    if (baseEventState != null)
+                    {
+                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                            baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
+                        if (ServiceResult.IsBad(validationResult))
+                        {
+                            // ignore invalid permission type events
+                            continue;
+                        }
+
+                        validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
+                            baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
+                        if (ServiceResult.IsBad(validationResult))
+                        {
+                            // ignore invalid permission type events
+                            continue;
+                        }
+
+                        // enque event
+                        monitoredItem.QueueEvent(e);
+                    }
                 }
             }
         }

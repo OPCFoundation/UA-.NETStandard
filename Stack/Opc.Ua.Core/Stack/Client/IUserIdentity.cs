@@ -49,6 +49,11 @@ namespace Opc.Ua
         bool SupportsSignatures { get; }
 
         /// <summary>
+        /// Get or sets the list of granted role ids associated to the UserIdentity.
+        /// </summary>
+        NodeIdCollection GrantedRoleIds { get; set; }
+
+        /// <summary>
         /// Returns a UA user identity token containing the user information.
         /// </summary>
         /// <returns>UA user identity token containing the user information.</returns>

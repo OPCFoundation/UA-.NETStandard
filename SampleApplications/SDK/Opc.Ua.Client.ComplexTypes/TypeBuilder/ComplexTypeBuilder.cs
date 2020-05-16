@@ -90,7 +90,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from an EnumDefinition in an ExtensionObject.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        public Type AddEnumType(string typeName, ExtensionObject typeDefinition)
+        public Type AddEnumType(QualifiedName typeName, ExtensionObject typeDefinition)
         {
             var enumDefinition = typeDefinition.Body as EnumDefinition;
             if (enumDefinition == null)
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from an EnumValue property of a DataType node.
         /// Available before OPC UA V1.04.
         /// </summary>
-        public Type AddEnumType(string typeName, ExtensionObject[] enumDefinition)
+        public Type AddEnumType(QualifiedName typeName, ExtensionObject[] enumDefinition)
         {
             if (enumDefinition == null)
             {
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from the EnumString array of a DataType node.
         /// Available before OPC UA V1.04.
         /// </summary>
-        public Type AddEnumType(string typeName, LocalizedText[] enumDefinition)
+        public Type AddEnumType(QualifiedName typeName, LocalizedText[] enumDefinition)
         {
             if (enumDefinition == null)
             {
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
         public IComplexTypeFieldBuilder AddStructuredType(
-            string name,
+            QualifiedName name,
             StructureDefinition structureDefinition)
         {
             if (structureDefinition == null)
@@ -212,9 +212,18 @@ namespace Opc.Ua.Client.ComplexTypes
             return moduleName;
         }
 
-        private string GetFullQualifiedTypeName(string name)
+        /// <summary>
+        /// Creates a unique full qualified type name for the assembly.
+        /// </summary>
+        /// <param name="browseName">The browse name of the type.</param>
+        private string GetFullQualifiedTypeName(QualifiedName browseName)
         {
-            return "Opc.Ua.ComplexTypes." + m_moduleName + "." + name;
+            var result = "Opc.Ua.ComplexTypes." + m_moduleName + ".";
+            if (browseName.NamespaceIndex > 1)
+            {
+                result += browseName.NamespaceIndex + ".";
+            }
+            return result + browseName.Name;
         }
         #endregion
 
