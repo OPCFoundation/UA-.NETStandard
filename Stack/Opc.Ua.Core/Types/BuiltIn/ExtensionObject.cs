@@ -326,7 +326,7 @@ namespace Opc.Ua
 
             if (encodeable != null)
             {
-                m_typeId = encodeable.TypeId;
+                m_typeId = ExpandedNodeId.Null;
                 m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 m_body = encodeable;
             }
@@ -415,7 +415,6 @@ namespace Opc.Ua
 
                 else if (m_body is IEncodeable)
                 {
-                    m_typeId = ((IEncodeable)m_body).TypeId;
                     m_encoding = ExtensionObjectEncoding.EncodeableObject;
                 }
 

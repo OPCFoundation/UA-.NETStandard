@@ -73,26 +73,26 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create an enum type from an EnumDefinition in an ExtensionObject.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        Type AddEnumType(string typeName, ExtensionObject typeDefinition);
+        Type AddEnumType(QualifiedName typeName, ExtensionObject typeDefinition);
 
         /// <summary>
         /// Create an enum type from an EnumValue property of a DataType node.
         /// Available before OPC UA V1.04.
         /// </summary>
-        Type AddEnumType(string typeName, ExtensionObject[] enumDefinition);
+        Type AddEnumType(QualifiedName typeName, ExtensionObject[] enumDefinition);
 
         /// <summary>
         /// Create an enum type from the EnumString array of a DataType node.
         /// Available before OPC UA V1.04.
         /// </summary>
-        Type AddEnumType(string typeName, LocalizedText[] enumDefinition);
+        Type AddEnumType(QualifiedName typeName, LocalizedText[] enumDefinition);
 
         /// <summary>
         /// Create a complex type from a StructureDefinition.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
         IComplexTypeFieldBuilder AddStructuredType(
-            string name,
+            QualifiedName name,
             StructureDefinition structureDefinition);
     }
 

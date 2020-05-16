@@ -27,18 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Text;
 using System.Windows.Forms;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -72,7 +61,7 @@ namespace Opc.Ua.Client.Controls
         private const int ArrayValue = 14;
         private const int InputArgument = 15;
         private const int OutputArgument = 16;
-        
+
         /// <summary>
         /// Returns an image index for the specified method argument.
         /// </summary>
@@ -89,6 +78,7 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Returns an image index for the specified attribute.
         /// </summary>
+        #pragma warning disable 0162
         public static int GetImageIndex(uint attributeId, object value)
         {
             // Workaround to avoid exception when accessing ImageList
