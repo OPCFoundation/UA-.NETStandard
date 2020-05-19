@@ -4190,9 +4190,9 @@ namespace Opc.Ua.Client
                         Utils.Trace("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                         break;
                     // if encoding limits are exceeded, the issue is logged and 
-                    // the published data is ignored to prevent an endless republish loop.
+                    // the published data is acknoledged to prevent the endless republish loop.
                     case StatusCodes.BadEncodingLimitsExceeded:
-                        Utils.Trace("Message {0}-{1} exceeded size limits, ignored. {2}", subscriptionId, sequenceNumber, e.Message);
+                        Utils.Trace(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
                         var ack = new SubscriptionAcknowledgement {
                             SubscriptionId = subscriptionId,
                             SequenceNumber = sequenceNumber
