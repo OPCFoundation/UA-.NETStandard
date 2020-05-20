@@ -4183,15 +4183,29 @@ namespace Opc.Ua.Client
             {
                 ServiceResult error = new ServiceResult(e);
 
-                bool result = (error.StatusCode == StatusCodes.BadMessageNotAvailable);
-
-                if (result)
+                bool result = true;
+                switch (error.StatusCode.Code)
                 {
-                    Utils.Trace("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
-                }
-                else
-                {
-                    Utils.Trace(e, "Unexpected error sending republish request.");
+                    case StatusCodes.BadMessageNotAvailable:
+                        Utils.Trace("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
+                        break;
+                    // if encoding limits are exceeded, the issue is logged and 
+                    // the published data is acknoledged to prevent the endless republish loop.
+                    case StatusCodes.BadEncodingLimitsExceeded:
+                        Utils.Trace(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
+                        var ack = new SubscriptionAcknowledgement {
+                            SubscriptionId = subscriptionId,
+                            SequenceNumber = sequenceNumber
+                        };
+                        lock (SyncRoot)
+                        {
+                            m_acknowledgementsToSend.Add(ack);
+                        }
+                        break;
+                    default:
+                        result = false;
+                        Utils.Trace(e, "Unexpected error sending republish request.");
+                        break;
                 }
 
                 PublishErrorEventHandler callback = null;
@@ -4283,7 +4297,8 @@ namespace Opc.Ua.Client
 
                             // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
                             // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish), a warning must be logged.
-                            if (((lastSentSequenceNumber >= availableSequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) || (lastSentSequenceNumber == availableSequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
+                            if (((lastSentSequenceNumber >= availableSequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) ||
+                                (lastSentSequenceNumber == availableSequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
                             {
                                 Utils.Trace("Received sequence number which was already acknowledged={0}", availableSequenceNumber);
                             }
