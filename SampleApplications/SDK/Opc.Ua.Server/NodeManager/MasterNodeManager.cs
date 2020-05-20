@@ -2916,10 +2916,14 @@ namespace Opc.Ua.Server
                 bool signingRequired = (restrictions & AccessRestrictionType.SigningRequired) == AccessRestrictionType.SigningRequired;
                 bool sessionRequired = (restrictions & AccessRestrictionType.SessionRequired) == AccessRestrictionType.SessionRequired;
 
-                if (encryptionRequired && (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt) ||
-                   (signingRequired && (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.Sign) &&
-                                       (context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt)) ||
-                   (sessionRequired && (context.Session == null)))
+                if ((encryptionRequired &&
+                     context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport) ||
+                    (signingRequired &&
+                     context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.Sign &&
+                     context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport) ||
+                   (sessionRequired && context.Session == null))
                 {
                     serviceResult = ServiceResult.Create(StatusCodes.BadSecurityModeInsufficient,
                         "Access restricted to nodeId {0} due to insufficient security mode.", nodeMetadata.NodeId);
