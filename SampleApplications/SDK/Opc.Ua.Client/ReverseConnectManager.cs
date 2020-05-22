@@ -203,20 +203,18 @@ namespace Opc.Ua.Client
             m_applicationType = configuration.ApplicationType;
             m_configType = configuration.GetType();
 
-            // get the configuration for the reverse connections.
-            var reverseConnectClientConfiguration = configuration.ParseExtension<ReverseConnectClientConfiguration>();
-
-            OnUpdateConfiguration(reverseConnectClientConfiguration);
+            OnUpdateConfiguration(configuration.ClientConfiguration.ReverseConnect);
         }
 
         /// <summary>
         /// Called when the reverse connect configuration is changed.
         /// </summary>
-        /// <param name="configuration">The configuration.</param>
+        /// <remarks>
+        ///  An empty configuration or null stops service on all configured endpoints.
+        /// </remarks>
+        /// <param name="configuration">The client endpoint configuration.</param>
         protected virtual void OnUpdateConfiguration(ReverseConnectClientConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-
             bool restartService = false;
 
             lock (m_lock)
@@ -233,7 +231,7 @@ namespace Opc.Ua.Client
 
                 m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
 
-                foreach (var endpoint in m_configuration.ReverseConnectClientEndpoints)
+                foreach (var endpoint in m_configuration?.ClientEndpoints)
                 {
                     var uri = Utils.ParseUri(endpoint.EndpointUrl);
                     if (uri != null)

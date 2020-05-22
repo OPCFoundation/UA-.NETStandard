@@ -51,10 +51,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Public Properties
@@ -295,10 +292,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -434,10 +428,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -623,10 +614,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Public Properties
@@ -757,10 +745,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -1096,10 +1081,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Public Properties
@@ -1214,10 +1196,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
 
         /// <summary>
         /// Remove unsupported security policies and expand wild cards.
@@ -1456,10 +1435,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public new void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public new void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -1906,10 +1882,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        private void Initialize(StreamingContext context) => Initialize();
 
         /// <summary>
         /// Sets private members to default values.
@@ -1965,10 +1938,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        private void Initialize(StreamingContext context) => Initialize();
 
         /// <summary>
         /// Sets private members to default values.
@@ -2055,10 +2025,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -2140,6 +2107,16 @@ namespace Opc.Ua
             get { return m_minSubscriptionLifetime; }
             set { m_minSubscriptionLifetime = value; }
         }
+
+        /// <summary>
+        /// Gets or sets reverse connect Client configuration.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 5)]
+        public ReverseConnectClientConfiguration ReverseConnect
+        {
+            get { return m_reverseConnect; }
+            set { m_reverseConnect = value; }
+        }
         #endregion
 
         #region Private Members
@@ -2148,6 +2125,109 @@ namespace Opc.Ua
         private int m_defaultSessionTimeout;
         private string m_endpointCacheFilePath;
         private int m_minSubscriptionLifetime;
+        private ReverseConnectClientConfiguration m_reverseConnect;
+        #endregion
+    }
+    #endregion
+
+    #region ReverseConnectClientConfiguration Class
+    /// <summary>
+    /// Stores the configuration of the reverse connections.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public class ReverseConnectClientConfiguration
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ReverseConnectClientConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context) => Initialize();
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        [DataMember(Order = 1, IsRequired = false)]
+        public ReverseConnectClientEndpointCollection ClientEndpoints { get; set; }
+        #endregion
+    }
+    #endregion
+
+    #region ReverseConnectClientEndpoint Class
+    /// <summary>
+    /// Stores the configuration of the reverse connections.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public class ReverseConnectClientEndpoint
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ReverseConnectClientEndpoint()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context) => Initialize();
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Persistent Properties
+        [DataMember(Order = 1, IsRequired = false)]
+        public string EndpointUrl { get; set; }
+        #endregion
+    }
+    #endregion
+
+    #region ReverseConnectClientEndpointCollection Class
+    [CollectionDataContract(Name = "ListOfReverseConnectClientEndpoint", Namespace = Namespaces.OpcUaConfig, ItemName = "ClientEndpoint")]
+    public class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes an empty collection.
+        /// </summary>
+        public ReverseConnectClientEndpointCollection() { }
+
+        /// <summary>
+        /// Initializes the collection from another collection.
+        /// </summary>
+        /// <param name="collection">A collection of values to add to this new collection</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// 	<paramref name="collection"/> is null.
+        /// </exception>
+        public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection) : base(collection) { }
+
+        /// <summary>
+        /// Initializes the collection with the specified capacity.
+        /// </summary>
+        /// <param name="capacity">The capacity.</param>
+        public ReverseConnectClientEndpointCollection(int capacity) : base(capacity) { }
         #endregion
     }
     #endregion
@@ -2182,10 +2262,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public new void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public new void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -2273,10 +2350,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -2507,19 +2581,13 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
-        {
-            m_trustedCertificates = new CertificateIdentifierCollection();
-        }
+        private void Initialize() => m_trustedCertificates = new CertificateIdentifierCollection();
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Persistent Properties
@@ -2630,10 +2698,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
         #endregion
 
         #region Public Properties
@@ -2911,10 +2976,7 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
 
         /// <summary>
         /// Sets private members to default values.
@@ -3033,10 +3095,7 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
 
         /// <summary>
         /// Sets private members to default values.
@@ -3229,10 +3288,7 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        public void Initialize(StreamingContext context) => Initialize();
 
         /// <summary>
         /// Sets private members to default values.

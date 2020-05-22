@@ -66,19 +66,20 @@
     <DiscoveryServers></DiscoveryServers>
     <EndpointCacheFilePath>ReverseHelloClient.Endpoints.xml</EndpointCacheFilePath>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <ReverseConnect>
+      <ClientEndpoints>
+        <ClientEndpoint>
+          <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
+        </ClientEndpoint>
+        <ClientEndpoint>
+          <EndpointUrl>opc.tcp://localhost:65301</EndpointUrl>
+        </ClientEndpoint>
+        <ClientEndpoint>
+          <EndpointUrl>opc.tcp://localhost:65302</EndpointUrl>
+        </ClientEndpoint>
+      </ClientEndpoints>
+    </ReverseConnect>
   </ClientConfiguration>
-
-  <Extensions>
-    <ua:XmlElement>
-      <ReverseConnectClientConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
-        <ReverseConnectClientEndpoints>
-          <ReverseConnectClientEndpoint>
-            <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
-          </ReverseConnectClientEndpoint>
-        </ReverseConnectClientEndpoints>
-      </ReverseConnectClientConfiguration>
-    </ua:XmlElement>
-  </Extensions>
 
   <TraceConfiguration>
     <OutputFilePath>.\Logs\ReverseHelloClient.log.txt</OutputFilePath>
