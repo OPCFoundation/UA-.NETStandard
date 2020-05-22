@@ -71,12 +71,6 @@
         <ClientEndpoint>
           <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
         </ClientEndpoint>
-        <ClientEndpoint>
-          <EndpointUrl>opc.tcp://localhost:65301</EndpointUrl>
-        </ClientEndpoint>
-        <ClientEndpoint>
-          <EndpointUrl>opc.tcp://localhost:65302</EndpointUrl>
-        </ClientEndpoint>
       </ClientEndpoints>
     </ReverseConnect>
   </ClientConfiguration>
