@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -105,13 +107,15 @@ namespace Opc.Ua.Client
 
         private class ReverseConnectInfo
         {
-            public ReverseConnectInfo(ReverseConnectHost reverseConnectHost)
+            public ReverseConnectInfo(ReverseConnectHost reverseConnectHost, bool configEntry)
             {
                 ReverseConnectHost = reverseConnectHost;
                 State = ReverseConnectHostState.New;
+                ConfigEntry = configEntry;
             }
             public ReverseConnectHost ReverseConnectHost;
             public ReverseConnectHostState State;
+            public bool ConfigEntry;
         }
 
         private class Registration
@@ -141,6 +145,8 @@ namespace Opc.Ua.Client
         {
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
+            m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
+
         }
         #endregion
 
@@ -148,10 +154,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Dispose implementation.
         /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
+        public void Dispose() => Dispose(true);
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -229,27 +232,17 @@ namespace Opc.Ua.Client
 
                 m_configuration = configuration;
 
-                m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
+                // clear configured endpoints
+                ClearEndpoints(true);
 
-                foreach (var endpoint in m_configuration?.ClientEndpoints)
+                if (configuration?.ClientEndpoints != null)
                 {
-                    var uri = Utils.ParseUri(endpoint.EndpointUrl);
-                    if (uri != null)
+                    foreach (var endpoint in configuration.ClientEndpoints)
                     {
-                        var reverseConnectHost = new ReverseConnectHost();
-                        var info = new ReverseConnectInfo(reverseConnectHost);
-                        try
+                        var uri = Utils.ParseUri(endpoint.EndpointUrl);
+                        if (uri != null)
                         {
-                            m_endpointUrls[uri] = info;
-                            reverseConnectHost.CreateListener(
-                                uri,
-                                new EventHandler<ConnectionWaitingEventArgs>(OnConnectionWaiting),
-                                new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
-                        }
-                        catch (ArgumentException ae)
-                        {
-                            Utils.Trace(ae, $"No listener was found for endpoint {uri}.");
-                            info.State = ReverseConnectHostState.Errored;
+                            AddEndpointInternal(uri, true);
                         }
                     }
                 }
@@ -324,6 +317,20 @@ namespace Opc.Ua.Client
             {
                 CloseHosts();
                 m_endpointUrls = null;
+            }
+        }
+
+        /// <summary>
+        /// Add endpoint for reverse connection.
+        /// </summary>
+        /// <param name="endpointUrl"></param>
+        public void AddEndpoint(Uri endpointUrl)
+        {
+            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
+            lock (m_lock)
+            {
+                if (m_state == ReverseConnectManagerState.Started) throw new ServiceResultException(StatusCodes.BadInvalidState);
+                AddEndpointInternal(endpointUrl, false);
             }
         }
 
@@ -411,6 +418,34 @@ namespace Opc.Ua.Client
             }
         }
 
+        public async Task<ITransportWaitingConnection> WaitForConnection(
+            string serverUri,
+            Uri endpointUrl,
+            CancellationToken ct)
+        {
+            var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
+            int hashCode = RegisterWaitingConnection(serverUri, endpointUrl,
+                delegate (object sender, ConnectionWaitingEventArgs e) {
+                    tcs.SetResult(e);
+                },
+                ReverseConnectStrategy.Once);
+
+            Func<Task> listenForCancelTaskFnc = async () => {
+                await Task.Delay(-1, ct).ConfigureAwait(false);
+                tcs.SetCanceled();
+            };
+            await Task.WhenAny(new Task[] { tcs.Task, listenForCancelTaskFnc() }).ConfigureAwait(false);
+
+            if (tcs.Task.IsCompleted)
+            {
+                return await tcs.Task.ConfigureAwait(false);
+            }
+
+            UnregisterWaitingConnection(hashCode);
+
+            return null;
+        }
+
         /// <summary>
         /// Register for a waiting reverse connection.
         /// </summary>
@@ -461,6 +496,45 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Remove configuration endpoints from list.
+        /// </summary>
+        private void ClearEndpoints(bool configEntry)
+        {
+            var newEndpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
+            foreach (var endpoint in m_endpointUrls)
+            {
+                if (endpoint.Value.ConfigEntry != configEntry)
+                {
+                    newEndpointUrls[endpoint.Key] = endpoint.Value;
+                }
+            }
+            m_endpointUrls = newEndpointUrls;
+        }
+
+        /// <summary>
+        /// Add endpoint for reverse connection.
+        /// </summary>
+        /// <param name="endpointUrl"></param>
+        private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
+        {
+            var reverseConnectHost = new ReverseConnectHost();
+            var info = new ReverseConnectInfo(reverseConnectHost, configEntry);
+            try
+            {
+                m_endpointUrls[endpointUrl] = info;
+                reverseConnectHost.CreateListener(
+                    endpointUrl,
+                    new EventHandler<ConnectionWaitingEventArgs>(OnConnectionWaiting),
+                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
+            }
+            catch (ArgumentException ae)
+            {
+                Utils.Trace(ae, $"No listener was found for endpoint {endpointUrl}.");
+                info.State = ReverseConnectHostState.Errored;
+            }
+        }
+
+        /// <summary>
         /// Raised when a reverse connection is waiting,
         /// finds and calls a waiting connection.
         /// </summary>
@@ -472,9 +546,9 @@ namespace Opc.Ua.Client
                 // first try to match single registrations
                 foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
                 {
-                    if (registration.ServerUri == e.ServerUri &&
-                        registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.InvariantCulture) ||
-                        registration.EndpointUrl == e.EndpointUrl)
+                    if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.InvariantCulture) &&
+                       (registration.ServerUri == e.ServerUri ||
+                        registration.EndpointUrl.Authority.Equals(e.EndpointUrl.Authority, StringComparison.InvariantCulture)))
                     {
                         callbackRegistration = registration;
                         e.Accepted = true;
@@ -518,10 +592,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised when a connection status changes.
         /// </summary>
-        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
-        {
+        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e) =>
             Utils.Trace("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
-        }
         #endregion
 
         #region Private Fields
