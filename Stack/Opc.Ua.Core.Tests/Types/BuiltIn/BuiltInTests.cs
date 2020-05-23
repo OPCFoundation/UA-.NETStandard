@@ -91,7 +91,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
         #endregion
 
-
         #region DataPointSources
         [DatapointSource]
         public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
@@ -194,6 +193,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             clonedExtensionObject.TypeId = new ExpandedNodeId(333);
             Assert.AreNotEqual(extensionObject, clonedExtensionObject);
             Assert.AreNotEqual(extensionObject, extensionObject_Default);
+            Assert.AreNotEqual(extensionObject, new object());
+            Assert.AreEqual(clonedExtensionObject, clonedExtensionObject);
             Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
             Assert.AreEqual(ExpandedNodeId.Null.GetHashCode(), extensionObject.TypeId.GetHashCode());
             Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
