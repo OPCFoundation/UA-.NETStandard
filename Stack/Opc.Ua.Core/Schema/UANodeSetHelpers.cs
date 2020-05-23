@@ -793,6 +793,18 @@ namespace Opc.Ua.Export
             {
                 return Opc.Ua.ExpandedNodeId.Null;
             }
+            // lookup aliases
+            if (this.Aliases != null)
+            {
+                for (int ii = 0; ii < this.Aliases.Length; ii++)
+                {
+                    if (this.Aliases[ii].Alias == source)
+                    {
+                        source = this.Aliases[ii].Value;
+                        break;
+                    }
+                }
+            }
 
             // parse the node.
             Opc.Ua.ExpandedNodeId nodeId = Opc.Ua.ExpandedNodeId.Parse(source);
