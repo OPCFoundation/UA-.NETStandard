@@ -321,7 +321,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="body">The body of the object: IEncodeable, XmlElement or Byte-array</param>
         public ExtensionObject(object body)
-            : this (ExpandedNodeId.Null, body)
+            : this(ExpandedNodeId.Null, body)
         {
         }
 
@@ -776,7 +776,7 @@ namespace Opc.Ua
 
                 if (encodeable != null)
                 {
-                    m_typeId = null;
+                    m_typeId = ExpandedNodeId.Null;
                 }
 
                 // close decoder.
