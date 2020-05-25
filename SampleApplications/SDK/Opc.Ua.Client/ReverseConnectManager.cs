@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -118,14 +119,35 @@ namespace Opc.Ua.Client
             public bool ConfigEntry;
         }
 
+        /// <summary>
+        /// Record to store information on a client
+        /// registration for a reverse connect event.
+        /// </summary>
         private class Registration
         {
             public Registration(
                 string serverUri,
                 Uri endpointUrl,
-                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
+                this(endpointUrl, onConnectionWaiting)
             {
                 ServerUri = serverUri;
+            }
+
+            public Registration(
+                X509Certificate2 serverCertificate,
+                Uri endpointUrl,
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
+                this(endpointUrl, onConnectionWaiting)
+            {
+                ServerUri = Utils.GetApplicationUriFromCertificate(serverCertificate);
+                EndpointUrl = endpointUrl;
+            }
+
+            private Registration(
+                Uri endpointUrl,
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
+            {
                 EndpointUrl = endpointUrl;
                 OnConnectionWaiting = onConnectionWaiting;
                 ReverseConnectStrategy = ReverseConnectStrategy.Once;
@@ -449,6 +471,20 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Register for a waiting reverse connection.
         /// </summary>
+        /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
+        /// <param name="OnConnectionWaiting">The callback</param>
+        /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
+        /// <returns></returns>
+        public int RegisterWaitingConnection(
+            Uri endpointUrl,
+            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            ReverseConnectStrategy reverseConnectStrategy
+            ) =>
+            RegisterWaitingConnection((string)null, endpointUrl, OnConnectionWaiting, reverseConnectStrategy);
+
+        /// <summary>
+        /// Register for a waiting reverse connection.
+        /// </summary>
         /// <param name="serverUri">The server application Uri of the reverse connection.</param>
         /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
         /// <param name="OnConnectionWaiting">The callback</param>
@@ -461,7 +497,39 @@ namespace Opc.Ua.Client
             ReverseConnectStrategy reverseConnectStrategy
             )
         {
+            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
             var registration = new Registration(serverUri, endpointUrl, OnConnectionWaiting) {
+                ReverseConnectStrategy = reverseConnectStrategy
+            };
+            lock (m_registrations)
+            {
+                m_registrations.Add(registration);
+            }
+            return registration.GetHashCode();
+        }
+
+        /// <summary>
+        /// Register for a waiting reverse connection.
+        /// </summary>
+        /// <remarks>
+        /// The server certificate contains the application Uri and the
+        /// hostnames of the server, allowing for a better match.
+        /// </remarks>
+        /// <param name="serverCertificate">The server application certificate.</param>
+        /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
+        /// <param name="OnConnectionWaiting">The callback</param>
+        /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
+        /// <returns></returns>
+        public int RegisterWaitingConnection(
+            X509Certificate serverCertificate,
+            Uri endpointUrl,
+            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            ReverseConnectStrategy reverseConnectStrategy
+            )
+        {
+            if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
+            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
+            var registration = new Registration(serverCertificate, endpointUrl, OnConnectionWaiting) {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
             lock (m_registrations)
