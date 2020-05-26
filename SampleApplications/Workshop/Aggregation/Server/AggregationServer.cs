@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -48,7 +45,7 @@ namespace AggregationServer
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the AggregationNodeManager which provides access to the data exposed by the Server.
     /// </remarks>
-    public partial class AggregationServer : StandardServer
+    public partial class AggregationServer : ReverseConnectServer
     {
         #region Overridden Methods
         /// <summary>
@@ -89,11 +86,11 @@ namespace AggregationServer
             ServerProperties properties = new ServerProperties();
 
             properties.ManufacturerName = "OPC Foundation";
-            properties.ProductName      = "Aggregation Server";
-            properties.ProductUri       = "http://opcfoundation.org/AggregationServer/v1.0";
-            properties.SoftwareVersion  = Utils.GetAssemblySoftwareVersion();
-            properties.BuildNumber      = Utils.GetAssemblyBuildNumber();
-            properties.BuildDate        = Utils.GetAssemblyTimestamp();
+            properties.ProductName = "Aggregation Server";
+            properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
+            properties.ProductUri = "http://opcfoundation.org/AggregationServer/v1.4.361";
+            properties.BuildNumber = Utils.GetAssemblyBuildNumber();
+            properties.BuildDate = Utils.GetAssemblyTimestamp();
 
             // TBD - All applications have software certificates that need to added to the properties.
 

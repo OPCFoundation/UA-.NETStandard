@@ -2,7 +2,7 @@
 <NodeSet xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <NamespaceUris>
     <String>http://opcfoundation.org/UA/</String>
-    <String>http://somecompany.com/AggregationModel</String>
+    <String>http://opcfoundation.org/AggregationModel</String>
   </NamespaceUris>
   <ServerUris />
   <Nodes>
@@ -16,7 +16,7 @@
         <Name>AggregatedServerStatusType</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>AggregatedServerStatusType</Text>
       </DisplayName>
       <Description>
@@ -25,6 +25,9 @@
       </Description>
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -75,12 +78,15 @@
         <Name>EndpointUrl</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>EndpointUrl</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -124,6 +130,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -135,12 +142,15 @@
         <Name>Status</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>Status</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -186,6 +196,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
     <Node i:type="VariableNode">
       <NodeId>
@@ -197,12 +208,15 @@
         <Name>ConnectTime</Name>
       </BrowseName>
       <DisplayName>
-        <Locale i:nil="true" />
+        <Locale></Locale>
         <Text>ConnectTime</Text>
       </DisplayName>
       <Description i:nil="true" />
       <WriteMask>0</WriteMask>
       <UserWriteMask>0</UserWriteMask>
+      <RolePermissions />
+      <UserRolePermissions />
+      <AccessRestrictions>0</AccessRestrictions>
       <References>
         <ReferenceNode>
           <ReferenceTypeId>
@@ -246,6 +260,7 @@
       <UserAccessLevel>1</UserAccessLevel>
       <MinimumSamplingInterval>0</MinimumSamplingInterval>
       <Historizing>false</Historizing>
+      <AccessLevelEx>0</AccessLevelEx>
     </Node>
   </Nodes>
 </NodeSet>

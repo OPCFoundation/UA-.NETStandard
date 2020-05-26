@@ -63,13 +63,13 @@ namespace AggregationServer
             m_mapper = new NamespaceMapper();
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         protected override void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 // TBD
@@ -509,7 +509,7 @@ namespace AggregationServer
                         methodToCall,
                         method,
                         result);
-                        
+
                     continue;
                 }
 
@@ -605,7 +605,7 @@ namespace AggregationServer
 
                     request.StartNodeId = m_mapper.ToRemoteId(monitoredItem.NodeId);
                     request.MonitoringMode = monitoredItem.MonitoringMode;
-                    request.SamplingInterval = (int)(monitoredItem.SamplingInterval/2);
+                    request.SamplingInterval = (int)(monitoredItem.SamplingInterval / 2);
                     request.Handle = monitoredItem;
 
                     requests.Add(request);
@@ -679,7 +679,7 @@ namespace AggregationServer
                 }
             }
         }
-        
+
         /// <summary>
         /// Called when a batch of monitored items has been modify.
         /// </summary>
@@ -730,7 +730,7 @@ namespace AggregationServer
 
                         //  update item.
                         remoteItem.MonitoringMode = monitoredItem.MonitoringMode;
-                        remoteItem.SamplingInterval = (int)(monitoredItem.SamplingInterval/2);
+                        remoteItem.SamplingInterval = (int)(monitoredItem.SamplingInterval / 2);
                         remoteItems.Add(remoteItem);
                     }
                 }
@@ -985,7 +985,7 @@ namespace AggregationServer
 
                     return ServiceResult.Good;
                 }
-                
+
                 // create a request.
                 Opc.Ua.Client.MonitoredItem request = new Opc.Ua.Client.MonitoredItem(localItem.Id);
 
@@ -1152,7 +1152,7 @@ namespace AggregationServer
 
             try
             {
-                
+
                 session = Opc.Ua.Client.Session.Create(
                     m_configuration,
                     m_endpoint,
@@ -1487,7 +1487,7 @@ namespace AggregationServer
                 false,
                 GetClientSession(context as ServerSystemContext),
                 m_mapper,
-                Object.ReferenceEquals(node, m_root)?null:node,
+                Object.ReferenceEquals(node, m_root) ? null : node,
                 m_root.NodeId);
 
             return browser;
@@ -1522,7 +1522,7 @@ namespace AggregationServer
         private bool m_ownsTypeModel;
         private ApplicationConfiguration m_configuration;
         private ConfiguredEndpoint m_endpoint;
-        private Dictionary<NodeId,Opc.Ua.Client.Session> m_clients;
+        private Dictionary<NodeId, Opc.Ua.Client.Session> m_clients;
         private AggregatedTypeCache m_typeCache;
         private Timer m_metadataUpdateTimer;
         private WaitCallback m_metadataUpdateCallback;

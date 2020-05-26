@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace AggregationServer
 {
