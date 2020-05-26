@@ -325,6 +325,7 @@
       <xs:element name="SelectedUserTokenPolicy" type="xs:int" minOccurs="0" />
       <xs:element name="UserIdentity" type="ua:UserIdentityToken" minOccurs="0" />
       <xs:element name="ComIdentity" type="EndpointComIdentity" minOccurs="0" />
+	    <xs:element name="ReverseConnect" type="ReverseConnectEndpoint" minOccurs="0" />
       <xs:element name="Extensions" type="ua:ListOfXmlElement" minOccurs="0"  />
     </xs:sequence>
   </xs:complexType>
@@ -336,6 +337,14 @@
       <xs:enumeration value="None" />
     </xs:restriction>
   </xs:simpleType>
+
+  <xs:complexType name="ReverseConnectEndpoint">
+    <xs:sequence>
+      <xs:element name="Enabled" type="xs:boolean" minOccurs="0" />
+      <xs:element name="ServerUri" type="xs:string" minOccurs="0" />
+      <xs:element name="Thumbprint" type="xs:string" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
 
   <xs:complexType name="EndpointComIdentity">
     <xs:sequence>

@@ -3218,6 +3218,16 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// The reverse connect information.
+        /// </summary>
+        [DataMember(Name = "ReverseConnect", Order = 8, IsRequired = false)]
+        public ReverseConnectEndpoint ReverseConnect 
+        {
+            get { return m_reverseConnect; }
+            set { m_reverseConnect = value; }
+        }
+
+        /// <summary>
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
@@ -3237,6 +3247,7 @@ namespace Opc.Ua
         private int m_selectedUserTokenPolicyIndex;
         private UserIdentityToken m_userIdentity;
         private EndpointComIdentity m_comIdentity;
+        private ReverseConnectEndpoint m_reverseConnect;
         private XmlElementCollection m_extensions;
         #endregion
     }
@@ -3266,6 +3277,75 @@ namespace Opc.Ua
         /// </summary>
         [EnumMember()]
         None
+    }
+    #endregion
+
+    #region ReverseConnectEndpoint Class
+    /// <summary>
+    /// Stores the reverse connect information for an endpoint.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public partial class ReverseConnectEndpoint
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public ReverseConnectEndpoint() {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        public void Initialize(StreamingContext context) => Initialize();
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize() {
+            m_enabled = false;
+            m_serverUri = null;
+            m_thumbprint = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Whether reverse connect is enabled for the endpoint.
+        /// </summary>
+        [DataMember(Name = "Enabled", Order = 1, IsRequired = false)]
+        public bool Enabled {
+            get { return m_enabled; }
+            set { m_enabled = value; }
+        }
+
+        /// <summary>
+        /// The server Uri of the endpoint.
+        /// </summary>
+        [DataMember(Name = "ServerUri", Order = 2, IsRequired = false)]
+        public string ServerUri {
+            get { return m_serverUri; }
+            set { m_serverUri = value; }
+        }
+
+        /// <summary>
+        /// The thumbprint of the certificate which contains
+        /// the server Uri.
+        /// </summary>
+        [DataMember(Name = "Thumbprint", Order = 3, IsRequired = false)]
+        public string Thumbprint {
+            get { return m_thumbprint; }
+            set { m_thumbprint = value; }
+        }
+        #endregion
+
+        #region Private Fields
+        private bool m_enabled;
+        private string m_serverUri;
+        private string m_thumbprint;
+        #endregion
     }
     #endregion
 

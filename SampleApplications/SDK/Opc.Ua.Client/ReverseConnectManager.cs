@@ -141,7 +141,6 @@ namespace Opc.Ua.Client
                 this(endpointUrl, onConnectionWaiting)
             {
                 ServerUri = Utils.GetApplicationUriFromCertificate(serverCertificate);
-                EndpointUrl = endpointUrl;
             }
 
             private Registration(
@@ -168,7 +167,6 @@ namespace Opc.Ua.Client
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
-
         }
         #endregion
 
@@ -208,7 +206,7 @@ namespace Opc.Ua.Client
                 ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
                     new FileInfo(args.FilePath),
                     m_applicationType,
-                    m_configType);
+                    m_configType).ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);
             }
@@ -440,96 +438,58 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Helper to wait for a reverse connection.
+        /// </summary>
+        /// <param name="endpointUrl"></param>
+        /// <param name="serverUri"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<ITransportWaitingConnection> WaitForConnection(
-            string serverUri,
             Uri endpointUrl,
+            string serverUri,
             CancellationToken ct)
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
-            int hashCode = RegisterWaitingConnection(serverUri, endpointUrl,
-                delegate (object sender, ConnectionWaitingEventArgs e) {
-                    tcs.SetResult(e);
-                },
+            int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
+                (object sender, ConnectionWaitingEventArgs e) => tcs.SetResult(e),
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {
                 await Task.Delay(-1, ct).ConfigureAwait(false);
                 tcs.SetCanceled();
             };
-            await Task.WhenAny(new Task[] { tcs.Task, listenForCancelTaskFnc() }).ConfigureAwait(false);
 
-            if (tcs.Task.IsCompleted)
+            await Task.WhenAny(new Task[] {
+                tcs.Task,
+                listenForCancelTaskFnc()
+            }).ConfigureAwait(false);
+
+            if (!tcs.Task.IsCompleted)
             {
-                return await tcs.Task.ConfigureAwait(false);
+                UnregisterWaitingConnection(hashCode);
+                throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for the reverse connection timed out.");
             }
 
-            UnregisterWaitingConnection(hashCode);
-
-            return null;
+            return await tcs.Task;
         }
 
         /// <summary>
         /// Register for a waiting reverse connection.
         /// </summary>
         /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
-        /// <param name="OnConnectionWaiting">The callback</param>
+        /// <param name="serverUri">Optional. The server application Uri of the reverse connection.</param>
+        /// <param name="onConnectionWaiting">The callback</param>
         /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
-        /// <returns></returns>
         public int RegisterWaitingConnection(
             Uri endpointUrl,
-            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
-            ReverseConnectStrategy reverseConnectStrategy
-            ) =>
-            RegisterWaitingConnection((string)null, endpointUrl, OnConnectionWaiting, reverseConnectStrategy);
-
-        /// <summary>
-        /// Register for a waiting reverse connection.
-        /// </summary>
-        /// <param name="serverUri">The server application Uri of the reverse connection.</param>
-        /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
-        /// <param name="OnConnectionWaiting">The callback</param>
-        /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
-        /// <returns></returns>
-        public int RegisterWaitingConnection(
             string serverUri,
-            Uri endpointUrl,
-            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting,
             ReverseConnectStrategy reverseConnectStrategy
             )
         {
             if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
-            var registration = new Registration(serverUri, endpointUrl, OnConnectionWaiting) {
-                ReverseConnectStrategy = reverseConnectStrategy
-            };
-            lock (m_registrations)
-            {
-                m_registrations.Add(registration);
-            }
-            return registration.GetHashCode();
-        }
-
-        /// <summary>
-        /// Register for a waiting reverse connection.
-        /// </summary>
-        /// <remarks>
-        /// The server certificate contains the application Uri and the
-        /// hostnames of the server, allowing for a better match.
-        /// </remarks>
-        /// <param name="serverCertificate">The server application certificate.</param>
-        /// <param name="endpointUrl">The endpoint Url of the reverse connection.</param>
-        /// <param name="OnConnectionWaiting">The callback</param>
-        /// <param name="reverseConnectStrategy">The reverse connect callback strategy.</param>
-        /// <returns></returns>
-        public int RegisterWaitingConnection(
-            X509Certificate serverCertificate,
-            Uri endpointUrl,
-            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
-            ReverseConnectStrategy reverseConnectStrategy
-            )
-        {
-            if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
-            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
-            var registration = new Registration(serverCertificate, endpointUrl, OnConnectionWaiting) {
+            var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting) {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
             lock (m_registrations)
