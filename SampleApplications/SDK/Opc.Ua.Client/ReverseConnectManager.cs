@@ -444,7 +444,6 @@ namespace Opc.Ua.Client
         /// <param name="endpointUrl"></param>
         /// <param name="serverUri"></param>
         /// <param name="ct"></param>
-        /// <returns></returns>
         public async Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
             string serverUri,

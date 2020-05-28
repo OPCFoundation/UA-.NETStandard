@@ -1156,7 +1156,6 @@ namespace AggregationServer
             }
 
             Opc.Ua.Client.Session session = null;
-
             if (m_clients.TryGetValue(sessionId, out session))
             {
                 return session;
@@ -1166,10 +1165,24 @@ namespace AggregationServer
             {
                 if (m_reverseConnectManager != null)
                 {
-                    var connection = m_reverseConnectManager.WaitForConnection(
-                        m_endpoint.EndpointUrl,
-                        m_endpoint.ReverseConnect.ServerUri,
-                        new CancellationTokenSource(60000).Token).Result;
+                    ITransportWaitingConnection connection = null;
+                    CancellationToken cts = new CancellationTokenSource(60000).Token;
+                    do
+                    {
+                        var endpointUrl = new Uri(Utils.ReplaceLocalhost(m_endpoint.EndpointUrl.ToString()));
+                        connection = m_reverseConnectManager.WaitForConnection(
+                            endpointUrl,
+                            m_endpoint.ReverseConnect.ServerUri,
+                            cts).Result;
+
+                        if (m_endpoint.NeedUpdateFromServer())
+                        {
+                            m_endpoint.UpdateFromServer(m_endpoint.EndpointUrl, connection,
+                                m_endpoint.Description.SecurityMode,
+                                m_endpoint.Description.SecurityPolicyUri);
+                            connection = null;
+                        }
+                    } while (connection == null);
 
                     session = Opc.Ua.Client.Session.Create(
                         m_configuration,

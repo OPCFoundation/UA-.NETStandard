@@ -2372,7 +2372,9 @@ namespace Opc.Ua.Client
             try
             {
                 // verify that the server returned the same instance certificate.
-                if (serverCertificateData != null && !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
+                if (serverCertificateData != null &&
+                    m_endpoint.Description.ServerCertificate != null &&
+                    !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
                 {
                     try
                     {
