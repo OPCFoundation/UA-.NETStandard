@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Server;
 
 
@@ -65,11 +67,27 @@ namespace AggregationServer
             bool ownsTypeModel = true;
             ConfiguredEndpointCollection endpoints = configuration.ParseExtension<ConfiguredEndpointCollection>();
 
+            // start the reverse connect host
+            ReverseConnectManager reverseConnectManager = null;
+            if (configuration.ClientConfiguration?.ReverseConnect != null)
+            {
+                var reverseConnect = configuration.ClientConfiguration.ReverseConnect;
+                // start the reverse connection manager
+                reverseConnectManager = new Opc.Ua.Client.ReverseConnectManager();
+                foreach (var endpoint in reverseConnect.ClientEndpoints)
+                {
+                    reverseConnectManager.AddEndpoint(new Uri(endpoint.EndpointUrl));
+                }
+                reverseConnectManager.StartService(configuration);
+            }
+
             foreach (ConfiguredEndpoint endpoint in endpoints.Endpoints)
             {
-                nodeManagers.Add(new AggregationNodeManager(server, configuration, endpoint, ownsTypeModel));
+                nodeManagers.Add(new AggregationNodeManager(server, configuration, endpoint, reverseConnectManager, ownsTypeModel));
                 ownsTypeModel = false;
             }
+
+
 
             // create master node manager.
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());

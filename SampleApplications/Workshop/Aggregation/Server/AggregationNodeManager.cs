@@ -38,6 +38,8 @@ using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 using System.Threading.Tasks;
+using System.Net;
+
 
 namespace AggregationServer
 {
@@ -50,7 +52,12 @@ namespace AggregationServer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public AggregationNodeManager(IServerInternal server, ApplicationConfiguration configuration, ConfiguredEndpoint endpoint, bool ownsTypeModel)
+        public AggregationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            Opc.Ua.Client.ReverseConnectManager reverseConnectManager,
+            bool ownsTypeModel)
         :
             base(server, configuration, Namespaces.Aggregation, AggregationModel.Namespaces.Aggregation)
         {
@@ -58,6 +65,11 @@ namespace AggregationServer
 
             m_configuration = configuration;
             m_endpoint = endpoint;
+            if (endpoint.ReverseConnect != null &&
+                endpoint.ReverseConnect.Enabled)
+            {
+                m_reverseConnectManager = reverseConnectManager;
+            }
             m_ownsTypeModel = ownsTypeModel;
             m_clients = new Dictionary<NodeId, Opc.Ua.Client.Session>();
             m_mapper = new NamespaceMapper();
@@ -1131,7 +1143,7 @@ namespace AggregationServer
         Opc.Ua.Client.Session GetClientSession(ServerSystemContext context)
         {
             NodeId sessionId = NodeId.Null;
-            string sessionName = String.Empty;
+            string sessionName = Guid.NewGuid().ToString();
             IUserIdentity userIdentity = null;
             IList<string> preferredLocales = null;
 
@@ -1152,15 +1164,35 @@ namespace AggregationServer
 
             try
             {
+                if (m_reverseConnectManager != null)
+                {
+                    var connection = m_reverseConnectManager.WaitForConnection(
+                        m_endpoint.EndpointUrl,
+                        m_endpoint.ReverseConnect.ServerUri,
+                        new CancellationTokenSource(60000).Token).Result;
 
-                session = Opc.Ua.Client.Session.Create(
-                    m_configuration,
-                    m_endpoint,
-                    (context == null),
-                    sessionName,
-                    60000,
-                    userIdentity,
-                    preferredLocales).Result;
+                    session = Opc.Ua.Client.Session.Create(
+                        m_configuration,
+                        connection,
+                        m_endpoint,
+                        false,
+                        false,
+                        sessionName,
+                        60000,
+                        userIdentity,
+                        preferredLocales).Result;
+                }
+                else
+                {
+                    session = Opc.Ua.Client.Session.Create(
+                        m_configuration,
+                        m_endpoint,
+                        (context == null),
+                        sessionName,
+                        60000,
+                        userIdentity,
+                        preferredLocales).Result;
+                }
 
                 m_clients.Add(sessionId, session);
 
@@ -1218,14 +1250,22 @@ namespace AggregationServer
         {
             lock (Lock)
             {
+                CleanupTimer();
+                m_metadataUpdateCallback = callback;
+                m_timerPeriod = period;
+                m_metadataUpdateTimer = new Timer(DoMetadataUpdate, callbackData, initialDelay, -1);
+            }
+        }
+
+        private void CleanupTimer()
+        {
+            lock (Lock)
+            {
                 if (m_metadataUpdateTimer != null)
                 {
                     m_metadataUpdateTimer.Dispose();
                     m_metadataUpdateTimer = null;
                 }
-
-                m_metadataUpdateCallback = callback;
-                m_metadataUpdateTimer = new Timer(DoMetadataUpdate, callbackData, initialDelay, period);
             }
         }
 
@@ -1307,6 +1347,13 @@ namespace AggregationServer
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error updating event type cache.");
+            }
+            finally
+            {
+                lock (Lock)
+                {
+                    m_metadataUpdateTimer.Change(m_timerPeriod, Timeout.Infinite);
+                }
             }
         }
 
@@ -1522,9 +1569,11 @@ namespace AggregationServer
         private bool m_ownsTypeModel;
         private ApplicationConfiguration m_configuration;
         private ConfiguredEndpoint m_endpoint;
+        private Opc.Ua.Client.ReverseConnectManager m_reverseConnectManager;
         private Dictionary<NodeId, Opc.Ua.Client.Session> m_clients;
         private AggregatedTypeCache m_typeCache;
         private Timer m_metadataUpdateTimer;
+        private int m_timerPeriod;
         private WaitCallback m_metadataUpdateCallback;
         private NamespaceMapper m_mapper;
         private FolderState m_root;

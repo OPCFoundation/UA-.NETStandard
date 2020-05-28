@@ -3109,6 +3109,7 @@ namespace Opc.Ua
             m_binaryEncodingSupport = BinaryEncodingSupport.Optional;
             m_selectedUserTokenPolicyIndex = 0;
             m_userIdentity = null;
+            m_reverseConnect = null;
         }
         #endregion
 
