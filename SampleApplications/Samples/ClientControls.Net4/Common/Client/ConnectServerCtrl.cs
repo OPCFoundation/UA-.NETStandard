@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.Controls
         /// Default session values.
         /// </summary>
         public static readonly uint DefaultSessionTimeout = 60000;
-        public static readonly int DefaultDiscoverTimeout = 5000;
+        public static readonly int DefaultDiscoverTimeout = 15000;
         public static readonly int DefaultReconnectPeriod = 10;
 
         /// <summary>
@@ -123,7 +123,6 @@ namespace Opc.Ua.Client.Controls
         /// <summary>
         /// Gets the cached EndpointDescription for a Url.
         /// </summary>
-        /// <returns></returns>
         public EndpointDescription GetEndpointDescription(Uri url)
         {
             EndpointDescription endpointDescription;

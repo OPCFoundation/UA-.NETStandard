@@ -106,6 +106,9 @@ namespace Opc.Ua.Client
 
         }
 
+        /// <summary>
+        /// Entry for a client reverse connect registration.
+        /// </summary>
         private class ReverseConnectInfo
         {
             public ReverseConnectInfo(ReverseConnectHost reverseConnectHost, bool configEntry)
@@ -134,6 +137,12 @@ namespace Opc.Ua.Client
                 ServerUri = serverUri;
             }
 
+            /// <summary>
+            /// Register with the server certificate.
+            /// </summary>
+            /// <param name="serverCertificate"></param>
+            /// <param name="endpointUrl"></param>
+            /// <param name="onConnectionWaiting"></param>
             public Registration(
                 X509Certificate2 serverCertificate,
                 Uri endpointUrl,
@@ -269,7 +278,7 @@ namespace Opc.Ua.Client
 
                 if (restartService)
                 {
-                    // TODO
+                    StartService();
                 }
             }
         }
@@ -367,8 +376,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     OnUpdateConfiguration(configuration);
-                    OpenHosts();
-                    m_state = ReverseConnectManagerState.Started;
+                    StartService();
 
                     // monitor the configuration file.
                     if (!String.IsNullOrEmpty(configuration.SourceFilePath))
@@ -411,19 +419,6 @@ namespace Opc.Ua.Client
                     ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
                     throw new ServiceResultException(error);
                 }
-            }
-        }
-
-        /// <summary>
-        /// Called before the server stops
-        /// </summary>
-        public void StopService()
-        {
-            ClearWaitingConnections();
-            lock (m_lock)
-            {
-                CloseHosts();
-                m_state = ReverseConnectManagerState.Stopped;
             }
         }
 
@@ -521,6 +516,32 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Called before the server stops
+        /// </summary>
+        private void StopService()
+        {
+            ClearWaitingConnections();
+            lock (m_lock)
+            {
+                CloseHosts();
+                m_state = ReverseConnectManagerState.Stopped;
+            }
+        }
+
+        /// <summary>
+        /// Called to start hosting the reverse connect ports.
+        /// </summary>
+        private void StartService()
+        {
+            lock (m_lock)
+            {
+                OpenHosts();
+                m_state = ReverseConnectManagerState.Started;
+            }
+        }
+
 
         /// <summary>
         /// Remove configuration endpoints from list.

@@ -40,7 +40,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default discover operation timeout.
         /// </summary>
-        public static readonly int DefaultDiscoverTimeout = 5000;
+        public static readonly int DefaultDiscoverTimeout = 15000;
 
         #region Discovery
         /// <summary>
@@ -207,6 +207,7 @@ namespace Opc.Ua.Client
         /// <param name="application">The application configuration.</param>
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="useSecurity">if set to <c>true</c> select an endpoint that uses security.</param>
+        /// <param name="discoverTimeout">The timeout for the discover operation.</param>
         /// <returns>The best available endpoint.</returns>
         public static EndpointDescription SelectEndpoint(
             ApplicationConfiguration application,

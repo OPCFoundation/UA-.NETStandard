@@ -215,7 +215,7 @@ namespace Opc.Ua.Server
                 // check if not ready to publish.
                 if (!m_readyToPublish)
                 {
-                    //Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
