@@ -95,8 +95,8 @@ namespace NetCoreConsoleClient
                 { "p|password=", "Password to access server.", (string n) => pw = n},
                 { "v|verbose", "Verbose output.", v => verbose = v != null},
                 { "j|json", "Print custom nodes as Json.", j => json = j != null},
-                { "jr|jsonreversible", "Use Json reversible encoding.", r => jsonReversible = r != null},
-                { "r|reverseconnect=", "Connect using the reverse connection.", (string uri) => reverseConnectUri = new Uri(uri)},
+                { "r|jsonreversible", "Use Json reversible encoding.", r => jsonReversible = r != null},
+                { "rc|reverseconnect=", "Connect using the reverse connection.", (string uri) => reverseConnectUri = new Uri(uri)},
             };
 
             IList<string> extraArgs = null;
