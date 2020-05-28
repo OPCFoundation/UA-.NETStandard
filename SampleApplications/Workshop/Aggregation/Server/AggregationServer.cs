@@ -88,7 +88,7 @@ namespace AggregationServer
             properties.ManufacturerName = "OPC Foundation";
             properties.ProductName = "Aggregation Server";
             properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
-            properties.ProductUri = "http://opcfoundation.org/AggregationServer/v1.4.361";
+            properties.ProductUri = "http://opcfoundation.org/AggregationServer/v1.4";
             properties.BuildNumber = Utils.GetAssemblyBuildNumber();
             properties.BuildDate = Utils.GetAssemblyTimestamp();
 

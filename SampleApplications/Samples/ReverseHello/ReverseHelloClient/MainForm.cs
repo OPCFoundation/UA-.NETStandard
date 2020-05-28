@@ -171,14 +171,14 @@ namespace ReverseHelloTestClient
                 if (registration.Value != null)
                 {
                     m_reverseConnectManager.RegisterWaitingConnection(
-                        registration.Value.ServerUri, registration.Value.EndpointUrl,
+                        registration.Value.EndpointUrl, registration.Value.ServerUri,
                         OnConnectionWaiting, ReverseConnectManager.ReverseConnectStrategy.Once);
                     return;
                 }
             }
 
             m_reverseConnectManager.RegisterWaitingConnection(
-                null, new Uri(ConnectServerCTRL.ServerUrl),
+                new Uri(ConnectServerCTRL.ServerUrl), null,
                 OnConnectionWaiting, ReverseConnectManager.ReverseConnectStrategy.AnyOnce);
         }
         #endregion
