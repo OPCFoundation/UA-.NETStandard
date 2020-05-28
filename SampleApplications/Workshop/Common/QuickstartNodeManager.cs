@@ -548,7 +548,7 @@ namespace Quickstarts
                 return predefinedNode;
             }
 
-            return predefinedNode;
+            return passiveNode;
         }
 
         /// <summary>
