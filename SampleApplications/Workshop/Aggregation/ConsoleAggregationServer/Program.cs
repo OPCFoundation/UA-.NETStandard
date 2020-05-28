@@ -181,6 +181,17 @@ namespace AggregationServer
                 Console.WriteLine(endpoint);
             }
 
+            // print the reverse connect host
+            if (config.ClientConfiguration?.ReverseConnect != null)
+            {
+                var reverseConnect = config.ClientConfiguration.ReverseConnect;
+                Console.WriteLine("Reverse Connect Server Endpoints:");
+                foreach (var endpoint in reverseConnect.ClientEndpoints)
+                {
+                    Console.WriteLine(endpoint.EndpointUrl);
+                }
+            }
+
             // start the status thread
             status = Task.Run(new Action(StatusThread));
 

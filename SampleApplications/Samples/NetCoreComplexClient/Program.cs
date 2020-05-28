@@ -286,7 +286,7 @@ namespace NetCoreConsoleClient
             {
                 Console.WriteLine("   Waiting for reverse connection.");
                 ITransportWaitingConnection connection = await reverseConnectManager.WaitForConnection(
-                    null, new Uri(m_endpointURL), new CancellationTokenSource(60000).Token);
+                    new Uri(m_endpointURL), null, new CancellationTokenSource(60000).Token);
                 if (connection == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
@@ -320,7 +320,7 @@ namespace NetCoreConsoleClient
             {
                 Console.WriteLine("   Waiting for reverse connection.");
                 ITransportWaitingConnection connection = await reverseConnectManager.WaitForConnection(
-                    null, new Uri(m_endpointURL), new CancellationTokenSource(60000).Token);
+                    new Uri(m_endpointURL), null, new CancellationTokenSource(60000).Token);
                 if (connection == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
