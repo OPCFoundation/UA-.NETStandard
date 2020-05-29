@@ -110,9 +110,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
 
                     // load server types
-                    if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
+                    if (DisableDataTypeDefinition || !LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                     {
-                        await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false).ConfigureAwait(false);
+                        if (!DisableDataTypeDictionary)
+                        {
+                            await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false).ConfigureAwait(false);
+                        }
                     }
                 }
                 return GetSystemType(nodeId);
@@ -153,8 +156,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 serverEnumTypes = serverEnumTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
                 serverStructTypes = serverStructTypes.Where(rd => rd.NodeId.NamespaceIndex == nameSpaceIndex).ToList();
                 // load types
-                if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
+                if (DisableDataTypeDefinition || !LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                 {
+                    if (DisableDataTypeDictionary)
+                    {
+                        return false;
+                    }
                     return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, false).ConfigureAwait(false);
                 }
                 return true;
@@ -193,8 +200,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 // load server types
                 IList<INode> serverEnumTypes = LoadDataTypes(DataTypeIds.Enumeration);
                 IList<INode> serverStructTypes = onlyEnumTypes ? new List<INode>() : LoadDataTypes(DataTypeIds.Structure, true);
-                if (!LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
+                if (DisableDataTypeDefinition || !LoadBaseDataTypes(serverEnumTypes, serverStructTypes))
                 {
+                    if (DisableDataTypeDictionary)
+                    {
+                        return false;
+                    }
                     return await LoadDictionaryDataTypes(serverEnumTypes, serverStructTypes, true).ConfigureAwait(false);
                 }
                 return true;
@@ -217,6 +228,18 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return m_complexTypeBuilderFactory.GetTypes();
         }
+        #endregion
+
+        #region Internal Properties
+        /// <summary>
+        /// Disable the use of DataTypeDefinition to create the complex type definition.
+        /// </summary>
+        internal bool DisableDataTypeDefinition { get; set; } = false;
+
+        /// <summary>
+        /// Disable the use of DataType Dictinaries to create the complex type definition.
+        /// </summary>
+        internal bool DisableDataTypeDictionary { get; set; } = false;
         #endregion
 
         #region Private Members
@@ -322,7 +345,11 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
 
                                 // Use DataTypeDefinition attribute, if available (>=V1.04)
-                                StructureDefinition structureDefinition = GetStructureDefinition(dataTypeNode);
+                                StructureDefinition structureDefinition = null;
+                                if (!DisableDataTypeDefinition)
+                                {
+                                    structureDefinition = GetStructureDefinition(dataTypeNode);
+                                }
                                 if (structureDefinition == null)
                                 {
                                     try
@@ -364,7 +391,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                         complexType = AddStructuredType(
                                             complexTypeBuilder,
                                             structureDefinition,
-                                            dataTypeNode.BrowseName.Name,
+                                            dataTypeNode.BrowseName,
                                             typeId,
                                             binaryEncodingId,
                                             xmlEncodingId
@@ -560,7 +587,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                     newType = AddStructuredType(
                                         complexTypeBuilder,
                                         structureDefinition,
-                                        dataTypeNode.BrowseName.Name,
+                                        dataTypeNode.BrowseName,
                                         structType.NodeId,
                                         binaryEncodingId,
                                         xmlEncodingId
@@ -635,11 +662,25 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     return null;
                 }
+                // Validate the structure according to Part3, Table 36
                 foreach (var field in structureDefinition.Fields)
                 {
+                    // validate if the DataTypeDefinition is correctly
+                    // filled out, some servers don't do it yet...
                     if (field.BinaryEncodingId.IsNull ||
                         field.DataType.IsNullNodeId ||
-                        field.TypeId.IsNull)
+                        field.TypeId.IsNull ||
+                        field.Name == null)
+                    {
+                        return null;
+                    }
+                    if (!(field.ValueRank == -1 ||
+                        field.ValueRank >= 1))
+                    {
+                        return null;
+                    }
+                    if (structureDefinition.StructureType == StructureType.Structure &&
+                        field.IsOptional)
                     {
                         return null;
                     }
@@ -678,6 +719,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId"></param>
         /// <param name="typeId"></param>
         /// <param name="encodingId"></param>
+        /// <param name="dataTypeNode"></param>
         /// <returns>true if successful, false otherwise</returns>
         private bool BrowseTypeIdsForDictionaryComponent(
             NodeId nodeId,
@@ -977,7 +1019,7 @@ namespace Opc.Ua.Client.ComplexTypes
             Type newType = null;
             if (enumTypeNode != null)
             {
-                string name = enumTypeNode.BrowseName.Name;
+                QualifiedName name = enumTypeNode.BrowseName;
                 if (enumTypeNode.DataTypeDefinition != null)
                 {
                     // 1. use DataTypeDefinition 
@@ -1014,7 +1056,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private Type AddStructuredType(
             IComplexTypeBuilder complexTypeBuilder,
             StructureDefinition structureDefinition,
-            string typeName,
+            QualifiedName typeName,
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
@@ -1183,13 +1225,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private Session m_session;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
         private const string kOpcComplexTypesPrefix = "Opc.Ua.ComplexTypes.";
-#endregion
+        #endregion
     }
 }//namespace

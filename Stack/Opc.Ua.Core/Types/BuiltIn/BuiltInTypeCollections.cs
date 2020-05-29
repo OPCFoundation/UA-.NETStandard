@@ -12,8 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.Runtime.Serialization;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -42,8 +42,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public BooleanCollection() {}
-        
+        public BooleanCollection() { }
+
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// values passed in.
         /// </remarks>
         /// <param name="collection">A collection of boolean values to add to this new collection</param>
-        public BooleanCollection(IEnumerable<bool> collection) : base(collection) {}
+        public BooleanCollection(IEnumerable<bool> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -60,8 +60,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the collection with the specified capacity.
         /// </remarks>
-        public BooleanCollection(int capacity) : base(capacity) {}
-        
+        public BooleanCollection(int capacity) : base(capacity) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -78,7 +78,7 @@ namespace Opc.Ua
 
             return new BooleanCollection();
         }
-        
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -118,8 +118,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public SByteCollection() {}
-        
+        public SByteCollection() { }
+
         /// <summary>
         /// Initializes the collection and sets the maximum capacity
         /// </summary>
@@ -127,7 +127,7 @@ namespace Opc.Ua
         /// Initializes the collection and sets the maximum capacity
         /// </remarks>
         /// <param name="capacity">The maximum size of this collection</param>
-        public SByteCollection(int capacity) : base(capacity) {}
+        public SByteCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection and populates it with the specified collection of SByte values
@@ -136,8 +136,8 @@ namespace Opc.Ua
         /// Initializes the collection and populates it with the specified collection of SByte values
         /// </remarks>
         /// <param name="collection">A collection of <see cref="SByte"/> values to populate this collection with</param>
-        public SByteCollection(IEnumerable<sbyte> collection) : base(collection) {}
-        
+        public SByteCollection(IEnumerable<sbyte> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -154,7 +154,7 @@ namespace Opc.Ua
 
             return new SByteCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -254,7 +254,7 @@ namespace Opc.Ua
             return new ByteCollection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of Int16 values.
     /// </summary>
@@ -270,8 +270,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public Int16Collection() {}
-        
+        public Int16Collection() { }
+
         /// <summary>
         /// Initializes the collection and specifies the capacity
         /// </summary>
@@ -279,7 +279,7 @@ namespace Opc.Ua
         /// Initializes the collection and specifies the capacity
         /// </remarks>
         /// <param name="capacity">The max size of the collection</param>
-        public Int16Collection(int capacity) : base(capacity) {}
+        public Int16Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection and populates it with the values passed-in
@@ -288,8 +288,8 @@ namespace Opc.Ua
         /// Initializes the collection and populates it with the values passed-in
         /// </remarks>
         /// <param name="collection">A collection of <see cref="short"/> values to populate the collection with</param>
-        public Int16Collection(IEnumerable<short> collection) : base(collection) {}
-        
+        public Int16Collection(IEnumerable<short> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -306,7 +306,7 @@ namespace Opc.Ua
 
             return new Int16Collection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -330,7 +330,7 @@ namespace Opc.Ua
             return new Int16Collection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of UInt16 values.
     /// </summary>
@@ -346,8 +346,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public UInt16Collection() {}
-        
+        public UInt16Collection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -355,7 +355,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The max capacity size of this collection</param>
-        public UInt16Collection(int capacity) : base(capacity) {}
+        public UInt16Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -364,8 +364,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A Collection of <see cref="ushort"/> to pre-populate the collection with</param>
-        public UInt16Collection(IEnumerable<ushort> collection) : base(collection) {}
-        
+        public UInt16Collection(IEnumerable<ushort> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -382,7 +382,7 @@ namespace Opc.Ua
 
             return new UInt16Collection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -406,7 +406,7 @@ namespace Opc.Ua
             return new UInt16Collection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of Int32 values.
     /// </summary>
@@ -419,8 +419,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection of <see cref="Int32"/>.
         /// </remarks>
-        public Int32Collection() {}
-        
+        public Int32Collection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -428,7 +428,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of this collection</param>
-        public Int32Collection(int capacity) : base(capacity) {}
+        public Int32Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection
@@ -437,8 +437,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection
         /// </remarks>
         /// <param name="collection">A collection of <see cref="int"/> to pre-populate this collection with</param>
-        public Int32Collection(IEnumerable<int> collection) : base(collection) {}
-        
+        public Int32Collection(IEnumerable<int> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -455,7 +455,7 @@ namespace Opc.Ua
 
             return new Int32Collection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -495,8 +495,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection of <see cref="UInt32"/>.
         /// </remarks>
-        public UInt32Collection() {}
-        
+        public UInt32Collection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -504,7 +504,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
-        public UInt32Collection(int capacity) : base(capacity) {}
+        public UInt32Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -513,8 +513,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of <see cref="uint"/> to pre-populate the collection with</param>
-        public UInt32Collection(IEnumerable<uint> collection) : base(collection) {}
-        
+        public UInt32Collection(IEnumerable<uint> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -533,7 +533,7 @@ namespace Opc.Ua
 
             return new UInt32Collection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -559,7 +559,7 @@ namespace Opc.Ua
             return new UInt32Collection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of Int64 values.
     /// </summary>
@@ -575,8 +575,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection of <see cref="Int64"/>.
         /// </remarks>
-        public Int64Collection() {}
-        
+        public Int64Collection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -584,7 +584,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
-        public Int64Collection(int capacity) : base(capacity) {}
+        public Int64Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -593,8 +593,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A colleciton of <see cref="long"/> to pre-populate the collection with</param>
-        public Int64Collection(IEnumerable<long> collection) : base(collection) {}
-                
+        public Int64Collection(IEnumerable<long> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -611,7 +611,7 @@ namespace Opc.Ua
 
             return new Int64Collection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -651,8 +651,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public UInt64Collection() {}
-        
+        public UInt64Collection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -660,7 +660,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of collection</param>
-        public UInt64Collection(int capacity) : base(capacity) {}
+        public UInt64Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -669,8 +669,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of <see cref="ulong"/> to pre-populate the collection with</param>
-        public UInt64Collection(IEnumerable<ulong> collection) : base(collection) {}
-                        
+        public UInt64Collection(IEnumerable<ulong> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -687,7 +687,7 @@ namespace Opc.Ua
 
             return new UInt64Collection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -711,7 +711,7 @@ namespace Opc.Ua
             return new UInt64Collection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of Float values.
     /// </summary>
@@ -727,8 +727,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public FloatCollection() {}
-        
+        public FloatCollection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -736,7 +736,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The max capacity of this collection</param>
-        public FloatCollection(int capacity) : base(capacity) {}
+        public FloatCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -745,8 +745,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection of values to add into this collection</param>
-        public FloatCollection(IEnumerable<float> collection) : base(collection) {}
-                  
+        public FloatCollection(IEnumerable<float> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -763,7 +763,7 @@ namespace Opc.Ua
 
             return new FloatCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -787,7 +787,7 @@ namespace Opc.Ua
             return new FloatCollection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of Double values.
     /// </summary>
@@ -803,8 +803,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public DoubleCollection() {}
-        
+        public DoubleCollection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -812,7 +812,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">max capacity of collection</param>
-        public DoubleCollection(int capacity) : base(capacity) {}
+        public DoubleCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -821,8 +821,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of doubles to add into this collection</param>
-        public DoubleCollection(IEnumerable<double> collection) : base(collection) {}
-                       
+        public DoubleCollection(IEnumerable<double> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -839,7 +839,7 @@ namespace Opc.Ua
 
             return new DoubleCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -863,7 +863,7 @@ namespace Opc.Ua
             return new DoubleCollection(this);
         }
     }
-        
+
     /// <summary>
     /// A collection of String values.
     /// </summary>
@@ -879,8 +879,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public StringCollection() {}
-        
+        public StringCollection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -888,7 +888,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of collection</param>
-        public StringCollection(int capacity) : base(capacity) {}
+        public StringCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -897,8 +897,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of strings to add to this collection</param>
-        public StringCollection(IEnumerable<string> collection) : base(collection) {}
-                 
+        public StringCollection(IEnumerable<string> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -915,7 +915,7 @@ namespace Opc.Ua
 
             return new StringCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -939,7 +939,7 @@ namespace Opc.Ua
             return new StringCollection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of DateTime values.
     /// </summary>
@@ -955,8 +955,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public DateTimeCollection() {}
-        
+        public DateTimeCollection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -964,7 +964,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of collection</param>
-        public DateTimeCollection(int capacity) : base(capacity) {}
+        public DateTimeCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -973,8 +973,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         ///</remarks>
         ///<param name="collection">A collection of DateTime to add to this collection</param>
-        public DateTimeCollection(IEnumerable<DateTime> collection) : base(collection) {}
-                         
+        public DateTimeCollection(IEnumerable<DateTime> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -991,7 +991,7 @@ namespace Opc.Ua
 
             return new DateTimeCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -1015,7 +1015,7 @@ namespace Opc.Ua
             return new DateTimeCollection(this);
         }
     }
-    
+
     /// <summary>
     /// A collection of ByteString values.
     /// </summary>
@@ -1031,8 +1031,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public ByteStringCollection() {}
-        
+        public ByteStringCollection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -1040,7 +1040,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max size of collection</param>
-        public ByteStringCollection(int capacity) : base(capacity) {}
+        public ByteStringCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -1049,8 +1049,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of byte to add to this collection</param>
-        public ByteStringCollection(IEnumerable<byte[]> collection) : base(collection) {}
-                          
+        public ByteStringCollection(IEnumerable<byte[]> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -1067,7 +1067,7 @@ namespace Opc.Ua
 
             return new ByteStringCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -1114,8 +1114,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public XmlElementCollection() {}
-        
+        public XmlElementCollection() { }
+
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
@@ -1123,7 +1123,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max size of collection</param>
-        public XmlElementCollection(int capacity) : base(capacity) {}
+        public XmlElementCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
@@ -1132,8 +1132,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of XmlElement's to add to this collection</param>
-        public XmlElementCollection(IEnumerable<XmlElement> collection) : base(collection) {}
-                          
+        public XmlElementCollection(IEnumerable<XmlElement> collection) : base(collection) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        
@@ -1150,7 +1150,7 @@ namespace Opc.Ua
 
             return new XmlElementCollection();
         }
-                
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>        

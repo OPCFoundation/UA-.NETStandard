@@ -35,6 +35,12 @@ namespace Opc.Ua
         private uint m_nestingLevel;
         // JSON encoded value of: “9999-12-31T23:59:59Z”
         private DateTime m_dateTimeMaxJsonValue = new DateTime((long)3155378975990000000);
+        private enum JTokenNullObject
+        {
+            Undefined = 0,
+            Object = 1,
+            Array = 2
+        };
         #endregion
 
         #region Constructors
@@ -81,15 +87,8 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
         {
-            if (buffer == null)
-            {
-                throw new ArgumentNullException(nameof(buffer));
-            }
-
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             JsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context);
 
@@ -97,9 +96,7 @@ namespace Opc.Ua
             {
                 // decode the actual message.
                 SessionLessServiceMessage message = new SessionLessServiceMessage();
-
                 message.Decode(decoder);
-
                 return message.Message;
             }
             finally
@@ -246,6 +243,10 @@ namespace Opc.Ua
                     }
 
                     case JsonToken.Null:
+                    {
+                        elements.Add(JTokenNullObject.Array);
+                        break;
+                    }
                     case JsonToken.Date:
                     case JsonToken.Boolean:
                     case JsonToken.Integer:
@@ -296,6 +297,11 @@ namespace Opc.Ua
                             }
 
                             case JsonToken.Null:
+                            {
+                                fields[name] = JTokenNullObject.Object;
+                                break;
+                            }
+
                             case JsonToken.Date:
                             case JsonToken.Bytes:
                             case JsonToken.Boolean:
@@ -870,8 +876,12 @@ namespace Opc.Ua
                 return null;
             }
 
-            var value = token as string;
+            if (token is JTokenNullObject)
+            {
+                return null;
+            }
 
+            var value = token as string;
             if (value == null)
             {
                 return new byte[0];
@@ -914,7 +924,8 @@ namespace Opc.Ua
                 XmlDocument document = new XmlDocument();
                 string xmlString = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
 
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString),
+                    new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
                 {
                     document.Load(reader);
                 }
@@ -1560,6 +1571,7 @@ namespace Opc.Ua
                     {
                         return extension;
                     }
+
                     return new ExtensionObject(typeId, encodeable);
                 }
 

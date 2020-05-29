@@ -12,14 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
-using System.ServiceModel;
 using System.Runtime.Serialization;
-using System.Reflection;
 
 namespace Opc.Ua
-{    
+{
     /// <summary>
     /// A class that stores the value of variable with an optional status code and timestamps.
     /// </summary>
@@ -61,7 +57,7 @@ namespace Opc.Ua
     /// <seealso cref="StatusCode"/>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class DataValue : IFormattable
-    {                     
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object with default values.
@@ -73,7 +69,7 @@ namespace Opc.Ua
         {
             Initialize();
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
@@ -84,11 +80,11 @@ namespace Opc.Ua
         /// <param name="value">The DataValue to copy.</param>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DataValue(DataValue value)
-        {            
+        {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
-            m_value.Value     = Utils.Clone(value.m_value.Value);
-            m_statusCode      = value.m_statusCode;
+            m_value.Value = Utils.Clone(value.m_value.Value);
+            m_statusCode = value.m_statusCode;
             m_sourceTimestamp = value.m_sourceTimestamp;
             m_sourcePicoseconds = value.m_sourcePicoseconds;
             m_serverTimestamp = value.m_serverTimestamp;
@@ -133,7 +129,7 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode, DateTime serverTimestamp)
         {
             Initialize();
-            m_statusCode      = statusCode;
+            m_statusCode = statusCode;
             m_serverTimestamp = serverTimestamp;
         }
 
@@ -149,7 +145,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_value      = value;
+            m_value = value;
             m_statusCode = statusCode;
         }
 
@@ -166,8 +162,8 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_value           = value;
-            m_statusCode      = statusCode;
+            m_value = value;
+            m_statusCode = statusCode;
             m_sourceTimestamp = sourceTimestamp;
         }
 
@@ -185,24 +181,24 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_value           = value;
-            m_statusCode      = statusCode;
+            m_value = value;
+            m_statusCode = statusCode;
             m_sourceTimestamp = sourceTimestamp;
             m_serverTimestamp = serverTimestamp;
         }
-        
-		/// <summary>
-		/// Sets private members to default values.
-		/// </summary>
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
         private void Initialize()
         {
-            m_value           = Variant.Null;
-            m_statusCode      = StatusCodes.Good;
+            m_value = Variant.Null;
+            m_statusCode = StatusCodes.Good;
             m_sourceTimestamp = DateTime.MinValue;
             m_serverTimestamp = DateTime.MinValue;
         }
         #endregion
-        
+
         #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
@@ -212,7 +208,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="obj">The object to compare to *this*</param>
         public override bool Equals(object obj)
-		{
+        {
             if (Object.ReferenceEquals(this, obj))
             {
                 return true;
@@ -226,7 +222,7 @@ namespace Opc.Ua
                 {
                     return false;
                 }
-                    
+
                 if (this.m_serverTimestamp != value.m_serverTimestamp)
                 {
                     return false;
@@ -236,7 +232,7 @@ namespace Opc.Ua
                 {
                     return false;
                 }
-                    
+
                 if (this.m_serverPicoseconds != value.m_serverPicoseconds)
                 {
                     return false;
@@ -249,29 +245,29 @@ namespace Opc.Ua
 
                 return Utils.IsEqual(this.m_value.Value, value.m_value.Value);
             }
-            
-            return false;
-		}
 
-		/// <summary>
-		/// Returns a unique hashcode for the object.
-		/// </summary>
+            return false;
+        }
+
+        /// <summary>
+        /// Returns a unique hashcode for the object.
+        /// </summary>
         /// <remarks>
         /// Returns a unique hashcode for the object.
         /// </remarks>
-		public override int GetHashCode()
-		{
+        public override int GetHashCode()
+        {
             if (this.m_value.Value != null)
             {
                 return this.m_value.Value.GetHashCode();
             }
 
             return this.m_statusCode.GetHashCode();
-		}	
+        }
 
-		/// <summary>
-		/// Converts the value to a human readable string.
-		/// </summary>
+        /// <summary>
+        /// Converts the value to a human readable string.
+        /// </summary>
         /// <remarks>
         /// Converts the value to a human readable string.
         /// </remarks>
@@ -325,7 +321,7 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         public object Value
         {
-            get { return m_value.Value;  }
+            get { return m_value.Value; }
             set { m_value.Value = value; }
         }
 
@@ -338,7 +334,7 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue
         {
-            get { return m_value;  }
+            get { return m_value; }
             set { m_value = value; }
         }
 
@@ -351,7 +347,7 @@ namespace Opc.Ua
         [DataMember(Order = 2, IsRequired = false)]
         public StatusCode StatusCode
         {
-            get { return m_statusCode;  }
+            get { return m_statusCode; }
             set { m_statusCode = value; }
         }
 
@@ -364,7 +360,7 @@ namespace Opc.Ua
         [DataMember(Order = 3, IsRequired = false)]
         public DateTime SourceTimestamp
         {
-            get { return m_sourceTimestamp;  }
+            get { return m_sourceTimestamp; }
             set { m_sourceTimestamp = value; }
         }
 
@@ -377,7 +373,7 @@ namespace Opc.Ua
         [DataMember(Order = 4, IsRequired = false)]
         public ushort SourcePicoseconds
         {
-            get { return m_sourcePicoseconds;  }
+            get { return m_sourcePicoseconds; }
             set { m_sourcePicoseconds = value; }
         }
 
@@ -390,7 +386,7 @@ namespace Opc.Ua
         [DataMember(Order = 5, IsRequired = false)]
         public DateTime ServerTimestamp
         {
-            get { return m_serverTimestamp;  }
+            get { return m_serverTimestamp; }
             set { m_serverTimestamp = value; }
         }
 
@@ -403,112 +399,112 @@ namespace Opc.Ua
         [DataMember(Order = 6, IsRequired = false)]
         public ushort ServerPicoseconds
         {
-            get { return m_serverPicoseconds;  }
+            get { return m_serverPicoseconds; }
             set { m_serverPicoseconds = value; }
         }
         #endregion
-                
+
         #region Static Methods
- 		/// <summary>
-		/// Returns true if the status code is good.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the status code is good.
+        /// </summary>
         /// <remarks>
         /// Returns true if the status code is good.
         /// </remarks>
         /// <param name="value">The value to check the quality of</param>
-		public static bool IsGood(DataValue value)
-		{
-			if (value != null)
-			{
-				return StatusCode.IsGood(value.m_statusCode);
-			}
+        public static bool IsGood(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsGood(value.m_statusCode);
+            }
 
-			return false;
-		}
+            return false;
+        }
 
-		/// <summary>
-		/// Returns true if the status is bad or uncertain.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the status is bad or uncertain.
+        /// </summary>
         /// <remarks>
         /// Returns true if the status is bad or uncertain.
         /// </remarks>
         /// <param name="value">The value to check the quality of</param>
-		public static bool IsNotGood(DataValue value)
-		{
-			if (value != null)
-			{
-				return StatusCode.IsNotGood(value.m_statusCode);
-			}
+        public static bool IsNotGood(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsNotGood(value.m_statusCode);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Returns true if the status code is uncertain.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the status code is uncertain.
+        /// </summary>
         /// <remarks>
         /// Returns true if the status code is uncertain.
         /// </remarks>
         /// <param name="value">The value to checck the quality of</param>
-		public static bool IsUncertain(DataValue value)
-		{
-			if (value != null)
-			{
-				return StatusCode.IsUncertain(value.m_statusCode);
-			}
+        public static bool IsUncertain(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsUncertain(value.m_statusCode);
+            }
 
-			return false;
-		}
+            return false;
+        }
 
-		/// <summary>
-		/// Returns true if the status is good or uncertain.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
         /// <remarks>
         /// Returns true if the status is good or uncertain.
         /// </remarks>
         /// <param name="value">The value to check the quality of</param>
-		public static bool IsNotUncertain(DataValue value)
-		{
-			if (value != null)
-			{
-				return StatusCode.IsNotUncertain(value.m_statusCode);
-			}
+        public static bool IsNotUncertain(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsNotUncertain(value.m_statusCode);
+            }
 
-			return false;
-		}
+            return false;
+        }
 
-		/// <summary>
-		/// Returns true if the status code is bad.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the status code is bad.
+        /// </summary>
         /// <remarks>
         /// Returns true if the status code is bad.
         /// </remarks>
         /// <param name="value">The value to check the quality of</param>
-		public static bool IsBad(DataValue value)
-		{
-			if (value != null)
-			{
-				return StatusCode.IsBad(value.m_statusCode);
-			}
+        public static bool IsBad(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsBad(value.m_statusCode);
+            }
 
-			return true;
-		}
+            return true;
+        }
 
-		/// <summary>
-		/// Returns true if the status is good or uncertain.
-		/// </summary>
+        /// <summary>
+        /// Returns true if the status is good or uncertain.
+        /// </summary>
         /// <remarks>
         /// Returns true if the status is good or uncertain.
         /// </remarks>
         /// <param name="value">The value to check the quality of</param>
-		public static bool IsNotBad(DataValue value)
-		{
-			if (value != null)
-			{
-				return StatusCode.IsNotBad(value.m_statusCode);
-			}
+        public static bool IsNotBad(DataValue value)
+        {
+            if (value != null)
+            {
+                return StatusCode.IsNotBad(value.m_statusCode);
+            }
 
-			return false;
+            return false;
         }
 
         /// <summary>
@@ -598,15 +594,15 @@ namespace Opc.Ua
     /// </remarks>
     [CollectionDataContract(Name = "ListOfDataValue", Namespace = Namespaces.OpcUaXsd, ItemName = "DataValue")]
     public partial class DataValueCollection : List<DataValue>
-    {        
+    {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public DataValueCollection() {}
-        
+        public DataValueCollection() { }
+
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
@@ -614,7 +610,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">A collection of <see cref="DataValue"/> objects to pre-populate this new collection with</param>
-        public DataValueCollection(IEnumerable<DataValue> collection) : base(collection) {}
+        public DataValueCollection(IEnumerable<DataValue> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -623,7 +619,7 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The max capacity of this collection</param>
-        public DataValueCollection(int capacity) : base(capacity) {}
+        public DataValueCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -641,7 +637,7 @@ namespace Opc.Ua
 
             return new DataValueCollection();
         }
-        
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>

@@ -454,8 +454,67 @@ namespace Opc.Ua.Server
             get { return m_arrayDimensions;  }
             set { m_arrayDimensions = value; }
         }
+
+        /// <summary>
+        /// Specifies the AccessRestrictions that apply to a Node.
+        /// </summary>
+        public AccessRestrictionType AccessRestrictions
+        {
+            get { return m_accessRestrictions; }
+            set { m_accessRestrictions = value; }
+        }
+
+        /// <summary>
+        /// The value reflects the DefaultAccessRestrictions Property of the NamespaceMetadata Object for the Namespace
+        /// to which the Node belongs.
+        /// </summary>
+        public AccessRestrictionType DefaultAccessRestrictions
+        {
+            get { return m_defaultAccessRestrictions; }
+            set { m_defaultAccessRestrictions = value; }
+        }
+
+        /// <summary>
+        /// The RolePermissions for the Node.
+        /// Specifies the Permissions that apply to a Node for all Roles which have access to the Node.
+        /// </summary>
+        public RolePermissionTypeCollection RolePermissions
+        {
+            get { return m_rolePermissions; }
+            set { m_rolePermissions = value; }
+        }
+
+        /// <summary>
+        /// The DefaultRolePermissions of the Node's name-space meta-data
+        /// The value reflects the DefaultRolePermissions Property from the NamespaceMetadata Object associated with the Node.
+        /// </summary>
+        public RolePermissionTypeCollection DefaultRolePermissions
+        {
+            get { return m_defaultRolePermissions; }
+            set { m_defaultRolePermissions = value; }
+        }
+
+        /// <summary>
+        /// The UserRolePermissions of the Node.
+        /// Specifies the Permissions that apply to a Node for all Roles granted to current Session.
+        /// </summary>
+        public RolePermissionTypeCollection UserRolePermissions
+        {
+            get { return m_userRolePermissions; }
+            set { m_userRolePermissions = value; }
+        }
+
+        /// <summary>
+        /// The DefaultUserRolePermissions of the Node.
+        /// The value reflects the DefaultUserRolePermissions Property from the NamespaceMetadata Object associated with the Node.
+        /// </summary>
+        public RolePermissionTypeCollection DefaultUserRolePermissions
+        {
+            get { return m_defaultUserRolePermissions; }
+            set { m_defaultUserRolePermissions = value; }
+        }
         #endregion
-        
+
         #region Private Fields
         private object m_handle;
         private NodeId m_nodeId;
@@ -471,6 +530,12 @@ namespace Opc.Ua.Server
         private NodeId m_dataType;
         private int m_valueRank;
         private IList<uint> m_arrayDimensions;
+        private AccessRestrictionType m_accessRestrictions;
+        private AccessRestrictionType m_defaultAccessRestrictions;
+        private RolePermissionTypeCollection m_rolePermissions;
+        private RolePermissionTypeCollection m_defaultRolePermissions;
+        private RolePermissionTypeCollection m_userRolePermissions;
+        private RolePermissionTypeCollection m_defaultUserRolePermissions;
         #endregion
     }
 }

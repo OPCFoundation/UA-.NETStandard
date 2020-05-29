@@ -2,8 +2,46 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+pr:
+  autoCancel: true
+  branches:
+    include:
+    - '*'
+
 stages:
 - stage: build
-  displayName: 'Build and Test Code'
+  displayName: 'Build .Net Core Samples'
   jobs:
   - template: .azurepipelines/ci.yml
+- stage: buildnohttps
+  dependsOn: []
+  displayName: 'Build NoHttps .Net Core Samples'
+  jobs:
+  - template: .azurepipelines/ci.yml
+    parameters:
+      buildoption: '-p:NoHttps=true'
+      agents: '@{ linux = "ubuntu-18.04" }'
+- stage: solutions
+  dependsOn: []
+  displayName: 'Build Solutions'
+  jobs:
+  - template: .azurepipelines/sln.yml
+- stage: testrelease
+  dependsOn: []
+  displayName: 'Test Core and SDK Release'
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "vs2017-win2016"; mac = "macOS-10.15" }'
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      poolImage: 'ubuntu-18.04'
+- stage: testdebug
+  dependsOn: []
+  displayName: 'Test Core and SDK Debug'
+  jobs:
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug

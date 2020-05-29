@@ -77,6 +77,12 @@ namespace Opc.Ua.Server
             get { return m_identity.SupportsSignatures; }
         }
 
+        public NodeIdCollection GrantedRoleIds
+        {
+            get { return m_identity.GrantedRoleIds; }
+            set { m_identity.GrantedRoleIds = value; }
+        }
+
         public UserIdentityToken GetIdentityToken()
         {
             return m_identity.GetIdentityToken();
@@ -120,7 +126,7 @@ namespace Opc.Ua.Server
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(
-            ISystemContext context, 
+            ISystemContext context,
             NodeState predefinedNode)
         {
             BaseObjectState passiveNode = predefinedNode as BaseObjectState;
@@ -201,14 +207,14 @@ namespace Opc.Ua.Server
             return base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
         #endregion
+
         #region Public methods
         /// <summary>
         /// Creates the configuration node for the server.
         /// </summary>
         public void CreateServerConfiguration(
             ServerSystemContext systemContext,
-            ApplicationConfiguration configuration
-            )
+            ApplicationConfiguration configuration)
         {
             // setup server configuration node
             m_serverConfigurationNode.ServerCapabilities.Value = configuration.ServerConfiguration.ServerCapabilities.ToArray();
@@ -240,8 +246,101 @@ namespace Opc.Ua.Server
                     );
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
+
+            // find ServerNamespaces node and subscribe to StateChanged
+            NamespacesState serverNamespacesNode = FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) as NamespacesState;
+
+            if (serverNamespacesNode != null)
+            {
+                serverNamespacesNode.StateChanged += ServerNamespacesChanged;
+            }
+        }
+
+        /// <summary>
+        /// Gets and returns the <see cref="NamespaceMetadataState"/> node associated with the specified NamespaceUri
+        /// </summary>
+        /// <param name="namespaceUri"></param>
+        /// <returns></returns>
+        public NamespaceMetadataState GetNamespaceMetadataState(string namespaceUri)
+        {
+            if (namespaceUri == null)
+            {
+                return null;
+            }
+
+            if (m_namespaceMetadataStates.ContainsKey(namespaceUri))
+            {
+                return m_namespaceMetadataStates[namespaceUri];
+            }
+
+            NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(namespaceUri);
+
+            lock (Lock)
+            {
+                // remember the result for faster access.
+                m_namespaceMetadataStates[namespaceUri] = namespaceMetadataState;
+            }
+
+            return namespaceMetadataState;
+        }
+
+        /// <summary>
+        /// Gets or creates the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
+        /// </summary>
+        /// <param name="namespaceUri"></param>
+        /// <returns></returns>
+        public NamespaceMetadataState CreateNamespaceMetadataState(string namespaceUri)
+        {
+            NamespaceMetadataState namespaceMetadataState = FindNamespaceMetadataState(namespaceUri);
+
+            if (namespaceMetadataState == null)
+            {
+                // find ServerNamespaces node
+                NamespacesState serverNamespacesNode = FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) as NamespacesState;
+                if (serverNamespacesNode == null)
+                {
+                    Utils.Trace("Cannot create NamespaceMetadataState for namespace '{0}'.", namespaceUri);
+                    return null;
+                }
+
+                // create the NamespaceMetadata node
+                namespaceMetadataState = new NamespaceMetadataState(serverNamespacesNode);
+                namespaceMetadataState.BrowseName = new QualifiedName(namespaceUri, NamespaceIndex);
+                namespaceMetadataState.Create(SystemContext, null, namespaceMetadataState.BrowseName, null, true);
+                namespaceMetadataState.DisplayName = namespaceUri;
+                namespaceMetadataState.SymbolicName = namespaceUri;
+                namespaceMetadataState.NamespaceUri.Value = namespaceUri;
+
+                // add node as child of ServerNamespaces and in predefined nodes
+                serverNamespacesNode.AddChild(namespaceMetadataState);
+                serverNamespacesNode.ClearChangeMasks(Server.DefaultSystemContext, true);
+                AddPredefinedNode(SystemContext, namespaceMetadataState);
+            }
+
+            return namespaceMetadataState;
+        }
+
+        public void HasApplicationSecureAdminAccess(ISystemContext context)
+        {
+            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+            if (operationContext != null)
+            {
+                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
+                }
+
+                // allow access to system configuration only through special identity
+                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
+                if (user == null || user.TokenType == UserTokenType.Anonymous)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "System Configuration Administrator access required.");
+                }
+
+            }
         }
         #endregion
+
         #region Private Methods
         private ServiceResult UpdateCertificate(
             ISystemContext context,
@@ -366,7 +465,6 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
-
         private ServiceResult CreateSigningRequest(
             ISystemContext context,
             MethodState method,
@@ -484,26 +582,6 @@ namespace Opc.Ua.Server
             return StatusCodes.Good;
         }
 
-        private void HasApplicationSecureAdminAccess(ISystemContext context)
-        {
-            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null)
-            {
-                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-                {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Secure Application Administrator access required.");
-                }
-
-                // allow access to system configuration only through special identity
-                SystemConfigurationIdentity user = context.UserIdentity as SystemConfigurationIdentity;
-                if (user == null || user.TokenType == UserTokenType.Anonymous)
-                {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "System Configuration Administrator access required.");
-                }
-
-            }
-        }
-
         private ServerCertificateGroup VerifyGroupAndTypeId(
             NodeId certificateGroupId,
             NodeId certificateTypeId
@@ -536,9 +614,103 @@ namespace Opc.Ua.Server
 
             return certificateGroup;
         }
+
+        /// <summary>
+        /// Finds the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
+        /// </summary>
+        /// <param name="namespaceUri"></param>
+        /// <returns></returns>
+        private NamespaceMetadataState FindNamespaceMetadataState(string namespaceUri)
+        {
+            try
+            {
+                // find ServerNamespaces node
+                NamespacesState serverNamespacesNode = FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) as NamespacesState;
+                if (serverNamespacesNode == null)
+                {
+                    Utils.Trace("Cannot find ObjectIds.Server_Namespaces node.");
+                    return null;
+                }
+
+                IList<BaseInstanceState> serverNamespacesChildren = new List<BaseInstanceState>();
+                serverNamespacesNode.GetChildren(SystemContext, serverNamespacesChildren);
+
+                foreach (var namespacesReference in serverNamespacesChildren)
+                {
+                    // Find NamespaceMetadata node of NamespaceUri in Namespaces children
+                    NamespaceMetadataState namespaceMetadata = namespacesReference as NamespaceMetadataState;
+
+                    if (namespaceMetadata == null)
+                    {
+                        continue;
+                    }
+
+                    if (namespaceMetadata.NamespaceUri.Value == namespaceUri)
+                    {
+                        return namespaceMetadata;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                IList<IReference> serverNamespacesReferencs = new List<IReference>();
+                serverNamespacesNode.GetReferences(SystemContext, serverNamespacesReferencs);
+
+                foreach (IReference serverNamespacesReference in serverNamespacesReferencs)
+                {
+                    if (serverNamespacesReference.IsInverse == false)
+                    {
+                        // Find NamespaceMetadata node of NamespaceUri in Namespaces references
+                        NodeId nameSpaceNodeId = ExpandedNodeId.ToNodeId(serverNamespacesReference.TargetId, Server.NamespaceUris);
+                        NamespaceMetadataState namespaceMetadata = FindNodeInAddressSpace(nameSpaceNodeId) as NamespaceMetadataState;
+
+                        if (namespaceMetadata == null)
+                        {
+                            continue;
+                        }
+
+                        if (namespaceMetadata.NamespaceUri.Value == namespaceUri)
+                        {
+                            return namespaceMetadata;
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "Error searching NamespaceMetadata for namespaceUri {0}.", namespaceUri);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Clear NamespaceMetadata nodes cache in case nodes are added or deleted
+        /// </summary>
+        private void ServerNamespacesChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
+        {
+            if ((changes & NodeStateChangeMasks.Children) != 0 ||
+                (changes & NodeStateChangeMasks.References) !=0)
+            {
+                try
+                {
+                    lock (Lock)
+                    {
+                        m_namespaceMetadataStates.Clear();
+                    }
+                }
+                catch
+                {
+                    // ignore errors
+                }
+            }
+        }
         #endregion
 
-        #region Private Fields            
+        #region Private Fields
         private class UpdateCertificateData
         {
             public NodeId SessionId;
@@ -562,6 +734,7 @@ namespace Opc.Ua.Server
         private ApplicationConfiguration m_configuration;
         private IList<ServerCertificateGroup> m_certificateGroups;
         private readonly string m_rejectedStorePath;
+        private Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = new Dictionary<string, NamespaceMetadataState>();
         #endregion
     }
 }

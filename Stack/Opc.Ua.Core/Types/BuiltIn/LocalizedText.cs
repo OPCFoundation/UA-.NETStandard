@@ -12,8 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
@@ -192,10 +192,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The locale used to create the text.
         /// </remarks>
-        public string Locale
-        {
-            get { return m_locale; }
-        }
+        public string Locale => m_locale;
 
         /// <summary cref="LocalizedText.Locale" />
         [DataMember(Name = "Locale", Order = 1)]
@@ -211,10 +208,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The localized text.
         /// </remarks>
-        public string Text
-        {
-            get { return m_text; }
-        }
+        public string Text => m_text;
 
         /// <summary cref="LocalizedText.Text" />
         [DataMember(Name = "Text", Order = 2)]
@@ -424,10 +418,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null LocalizedText.
         /// </summary>
-        public static LocalizedText Null
-        {
-            get { return s_Null; }
-        }
+        public static LocalizedText Null => s_Null;
 
         private static readonly LocalizedText s_Null = new LocalizedText();
 

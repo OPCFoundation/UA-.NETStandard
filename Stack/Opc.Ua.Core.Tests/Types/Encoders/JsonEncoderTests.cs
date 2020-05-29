@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Constants used by test data set.
         /// </summary>
-        const ushort kDemoServerIndex = 2;
+        const ushort kDemoServerIndex = 3;
         const string kDemoServer = "http://www.opcfoundation.org/DemoServer/";
         const string kDemoServer2 = "http://www.opcfoundation.org/DemoServer2/";
         const ushort kServerUriIndex = 2;
@@ -293,7 +293,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            NameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             ushort demoServerIndex = NameSpaceUris.GetIndexOrAppend(kDemoServer);
             Assume.That(demoServerIndex == kDemoServerIndex, $"Server Index: {demoServerIndex} != {kDemoServerIndex}");
         }

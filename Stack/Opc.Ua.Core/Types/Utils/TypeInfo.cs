@@ -514,8 +514,40 @@ namespace Opc.Ua
                 case DataTypes.Number: { return typeof(Variant); }
                 case DataTypes.Integer: { return typeof(Variant); }
                 case DataTypes.UInteger: { return typeof(Variant); }
-                case DataTypes.UtcTime: { return typeof(DateTime); }
                 case DataTypes.Enumeration: { return typeof(Int32); }
+
+                // subtype of DateTime
+                case DataTypes.Date: 
+                case DataTypes.UtcTime: goto case DataTypes.DateTime;
+                // subtype of ByteString
+                case DataTypes.ApplicationInstanceCertificate:
+                case DataTypes.AudioDataType:
+                case DataTypes.ContinuationPoint:
+                case DataTypes.Image:
+                case DataTypes.ImageBMP:
+                case DataTypes.ImageGIF:
+                case DataTypes.ImageJPG:
+                case DataTypes.ImagePNG: goto case DataTypes.ByteString;
+                // subtype of NodeId
+                case DataTypes.SessionAuthenticationToken: goto case DataTypes.NodeId;
+                // subtype of Double
+                case DataTypes.Duration: goto case DataTypes.Double;
+                // subtype of UInt32
+                case DataTypes.IntegerId:
+                case DataTypes.Index:
+                case DataTypes.VersionTime:
+                case DataTypes.Counter: goto case DataTypes.UInt32;
+                // subtype of UInt64
+                case DataTypes.BitFieldMaskDataType: goto case DataTypes.UInt64;
+                // subtype of String
+                case DataTypes.DateString:
+                case DataTypes.DecimalString:
+                case DataTypes.DurationString:
+                case DataTypes.LocaleId:
+                case DataTypes.NormalizedString:
+                case DataTypes.NumericRange:
+                case DataTypes.Time:
+                case DataTypes.TimeString: goto case DataTypes.String;
             }
 
             return factory.GetSystemType(datatypeId);
@@ -902,16 +934,20 @@ namespace Opc.Ua
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
                 IEncodeable encodeable = value as IEncodeable;
-
                 if (encodeable != null)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
                 ExtensionObject extension = value as ExtensionObject;
-
                 if (extension != null)
                 {
+                    encodeable = extension.Body as IEncodeable;
+                    if (encodeable != null)
+                    {
+                        return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
+                    }
+
                     return typeTree.FindDataTypeId(extension.TypeId);
                 }
 

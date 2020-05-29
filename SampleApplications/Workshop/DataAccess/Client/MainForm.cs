@@ -107,6 +107,9 @@ namespace Quickstarts.DataAccessClient
             try
             {
                 ConnectServerCTRL.Disconnect();
+                m_subscription.Dispose();
+                m_subscription = null;
+                m_session = null;
             }
             catch (Exception exception)
             {

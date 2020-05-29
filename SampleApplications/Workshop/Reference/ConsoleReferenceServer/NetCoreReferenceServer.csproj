@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-    <AssemblyName>ConsoleReferenceServer</AssemblyName>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <AssemblyName>NetCoreReferenceServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleReferenceServer</PackageId>
     <Company>OPC Foundation</Company>

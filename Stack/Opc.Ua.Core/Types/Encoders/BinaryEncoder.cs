@@ -454,7 +454,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            value = Utils.NormalizeToUniversalTime(value);
+            value = Utils.ToOpcUaUniversalTime(value);
 
             long ticks = value.Ticks;
 

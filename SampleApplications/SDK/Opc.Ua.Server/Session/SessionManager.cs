@@ -313,7 +313,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_ImpersonateUser != null)
                     {
-                        ImpersonateEventArgs args = new ImpersonateEventArgs(newIdentity, userTokenPolicy);
+                        ImpersonateEventArgs args = new ImpersonateEventArgs(newIdentity, userTokenPolicy, context.ChannelContext.EndpointDescription);
                         m_ImpersonateUser(session, args);
 
                         if (ServiceResult.IsBad(args.IdentityValidationError))
@@ -830,10 +830,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public ImpersonateEventArgs(UserIdentityToken newIdentity, UserTokenPolicy userTokenPolicy)
+        public ImpersonateEventArgs(UserIdentityToken newIdentity, UserTokenPolicy userTokenPolicy, EndpointDescription endpointDescription = null)
         {
             m_newIdentity = newIdentity;
             m_userTokenPolicy = userTokenPolicy;
+            m_endpointDescription = endpointDescription;
         }
         #endregion
 
@@ -880,6 +881,14 @@ namespace Opc.Ua.Server
             get { return m_identityValidationError; }
             set { m_identityValidationError = value; }
         }
+
+        /// <summary>
+        /// Get the EndpointDescription  
+        /// </summary>
+        public EndpointDescription EndpointDescription
+        {
+            get { return m_endpointDescription; }
+        }
         #endregion
 
         #region Private Fields
@@ -888,6 +897,7 @@ namespace Opc.Ua.Server
         private ServiceResult m_identityValidationError;
         private IUserIdentity m_identity;
         private IUserIdentity m_effectiveIdentity;
+        private EndpointDescription m_endpointDescription;
         #endregion
     }
 
