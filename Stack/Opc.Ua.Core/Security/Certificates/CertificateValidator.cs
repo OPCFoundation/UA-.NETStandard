@@ -859,7 +859,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns an object that can be used with WCF channel.
+        /// Returns an object that can be used with a UA channel.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ICertificateValidator GetChannelValidator()

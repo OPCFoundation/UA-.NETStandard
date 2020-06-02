@@ -253,7 +253,6 @@ namespace Opc.Ua.Client
             {
                 if (m_configuration != null)
                 {
-                    // TODO: restart service if old config exists
                     StopService();
                     m_configuration = null;
                     restartService = true;

@@ -702,6 +702,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         protected override void NotifyMonitors(ServiceResult status, bool closed)
         {
             try
@@ -714,6 +715,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         protected override void CompleteReverseHello(Exception e)
         {
             var ar = m_pendingReverseHello;

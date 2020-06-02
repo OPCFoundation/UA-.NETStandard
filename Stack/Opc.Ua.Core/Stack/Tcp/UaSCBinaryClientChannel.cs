@@ -127,7 +127,6 @@ namespace Opc.Ua.Bindings
             {
                 if (State != TcpChannelState.Closed)
                 {
-                    //TODO
                     throw new InvalidOperationException("Channel is already connected.");
                 }
 

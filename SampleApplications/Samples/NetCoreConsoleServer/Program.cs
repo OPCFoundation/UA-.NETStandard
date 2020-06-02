@@ -101,13 +101,14 @@ namespace NetCoreConsoleServer
             bool showHelp = false;
             int stopTimeout = 0;
             bool autoAccept = false;
+            string reverseConnectUrlString = null;
             Uri reverseConnectUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t },
-                { "r|reverse=", "a url for a reverse connection", (string r) => reverseConnectUrl = new Uri(r) }
+                { "r|reverse=", "a url for a reverse connection", (string r) => reverseConnectUrlString = r }
             };
 
             try
@@ -117,6 +118,10 @@ namespace NetCoreConsoleServer
                 {
                     Console.WriteLine("Error: Unknown option: {0}", extraArg);
                     showHelp = true;
+                }
+                if (reverseConnectUrlString != null)
+                {
+                    reverseConnectUrl = new Uri(reverseConnectUrlString);
                 }
             }
             catch (OptionException e)
@@ -150,7 +155,12 @@ namespace NetCoreConsoleServer
         public int ServerRunTime { get; private set; } = Timeout.Infinite;
         public static bool AutoAccept { get; private set; }
         public static ExitCode ExitCode { get; private set; }
-        public static Uri ReverseConnectUrl { get; private set; }
+        public Uri ReverseConnectUrl { get; private set; }
+
+        public MySampleServer(bool _autoAccept, int _stopTimeout)
+            : this(_autoAccept, _stopTimeout, null)
+        {
+        }
 
         public MySampleServer(bool _autoAccept, int _stopTimeout, Uri _reverseConnectUrl)
         {
@@ -198,6 +208,10 @@ namespace NetCoreConsoleServer
 
                 using (SampleServer _server = Server)
                 {
+                    Server.CurrentInstance.SessionManager.SessionActivated -= EventStatus;
+                    Server.CurrentInstance.SessionManager.SessionClosing -= EventStatus;
+                    Server.CurrentInstance.SessionManager.SessionCreated -= EventStatus;
+
                     // Stop status thread
                     Server = null;
                     Status.Wait();
@@ -258,12 +272,15 @@ namespace NetCoreConsoleServer
                 Server.AddReverseConnection(ReverseConnectUrl);
             }
 
-            // print reverse connect info
-            Console.WriteLine("Reverse Connect Clients:");
             var reverseConnections = Server.GetReverseConnections();
-            foreach (var connection in reverseConnections)
+            if (reverseConnections?.Count > 0)
             {
-                Console.WriteLine(connection.Key);
+                // print reverse connect info
+                Console.WriteLine("Reverse Connect Clients:");
+                foreach (var connection in reverseConnections)
+                {
+                    Console.WriteLine(connection.Key);
+                }
             }
 
             // print endpoint info

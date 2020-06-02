@@ -71,64 +71,30 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// The arguments passed to the ConnectionWaiting event. 
+    /// The arguments passed to the ConnectionWaiting event.
     /// </summary>
+    /// <remarks>
+    /// An object which implements this interface can be used
+    /// to create a session using the reverse connect handshake.
+    /// </remarks>
     public interface ITransportWaitingConnection
     {
-        /// <remarks/>
+        /// <summary>
+        /// The application Uri of the server in the
+        /// reverse hello message.
+        /// </summary>
         string ServerUri { get; }
 
-        /// <remarks/>
+        /// <summary>
+        /// The endpoint of the server in the
+        /// reverse hello message.
+        /// </summary>
         Uri EndpointUrl { get; }
 
-        /// <remarks/>
+        /// <summary>
+        /// A handle to a message socket that can be used
+        /// to connect to the server.
+        /// </summary>
         object Handle { get; }
-    }
-
-    /// <summary>
-    /// The arguments passed to the ConnectionWaiting event. 
-    /// </summary>
-    public class ConnectionWaitingEventArgs : EventArgs, ITransportWaitingConnection
-    {
-        protected ConnectionWaitingEventArgs(string serverUrl, Uri endpointUrl)
-        {
-            ServerUri = serverUrl;
-            EndpointUrl = endpointUrl;
-            Accepted = false;
-        }
-
-        /// <remarks/>
-        public string ServerUri { get; private set; }
-
-        /// <remarks/>
-        public Uri EndpointUrl { get; private set; }
-
-        /// <remarks/>
-        public virtual object Handle => null;
-
-        /// <remarks/>
-        public bool Accepted { get; set; }
-    }
-
-    /// <summary>
-    /// The arguments passed to the ConnectionStatus event. 
-    /// </summary>
-    public class ConnectionStatusEventArgs : EventArgs
-    {
-        internal ConnectionStatusEventArgs(Uri endpointUrl, ServiceResult channelStatus, bool closed)
-        {
-            EndpointUrl = endpointUrl;
-            ChannelStatus = channelStatus;
-            Closed = closed;
-        }
-
-        /// <remarks/>
-        public Uri EndpointUrl { get; private set; }
-
-        /// <remarks/>
-        public ServiceResult ChannelStatus { get; private set; }
-
-        /// <remarks/>
-        public bool Closed { get; private set; }
     }
 }

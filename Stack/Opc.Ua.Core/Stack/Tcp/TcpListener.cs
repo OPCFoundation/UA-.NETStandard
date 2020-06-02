@@ -320,6 +320,9 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
+                ConnectionWaiting = null;
+                ConnectionStatusChanged = null;
+
                 if (m_listeningSocket != null)
                 {
                     m_listeningSocket.Dispose();

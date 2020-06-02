@@ -58,7 +58,7 @@ namespace Opc.Ua.Server
         {
             ClientUrl = clientUrl;
             Timeout = timeout > 0 ? timeout : ReverseConnectServer.DefaultReverseConnectTimeout;
-            ConfigEntry = true;
+            ConfigEntry = configEntry;
         }
 
         public readonly Uri ClientUrl;
@@ -137,6 +137,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void RemoveReverseConnection(Uri url)
         {
+            if (url == null) throw new ArgumentNullException(nameof(url));
             lock (m_connections)
             {
                 m_connections.Remove(url);
@@ -150,7 +151,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Return a dictionary of configured reverse connection Urls.
         /// </summary>
-        /// <returns></returns>
         public virtual Dictionary<Uri, ReverseConnectProperty> GetReverseConnections()
         {
             lock (m_connections)

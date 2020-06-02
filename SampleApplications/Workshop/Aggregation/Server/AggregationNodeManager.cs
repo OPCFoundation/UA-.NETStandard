@@ -68,6 +68,8 @@ namespace AggregationServer
             if (endpoint.ReverseConnect != null &&
                 endpoint.ReverseConnect.Enabled)
             {
+                // reverse connect manager endpoint is required 
+                if (reverseConnectManager == null) throw new ArgumentNullException(nameof(reverseConnectManager));
                 m_reverseConnectManager = reverseConnectManager;
             }
             m_ownsTypeModel = ownsTypeModel;

@@ -130,18 +130,7 @@ namespace Opc.Ua.Client
             int discoverTimeout
             )
         {
-            // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (discoveryUrl.StartsWith(Utils.UriSchemeHttps))
-            {
-                if (!discoveryUrl.EndsWith("/discovery"))
-                {
-                    discoveryUrl += "/discovery";
-                }
-            }
-
-            // parse the selected URL.
-            Uri url = new Uri(discoveryUrl);
-
+            var url = GetDiscoveryUrl(discoveryUrl);
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
@@ -216,24 +205,12 @@ namespace Opc.Ua.Client
             int discoverTimeout
             )
         {
-            // needs to add the '/discovery' back onto non-UA TCP URLs.
-            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
-            {
-                if (!discoveryUrl.EndsWith("/discovery"))
-                {
-                    discoveryUrl += "/discovery";
-                }
-            }
-
-            // parse the selected URL.
-            Uri uri = new Uri(discoveryUrl);
-
+            var uri = GetDiscoveryUrl(discoveryUrl);
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             using (var client = DiscoveryClient.Create(application, uri, endpointConfiguration))
             {
-
                 // Connect to the server's discovery endpoint and find the available configuration.
                 Uri url = new Uri(client.Endpoint.EndpointUrl);
                 var endpoints = client.GetEndpoints(null);
@@ -320,6 +297,23 @@ namespace Opc.Ua.Client
 
             // return the selected endpoint.
             return selectedEndpoint;
+        }
+        #endregion
+
+        #region Private Methods
+        private static Uri GetDiscoveryUrl(string discoveryUrl)
+        {
+            // needs to add the '/discovery' back onto non-UA TCP URLs.
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
+            {
+                if (!discoveryUrl.EndsWith("/discovery"))
+                {
+                    discoveryUrl += "/discovery";
+                }
+            }
+
+            // parse the selected URL.
+            return new Uri(discoveryUrl);
         }
         #endregion
     }

@@ -78,6 +78,9 @@ namespace AggregationServer
                 {
                     reverseConnectManager.AddEndpoint(new Uri(endpoint.EndpointUrl));
                 }
+                // start the server even if no endpoint is configured, because
+                // app config can change during operation  and the manager object
+                // is needed
                 reverseConnectManager.StartService(configuration);
             }
 

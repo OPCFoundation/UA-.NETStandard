@@ -34,11 +34,11 @@ namespace Opc.Ua
             m_channel = channel;
             m_useTransportChannel = true;
 
-            WcfChannelBase wcfChannel = channel as WcfChannelBase;
+            UaChannelBase uaChannel = channel as UaChannelBase;
 
-            if (wcfChannel != null)
+            if (uaChannel != null)
             {
-                m_useTransportChannel = wcfChannel.m_wcfBypassChannel != null || wcfChannel.UseBinaryEncoding;
+                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
             }
         }
         #endregion

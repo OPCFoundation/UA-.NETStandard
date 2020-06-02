@@ -240,9 +240,9 @@
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
-      <ua:String>Standard UA Server Profile</ua:String>
-      <ua:String>Data Access Server Facet</ua:String>
-      <ua:String>Method Server Facet</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/Methods</ua:String>
     </ServerProfileArray>
 
     <ShutdownDelay>5</ShutdownDelay>

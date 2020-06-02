@@ -82,7 +82,8 @@ namespace NetCoreConsoleClient
             bool jsonReversible = false;
             string username = null;
             string pw = null;
-            Uri reverseConnectUri = null;
+            string reverseConnectUrlString = null;
+            Uri reverseConnectUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
@@ -96,7 +97,7 @@ namespace NetCoreConsoleClient
                 { "v|verbose", "Verbose output.", v => verbose = v != null},
                 { "j|json", "Print custom nodes as Json.", j => json = j != null},
                 { "r|jsonreversible", "Use Json reversible encoding.", r => jsonReversible = r != null},
-                { "rc|reverseconnect=", "Connect using the reverse connection.", (string uri) => reverseConnectUri = new Uri(uri)},
+                { "rc|reverseconnect=", "Connect using the reverse connection.", (string url) => reverseConnectUrlString = url},
             };
 
             IList<string> extraArgs = null;
@@ -110,6 +111,10 @@ namespace NetCoreConsoleClient
                         Console.WriteLine("Error: Unknown option: {0}", extraArg);
                         showHelp = true;
                     }
+                }
+                if (reverseConnectUrlString != null)
+                {
+                    reverseConnectUrl = new Uri(reverseConnectUrlString);
                 }
             }
             catch (OptionException e)
@@ -150,7 +155,7 @@ namespace NetCoreConsoleClient
                 JsonReversible = jsonReversible,
                 Username = username,
                 Password = pw,
-                ReverseConnectUri = reverseConnectUri
+                ReverseConnectUri = reverseConnectUrl
             };
             return (int)client.Run();
         }
@@ -169,7 +174,6 @@ namespace NetCoreConsoleClient
         public String Username { get; set; }
         public String Password { get; set; }
         public Uri ReverseConnectUri { get; set; }
-
 
         public MySampleClient(
             string endpointURL,

@@ -24,7 +24,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
-        public static DiscoveryClient Create(ApplicationConfiguration application, Uri discoveryUrl)
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl)
         {
             var configuration = EndpointConfiguration.Create();
             ITransportChannel channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, new ServiceMessageContext());
@@ -34,7 +36,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
-        public static DiscoveryClient Create(ApplicationConfiguration application, Uri discoveryUrl, EndpointConfiguration configuration)
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -48,7 +53,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
-        public static DiscoveryClient Create(ApplicationConfiguration application, ITransportWaitingConnection connection, EndpointConfiguration configuration)
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -75,7 +83,9 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns></returns>
-        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
         {
             return DiscoveryClient.Create(discoveryUrl, configuration, null);
         }
@@ -83,7 +93,9 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
-        public static DiscoveryClient Create(ITransportWaitingConnection connection, EndpointConfiguration configuration)
+        public static DiscoveryClient Create(
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -101,7 +113,10 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// /// <param name="applicationConfiguration">The application configuration.</param>
         /// <returns></returns>
-        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration endpointConfiguration, ApplicationConfiguration applicationConfiguration)
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            ApplicationConfiguration applicationConfiguration)
         {
             if (endpointConfiguration == null)
             {
@@ -227,7 +242,6 @@ namespace Opc.Ua
         #endregion  
     }
 
-
     /// <summary>
     /// A channel object used by clients to access a UA discovery service.
     /// </summary>
@@ -273,7 +287,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext)
+            ServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
         {
             // create a default description.
             var endpoint = new EndpointDescription {
@@ -289,14 +304,12 @@ namespace Opc.Ua
                 connection,
                 endpoint,
                 endpointConfiguration,
-                (X509Certificate2)null,
+                clientCertificate,
                 (X509Certificate2Collection)null,
                 messageContext);
 
             return channel;
         }
-
-
 
         /// <summary>
         /// Creates a new transport channel that supports the IDiscoveryChannel service contract.
@@ -305,7 +318,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext)
+            ServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
         {
             // create a default description.
             var endpoint = new EndpointDescription {
@@ -320,7 +334,7 @@ namespace Opc.Ua
                 configuration,
                 endpoint,
                 endpointConfiguration,
-                (X509Certificate2)null,
+                clientCertificate,
                 (X509Certificate2Collection)null,
                 messageContext);
 

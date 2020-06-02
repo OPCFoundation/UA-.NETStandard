@@ -455,14 +455,26 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Notify if the channel status changed.
+        /// </summary>
         protected virtual void NotifyMonitors(ServiceResult status, bool closed)
         {
-            // TODO: how is this used?
+            // intentionally left empty
         }
 
+        /// <summary>
+        /// Called to indicate an error or success if the listener 
+        /// channel initiated a reverse hello connection.
+        /// </summary>
+        /// <remarks>
+        /// The callback is only used by the server channel.
+        /// The listener channel uses the callback to indicate
+        /// an error condition to the server channel.
+        /// </remarks>
         protected virtual void CompleteReverseHello(Exception e)
         {
-            // TODO: if callback is only used in serverchannel, move implementation
+            // intentionally left empty
         }
 
         /// <summary>

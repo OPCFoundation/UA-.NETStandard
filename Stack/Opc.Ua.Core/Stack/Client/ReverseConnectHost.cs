@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -31,12 +31,11 @@ namespace Opc.Ua
             EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
             )
         {
+            if (url == null) throw new ArgumentNullException(nameof(url));
+
             var listener = TransportListenerBindings.GetTransportListener(url.Scheme);
 
-            if (listener == null)
-            {
-                throw new ArgumentException(nameof(url), "No suitable listener found.");
-            }
+            if (listener == null) throw new ArgumentException(nameof(url), "No suitable listener found.");
 
             m_listener = listener;
             Url = url;
@@ -49,7 +48,7 @@ namespace Opc.Ua
         /// </summary>
         public void Open()
         {
-            // create the UA-TCP stack listener.
+            // create the UA listener.
             try
             {
                 var settings = new TransportListenerSettings {

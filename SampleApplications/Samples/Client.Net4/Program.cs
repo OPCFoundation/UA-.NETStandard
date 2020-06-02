@@ -52,9 +52,6 @@ namespace Opc.Ua.Sample
             application.ApplicationType   = ApplicationType.ClientAndServer;
             application.ConfigSectionName = "Opc.Ua.SampleClient";
 
-            // use a custom transport channel
-            WcfChannelBase.g_CustomTransportChannel = new CustomTransportChannelFactory();
-
             try
             {
                 application.LoadApplicationConfiguration(false).Wait();

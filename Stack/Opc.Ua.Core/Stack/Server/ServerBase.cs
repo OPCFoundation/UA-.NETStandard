@@ -148,22 +148,9 @@ namespace Opc.Ua
 
         #region Public Methods
         /// <summary>
-        /// Raised when a new connection is waiting for a client.
-        /// </summary>
-        public event EventHandler<ConnectionWaitingEventArgs> ConnectionWaiting;
-
-        /// <summary>
         /// Raised when the status of a monitored connection changes.
         /// </summary>
         public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
-
-        /// <summary>
-        /// Raised when a connection arrives and is waiting for a callback.
-        /// </summary>
-        protected virtual void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
-        {
-            ConnectionWaiting?.Invoke(sender, e);
-        }
 
         /// <summary>
         /// Raised when a connection arrives and is waiting for a callback.
@@ -824,7 +811,6 @@ namespace Opc.Ua
 
                     TransportListeners.Add(listener);
 
-                    listener.ConnectionWaiting += OnConnectionWaiting;
                     listener.ConnectionStatusChanged += OnConnectionStatusChanged;
                 }
                 catch (Exception e)
@@ -965,7 +951,6 @@ namespace Opc.Ua
 
                     TransportListeners.Add(listener);
 
-                    listener.ConnectionWaiting += OnConnectionWaiting;
                     listener.ConnectionStatusChanged += OnConnectionStatusChanged;
                 }
                 catch (Exception e)

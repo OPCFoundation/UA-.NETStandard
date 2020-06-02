@@ -1422,7 +1422,7 @@ namespace Opc.Ua
             m_maxSubscriptionCount = 100;
             m_maxEventQueueSize = 10000;
             // see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
-            m_serverProfileArray = new string[] { "Standard UA Server Profile" };
+            m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
             m_shutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
             m_supportedPrivateKeyFormats = new string[] { };

@@ -495,6 +495,7 @@ namespace Opc.Ua.Client.Controls
             // disconnect any existing session.
             if (m_session != null)
             {
+                m_session.KeepAlive -= Session_KeepAlive;
                 m_session.Close(10000);
                 m_session = null;
             }

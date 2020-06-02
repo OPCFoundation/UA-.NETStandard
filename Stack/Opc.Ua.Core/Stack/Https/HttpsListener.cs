@@ -91,6 +91,8 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
+                ConnectionStatusChanged = null;
+                ConnectionWaiting = null;
                 Utils.SilentDispose(m_host);
                 m_host = null;
             }
@@ -170,14 +172,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
 
-        /// <remarks/>
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Reverse connect for the https transport listener is not implemeted.
+        /// </remarks>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            if (ConnectionStatusChanged == null || ConnectionWaiting == null)
-            {
-                throw new NotImplementedException();
-            }
-
             throw new NotImplementedException();
         }
         #endregion
