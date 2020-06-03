@@ -3338,6 +3338,4 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-
-    #endregion
 }
