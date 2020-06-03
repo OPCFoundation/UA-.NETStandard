@@ -91,7 +91,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
         #endregion
 
-
         #region DataPointSources
         [DatapointSource]
         public static BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
@@ -146,6 +145,71 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Variant variant4 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
             // not supported
             // Variant variant5 = new Variant(daysdays);
+        }
+
+        /// <summary>
+        /// Validate ExtensionObject special cases and constructors.
+        /// </summary>
+        [Test]
+        [Category("BuiltInType")]
+        public void ExtensionObject()
+        {
+            ExtensionObject extensionObject_null = null;
+            // Validate the default constructor
+            ExtensionObject extensionObject_Default = new Ua.ExtensionObject();
+            Assert.NotNull(extensionObject_Default);
+            Assert.AreEqual(ExpandedNodeId.Null, extensionObject_Default.TypeId);
+            Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject_Default.Encoding);
+            Assert.Null(extensionObject_Default.Body);
+            // Constructor by ExtensionObject
+            ExtensionObject extensionObject = new ExtensionObject(ExpandedNodeId.Null);
+            Assert.NotNull(extensionObject);
+            Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
+            Assert.AreEqual(ExtensionObjectEncoding.None, extensionObject.Encoding);
+            Assert.Null(extensionObject.Body);
+            // static extensions
+            Assert.True(Ua.ExtensionObject.IsNull(extensionObject));
+            Assert.Null(Ua.ExtensionObject.ToEncodeable(null));
+            Assert.Null(Ua.ExtensionObject.ToArray(null, typeof(object)));
+            Assert.Null(Ua.ExtensionObject.ToList<object>(null));
+            // constructor by ExpandedNodeId
+            extensionObject = new ExtensionObject((ExpandedNodeId) null);
+            Assert.AreEqual(0, extensionObject.GetHashCode());
+            Assert.Throws<ArgumentNullException>(() => new ExtensionObject(extensionObject_null));
+            Assert.Throws<ServiceResultException>(() => new ExtensionObject(new object()));
+            // constructor by object
+            object byteArray = new byte[] { 1, 2, 3 };
+            extensionObject = new ExtensionObject(byteArray);
+            Assert.NotNull(extensionObject);
+            Assert.AreEqual(extensionObject, extensionObject);
+            // string extension
+            var extensionObjectString = extensionObject.ToString();
+            Assert.Throws<FormatException>(() => extensionObject.ToString("123", null));
+            Assert.NotNull(extensionObjectString);
+            // clone
+            var clonedExtensionObject = (ExtensionObject)Utils.Clone(extensionObject);
+            Assert.AreEqual(extensionObject, clonedExtensionObject);
+            // IsEqual operator
+            clonedExtensionObject.TypeId = new ExpandedNodeId(333);
+            Assert.AreNotEqual(extensionObject, clonedExtensionObject);
+            Assert.AreNotEqual(extensionObject, extensionObject_Default);
+            Assert.AreNotEqual(extensionObject, new object());
+            Assert.AreEqual(clonedExtensionObject, clonedExtensionObject);
+            Assert.AreEqual(ExpandedNodeId.Null, extensionObject.TypeId);
+            Assert.AreEqual(ExpandedNodeId.Null.GetHashCode(), extensionObject.TypeId.GetHashCode());
+            Assert.AreEqual(ExtensionObjectEncoding.Binary, extensionObject.Encoding);
+            Assert.AreEqual(byteArray, extensionObject.Body);
+            Assert.AreEqual(byteArray.GetHashCode(), extensionObject.Body.GetHashCode());
+            // collection
+            ExtensionObjectCollection collection = new ExtensionObjectCollection();
+            Assert.NotNull(collection);
+            collection = new ExtensionObjectCollection(100);
+            Assert.NotNull(collection);
+            collection = new ExtensionObjectCollection(collection);
+            Assert.NotNull(collection);
+            collection = (ExtensionObjectCollection)collection.MemberwiseClone();
+            // default value is null
+            Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
         }
         #endregion
     }

@@ -75,17 +75,6 @@ namespace Opc.Ua.Client.Controls
         }
 
         /// <summary>
-        /// The possible COM identities.
-        /// </summary>
-        private enum ComIdentityType
-        {
-            None = -1,
-            DA = (int)ComSpecification.DA,
-            AE = (int)ComSpecification.AE,
-            HDA = (int)ComSpecification.HDA,
-        }
-
-        /// <summary>
         /// Whether to override limits
         /// </summary>
         private enum UseDefaultLimits
@@ -103,7 +92,6 @@ namespace Opc.Ua.Client.Controls
         private ApplicationConfiguration m_configuration;
         private bool m_updating;
         private Dictionary<string, UserIdentityToken> m_userIdentities;
-        private EndpointComIdentity m_comIdentity;
         private EndpointConfiguration m_endpointConfiguration;
         private bool m_discoverySucceeded;
         private Uri m_discoveryUrl;
@@ -226,9 +214,6 @@ namespace Opc.Ua.Client.Controls
                 UserTokenTypeCB.Items.Add(userTokenItem);
                 UserTokenTypeCB.SelectedIndex = UserTokenTypeCB.Items.IndexOf(userTokenItem);
             }
-
-            // copy com identity.
-            m_comIdentity = endpoint.ComIdentity;
 
             // initializing the protocol will trigger an update to all other controls.
             InitializeProtocols(m_availableEndpoints);
