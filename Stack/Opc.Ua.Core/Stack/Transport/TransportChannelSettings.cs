@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.IdentityModel.Selectors;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
@@ -80,7 +79,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public X509CertificateValidator CertificateValidator
+        public ICertificateValidator CertificateValidator
         {
             get { return m_certificateValidator; }
             set { m_certificateValidator = value; }
@@ -130,7 +129,7 @@ namespace Opc.Ua
         private X509Certificate2 m_clientCertificate;
         private X509Certificate2Collection m_clientCertificateChain;
         private X509Certificate2 m_serverCertificate;
-        private X509CertificateValidator m_certificateValidator;
+        private ICertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;
         private EncodeableFactory m_channelFactory;
         #endregion

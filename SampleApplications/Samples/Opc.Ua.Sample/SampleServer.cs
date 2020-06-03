@@ -38,7 +38,7 @@ namespace Opc.Ua.Sample
     /// <summary>
     /// A class which implements an instance of a UA server.
     /// </summary>
-    public partial class SampleServer : StandardServer
+    public partial class SampleServer : ReverseConnectServer
     {
         #region Overridden Methods
         /// <summary>

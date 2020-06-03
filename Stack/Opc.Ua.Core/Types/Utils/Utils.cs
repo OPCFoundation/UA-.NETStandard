@@ -38,6 +38,11 @@ namespace Opc.Ua
         /// <summary>
         /// The URI scheme for the HTTPS protocol. 
         /// </summary>
+        public const string UriSchemeHttp = "http";
+
+        /// <summary>
+        /// The URI scheme for the HTTPS protocol. 
+        /// </summary>
         public const string UriSchemeHttps = "https";
 
         /// <summary>
@@ -948,9 +953,7 @@ namespace Opc.Ua
             string domainName = null;
             try
             {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
                 domainName = Dns.GetHostEntry("localhost").HostName;
-#endif
             }
             catch
             {

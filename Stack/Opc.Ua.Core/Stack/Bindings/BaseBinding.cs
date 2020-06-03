@@ -10,11 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.ServiceModel;
 using System.ServiceModel.Channels;
-using System.Text;
 
 namespace Opc.Ua.Bindings
 {
@@ -28,21 +24,21 @@ namespace Opc.Ua.Bindings
         /// Initializes the binding.
         /// </summary>
         protected BaseBinding(
-            NamespaceTable        namespaceUris,
-            EncodeableFactory     factory,
+            NamespaceTable namespaceUris,
+            EncodeableFactory factory,
             EndpointConfiguration configuration)
         {
             m_messageContext = new ServiceMessageContext();
-            
-            m_messageContext.MaxStringLength     = configuration.MaxStringLength;
+
+            m_messageContext.MaxStringLength = configuration.MaxStringLength;
             m_messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-            m_messageContext.MaxArrayLength      = configuration.MaxArrayLength;
-            m_messageContext.MaxMessageSize      = configuration.MaxMessageSize;
-            m_messageContext.Factory             = factory;
-            m_messageContext.NamespaceUris       = namespaceUris;
+            m_messageContext.MaxArrayLength = configuration.MaxArrayLength;
+            m_messageContext.MaxMessageSize = configuration.MaxMessageSize;
+            m_messageContext.Factory = factory;
+            m_messageContext.NamespaceUris = namespaceUris;
         }
         #endregion
-        
+
         #region Public Properties
         /// <summary>
         /// The message context to use with the binding.

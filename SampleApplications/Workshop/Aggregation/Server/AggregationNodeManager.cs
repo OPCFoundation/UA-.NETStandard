@@ -38,6 +38,8 @@ using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
 using System.Threading.Tasks;
+using System.Net;
+
 
 namespace AggregationServer
 {
@@ -50,7 +52,12 @@ namespace AggregationServer
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public AggregationNodeManager(IServerInternal server, ApplicationConfiguration configuration, ConfiguredEndpoint endpoint, bool ownsTypeModel)
+        public AggregationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            Opc.Ua.Client.ReverseConnectManager reverseConnectManager,
+            bool ownsTypeModel)
         :
             base(server, configuration, Namespaces.Aggregation, AggregationModel.Namespaces.Aggregation)
         {
@@ -58,18 +65,25 @@ namespace AggregationServer
 
             m_configuration = configuration;
             m_endpoint = endpoint;
+            if (endpoint.ReverseConnect != null &&
+                endpoint.ReverseConnect.Enabled)
+            {
+                // reverse connect manager endpoint is required 
+                if (reverseConnectManager == null) throw new ArgumentNullException(nameof(reverseConnectManager));
+                m_reverseConnectManager = reverseConnectManager;
+            }
             m_ownsTypeModel = ownsTypeModel;
             m_clients = new Dictionary<NodeId, Opc.Ua.Client.Session>();
             m_mapper = new NamespaceMapper();
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
         protected override void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 // TBD
@@ -509,7 +523,7 @@ namespace AggregationServer
                         methodToCall,
                         method,
                         result);
-                        
+
                     continue;
                 }
 
@@ -605,7 +619,7 @@ namespace AggregationServer
 
                     request.StartNodeId = m_mapper.ToRemoteId(monitoredItem.NodeId);
                     request.MonitoringMode = monitoredItem.MonitoringMode;
-                    request.SamplingInterval = (int)(monitoredItem.SamplingInterval/2);
+                    request.SamplingInterval = (int)(monitoredItem.SamplingInterval / 2);
                     request.Handle = monitoredItem;
 
                     requests.Add(request);
@@ -679,7 +693,7 @@ namespace AggregationServer
                 }
             }
         }
-        
+
         /// <summary>
         /// Called when a batch of monitored items has been modify.
         /// </summary>
@@ -730,7 +744,7 @@ namespace AggregationServer
 
                         //  update item.
                         remoteItem.MonitoringMode = monitoredItem.MonitoringMode;
-                        remoteItem.SamplingInterval = (int)(monitoredItem.SamplingInterval/2);
+                        remoteItem.SamplingInterval = (int)(monitoredItem.SamplingInterval / 2);
                         remoteItems.Add(remoteItem);
                     }
                 }
@@ -985,7 +999,7 @@ namespace AggregationServer
 
                     return ServiceResult.Good;
                 }
-                
+
                 // create a request.
                 Opc.Ua.Client.MonitoredItem request = new Opc.Ua.Client.MonitoredItem(localItem.Id);
 
@@ -1131,7 +1145,7 @@ namespace AggregationServer
         Opc.Ua.Client.Session GetClientSession(ServerSystemContext context)
         {
             NodeId sessionId = NodeId.Null;
-            string sessionName = String.Empty;
+            string sessionName = Guid.NewGuid().ToString();
             IUserIdentity userIdentity = null;
             IList<string> preferredLocales = null;
 
@@ -1144,7 +1158,6 @@ namespace AggregationServer
             }
 
             Opc.Ua.Client.Session session = null;
-
             if (m_clients.TryGetValue(sessionId, out session))
             {
                 return session;
@@ -1152,15 +1165,49 @@ namespace AggregationServer
 
             try
             {
-                
-                session = Opc.Ua.Client.Session.Create(
-                    m_configuration,
-                    m_endpoint,
-                    (context == null),
-                    sessionName,
-                    60000,
-                    userIdentity,
-                    preferredLocales).Result;
+                if (m_reverseConnectManager != null)
+                {
+                    ITransportWaitingConnection connection = null;
+                    CancellationToken cts = new CancellationTokenSource(60000).Token;
+                    do
+                    {
+                        var endpointUrl = new Uri(Utils.ReplaceLocalhost(m_endpoint.EndpointUrl.ToString()));
+                        connection = m_reverseConnectManager.WaitForConnection(
+                            endpointUrl,
+                            m_endpoint.ReverseConnect.ServerUri,
+                            cts).Result;
+
+                        if (m_endpoint.NeedUpdateFromServer())
+                        {
+                            m_endpoint.UpdateFromServer(m_endpoint.EndpointUrl, connection,
+                                m_endpoint.Description.SecurityMode,
+                                m_endpoint.Description.SecurityPolicyUri);
+                            connection = null;
+                        }
+                    } while (connection == null);
+
+                    session = Opc.Ua.Client.Session.Create(
+                        m_configuration,
+                        connection,
+                        m_endpoint,
+                        false,
+                        false,
+                        sessionName,
+                        60000,
+                        userIdentity,
+                        preferredLocales).Result;
+                }
+                else
+                {
+                    session = Opc.Ua.Client.Session.Create(
+                        m_configuration,
+                        m_endpoint,
+                        (context == null),
+                        sessionName,
+                        60000,
+                        userIdentity,
+                        preferredLocales).Result;
+                }
 
                 m_clients.Add(sessionId, session);
 
@@ -1218,14 +1265,22 @@ namespace AggregationServer
         {
             lock (Lock)
             {
+                CleanupTimer();
+                m_metadataUpdateCallback = callback;
+                m_timerPeriod = period;
+                m_metadataUpdateTimer = new Timer(DoMetadataUpdate, callbackData, initialDelay, -1);
+            }
+        }
+
+        private void CleanupTimer()
+        {
+            lock (Lock)
+            {
                 if (m_metadataUpdateTimer != null)
                 {
                     m_metadataUpdateTimer.Dispose();
                     m_metadataUpdateTimer = null;
                 }
-
-                m_metadataUpdateCallback = callback;
-                m_metadataUpdateTimer = new Timer(DoMetadataUpdate, callbackData, initialDelay, period);
             }
         }
 
@@ -1307,6 +1362,13 @@ namespace AggregationServer
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error updating event type cache.");
+            }
+            finally
+            {
+                lock (Lock)
+                {
+                    m_metadataUpdateTimer.Change(m_timerPeriod, Timeout.Infinite);
+                }
             }
         }
 
@@ -1487,7 +1549,7 @@ namespace AggregationServer
                 false,
                 GetClientSession(context as ServerSystemContext),
                 m_mapper,
-                Object.ReferenceEquals(node, m_root)?null:node,
+                Object.ReferenceEquals(node, m_root) ? null : node,
                 m_root.NodeId);
 
             return browser;
@@ -1522,9 +1584,11 @@ namespace AggregationServer
         private bool m_ownsTypeModel;
         private ApplicationConfiguration m_configuration;
         private ConfiguredEndpoint m_endpoint;
-        private Dictionary<NodeId,Opc.Ua.Client.Session> m_clients;
+        private Opc.Ua.Client.ReverseConnectManager m_reverseConnectManager;
+        private Dictionary<NodeId, Opc.Ua.Client.Session> m_clients;
         private AggregatedTypeCache m_typeCache;
         private Timer m_metadataUpdateTimer;
+        private int m_timerPeriod;
         private WaitCallback m_metadataUpdateCallback;
         private NamespaceMapper m_mapper;
         private FolderState m_root;

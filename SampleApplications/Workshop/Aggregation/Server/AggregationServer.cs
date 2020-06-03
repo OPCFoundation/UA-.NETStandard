@@ -29,9 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Server;
 
 
@@ -48,7 +47,7 @@ namespace AggregationServer
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the AggregationNodeManager which provides access to the data exposed by the Server.
     /// </remarks>
-    public partial class AggregationServer : StandardServer
+    public partial class AggregationServer : ReverseConnectServer
     {
         #region Overridden Methods
         /// <summary>
@@ -68,11 +67,30 @@ namespace AggregationServer
             bool ownsTypeModel = true;
             ConfiguredEndpointCollection endpoints = configuration.ParseExtension<ConfiguredEndpointCollection>();
 
+            // start the reverse connect host
+            ReverseConnectManager reverseConnectManager = null;
+            if (configuration.ClientConfiguration?.ReverseConnect != null)
+            {
+                var reverseConnect = configuration.ClientConfiguration.ReverseConnect;
+                // start the reverse connection manager
+                reverseConnectManager = new Opc.Ua.Client.ReverseConnectManager();
+                foreach (var endpoint in reverseConnect.ClientEndpoints)
+                {
+                    reverseConnectManager.AddEndpoint(new Uri(endpoint.EndpointUrl));
+                }
+                // start the server even if no endpoint is configured, because
+                // app config can change during operation  and the manager object
+                // is needed
+                reverseConnectManager.StartService(configuration);
+            }
+
             foreach (ConfiguredEndpoint endpoint in endpoints.Endpoints)
             {
-                nodeManagers.Add(new AggregationNodeManager(server, configuration, endpoint, ownsTypeModel));
+                nodeManagers.Add(new AggregationNodeManager(server, configuration, endpoint, reverseConnectManager, ownsTypeModel));
                 ownsTypeModel = false;
             }
+
+
 
             // create master node manager.
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
@@ -89,11 +107,11 @@ namespace AggregationServer
             ServerProperties properties = new ServerProperties();
 
             properties.ManufacturerName = "OPC Foundation";
-            properties.ProductName      = "Aggregation Server";
-            properties.ProductUri       = "http://opcfoundation.org/AggregationServer/v1.0";
-            properties.SoftwareVersion  = Utils.GetAssemblySoftwareVersion();
-            properties.BuildNumber      = Utils.GetAssemblyBuildNumber();
-            properties.BuildDate        = Utils.GetAssemblyTimestamp();
+            properties.ProductName = "Aggregation Server";
+            properties.SoftwareVersion = Utils.GetAssemblySoftwareVersion();
+            properties.ProductUri = "http://opcfoundation.org/AggregationServer/v1.4";
+            properties.BuildNumber = Utils.GetAssemblyBuildNumber();
+            properties.BuildDate = Utils.GetAssemblyTimestamp();
 
             // TBD - All applications have software certificates that need to added to the properties.
 

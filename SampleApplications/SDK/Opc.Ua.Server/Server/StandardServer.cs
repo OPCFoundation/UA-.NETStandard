@@ -29,11 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
-using System.IO;
 using System.Threading.Tasks;
-using System.Globalization;
 
 namespace Opc.Ua.Server
 {
@@ -404,7 +403,9 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-                        if (Configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count >0)
+                        if (Configuration.SecurityConfiguration.SendCertificateChain &&
+                            InstanceCertificateChain != null &&
+                            InstanceCertificateChain.Count > 0)
                         {
                             List<byte> serverCertificateChain = new List<byte>();
 
@@ -2357,10 +2358,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        protected object Lock
-        {
-            get { return m_lock; }
-        }
+        protected object Lock => m_lock;
 
         /// <summary>
         /// The state object associated with the server.
@@ -3139,7 +3137,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();    
+        protected object m_lock = new object();
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
 
@@ -3152,6 +3150,6 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-#endregion
+        #endregion
     }
 }

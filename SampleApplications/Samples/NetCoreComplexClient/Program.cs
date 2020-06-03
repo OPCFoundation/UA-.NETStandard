@@ -82,6 +82,8 @@ namespace NetCoreConsoleClient
             bool jsonReversible = false;
             string username = null;
             string pw = null;
+            string reverseConnectUrlString = null;
+            Uri reverseConnectUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
@@ -94,7 +96,8 @@ namespace NetCoreConsoleClient
                 { "p|password=", "Password to access server.", (string n) => pw = n},
                 { "v|verbose", "Verbose output.", v => verbose = v != null},
                 { "j|json", "Print custom nodes as Json.", j => json = j != null},
-                { "r|reversible", "Use Json reversible encoding.", r => jsonReversible = r != null},
+                { "r|jsonreversible", "Use Json reversible encoding.", r => jsonReversible = r != null},
+                { "rc|reverseconnect=", "Connect using the reverse connection.", (string url) => reverseConnectUrlString = url},
             };
 
             IList<string> extraArgs = null;
@@ -108,6 +111,10 @@ namespace NetCoreConsoleClient
                         Console.WriteLine("Error: Unknown option: {0}", extraArg);
                         showHelp = true;
                     }
+                }
+                if (reverseConnectUrlString != null)
+                {
+                    reverseConnectUrl = new Uri(reverseConnectUrlString);
                 }
             }
             catch (OptionException e)
@@ -147,7 +154,8 @@ namespace NetCoreConsoleClient
                 PrintAsJson = json,
                 JsonReversible = jsonReversible,
                 Username = username,
-                Password = pw
+                Password = pw,
+                ReverseConnectUri = reverseConnectUrl
             };
             return (int)client.Run();
         }
@@ -165,7 +173,7 @@ namespace NetCoreConsoleClient
         public bool BrowseAdddressSpace { get; set; } = false;
         public String Username { get; set; }
         public String Password { get; set; }
-
+        public Uri ReverseConnectUri { get; set; }
 
         public MySampleClient(
             string endpointURL,
@@ -248,6 +256,15 @@ namespace NetCoreConsoleClient
                 throw new Exception("Application instance certificate invalid!");
             }
 
+            ReverseConnectManager reverseConnectManager = null;
+            if (ReverseConnectUri != null)
+            {
+                // start the reverse connection manager
+                reverseConnectManager = new ReverseConnectManager();
+                reverseConnectManager.AddEndpoint(ReverseConnectUri);
+                reverseConnectManager.StartService(config);
+            }
+
             if (haveAppCertificate)
             {
                 config.ApplicationUri = Utils.GetApplicationUriFromCertificate(config.SecurityConfiguration.ApplicationCertificate.Certificate);
@@ -264,7 +281,23 @@ namespace NetCoreConsoleClient
 
             Console.WriteLine("2 - Discover endpoints of {0}.", m_endpointURL);
             ExitCode = ExitCode.ErrorDiscoverEndpoints;
-            var selectedEndpoint = CoreClientUtils.SelectEndpoint(m_endpointURL, haveAppCertificate, 15000);
+            EndpointDescription selectedEndpoint;
+            if (reverseConnectManager == null)
+            {
+                selectedEndpoint = CoreClientUtils.SelectEndpoint(m_endpointURL, haveAppCertificate, 15000);
+            }
+            else
+            {
+                Console.WriteLine("   Waiting for reverse connection.");
+                ITransportWaitingConnection connection = await reverseConnectManager.WaitForConnection(
+                    new Uri(m_endpointURL), null, new CancellationTokenSource(60000).Token);
+                if (connection == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
+                }
+                selectedEndpoint = CoreClientUtils.SelectEndpoint(config, connection, haveAppCertificate, 15000);
+            }
+
             Console.WriteLine("    Selected endpoint uses: {0}",
                 selectedEndpoint.SecurityPolicyUri.Substring(selectedEndpoint.SecurityPolicyUri.LastIndexOf('#') + 1));
 
@@ -283,7 +316,21 @@ namespace NetCoreConsoleClient
             }
 
             // create worker session
-            m_session = await CreateSession(config, selectedEndpoint, userIdentity).ConfigureAwait(false);
+            if (reverseConnectManager == null)
+            {
+                m_session = await CreateSession(config, selectedEndpoint, userIdentity).ConfigureAwait(false);
+            }
+            else
+            {
+                Console.WriteLine("   Waiting for reverse connection.");
+                ITransportWaitingConnection connection = await reverseConnectManager.WaitForConnection(
+                    new Uri(m_endpointURL), null, new CancellationTokenSource(60000).Token);
+                if (connection == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");
+                }
+                m_session = await CreateSession(config, connection, selectedEndpoint, userIdentity).ConfigureAwait(false);
+            }
 
             // register keep alive handler
             m_session.KeepAlive += Client_KeepAlive;
@@ -571,11 +618,25 @@ namespace NetCoreConsoleClient
             }
         }
 
-        private Task<Session> CreateSession(ApplicationConfiguration config, EndpointDescription selectedEndpoint, IUserIdentity userIdentity)
+        private Task<Session> CreateSession(
+            ApplicationConfiguration config,
+            EndpointDescription selectedEndpoint,
+            IUserIdentity userIdentity)
         {
             var endpointConfiguration = EndpointConfiguration.Create(config);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             return Session.Create(config, endpoint, false, "OPC UA Complex Types Client", 60000, userIdentity, null);
+        }
+
+        private Task<Session> CreateSession(
+            ApplicationConfiguration config,
+            ITransportWaitingConnection connection,
+            EndpointDescription selectedEndpoint,
+            IUserIdentity userIdentity)
+        {
+            var endpointConfiguration = EndpointConfiguration.Create(config);
+            var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+            return Session.Create(config, connection, endpoint, false, false, "OPC UA Complex Types Client", 60000, userIdentity, null);
         }
 
         private void WriteValue(Session session, NodeId variableId, DataValue value)
@@ -639,7 +700,7 @@ namespace NetCoreConsoleClient
                     Console.WriteLine(textbuffer);
                     Console.WriteLine(stringWriter.ToString());
                     ExitCode = ExitCode.ErrorJSONDecode;
-                    throw ;
+                    throw;
                 }
             }
         }

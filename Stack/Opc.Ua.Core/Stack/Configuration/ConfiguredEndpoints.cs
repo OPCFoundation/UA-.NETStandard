@@ -920,6 +920,19 @@ namespace Opc.Ua
 
         #region Public Methods
         /// <summary>
+        /// Determine if an update of the endpoint from the server is needed.
+        /// </summary>
+        public bool NeedUpdateFromServer()
+        {
+            bool hasCertificate = (Description.ServerCertificate != null && Description.ServerCertificate.Length > 0);
+            bool usingUserTokenSecurity =
+                (SelectedUserTokenPolicy.TokenType != UserTokenType.Anonymous) &&
+                (SelectedUserTokenPolicy.SecurityPolicyUri ?? SecurityPolicies.None) != SecurityPolicies.None;
+            bool usingTransportSecurity = Description.SecurityPolicyUri != SecurityPolicies.None;
+            return (usingUserTokenSecurity || usingTransportSecurity) && !hasCertificate;
+        }
+
+        /// <summary>
         /// Updates the endpoint description.
         /// </summary>
         public void Update(ConfiguredEndpoint endpoint)
@@ -1014,11 +1027,31 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
+            UpdateFromServer(endpointUrl, null, securityMode, securityPolicyUri);
+        }
+
+        /// <summary>
+        /// Updates an endpoint with information from the server's discovery endpoint.
+        /// </summary>
+        public void UpdateFromServer(
+            Uri                 endpointUrl,
+            ITransportWaitingConnection connection,
+            MessageSecurityMode securityMode, 
+            string              securityPolicyUri)
+        {
             // get the a discovery url.
             Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
 
             // create the discovery client.
-            DiscoveryClient client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+            DiscoveryClient client;
+            if (connection != null)
+            {
+                client = DiscoveryClient.Create(connection, m_configuration);
+            }
+            else
+            {
+                client = DiscoveryClient.Create(discoveryUrl, m_configuration);
+            }
 
             try
             {
@@ -1116,18 +1149,20 @@ namespace Opc.Ua
                 }
 
                 // check if the endpoint url matches the endpoint used in the request.
-                Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
-
-                if (matchUrl == null || String.Compare(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase) != 0)
+                if (discoveryUrl != null)
                 {
-                    UriBuilder uri = new UriBuilder(matchUrl);
-                    uri.Host = discoveryUrl.DnsSafeHost;
-                    uri.Port = discoveryUrl.Port;
-                    match.EndpointUrl = uri.ToString();
+                    Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
+                    if (matchUrl == null || String.Compare(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase) != 0)
+                    {
+                        UriBuilder uri = new UriBuilder(matchUrl);
+                        uri.Host = discoveryUrl.DnsSafeHost;
+                        uri.Port = discoveryUrl.Port;
+                        match.EndpointUrl = uri.ToString();
 
-                    // need to update the discovery urls.
-                    match.Server.DiscoveryUrls.Clear();
-                    match.Server.DiscoveryUrls.Add(discoveryUrl.ToString());
+                        // need to update the discovery urls.
+                        match.Server.DiscoveryUrls.Clear();
+                        match.Server.DiscoveryUrls.Add(discoveryUrl.ToString());
+                    }
                 }
 
                 // update the endpoint.                        

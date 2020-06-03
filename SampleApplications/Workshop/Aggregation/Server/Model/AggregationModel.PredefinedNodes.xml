@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <uax:ListOfNodeState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <uax:NamespaceUris>
-    <uax:NamespaceUri>http://somecompany.com/AggregationModel</uax:NamespaceUri>
+    <uax:NamespaceUri>http://opcfoundation.org/AggregationModel</uax:NamespaceUri>
   </uax:NamespaceUris>
-  <AggregatedServerStatusType xmlns="http://somecompany.com/AggregationModel">
+  <AggregatedServerStatusType xmlns="http://opcfoundation.org/AggregationModel">
     <uax:NodeClass>ObjectType_8</uax:NodeClass>
     <uax:NodeId>
       <uax:Identifier>ns=1;i=245</uax:Identifier>

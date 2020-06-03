@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Reflection;
 using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
@@ -53,7 +52,7 @@ namespace AggregationModel
         public AggregatedServerStatusState(NodeState parent) : base(parent)
         {
         }
-        
+
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
         /// </summary>
@@ -73,6 +72,15 @@ namespace AggregationModel
         }
 
         /// <summary>
+        /// Initializes the instance with a node.
+        /// </summary>
+        protected override void Initialize(ISystemContext context, NodeState source)
+        {
+            InitializeOptionalChildren(context);
+            base.Initialize(context, source);
+        }
+
+        /// <summary>
         /// Initializes the any option children defined for the instance.
         /// </summary>
         protected override void InitializeOptionalChildren(ISystemContext context)
@@ -81,28 +89,25 @@ namespace AggregationModel
         }
 
         #region Initialization String
-        private const string InitializationString = 
-           "AQAAACcAAABodHRwOi8vc29tZWNvbXBhbnkuY29tL0FnZ3JlZ2F0aW9uTW9kZWz/////JGCAAAEAAAAB" +
-           "ACIAAABBZ2dyZWdhdGVkU2VydmVyU3RhdHVzVHlwZUluc3RhbmNlAQH1AAMAAAAALgAAAFJlcHJlc2Vu" +
-           "dHMgdGhlIHN0YXR1cyBvZiBhbiBhZ2dyZWdhdGVkIHNlcnZlci4BAfUA/////wMAAAAVYIkKAgAAAAEA" +
-           "CwAAAEVuZHBvaW50VXJsAQH2AAAuAET2AAAAAAz/////AQH/////AAAAABVgiQoCAAAAAQAGAAAAU3Rh" +
-           "dHVzAQH3AAAuAET3AAAAABP/////AQH/////AAAAABVgiQoCAAAAAQALAAAAQ29ubmVjdFRpbWUBAfgA" +
-           "AC4ARPgAAAAADf////8BAf////8AAAAA";
+        private const string InitializationString =
+           "AQAAACkAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvQWdncmVnYXRpb25Nb2RlbP////8EYIACAQAA" +
+           "AAEAIgAAAEFnZ3JlZ2F0ZWRTZXJ2ZXJTdGF0dXNUeXBlSW5zdGFuY2UBAfUAAQH1APUAAAD/////AwAA" +
+           "ABVgiQoCAAAAAQALAAAARW5kcG9pbnRVcmwBAfYAAC4ARPYAAAAADP////8BAf////8AAAAAFWCJCgIA" +
+           "AAABAAYAAABTdGF0dXMBAfcAAC4ARPcAAAAAE/////8BAf////8AAAAAFWCJCgIAAAABAAsAAABDb25u" +
+           "ZWN0VGltZQEB+AAALgBE+AAAAAAN/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// A description for the EndpointUrl Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<string> EndpointUrl
         {
             get
-            { 
-                return m_endpointUrl;  
+            {
+                return m_endpointUrl;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_endpointUrl, value))
@@ -114,16 +119,14 @@ namespace AggregationModel
             }
         }
 
-        /// <summary>
-        /// A description for the Status Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<StatusCode> Status
         {
             get
-            { 
-                return m_status;  
+            {
+                return m_status;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_status, value))
@@ -135,16 +138,14 @@ namespace AggregationModel
             }
         }
 
-        /// <summary>
-        /// A description for the ConnectTime Property.
-        /// </summary>
+        /// <remarks />
         public PropertyState<DateTime> ConnectTime
         {
             get
-            { 
-                return m_connectTime;  
+            {
+                return m_connectTime;
             }
-            
+
             set
             {
                 if (!Object.ReferenceEquals(m_connectTime, value))

@@ -11,37 +11,35 @@
 */
 
 using System;
+using System.Security.Cryptography.X509Certificates;
 using System.ServiceModel;
 using Opc.Ua.Bindings;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// A base class for WCF channel objects used access UA interfaces
+    /// A base class for UA channel objects used to access UA interfaces
     /// </summary>
-    public abstract class WcfChannelBase : IChannelBase, ITransportChannel
+    public abstract class UaChannelBase : IChannelBase, ITransportChannel
     {
-        public static ITransportChannelFactory g_CustomTransportChannel = null;
-        
         #region Constructors
         /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
         /// </summary>
-        public WcfChannelBase()
+        public UaChannelBase()
         {
             m_messageContext = null;
             m_settings = null;
-            m_wcfBypassChannel = null;
+            m_uaBypassChannel = null;
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -124,12 +122,12 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         public void ScheduleOutgoingRequest(IChannelOutgoingRequest request)
         {
-            #if MANAGE_CHANNEL_THREADS
+#if MANAGE_CHANNEL_THREADS
             System.Threading.Thread thread = new System.Threading.Thread(OnSendRequest);
             thread.Start(request);
-            #else
+#else
             throw new NotImplementedException();
-            #endif
+#endif
         }
         #endregion
 
@@ -137,15 +135,15 @@ namespace Opc.Ua
         /// <summary>
         /// A masking indicating which features are implemented.
         /// </summary>
-        public TransportChannelFeatures SupportedFeatures 
+        public TransportChannelFeatures SupportedFeatures
         {
-            get 
+            get
             {
-                if (m_wcfBypassChannel != null)
+                if (m_uaBypassChannel != null)
                 {
-                    return m_wcfBypassChannel.SupportedFeatures;
+                    return m_uaBypassChannel.SupportedFeatures;
                 }
-            
+
                 return TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest | TransportChannelFeatures.BeginClose;
             }
         }
@@ -157,17 +155,17 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_wcfBypassChannel != null)
+                if (m_uaBypassChannel != null)
                 {
-                    return m_wcfBypassChannel.EndpointDescription;
+                    return m_uaBypassChannel.EndpointDescription;
                 }
-            
+
                 if (m_settings != null)
                 {
                     return m_settings.Description;
                 }
 
-                return null; 
+                return null;
             }
         }
 
@@ -178,9 +176,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_wcfBypassChannel != null)
+                if (m_uaBypassChannel != null)
                 {
-                    return m_wcfBypassChannel.EndpointConfiguration;
+                    return m_uaBypassChannel.EndpointConfiguration;
                 }
 
                 if (m_settings != null)
@@ -188,7 +186,7 @@ namespace Opc.Ua
                     return m_settings.Configuration;
                 }
 
-                return null; 
+                return null;
             }
         }
 
@@ -199,22 +197,19 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_wcfBypassChannel != null)
+                if (m_uaBypassChannel != null)
                 {
-                    return m_wcfBypassChannel.MessageContext;
+                    return m_uaBypassChannel.MessageContext;
                 }
-             
-                return m_messageContext; 
+
+                return m_messageContext;
             }
         }
 
         /// <summary>
         ///  Gets the the channel's current security token.
         /// </summary>
-        public ChannelToken CurrentToken
-        {
-            get { return null; }
-        }
+        public ChannelToken CurrentToken => null;
 
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
@@ -223,19 +218,19 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_wcfBypassChannel != null)
+                if (m_uaBypassChannel != null)
                 {
-                    return m_wcfBypassChannel.OperationTimeout;
+                    return m_uaBypassChannel.OperationTimeout;
                 }
-             
+
                 return m_operationTimeout;
             }
 
             set
             {
-                if (m_wcfBypassChannel != null)
+                if (m_uaBypassChannel != null)
                 {
-                    m_wcfBypassChannel.OperationTimeout = value;
+                    m_uaBypassChannel.OperationTimeout = value;
                     return;
                 }
 
@@ -253,12 +248,25 @@ namespace Opc.Ua
             Uri url,
             TransportChannelSettings settings)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.Initialize(url, settings);
+                m_uaBypassChannel.Initialize(url, settings);
                 return;
             }
 
+            throw new NotSupportedException("WCF channels must be configured when they are constructed.");
+        }
+
+        /// <summary>
+        /// Initializes a secure channel with the endpoint identified by the URL.
+        /// </summary>
+        /// <param name="connection">The connection to use.</param>
+        /// <param name="settings">The settings to use when creating the channel.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public void Initialize(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings)
+        {
             throw new NotSupportedException("WCF channels must be configured when they are constructed.");
         }
 
@@ -267,9 +275,9 @@ namespace Opc.Ua
         /// </summary>
         public void Open()
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.Open();
+                m_uaBypassChannel.Open();
                 return;
             }
         }
@@ -279,11 +287,11 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                return m_wcfBypassChannel.BeginOpen(callback, callbackData);
+                return m_uaBypassChannel.BeginOpen(callback, callbackData);
             }
-             
+
             throw new NotSupportedException("WCF channels must be configured when they are constructed.");
         }
 
@@ -292,9 +300,9 @@ namespace Opc.Ua
         /// </summary>
         public void EndOpen(IAsyncResult result)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.EndOpen(result);
+                m_uaBypassChannel.EndOpen(result);
                 return;
             }
 
@@ -315,9 +323,9 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                return m_wcfBypassChannel.BeginReconnect(callback, callbackData);
+                return m_uaBypassChannel.BeginReconnect(callback, callbackData);
             }
 
             throw new NotSupportedException("WCF channels cannot be reconnected.");
@@ -328,9 +336,9 @@ namespace Opc.Ua
         /// </summary>
         public void EndReconnect(IAsyncResult result)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.EndReconnect(result);
+                m_uaBypassChannel.EndReconnect(result);
                 return;
             }
 
@@ -342,9 +350,9 @@ namespace Opc.Ua
         /// </summary>
         public void Close()
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.Close();
+                m_uaBypassChannel.Close();
                 return;
             }
 
@@ -356,9 +364,9 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                return m_wcfBypassChannel.BeginClose(callback, callbackData);
+                return m_uaBypassChannel.BeginClose(callback, callbackData);
             }
 
             AsyncResultBase result = new AsyncResultBase(callback, callbackData, 0);
@@ -371,9 +379,9 @@ namespace Opc.Ua
         /// </summary>
         public void EndClose(IAsyncResult result)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.EndClose(result);
+                m_uaBypassChannel.EndClose(result);
                 return;
             }
 
@@ -386,14 +394,14 @@ namespace Opc.Ua
         /// </summary>
         public IServiceResponse SendRequest(IServiceRequest request)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                return m_wcfBypassChannel.SendRequest(request);
+                return m_uaBypassChannel.SendRequest(request);
             }
 
             byte[] requestMessage = BinaryEncoder.EncodeMessage(request, m_messageContext);
             InvokeServiceResponseMessage responseMessage = InvokeService(new InvokeServiceMessage(requestMessage));
-            return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);            
+            return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
         }
 
         /// <summary>
@@ -401,19 +409,19 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                return m_wcfBypassChannel.BeginSendRequest(request, callback, callbackData);
+                return m_uaBypassChannel.BeginSendRequest(request, callback, callbackData);
             }
 
-            #if MANAGE_CHANNEL_THREADS
+#if MANAGE_CHANNEL_THREADS
             SendRequestAsyncResult asyncResult = new SendRequestAsyncResult(this, callback, callbackData, 0);
             asyncResult.BeginSendRequest(SendRequest, request);
             return asyncResult;
-            #else
+#else
             byte[] requestMessage = BinaryEncoder.EncodeMessage(request, m_messageContext);
             return BeginInvokeService(new InvokeServiceMessage(requestMessage), callback, callbackData);
-            #endif
+#endif
         }
 
         /// <summary>
@@ -421,17 +429,17 @@ namespace Opc.Ua
         /// </summary>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                return m_wcfBypassChannel.EndSendRequest(result);
+                return m_uaBypassChannel.EndSendRequest(result);
             }
 
-            #if MANAGE_CHANNEL_THREADS
+#if MANAGE_CHANNEL_THREADS
             return SendRequestAsyncResult.WaitForComplete(result);
-            #else
+#else
             InvokeServiceResponseMessage responseMessage = EndInvokeService(result);
             return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
-            #endif
+#endif
         }
 
         /// <summary>
@@ -449,15 +457,15 @@ namespace Opc.Ua
         /// </summary>
         public abstract InvokeServiceResponseMessage EndInvokeService(IAsyncResult result);
         #endregion
-        
-        #if MANAGE_CHANNEL_THREADS
+
+#if MANAGE_CHANNEL_THREADS
         #region SendRequestAsyncResult Class
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
         protected class SendRequestAsyncResult : AsyncResultBase, IChannelOutgoingRequest
         {
-            #region Constructors
+        #region Constructors
             /// <summary>
             /// Initializes a new instance of the <see cref="SendRequestAsyncResult"/> class.
             /// </summary>
@@ -475,9 +483,9 @@ namespace Opc.Ua
             {
                 m_channel = channel;
             }
-            #endregion
+        #endregion
 
-            #region IChannelOutgoingRequest Members
+        #region IChannelOutgoingRequest Members
             /// <summary>
             /// Gets the request.
             /// </summary>
@@ -529,9 +537,9 @@ namespace Opc.Ua
                 // operation completed.
                 OperationCompleted();
             }
-            #endregion
+        #endregion
 
-            #region Public Members
+        #region Public Members
             /// <summary>
             /// Begins processing an incoming request.
             /// </summary>
@@ -608,9 +616,9 @@ namespace Opc.Ua
 
                 return null;
             }
-            #endregion
+        #endregion
 
-            #region Private Members
+        #region Private Members
             /// <summary>
             /// Processes the request.
             /// </summary>
@@ -631,15 +639,15 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-            #endregion
+        #endregion
 
-            #region Private Fields
+        #region Private Fields
             private IChannelBase m_channel;
             private ChannelSendRequestEventHandler m_handler;
             private IServiceRequest m_request;
             private IServiceResponse m_response;
             private Exception m_error;
-            #endregion
+        #endregion
         }
         #endregion
         
@@ -659,9 +667,72 @@ namespace Opc.Ua
                 Utils.Trace(e, "Unexpected error sending outgoing request.");
             }
         }
-        #endif
+#endif
 
         #region Protected Methods
+        /// <summary>
+        /// Creates a new UA-binary transport channel if requested. Null otherwise.
+        /// </summary>
+        public static ITransportChannel CreateUaBinaryChannel(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointDescription description,
+            EndpointConfiguration endpointConfiguration,
+            X509Certificate2 clientCertificate,
+            X509Certificate2Collection clientCertificateChain,
+            ServiceMessageContext messageContext)
+        {
+            bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
+            bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
+
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = null;
+
+            if (useUaTcp)
+            {
+                channel = new TcpTransportChannel();
+            }
+#if !NO_HTTPS
+            else if (useHttps)
+            {
+                channel = new HttpsTransportChannel();
+            }
+#endif
+
+            if (channel == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadProtocolVersionUnsupported,
+                    "Unsupported transport profile\r\n");
+            }
+
+            // create a UA channel.
+            var settings = new TransportChannelSettings {
+                Description = description,
+                Configuration = endpointConfiguration,
+                ClientCertificate = clientCertificate,
+                ClientCertificateChain = clientCertificateChain
+            };
+
+            if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
+            {
+                settings.ServerCertificate = Utils.ParseCertificateBlob(description.ServerCertificate);
+            }
+
+            if (configuration != null)
+            {
+                settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
+            }
+
+            settings.NamespaceUris = messageContext.NamespaceUris;
+            settings.Factory = messageContext.Factory;
+
+            channel.Initialize(connection, settings);
+            channel.Open();
+
+            return channel;
+        }
+
         /// <summary>
         /// Creates a new UA-binary transport channel if requested. Null otherwise.
         /// </summary>
@@ -702,44 +773,48 @@ namespace Opc.Ua
             bool useUaTcp = description.EndpointUrl.StartsWith(Utils.UriSchemeOpcTcp);
             bool useHttps = description.EndpointUrl.StartsWith(Utils.UriSchemeHttps);
 
-
             switch (description.TransportProfileUri)
             {
                 case Profiles.UaTcpTransport:
-                    {
-                        useUaTcp = true;
-                        break;
-                    }
+                {
+                    useUaTcp = true;
+                    break;
+                }
 
                 case Profiles.HttpsBinaryTransport:
-                    {
-                        useHttps = true;
-                        break;
-                    }
+                {
+                    useHttps = true;
+                    break;
+                }
             }
 
-            // note: WCF channels are not supported
-            if (!useUaTcp
+            // initialize the channel which will be created with the server.
+            ITransportChannel channel = null;
+            if (useUaTcp)
+            {
+                channel = new TcpTransportChannel();
+            }
 #if !NO_HTTPS
-                && !useHttps
+            else if (useHttps)
+            {
+                channel = new HttpsTransportChannel();
+            }
 #endif
-                )
+
+            if (channel == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile\r\n");
             }
 
-            // initialize the channel which will be created with the server.
-            ITransportChannel channel = null;
-
             // create a UA-TCP channel.
-            TransportChannelSettings settings = new TransportChannelSettings();
-
-            settings.Description = description;
-            settings.Configuration = endpointConfiguration;
-            settings.ClientCertificate = clientCertificate;
-            settings.ClientCertificateChain = clientCertificateChain;
+            TransportChannelSettings settings = new TransportChannelSettings {
+                Description = description,
+                Configuration = endpointConfiguration,
+                ClientCertificate = clientCertificate,
+                ClientCertificateChain = clientCertificateChain
+            };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
             {
@@ -753,24 +828,6 @@ namespace Opc.Ua
 
             settings.NamespaceUris = messageContext.NamespaceUris;
             settings.Factory = messageContext.Factory;
-
-            if (useUaTcp)
-            {
-                if (g_CustomTransportChannel != null)
-                {
-                    channel = g_CustomTransportChannel.Create();
-                }
-                else
-                {
-                    channel = new TcpTransportChannel();
-                }
-            }
-            else if (useHttps)
-            {
-#if !NO_HTTPS
-                channel = new HttpsTransportChannel();
-#endif
-            }
 
             channel.Initialize(new Uri(description.EndpointUrl), settings);
             channel.Open();
@@ -789,7 +846,7 @@ namespace Opc.Ua
 
             X509Certificate2 clientCertificate = null;
             X509Certificate2 serverCertificate = null;
-            
+
             Security.Audit.SecureChannelCreated(
                     g_ImplementationString,
                     m_channelFactory.Endpoint.Address.Uri.ToString(),
@@ -814,7 +871,7 @@ namespace Opc.Ua
 
             return new ServiceResultException(new ServiceResult(
                 header.ServiceResult,
-                header.ServiceDiagnostics, 
+                header.ServiceDiagnostics,
                 header.StringTable));
         }
         #endregion
@@ -822,29 +879,19 @@ namespace Opc.Ua
         #region Private Fields
         internal TransportChannelSettings m_settings;
         internal ServiceMessageContext m_messageContext;
-        internal ITransportChannel m_wcfBypassChannel;
+        internal ITransportChannel m_uaBypassChannel;
         internal int m_operationTimeout;
         internal ChannelFactory m_channelFactory;
         internal IChannelBase m_channel;
         internal string g_ImplementationString = "Opc.Ua.ChannelBase WCF Client " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
-    
-    /// <summary>
-    /// A base class for WCF channel objects used access UA interfaces
-    /// </summary>
-    public class WcfChannelBase<TChannel> : WcfChannelBase where TChannel : class, IChannelBase
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the object with the specified binding and endpoint address.
-        /// </summary>
-        public WcfChannelBase()
-        {
-        }
-        
-        #endregion
 
+    /// <summary>
+    /// A base class for UA channel objects used access UA interfaces
+    /// </summary>
+    public class WcfChannelBase<TChannel> : UaChannelBase where TChannel : class, IChannelBase
+    {
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -911,9 +958,9 @@ namespace Opc.Ua
         /// </summary>
         public override void Reconnect()
         {
-            if (m_wcfBypassChannel != null)
+            if (m_uaBypassChannel != null)
             {
-                m_wcfBypassChannel.Reconnect();
+                m_uaBypassChannel.Reconnect();
                 return;
             }
 
@@ -981,10 +1028,7 @@ namespace Opc.Ua
             /// Gets the wrapped channel.
             /// </summary>
             /// <value>The wrapped channel.</value>
-            public TChannel Channel
-            {
-                get { return m_channel; }
-            }
+            public TChannel Channel => m_channel;
 
             /// <summary>
             /// Called when asynchronous operation completes.
@@ -1043,10 +1087,7 @@ namespace Opc.Ua
         /// Gets the inner channel.
         /// </summary>
         /// <value>The channel.</value>
-        protected TChannel Channel
-        {
-            get { return m_channel; }
-        }
+        protected TChannel Channel => m_channel;
         #endregion
 
         #region Private Fields

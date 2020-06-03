@@ -12,10 +12,6 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
-using System.ServiceModel;
-using System.ServiceModel.Channels;
-
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -25,6 +21,52 @@ namespace Opc.Ua
     public partial class DiscoveryClient
     {
         #region Constructors
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl)
+        {
+            var configuration = EndpointConfiguration.Create();
+            ITransportChannel channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, new ServiceMessageContext());
+            return new DiscoveryClient(channel);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
+        {
+            if (configuration == null)
+            {
+                configuration = EndpointConfiguration.Create();
+            }
+
+            ITransportChannel channel = DiscoveryChannel.Create(application, discoveryUrl, configuration, application.CreateMessageContext());
+            return new DiscoveryClient(channel);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        public static DiscoveryClient Create(
+            ApplicationConfiguration application,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration)
+        {
+            if (configuration == null)
+            {
+                configuration = EndpointConfiguration.Create();
+            }
+
+            ITransportChannel channel = DiscoveryChannel.Create(application, connection, configuration, application.CreateMessageContext());
+            return new DiscoveryClient(channel);
+        }
+
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
@@ -41,9 +83,27 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery URL.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns></returns>
-        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration configuration)
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration configuration)
         {
             return DiscoveryClient.Create(discoveryUrl, configuration, null);
+        }
+
+        /// <summary>
+        /// Creates a binding for to use for discovering servers.
+        /// </summary>
+        public static DiscoveryClient Create(
+            ITransportWaitingConnection connection,
+            EndpointConfiguration configuration)
+        {
+            if (configuration == null)
+            {
+                configuration = EndpointConfiguration.Create();
+            }
+
+            ITransportChannel channel = DiscoveryChannel.Create(null, connection, configuration, new ServiceMessageContext());
+            return new DiscoveryClient(channel);
         }
 
         /// <summary>
@@ -53,7 +113,10 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The endpoint configuration.</param>
         /// /// <param name="applicationConfiguration">The application configuration.</param>
         /// <returns></returns>
-        public static DiscoveryClient Create(Uri discoveryUrl, EndpointConfiguration endpointConfiguration, ApplicationConfiguration applicationConfiguration)
+        public static DiscoveryClient Create(
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            ApplicationConfiguration applicationConfiguration)
         {
             if (endpointConfiguration == null)
             {
@@ -74,13 +137,12 @@ namespace Opc.Ua
             }
             catch
             {
-                //ignore erros
+                //ignore errors
             }
 
             ITransportChannel channel = DiscoveryChannel.Create(discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
             return new DiscoveryClient(channel);
         }
-
         #endregion
 
         #region Public Methods
@@ -179,7 +241,7 @@ namespace Opc.Ua
 
         #endregion  
     }
-    
+
     /// <summary>
     /// A channel object used by clients to access a UA discovery service.
     /// </summary>
@@ -218,6 +280,67 @@ namespace Opc.Ua
             return channel;
         }
 
+        /// <summary>
+        /// Creates a new transport channel that supports the ITransportWaitingConnection service contract.
+        /// </summary>
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            EndpointConfiguration endpointConfiguration,
+            ServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
+        {
+            // create a default description.
+            var endpoint = new EndpointDescription {
+                EndpointUrl = connection.EndpointUrl.ToString(),
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            ITransportChannel channel = CreateUaBinaryChannel(
+                configuration,
+                connection,
+                endpoint,
+                endpointConfiguration,
+                clientCertificate,
+                (X509Certificate2Collection)null,
+                messageContext);
+
+            return channel;
+        }
+
+        /// <summary>
+        /// Creates a new transport channel that supports the IDiscoveryChannel service contract.
+        /// </summary>
+        public static ITransportChannel Create(
+            ApplicationConfiguration configuration,
+            Uri discoveryUrl,
+            EndpointConfiguration endpointConfiguration,
+            ServiceMessageContext messageContext,
+            X509Certificate2 clientCertificate = null)
+        {
+            // create a default description.
+            var endpoint = new EndpointDescription {
+                EndpointUrl = discoveryUrl.ToString(),
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            endpoint.Server.ApplicationUri = endpoint.EndpointUrl;
+            endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
+
+            ITransportChannel channel = CreateUaBinaryChannel(
+                configuration,
+                endpoint,
+                endpointConfiguration,
+                clientCertificate,
+                (X509Certificate2Collection)null,
+                messageContext);
+
+            return channel;
+        }
+
         #endregion
-    } 
+    }
 }

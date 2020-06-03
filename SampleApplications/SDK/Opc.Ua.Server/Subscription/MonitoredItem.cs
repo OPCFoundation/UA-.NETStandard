@@ -29,8 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.Globalization;
+using System.Xml;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -174,26 +175,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
-        public INodeManager NodeManager
-        {
-            get { return m_nodeManager; }
-        }
+        public INodeManager NodeManager => m_nodeManager;
 
         /// <summary>
         /// The handle assigned by the node manager when it created the item.
         /// </summary>
-        public object ManagerHandle
-        {
-            get { return m_managerHandle; }
-        }
+        public object ManagerHandle => m_managerHandle;
 
         /// <summary>
         /// The identifier for the subscription that owns the monitored item.
         /// </summary>
-        public uint SubscriptionId
-        {
-            get { return m_subscriptionId; }
-        }
+        public uint SubscriptionId => m_subscriptionId;
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.
@@ -202,13 +194,7 @@ namespace Opc.Ua.Server
         /// Predefined bits are defined by the MonitoredItemTypeMasks class.
         /// NodeManagers may use the remaining bits.
         /// </remarks>
-        public int MonitoredItemType
-        {
-            get
-            {
-                return m_typeMask; 
-            }
-        }
+        public int MonitoredItemType => m_typeMask;
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -229,21 +215,21 @@ namespace Opc.Ua.Server
                 // check if not ready to publish.
                 if (!m_readyToPublish)
                 {
-                    Utils.Trace("IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (m_monitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    Utils.Trace("IsReadyToPublish[{0}] TRIGGERED", m_id);
+                    Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] TRIGGERED", m_id);
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (m_monitoringMode != MonitoringMode.Reporting)
                 {
-                    Utils.Trace("IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
@@ -254,12 +240,12 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        Utils.Trace("IsReadyToPublish[{0}] FALSE {1}", m_id, new TimeSpan(m_nextSamplingTime - now).TotalSeconds);
+                        Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE {1}", m_id, new TimeSpan(m_nextSamplingTime - now).TotalSeconds);
                         return false;
                     }
                 }
 
-                Utils.Trace("IsReadyToPublish[{0}] NORMAL", m_id);
+                Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] NORMAL", m_id);
                 return true;
             }
         }
@@ -335,35 +321,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The filter used by the monitored item.
         /// </summary>
-        public MonitoringFilter Filter
-        {
-            get 
-            { 
-                return m_originalFilter; 
-            }
-        }     
+        public MonitoringFilter Filter => m_originalFilter;
         
         /// <summary>
         /// The event filter used by the monitored item.
         /// </summary>
-        public EventFilter EventFilter
-        {
-            get 
-            { 
-                return m_originalFilter as EventFilter; 
-            }
-        }     
+        public EventFilter EventFilter => m_originalFilter as EventFilter;
         
         /// <summary>
         /// The data change filter used by the monitored item.
         /// </summary>
-        public DataChangeFilter DataChangeFilter
-        {
-            get 
-            { 
-                return m_originalFilter as DataChangeFilter; 
-            }
-        }     
+        public DataChangeFilter DataChangeFilter => m_originalFilter as DataChangeFilter;
 
         /// <summary>
         /// The session that owns the monitored item.
@@ -382,45 +350,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The identifier for the item that is unique within the server.
         /// </summary>
-        public uint Id
-        {
-            get { return m_id; }
-        }
+        public uint Id => m_id;
 
         /// <summary>
         /// The identifier for the client handle assigned to the monitored item.
         /// </summary>
-        public uint ClientHandle
-        {
-            get { return m_clientHandle; }
-        }
+        public uint ClientHandle => m_clientHandle;
 
         /// <summary>
         /// The node id being monitored.
         /// </summary>
-        public NodeId NodeId
-        {
-            get { return m_nodeId; }
-        }     
+        public NodeId NodeId => m_nodeId;
         
         /// <summary>
         /// The attribute being monitored.
         /// </summary>
-        public uint AttributeId
-        {
-            get { return m_attributeId; }
-        }     
+        public uint AttributeId => m_attributeId;
  
         /// <summary>
         /// The current monitoring mode for the item
         /// </summary>
-        public MonitoringMode MonitoringMode
-        {
-            get 
-            { 
-                return m_monitoringMode; 
-            }
-        }        
+        public MonitoringMode MonitoringMode => m_monitoringMode;
 
         /// <summary>
         /// The sampling interval for the item.
@@ -439,24 +389,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The minimum sampling interval for the item.
         /// </summary>
-        public double MinimumSamplingInterval
-        {
-            get 
-            { 
-                return m_sourceSamplingInterval; 
-            }
-        }
+        public double MinimumSamplingInterval => m_sourceSamplingInterval;
 
         /// <summary>
         /// The queue size for the item.
         /// </summary>
-        public uint QueueSize
-        {
-            get 
-            { 
-                return m_queueSize; 
-            }
-        }
+        public uint QueueSize => m_queueSize;
               
         /// <summary>
         /// Gets number of elements actually contained in value queue.
@@ -485,35 +423,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The diagnostics masks to use when collecting notifications for the item.
         /// </summary>
-        public DiagnosticsMasks DiagnosticsMasks
-        {
-            get 
-            { 
-                return m_diagnosticsMasks; 
-            }
-        }
+        public DiagnosticsMasks DiagnosticsMasks => m_diagnosticsMasks;
 
         /// <summary>
         /// The index range requested by the monitored item.
         /// </summary>
-        public NumericRange IndexRange
-        {
-            get
-            {
-                return m_parsedIndexRange;
-            }
-        }
+        public NumericRange IndexRange => m_parsedIndexRange;
 
         /// <summary>
         /// The data encoding requested by the monitored item.
         /// </summary>
-        public QualifiedName DataEncoding
-        {
-            get
-            {
-                return m_encoding;
-            }
-        }
+        public QualifiedName DataEncoding => m_encoding;
 
         /// <summary>
         /// Whether the monitored item should report a value without checking if it was changed.
@@ -942,10 +862,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the item is monitoring all events produced by the server.
         /// </summary>
-        public bool MonitoringAllEvents 
-        { 
-            get { return this.m_nodeId == ObjectIds.Server; }
-        }
+        public bool MonitoringAllEvents => this.m_nodeId == ObjectIds.Server;
 
         /// <summary>
         /// Fetches the event fields from the event.

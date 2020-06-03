@@ -53,15 +53,8 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (bufferManager == null)
-            {
-                throw new ArgumentNullException(nameof(bufferManager));
-            }
-
-            if (quotas == null)
-            {
-                throw new ArgumentNullException(nameof(quotas));
-            }
+            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
+            if (quotas == null) throw new ArgumentNullException(nameof(quotas));
 
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -79,10 +72,7 @@ namespace Opc.Ua.Bindings
 
             if (securityMode != MessageSecurityMode.None)
             {
-                if (serverCertificate == null)
-                {
-                    throw new ArgumentNullException(nameof(serverCertificate));
-                }
+                if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
@@ -602,7 +592,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
-
+            
             offset += 4;
 
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
@@ -624,7 +614,6 @@ namespace Opc.Ua.Bindings
         protected internal IMessageSocket Socket
         {
             get { return m_socket; }
-
             set
             {
                 m_socket = value;

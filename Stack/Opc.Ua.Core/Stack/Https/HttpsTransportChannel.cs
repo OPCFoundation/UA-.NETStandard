@@ -70,6 +70,19 @@ namespace Opc.Ua.Bindings
             SaveSettings(url, settings);
         }
 
+        /// <summary>
+        /// Initializes a secure channel with the endpoint identified by the URL.
+        /// </summary>
+        /// <param name="connection">The connection to use.</param>
+        /// <param name="settings">The settings to use when creating the channel.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public void Initialize(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings)
+        {
+            SaveSettings(connection.EndpointUrl, settings);
+        }
+
         public void Open()
         {
             var handler = new HttpClientHandler();

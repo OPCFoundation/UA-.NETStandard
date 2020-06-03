@@ -38,7 +38,7 @@ namespace AggregationServer
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace=Namespaces.Aggregation)]
+    [DataContract(Namespace = Namespaces.Aggregation)]
     public class AggregationServerConfiguration
     {
         #region Constructors

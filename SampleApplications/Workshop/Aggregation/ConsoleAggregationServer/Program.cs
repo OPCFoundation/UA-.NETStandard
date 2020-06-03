@@ -32,6 +32,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -163,6 +164,33 @@ namespace AggregationServer
             // start the server.
             server = new AggregationServer();
             await application.Start(server);
+
+            // print reverse connect info
+            Console.WriteLine("Reverse Connect Clients:");
+            var reverseConnections = server.GetReverseConnections();
+            foreach (var connection in reverseConnections)
+            {
+                Console.WriteLine(connection.Key);
+            }
+
+            // print endpoint info
+            Console.WriteLine("Server Endpoints:");
+            var endpoints = server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+            foreach (var endpoint in endpoints)
+            {
+                Console.WriteLine(endpoint);
+            }
+
+            // print the reverse connect host
+            if (config.ClientConfiguration?.ReverseConnect != null)
+            {
+                var reverseConnect = config.ClientConfiguration.ReverseConnect;
+                Console.WriteLine("Reverse Connect Server Endpoints:");
+                foreach (var endpoint in reverseConnect.ClientEndpoints)
+                {
+                    Console.WriteLine(endpoint.EndpointUrl);
+                }
+            }
 
             // start the status thread
             status = Task.Run(new Action(StatusThread));

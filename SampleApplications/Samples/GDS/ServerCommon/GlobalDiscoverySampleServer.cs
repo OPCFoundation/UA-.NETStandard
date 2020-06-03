@@ -285,7 +285,6 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Private Fields
-        private object m_lock = new object();
         private Dictionary<uint, ImpersonationContext> m_contexts = new Dictionary<uint, ImpersonationContext>();
         private IApplicationsDatabase m_database = null;
         private ICertificateRequest m_request = null;

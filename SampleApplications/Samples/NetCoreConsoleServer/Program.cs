@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mono.Options;
@@ -87,25 +88,27 @@ namespace NetCoreConsoleServer
         ErrorInvalidCommandLine = 0x100
     };
 
-    public class Program
+    public static class Program
     {
 
         public static int Main(string[] args)
         {
             Console.WriteLine(
-                (Utils.IsRunningOnMono() ? "Mono" : ".Net Core") + 
+                (Utils.IsRunningOnMono() ? "Mono" : ".Net Core") +
                 " OPC UA Console Server sample");
-
 
             // command line options
             bool showHelp = false;
             int stopTimeout = 0;
             bool autoAccept = false;
+            string reverseConnectUrlString = null;
+            Uri reverseConnectUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t }
+                { "t|timeout=", "the number of seconds until the server stops.", (int t) => stopTimeout = t },
+                { "r|reverse=", "a url for a reverse connection", (string r) => reverseConnectUrlString = r }
             };
 
             try
@@ -116,6 +119,10 @@ namespace NetCoreConsoleServer
                     Console.WriteLine("Error: Unknown option: {0}", extraArg);
                     showHelp = true;
                 }
+                if (reverseConnectUrlString != null)
+                {
+                    reverseConnectUrl = new Uri(reverseConnectUrlString);
+                }
             }
             catch (OptionException e)
             {
@@ -125,7 +132,7 @@ namespace NetCoreConsoleServer
 
             if (showHelp)
             {
-                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoConsoleServer.exe [OPTIONS]" : "Usage: dotnet NetCoreConsoleServer.dll [OPTIONS]" );
+                Console.WriteLine(Utils.IsRunningOnMono() ? "Usage: mono MonoConsoleServer.exe [OPTIONS]" : "Usage: dotnet NetCoreConsoleServer.dll [OPTIONS]");
                 Console.WriteLine();
 
                 Console.WriteLine("Options:");
@@ -133,7 +140,7 @@ namespace NetCoreConsoleServer
                 return (int)ExitCode.ErrorInvalidCommandLine;
             }
 
-            MySampleServer server = new MySampleServer(autoAccept, stopTimeout);
+            MySampleServer server = new MySampleServer(autoAccept, stopTimeout, reverseConnectUrl);
             server.Run();
 
             return (int)MySampleServer.ExitCode;
@@ -142,17 +149,24 @@ namespace NetCoreConsoleServer
 
     public class MySampleServer
     {
-        SampleServer server;
-        Task status;
-        DateTime lastEventTime;
-        int serverRunTime = Timeout.Infinite;
-        static bool autoAccept = false;
-        static ExitCode exitCode;
+        public SampleServer Server { get; private set; }
+        public Task Status { get; private set; }
+        public DateTime LastEventTime { get; private set; }
+        public int ServerRunTime { get; private set; } = Timeout.Infinite;
+        public static bool AutoAccept { get; private set; }
+        public static ExitCode ExitCode { get; private set; }
+        public Uri ReverseConnectUrl { get; private set; }
 
         public MySampleServer(bool _autoAccept, int _stopTimeout)
+            : this(_autoAccept, _stopTimeout, null)
         {
-            autoAccept = _autoAccept;
-            serverRunTime = _stopTimeout == 0 ? Timeout.Infinite : _stopTimeout * 1000;
+        }
+
+        public MySampleServer(bool _autoAccept, int _stopTimeout, Uri _reverseConnectUrl)
+        {
+            AutoAccept = _autoAccept;
+            ServerRunTime = _stopTimeout == 0 ? Timeout.Infinite : _stopTimeout * 1000;
+            ReverseConnectUrl = _reverseConnectUrl;
         }
 
         public void Run()
@@ -160,16 +174,16 @@ namespace NetCoreConsoleServer
 
             try
             {
-                exitCode = ExitCode.ErrorServerNotStarted;
+                ExitCode = ExitCode.ErrorServerNotStarted;
                 ConsoleSampleServer().Wait();
                 Console.WriteLine("Server started. Press Ctrl-C to exit...");
-                exitCode = ExitCode.ErrorServerRunning;
+                ExitCode = ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
                 Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                exitCode = ExitCode.ErrorServerException;
+                ExitCode = ExitCode.ErrorServerException;
                 return;
             }
 
@@ -186,33 +200,35 @@ namespace NetCoreConsoleServer
             }
 
             // wait for timeout or Ctrl-C
-            quitEvent.WaitOne(serverRunTime);
+            quitEvent.WaitOne(ServerRunTime);
 
-            if (server != null)
+            if (Server != null)
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                using (SampleServer _server = server)
+                using (SampleServer _server = Server)
                 {
+                    Server.CurrentInstance.SessionManager.SessionActivated -= EventStatus;
+                    Server.CurrentInstance.SessionManager.SessionClosing -= EventStatus;
+                    Server.CurrentInstance.SessionManager.SessionCreated -= EventStatus;
+
                     // Stop status thread
-                    server = null;
-                    status.Wait();
+                    Server = null;
+                    Status.Wait();
                     // Stop server and dispose
                     _server.Stop();
                 }
             }
 
-            exitCode = ExitCode.Ok;
+            ExitCode = ExitCode.Ok;
         }
-
-        public static ExitCode ExitCode { get => exitCode; }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = autoAccept;
-                if (autoAccept)
+                e.Accept = AutoAccept;
+                if (AutoAccept)
                 {
                     Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
                 }
@@ -248,22 +264,46 @@ namespace NetCoreConsoleServer
             }
 
             // start the server.
-            server = new SampleServer();
-            await application.Start(server);
+            Server = new SampleServer();
+            await application.Start(Server);
+
+            if (ReverseConnectUrl != null)
+            {
+                Server.AddReverseConnection(ReverseConnectUrl);
+            }
+
+            var reverseConnections = Server.GetReverseConnections();
+            if (reverseConnections?.Count > 0)
+            {
+                // print reverse connect info
+                Console.WriteLine("Reverse Connect Clients:");
+                foreach (var connection in reverseConnections)
+                {
+                    Console.WriteLine(connection.Key);
+                }
+            }
+
+            // print endpoint info
+            Console.WriteLine("Server Endpoints:");
+            var endpoints = Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+            foreach (var endpoint in endpoints)
+            {
+                Console.WriteLine(endpoint);
+            }
 
             // start the status thread
-            status = Task.Run(new Action(StatusThread));
+            Status = Task.Run(new Action(StatusThread));
 
             // print notification on session events
-            server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
-            server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
-            server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
+            Server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
+            Server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
+            Server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
 
         }
 
         private void EventStatus(Session session, SessionEventReason reason)
         {
-            lastEventTime = DateTime.UtcNow;
+            LastEventTime = DateTime.UtcNow;
             PrintSessionStatus(session, reason.ToString());
         }
 
@@ -290,17 +330,17 @@ namespace NetCoreConsoleServer
 
         private async void StatusThread()
         {
-            while (server != null)
+            while (Server != null)
             {
-                if (DateTime.UtcNow - lastEventTime > TimeSpan.FromMilliseconds(6000))
+                if (DateTime.UtcNow - LastEventTime > TimeSpan.FromMilliseconds(6000))
                 {
-                    IList<Session> sessions = server.CurrentInstance.SessionManager.GetSessions();
+                    IList<Session> sessions = Server.CurrentInstance.SessionManager.GetSessions();
                     for (int ii = 0; ii < sessions.Count; ii++)
                     {
                         Session session = sessions[ii];
                         PrintSessionStatus(session, "-Status-", true);
                     }
-                    lastEventTime = DateTime.UtcNow;
+                    LastEventTime = DateTime.UtcNow;
                 }
                 await Task.Delay(1000);
             }
