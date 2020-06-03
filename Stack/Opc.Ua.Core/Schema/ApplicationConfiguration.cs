@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 
@@ -62,10 +61,7 @@ namespace Opc.Ua
         /// <value>
         /// The object used to synchronize access to the properties dictionary.
         /// </value>
-        public object PropertiesLock
-        {
-            get { return m_properties; }
-        }
+        public object PropertiesLock => m_properties;
 
         /// <summary>
         /// Gets a dictionary used to save state associated with the application.
@@ -73,10 +69,7 @@ namespace Opc.Ua
         /// <value>
         /// The dictionary used to save state associated with the application.
         /// </value>
-        public IDictionary<string, object> Properties
-        {
-            get { return m_properties; }
-        }
+        public IDictionary<string, object> Properties => m_properties;
 
         #region Persistent Properties
         /// <summary>
@@ -1780,13 +1773,14 @@ namespace Opc.Ua
         public StringCollection ServerProfileArray
         {
             get { return m_serverProfileArray; }
-            set {
-                    m_serverProfileArray = value;
-                    if (m_serverProfileArray == null)
-                    {
-                        m_serverProfileArray = new StringCollection();
-                    }
+            set
+            {
+                m_serverProfileArray = value;
+                if (m_serverProfileArray == null)
+                {
+                    m_serverProfileArray = new StringCollection();
                 }
+            }
         }
 
         /// <summary>
@@ -3023,16 +3017,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// A list of COM identities associated with the endpoint.
-        /// </summary>
-        [DataMember(Name = "ComIdentity", Order = 7, IsRequired = false)]
-        public EndpointComIdentity ComIdentity
-        {
-            get { return m_comIdentity; }
-            set { m_comIdentity = value; }
-        }
-
-        /// <summary>
         /// A bucket to store additional application specific configuration data.
         /// </summary>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
@@ -3051,7 +3035,6 @@ namespace Opc.Ua
         private BinaryEncodingSupport m_binaryEncodingSupport;
         private int m_selectedUserTokenPolicyIndex;
         private UserIdentityToken m_userIdentity;
-        private EndpointComIdentity m_comIdentity;
         private XmlElementCollection m_extensions;
         #endregion
     }
@@ -3081,237 +3064,6 @@ namespace Opc.Ua
         /// </summary>
         [EnumMember()]
         None
-    }
-    #endregion
-
-    #region EndpointComIdentity Class
-    /// <summary>
-    /// Stores the COM identity for an endpoint.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public partial class EndpointComIdentity
-    {
-        #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public EndpointComIdentity()
-        {
-        }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        public void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_clsid = Guid.Empty;
-            m_progId = null;
-            m_specification = ComSpecification.DA;
-        }
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// The CLSID for the COM server.
-        /// </summary>
-        [DataMember(Name = "Clsid", Order = 1, IsRequired = true)]
-        public Uuid XmlClsid
-        {
-            get { return new Uuid(m_clsid); }
-            set { m_clsid = (Guid)value; }
-        }
-
-        /// <summary>
-        /// The ProgID for the COM server.
-        /// </summary>
-        [DataMember(Name = "ProgId", Order = 2, IsRequired = true)]
-        public string ProgId
-        {
-            get { return m_progId; }
-            set { m_progId = value; }
-        }
-
-        /// <summary>
-        /// The COM specification supported by the COM server.
-        /// </summary>
-        [DataMember(Name = "Specification", Order = 3, IsRequired = true)]
-        public ComSpecification Specification
-        {
-            get { return m_specification; }
-            set { m_specification = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private Guid m_clsid;
-        private string m_progId;
-        private ComSpecification m_specification;
-        #endregion
-    }
-    #endregion
-
-    #region ComSpecification Enumeration
-    /// <summary>
-    /// The available COM specifications.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public enum ComSpecification
-    {
-        /// <summary>
-        /// Data Access 2.05a and 3.00
-        /// </summary>        
-        [EnumMember()]
-        DA,
-
-        /// <summary>
-        /// Alarms and Events 1.00
-        /// </summary>    
-        [EnumMember()]
-        AE,
-
-        /// <summary>
-        /// Historical Data Access 1.20
-        /// </summary>    
-        [EnumMember()]
-        HDA
-    }
-    #endregion
-
-    #region ApplicationAccessRule Class
-    /// <summary>
-    /// An access rule for an application.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public partial class ApplicationAccessRule
-    {
-        #region Public Properties
-        /// <summary>
-        /// The type of access rule.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public AccessControlType RuleType
-        {
-            get { return m_ruleType; }
-            set { m_ruleType = value; }
-        }
-
-        /// <summary>
-        /// The access right affected by the rule.
-        /// </summary>
-        [DataMember(Order = 2)]
-        public ApplicationAccessRight Right
-        {
-            get { return m_right; }
-            set { m_right = value; }
-        }
-
-        /// <summary>
-        /// The name of the NT account principal which the access rule applies to.
-        /// </summary>
-        [DataMember(Order = 3)]
-        public string IdentityName
-        {
-            get
-            {
-                return m_identityName;
-            }
-
-            set { m_identityName = value; }
-        }
-        #endregion
-
-        #region Private Fields
-        private AccessControlType m_ruleType;
-        private ApplicationAccessRight m_right;
-        private String m_identityName;
-        #endregion
-    }
-    #endregion
-    #region AccessControlType Enumeration
-    /// <summary>
-    /// The rights to an application that may be granted to the user.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public enum AccessControlType
-    {
-        /// <summary>
-        /// Allows access to the specified account.
-        /// </summary>
-        [EnumMember]
-        Allow = 0x0,
-
-        /// <summary>
-        /// Denies access to the specified account.
-        /// </summary>
-        [EnumMember]
-        Deny = 0x1
-    }
-    #endregion
-
-    #region ApplicationAccessRight Enumeration
-    /// <summary>
-    /// The rights to an application that may be granted to the user.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaConfig)]
-    public enum ApplicationAccessRight
-    {
-        /// <summary>
-        /// The account has no access.
-        /// </summary>
-        [EnumMember]
-        None = 0x0,
-
-        /// <summary>
-        /// The account can run the application.
-        /// </summary>
-        [EnumMember]
-        Run = 0x1,
-
-        /// <summary>
-        /// The account can update the application configuration.
-        /// </summary>
-        [EnumMember]
-        Update = 0x2,
-
-        /// <summary>
-        /// The account can change the application access rights.
-        /// </summary>
-        [EnumMember]
-        Configure = 0x3
-    }
-    #endregion
-    #region ApplicationAccessRuleCollection Class
-    /// <summary>
-    /// A collection of ApplicationAccessRule objects.
-    /// </summary>
-    [CollectionDataContract(Name = "ListOfApplicationAccessRule", Namespace = Namespaces.OpcUaConfig, ItemName = "ApplicationAccessRule")]
-    public partial class ApplicationAccessRuleCollection : List<ApplicationAccessRule>
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
-        public ApplicationAccessRuleCollection() { }
-
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
-        public ApplicationAccessRuleCollection(int capacity) : base(capacity) { }
-
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
-        public ApplicationAccessRuleCollection(IEnumerable<ApplicationAccessRule> collection) : base(collection) { }
-        #endregion
     }
     #endregion
 }
