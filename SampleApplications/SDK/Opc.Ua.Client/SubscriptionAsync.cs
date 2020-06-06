@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -98,8 +99,10 @@ namespace Opc.Ua.Client
 
             if (requestItems.Count == 0)
             {
-                // TODO: what happens in this case?
-                return null;
+                // return idle result
+                var result = new ChannelAsyncOperation<int>(Int32.MaxValue, callback, null);
+                result.Complete(0);
+                return result;
             }
 
             var asyncState = new object[] { itemsToCreate, requestItems };
@@ -123,6 +126,10 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection diagnosticInfos;
 
             var state = (object[])asyncResult.AsyncState;
+            if (state == null)
+            {
+                return;
+            }
             var itemsToCreate = (List<MonitoredItem>)state[0];
             var requestItems = (MonitoredItemCreateRequestCollection)state[1];
 
@@ -149,17 +156,17 @@ namespace Opc.Ua.Client
         /// </summary>
         public async Task CreateAsync()
         {
-            await Task.Factory.FromAsync(BeginCreate(EndCreate), EndCreate);
-            await CreateItemsAsync();
+            await Task.Factory.FromAsync(BeginCreate(EndCreate), EndCreate).ConfigureAwait(false);
+            await CreateItemsAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// Creates all items on the server that have not already been created.
         /// </summary>
 
-        public async Task CreateItemsAsync()
+        public Task CreateItemsAsync()
         {
-            await Task.Factory.FromAsync(BeginCreateMonitoredItems(EndCreateMonitoredItems), EndCreateMonitoredItems);
+            return Task.Factory.FromAsync(BeginCreateMonitoredItems(EndCreateMonitoredItems), EndCreateMonitoredItems);
         }
         #endregion
     }

@@ -296,6 +296,8 @@ namespace NetCoreConsoleClient
             session.AddSubscription(subscription);
 
             await subscription.CreateAsync();
+            // test special case, no change on server
+            await subscription.CreateItemsAsync();
 
             Console.WriteLine("8 - Running...Press Ctrl-C to exit...");
             exitCode = ExitCode.ErrorRunning;
