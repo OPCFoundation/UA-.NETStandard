@@ -144,13 +144,20 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Public Async Methods (TPL)
+        /// <summary>
+        /// Creates a subscription on the server and adds all monitored items.
+        /// </summary>
         public async Task CreateAsync()
         {
             await Task.Factory.FromAsync(BeginCreate(EndCreate), EndCreate);
-            await CreateMonitoredItems();
+            await CreateItemsAsync();
         }
 
-        public async Task CreateMonitoredItems()
+        /// <summary>
+        /// Creates all items on the server that have not already been created.
+        /// </summary>
+
+        public async Task CreateItemsAsync()
         {
             await Task.Factory.FromAsync(BeginCreateMonitoredItems(EndCreateMonitoredItems), EndCreateMonitoredItems);
         }

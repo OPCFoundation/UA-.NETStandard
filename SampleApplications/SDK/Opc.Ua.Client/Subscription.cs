@@ -694,7 +694,7 @@ namespace Opc.Ua.Client
 
         #region Public Methods
         /// <summary>
-        /// Creates a subscription on the server.
+        /// Creates a subscription on the server and adds all monitored items.
         /// </summary>
         public void Create()
         {
