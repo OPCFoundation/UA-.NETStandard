@@ -1851,6 +1851,15 @@ namespace Opc.Ua
 
                     case BuiltInType.Enumeration:
                     {
+                        // Check whether the value to encode is int array.
+                        var directInts = valueToEncode as int[];
+                        if (directInts != null)
+                        {
+                            // It is int array - we use it directly.
+                            WriteInt32Array(null, directInts);
+                            return;
+                        }
+
                         Enum[] enums = valueToEncode as Enum[];
                         int[] ints = new int[enums.Length];
 
