@@ -29,19 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
-using System.IO;
-using System.Runtime.Serialization;
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using System.Net;
 
 namespace Opc.Ua.Configuration
 {
     public abstract class IApplicationMessageDlg
     {
-        public abstract void Message(string text, Boolean ask=false);
+        public abstract void Message(string text, Boolean ask = false);
         public abstract Task<bool> ShowAsync();
     }
 
@@ -64,7 +60,7 @@ namespace Opc.Ua.Configuration
         public ApplicationInstance(ApplicationConfiguration applicationConfiguration)
         {
             m_applicationConfiguration = applicationConfiguration;
-        } 
+        }
         #endregion
 
         #region Public Properties
@@ -112,10 +108,7 @@ namespace Opc.Ua.Configuration
         /// Gets the server.
         /// </summary>
         /// <value>The server.</value>
-        public ServerBase Server
-        {
-            get { return m_server; }
-        }
+        public ServerBase Server => m_server;
 
         /// <summary>
         /// Gets the application configuration used when the Start() method was called.
@@ -286,11 +279,23 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="minimumKeySize">Minimum size of the key.</param>
+        public Task<bool> CheckApplicationInstanceCertificate(
+            bool silent,
+            ushort minimumKeySize)
+        {
+            return CheckApplicationInstanceCertificate(silent, minimumKeySize, CertificateFactory.DefaultLifeTime);
+        }
+
+        /// <summary>
+        /// Checks for a valid application instance certificate.
+        /// </summary>
+        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        /// <param name="minimumKeySize">Minimum size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         public async Task<bool> CheckApplicationInstanceCertificate(
             bool silent,
             ushort minimumKeySize,
-            ushort lifeTimeInMonths = CertificateFactory.defaultLifeTime)
+            ushort lifeTimeInMonths)
         {
             Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate.");
 
@@ -365,7 +370,8 @@ namespace Opc.Ua.Configuration
 
             if ((certificate == null) || !certificateValid)
             {
-                certificate = await CreateApplicationInstanceCertificate(configuration, minimumKeySize, lifeTimeInMonths);
+                certificate = await CreateApplicationInstanceCertificate(configuration,
+                    minimumKeySize, lifeTimeInMonths);
 
                 if (certificate == null)
                 {
@@ -455,14 +461,15 @@ namespace Opc.Ua.Configuration
             }
 
             // check key size.
-            if (minimumKeySize > certificate.GetRSAPublicKey().KeySize)
+            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            if (minimumKeySize > keySize)
             {
                 string message = Utils.Format(
                     "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
-                    certificate.GetRSAPublicKey().KeySize,
+                    keySize,
                     minimumKeySize);
 
-                if (!silent && MessageDlg!=null)
+                if (!silent && MessageDlg != null)
                 {
                     MessageDlg.Message(message, true);
                     if (!await MessageDlg.ShowAsync())
@@ -609,8 +616,8 @@ namespace Opc.Ua.Configuration
         /// <returns>The new certificate</returns>
         private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
             ApplicationConfiguration configuration,
-            ushort minimumKeySize = CertificateFactory.defaultKeySize,
-            ushort lifeTimeInMonths = CertificateFactory.defaultLifeTime
+            ushort keySize,
+            ushort lifeTimeInMonths
             )
         {
             Utils.Trace(Utils.TraceMasks.Information, "Creating application instance certificate.");
@@ -642,10 +649,10 @@ namespace Opc.Ua.Configuration
                 configuration.ApplicationName,
                 id.SubjectName,
                 serverDomainNames,
-                minimumKeySize,
+                keySize,
                 DateTime.UtcNow - TimeSpan.FromDays(1),
                 lifeTimeInMonths,
-                CertificateFactory.defaultHashSize,
+                CertificateFactory.DefaultHashSize,
                 false,
                 null,
                 null

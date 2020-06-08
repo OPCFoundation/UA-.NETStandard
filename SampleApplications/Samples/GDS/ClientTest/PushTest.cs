@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -435,10 +435,10 @@ namespace NUnit.Opc.Ua.Gds.Test
                 _applicationRecord.ApplicationNames[0].Text,
                 _selfSignedServerCert.Subject,
                 null,
-                CertificateFactory.defaultKeySize,
+                CertificateFactory.DefaultKeySize,
                 DateTime.UtcNow,
-                CertificateFactory.defaultLifeTime,
-                CertificateFactory.defaultHashSize);
+                CertificateFactory.DefaultLifeTime,
+                CertificateFactory.DefaultHashSize);
 
             byte[] privateKey = null;
             if (keyFormat == "PFX")
@@ -822,10 +822,10 @@ namespace NUnit.Opc.Ua.Gds.Test
                 null,
                 subjectName,
                 null,
-                CertificateFactory.defaultKeySize,
+                CertificateFactory.DefaultKeySize,
                 DateTime.UtcNow,
-                CertificateFactory.defaultLifeTime,
-                CertificateFactory.defaultHashSize,
+                CertificateFactory.DefaultLifeTime,
+                CertificateFactory.DefaultHashSize,
                 true,
                 null,
                 null);

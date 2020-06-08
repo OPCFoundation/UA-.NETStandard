@@ -30,9 +30,9 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
-            m_rejectSHA1SignedCertificates = CertificateFactory.defaultHashSize >= 256;
+            m_rejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
             m_rejectUnknownRevocationStatus = false;
-            m_minimumCertificateKeySize = CertificateFactory.defaultKeySize;
+            m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
         }
         #endregion
 
@@ -852,7 +852,8 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "SHA1 signed certificates are not trusted");
             }
 
-            if (certificate.GetRSAPublicKey().KeySize < m_minimumCertificateKeySize)
+            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            if (keySize < m_minimumCertificateKeySize)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "Certificate doesn't meet minimum key length requirement");
             }

@@ -112,12 +112,17 @@ public class CertificateFactory
 {
     #region Public Constants
     /// <summary>
-    /// The default certificate factory security parameter.
+    /// The default certificate factory security parameters.
     /// </summary>
-    public const ushort defaultKeySize = 2048;
-    public const ushort defaultHashSize = 256;
-    public const ushort defaultLifeTime = 12;
+    /// <remarks>
+    /// The security parameters may change over time,
+    /// so they are only readonly values, not constants.
+    /// </remarks>
+    public static readonly ushort DefaultKeySize = 2048;
+    public static readonly ushort DefaultHashSize = 256;
+    public static readonly ushort DefaultLifeTime = 12;
     #endregion
+
     #region Public Methods
     /// <summary>
     /// Creates a certificate from a buffer with DER encoded certificate.
@@ -299,6 +304,10 @@ public class CertificateFactory
             if (pathLengthConstraint >= 0 && isCA)
             {
                 basicConstraints = new BasicConstraints(pathLengthConstraint);
+            }
+            else if (issuerCAKeyCert == null)
+            {
+                basicConstraints = new BasicConstraints(0);
             }
             cg.AddExtension(X509Extensions.BasicConstraints.Id, true, basicConstraints);
 
@@ -601,7 +610,7 @@ public class CertificateFactory
             AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(issuerCertificate);
 
             ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
+                    new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
 
             X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
             crlGen.SetIssuerDN(bcCertCA.SubjectDN);
@@ -674,7 +683,7 @@ public class CertificateFactory
             RsaKeyParameters publicKey = GetPublicKeyParameter(certificate);
 
             ISignatureFactory signatureFactory =
-                new Asn1SignatureFactory(GetRSAHashAlgorithm(defaultHashSize), signingKey, random);
+                new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
 
             Asn1Set attributes = null;
             X509SubjectAltNameExtension alternateName = null;
@@ -833,7 +842,7 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// returns a byte array containing the cert in PEM format.
+    /// Returns a byte array containing the cert in PEM format.
     /// </summary>
     public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
     {
@@ -852,7 +861,7 @@ public class CertificateFactory
     }
 
     /// <summary>
-    /// returns a byte array containing the private key in PEM format.
+    /// Returns a byte array containing the private key in PEM format.
     /// </summary>
     public static byte[] ExportPrivateKeyAsPEM(
         X509Certificate2 certificate
@@ -955,6 +964,24 @@ public class CertificateFactory
         }
         return result;
     }
+
+    /// <summary>
+    /// Returns the size of the public key and disposes RSA key.
+    /// </summary>
+    /// <param name="certificate">The certificate</param>
+    public static int GetRSAPublicKeySize(X509Certificate2 certificate)
+    {
+        RSA rsaPublicKey = null;
+        try
+        {
+            rsaPublicKey = certificate.GetRSAPublicKey();
+            return rsaPublicKey.KeySize;
+        }
+        finally
+        {
+            RsaUtils.RSADispose(rsaPublicKey);
+        }
+    }
     #endregion
 
     #region Private Methods
@@ -972,7 +999,7 @@ public class CertificateFactory
         // enforce recommended keysize unless lower value is enforced.
         if (keySize < 1024)
         {
-            keySize = defaultKeySize;
+            keySize = DefaultKeySize;
         }
 
         if (keySize % 1024 != 0)
