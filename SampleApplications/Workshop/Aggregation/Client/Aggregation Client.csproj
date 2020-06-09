@@ -135,11 +135,11 @@
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{79cb842c-8c1c-414e-a9c1-84fa5205ab40}</Project>
       <Name>Opc.Ua.Client</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
       <Project>{7289b366-d72a-4aad-9024-ef5f74b3025d}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>
