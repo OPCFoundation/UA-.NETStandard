@@ -220,11 +220,11 @@
       <Project>{761e1eb7-59fb-4d77-8ab3-986b623535c8}</Project>
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj">
       <Project>{72d92985-2b09-409c-8573-35db1bea370c}</Project>
       <Name>Opc.Ua.Client</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
       <Project>{b6789847-e597-4ff8-8849-80e04d756251}</Project>
       <Name>Opc.Ua.Configuration</Name>
     </ProjectReference>

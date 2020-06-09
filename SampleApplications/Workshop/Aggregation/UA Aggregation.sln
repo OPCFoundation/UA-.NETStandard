@@ -17,13 +17,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Sample Controls", "..\..
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{3CE98776-35AF-48D4-B6E0-B716AD1DB889}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{79CB842C-8C1C-414E-A9C1-84FA5205AB40}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "..\..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{79CB842C-8C1C-414E-A9C1-84FA5205AB40}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{7289B366-D72A-4AAD-9024-EF5F74B3025D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{7289B366-D72A-4AAD-9024-EF5F74B3025D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\..\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{54E066C7-E4B0-4911-8B90-D7FD88D9304F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{54E066C7-E4B0-4911-8B90-D7FD88D9304F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\..\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{DEF30692-973F-40BC-BD2B-C1A167F71F1F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{DEF30692-973F-40BC-BD2B-C1A167F71F1F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

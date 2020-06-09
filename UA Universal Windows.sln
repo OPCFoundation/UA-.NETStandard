@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{6C449A1E-244E-4515-9949-A7E22012537C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{6C449A1E-244E-4515-9949-A7E22012537C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Opc.Ua.Sample.Controls", "SampleApplications\Samples\Controls\Opc.Ua.Sample.Controls.csproj", "{5192CB9A-D4FC-41EF-839F-D9E08C17F221}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -38,9 +38,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Sample", "SampleApplications\Samples\Opc.Ua.Sample\Opc.Ua.Sample.csproj", "{BCB915B6-B5C3-45BC-9C8B-F43008DF0C14}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{15100583-BFEF-431B-A1EA-1E5A843A39B1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{15100583-BFEF-431B-A1EA-1E5A843A39B1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{A39614CA-8EBE-4408-A9D2-38C7E5AE2A1D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{A39614CA-8EBE-4408-A9D2-38C7E5AE2A1D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

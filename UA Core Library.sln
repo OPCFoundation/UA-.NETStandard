@@ -5,17 +5,17 @@ VisualStudioVersion = 15.0.26430.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{84FE2F0A-4192-4D2C-8097-9C396C2375E8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{259094EF-B5FC-412D-8187-0ED7FF763D55}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{259094EF-B5FC-412D-8187-0ED7FF763D55}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{63BEB4B6-E96D-478E-B41D-B42CED6F8E7B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{DCA9C101-199F-4519-9F97-4CD22817EBE8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{DCA9C101-199F-4519-9F97-4CD22817EBE8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{0B97D07F-629D-47DD-8975-B1F96D434130}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{B64C8C45-7323-4353-A01C-81803F368799}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{DF09806C-8A26-49C8-8AE9-256708F35473}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{DF09806C-8A26-49C8-8AE9-256708F35473}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core.Tests", "Stack\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj", "{FDF5247D-A162-44E9-8C56-DC8046F22AF9}"
 EndProject

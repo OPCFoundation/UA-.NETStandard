@@ -19,8 +19,8 @@
     <When Condition="Exists('..\..\SDK') and '$(Configuration)'!='Nuget'">
       <ItemGroup>
         <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-        <ProjectReference Include="..\..\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-        <ProjectReference Include="..\..\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+        <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+        <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
       </ItemGroup>
     </When>
     <Otherwise>

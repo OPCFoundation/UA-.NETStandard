@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
+    <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
   </ItemGroup>
 
 </Project>
