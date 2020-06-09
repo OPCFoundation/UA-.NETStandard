@@ -1051,7 +1051,8 @@ namespace Opc.Ua.Client
                 }
 
                 // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(m_identity, m_serverNonce, securityPolicyUri, m_previousServerNonce);
+                if (!m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                    ValidateServerNonce(m_identity, m_serverNonce, securityPolicyUri, m_previousServerNonce);
 
                 // sign data with user token.
                 UserIdentityToken identityToken = m_identity.GetIdentityToken();
@@ -2561,7 +2562,8 @@ namespace Opc.Ua.Client
                 }
 
                 // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(identity, serverNonce, securityPolicyUri, previousServerNonce);
+                if (!m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                    ValidateServerNonce(identity, serverNonce, securityPolicyUri, previousServerNonce);
 
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
@@ -2725,7 +2727,8 @@ namespace Opc.Ua.Client
             }
 
             // validate server nonce and security parameters for user identity.
-            ValidateServerNonce(identity, serverNonce, securityPolicyUri, m_previousServerNonce);
+            if (!m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                ValidateServerNonce(identity, serverNonce, securityPolicyUri, m_previousServerNonce);
 
             // sign data with user token.
             identityToken = identity.GetIdentityToken();
