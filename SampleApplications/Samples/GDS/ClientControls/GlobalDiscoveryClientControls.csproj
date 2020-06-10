@@ -232,7 +232,7 @@
       <Project>{a247d2ee-14fc-463d-a9ba-6cff1ef22b7a}</Project>
       <Name>UA Client Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.GDS.ClientCommon\GlobalDiscoveryClientLibrary.csproj">
       <Project>{4c825cdc-3cdd-4650-9801-48b755af5adb}</Project>
       <Name>GlobalDiscoveryClientLibrary</Name>
     </ProjectReference>

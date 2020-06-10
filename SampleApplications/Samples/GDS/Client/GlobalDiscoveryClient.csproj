@@ -141,7 +141,7 @@
       <Name>UA Client Controls</Name>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.GDS.ClientCommon\GlobalDiscoveryClientLibrary.csproj">
       <Project>{4c825cdc-3cdd-4650-9801-48b755af5adb}</Project>
       <Name>GlobalDiscoveryClientLibrary</Name>
     </ProjectReference>

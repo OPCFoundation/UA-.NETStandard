@@ -11,15 +11,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "Lib
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{DCA9C101-199F-4519-9F97-4CD22817EBE8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "SampleApplications\Samples\GDS\ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{0B97D07F-629D-47DD-8975-B1F96D434130}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "Libraries\Opc.Ua.GDS.ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{0B97D07F-629D-47DD-8975-B1F96D434130}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "SampleApplications\Samples\GDS\ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{B64C8C45-7323-4353-A01C-81803F368799}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "Libraries\Opc.Ua.GDS.ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{B64C8C45-7323-4353-A01C-81803F368799}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{DF09806C-8A26-49C8-8AE9-256708F35473}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core.Tests", "Stack\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj", "{FDF5247D-A162-44E9-8C56-DC8046F22AF9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core.Tests", "Tests\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj", "{FDF5247D-A162-44E9-8C56-DC8046F22AF9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes.Tests", "SampleApplications\SDK\Opc.Ua.Client.ComplexTypes.Tests\Opc.Ua.Client.ComplexTypes.Tests.csproj", "{4BF0FD5D-74D6-4819-9DF4-0ACF73B38221}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes.Tests", "Tests\Opc.Ua.Client.ComplexTypes.Tests\Opc.Ua.Client.ComplexTypes.Tests.csproj", "{4BF0FD5D-74D6-4819-9DF4-0ACF73B38221}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
