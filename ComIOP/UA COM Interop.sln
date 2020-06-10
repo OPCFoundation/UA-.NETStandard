@@ -9,11 +9,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.gitignore = .gitignore
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "..\SampleApplications\SDK\Opc.Ua.Client\Opc.Ua.Client.csproj", "{8906C833-3C21-45B7-B103-1F27AA945075}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{8906C833-3C21-45B7-B103-1F27AA945075}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\SampleApplications\SDK\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{9CDE220B-7614-42C4-99B0-7B4713AB2931}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{9CDE220B-7614-42C4-99B0-7B4713AB2931}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\SampleApplications\SDK\Opc.Ua.Server\Opc.Ua.Server.csproj", "{15AEEE57-3AAE-4333-B69F-777F6573D8A4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{15AEEE57-3AAE-4333-B69F-777F6573D8A4}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{31EC9480-617B-48C4-A5BE-1D159A278D1D}"
 EndProject
