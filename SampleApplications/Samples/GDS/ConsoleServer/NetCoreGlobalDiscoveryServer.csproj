@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\ServerCommon\GlobalDiscoveryServerLibrary.csproj" />
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.GDS.ServerCommon\GlobalDiscoveryServerLibrary.csproj" />
   </ItemGroup>
 
 </Project>

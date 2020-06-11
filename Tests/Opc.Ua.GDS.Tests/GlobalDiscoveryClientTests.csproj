@@ -20,12 +20,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
-    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
-    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\ClientCommon\GlobalDiscoveryClientLibrary.csproj" />
-    <ProjectReference Include="..\ServerCommon\GlobalDiscoveryServerLibrary.csproj" />
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.GDS.ClientCommon\GlobalDiscoveryClientLibrary.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.GDS.ServerCommon\GlobalDiscoveryServerLibrary.csproj" />
   </ItemGroup>
 
   <ItemGroup>
