@@ -19,15 +19,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UA Server Controls", "..\..
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreReferenceServer", "ConsoleReferenceServer\NetCoreReferenceServer.csproj", "{D71026ED-8452-4053-A198-C0F3260E4BAD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{4569AAA2-710B-4E8B-A4C6-F917777814DA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{4569AAA2-710B-4E8B-A4C6-F917777814DA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "..\..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{CD3C8738-1FBB-405D-AEC0-92E76BF399A0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client", "..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj", "{CD3C8738-1FBB-405D-AEC0-92E76BF399A0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{DE6B7D4F-E566-45CB-A876-086E5CD50FB0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration", "..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj", "{DE6B7D4F-E566-45CB-A876-086E5CD50FB0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{A2F587FD-5140-478B-8A0E-8417F8A38548}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{A2F587FD-5140-478B-8A0E-8417F8A38548}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes", "..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj", "{C4C7053D-A51B-414E-8B73-1DA29D1BF46A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
