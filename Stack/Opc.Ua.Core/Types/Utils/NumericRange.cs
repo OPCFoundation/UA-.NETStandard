@@ -965,20 +965,23 @@ namespace Opc.Ua
                 // check for string.
                 String chars = value as String;
 
-                if (chars == null)
+                if (chars != null)
                 {
-                    value = null;
-                    return StatusCodes.BadIndexRangeNoData;
+                    isString = true;
+                    array = chars.ToCharArray();
                 }
-
-                isString = true;
-                array = chars.ToCharArray();
             }
 
             // check for multidimensional arrays.
             if (m_subranges != null)
             {
                 return ApplyMultiRange(ref value);
+            }
+
+            if(list == null && array == null)
+            {
+                value = null;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // get length.
