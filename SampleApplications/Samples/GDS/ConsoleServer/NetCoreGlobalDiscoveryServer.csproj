@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.GDS.ServerCommon\GlobalDiscoveryServerLibrary.csproj" />
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
   </ItemGroup>
 
 </Project>

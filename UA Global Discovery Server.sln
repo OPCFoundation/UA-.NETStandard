@@ -28,11 +28,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClient", "Sa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreGlobalDiscoveryServer", "SampleApplications\Samples\GDS\ConsoleServer\NetCoreGlobalDiscoveryServer.csproj", "{F7547B35-0B81-4789-88C3-B575D31B197D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "Libraries\Opc.Ua.GDS.ServerCommon\GlobalDiscoveryServerLibrary.csproj", "{77860818-3989-4D5D-95FF-437925891383}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryServerLibrary", "Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj", "{77860818-3989-4D5D-95FF-437925891383}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "Libraries\Opc.Ua.GDS.ClientCommon\GlobalDiscoveryClientLibrary.csproj", "{4C825CDC-3CDD-4650-9801-48B755AF5ADB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientLibrary", "Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj", "{4C825CDC-3CDD-4650-9801-48B755AF5ADB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientTests", "Tests\Opc.Ua.GDS.Tests\GlobalDiscoveryClientTests.csproj", "{E331581C-1DEB-40DA-9BD7-19DDE8449653}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlobalDiscoveryClientTests", "Tests\Opc.Ua.Gds.Tests\Opc.Ua.Gds.Tests.csproj", "{E331581C-1DEB-40DA-9BD7-19DDE8449653}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{DD2EE434-7ACE-49EF-B776-5D6BF307C9F1}"
 	ProjectSection(SolutionItems) = preProject
