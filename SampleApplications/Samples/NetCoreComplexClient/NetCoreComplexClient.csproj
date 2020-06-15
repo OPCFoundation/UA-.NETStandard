@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <Choose>
-    <When Condition="Exists('..\..\SDK') and '$(Configuration)'!='Nuget'">
+    <When Condition="Exists('..\..\..\Libraries') and '$(Configuration)'!='Nuget'">
       <ItemGroup>
         <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
         <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
@@ -24,12 +24,12 @@
       <Choose>
         <When Condition="'$(Configuration)'=='Release'">
           <ItemGroup>
-            <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes" Version="1.4.358" />
+            <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes" Version="1.4.361.39" />
           </ItemGroup>
         </When>
         <Otherwise>
           <ItemGroup>
-            <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes.Symbols" Version="1.4.358" />
+            <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes.Symbols" Version="1.4.361.39" />
           </ItemGroup>
         </Otherwise>
       </Choose>
