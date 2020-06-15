@@ -22,9 +22,9 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.dll" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.pdb" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.dll" target="lib\netcoreapp2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.pdb" target="lib\netcoreapp2.0" />
+    <file src="..\Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.dll" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.pdb" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.dll" target="lib\netcoreapp2.0" />
+    <file src="..\Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.pdb" target="lib\netcoreapp2.0" />
   </files>
 </package>
