@@ -34,27 +34,27 @@
   <files>
     <file src="..\Stack\Opc.Ua.Core\bin\Debug\net462\Opc.Ua.Core.dll" target="lib\net462" />
     <file src="..\Stack\Opc.Ua.Core\bin\Debug\net462\Opc.Ua.Core.pdb" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\net462\Opc.Ua.Client.dll" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\net462\Opc.Ua.Client.pdb" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\net462\Opc.Ua.Server.dll" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\net462\Opc.Ua.Server.pdb" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\net462\Opc.Ua.Configuration.dll" target="lib\net462" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\net462\Opc.Ua.Configuration.pdb" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Client\bin\Debug\net462\Opc.Ua.Client.dll" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Client\bin\Debug\net462\Opc.Ua.Client.pdb" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Server\bin\Debug\net462\Opc.Ua.Server.dll" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Server\bin\Debug\net462\Opc.Ua.Server.pdb" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Configuration\bin\Debug\net462\Opc.Ua.Configuration.dll" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Configuration\bin\Debug\net462\Opc.Ua.Configuration.pdb" target="lib\net462" />
     <file src="..\Stack\Opc.Ua.Core\bin\Debug\netstandard2.0\Opc.Ua.Core.dll" target="lib\netstandard2.0" />
     <file src="..\Stack\Opc.Ua.Core\bin\Debug\netstandard2.0\Opc.Ua.Core.pdb" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\netstandard2.0\Opc.Ua.Client.dll" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Client\bin\Debug\netstandard2.0\Opc.Ua.Client.pdb" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\netstandard2.0\Opc.Ua.Server.dll" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Server\bin\Debug\netstandard2.0\Opc.Ua.Server.pdb" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\netstandard2.0\Opc.Ua.Configuration.dll" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\SDK\Opc.Ua.Configuration\bin\Debug\netstandard2.0\Opc.Ua.Configuration.pdb" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\net462\Opc.Ua.Gds.Server.Common.dll" target="lib\net462" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\net462\Opc.Ua.Gds.Server.Common.pdb" target="lib\net462" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\Samples\GDS\ServerCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Server.Common.pdb" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\net462\Opc.Ua.Gds.Client.Common.dll" target="lib\net462" />
-    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\net462\Opc.Ua.Gds.Client.Common.pdb" target="lib\net462" />
-    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard2.0" />
-    <file src="..\SampleApplications\Samples\GDS\ClientCommon\bin\Debug\netstandard2.0\Opc.Ua.Gds.Client.Common.pdb" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Client\bin\Debug\netstandard2.0\Opc.Ua.Client.dll" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Client\bin\Debug\netstandard2.0\Opc.Ua.Client.pdb" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Server\bin\Debug\netstandard2.0\Opc.Ua.Server.dll" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Server\bin\Debug\netstandard2.0\Opc.Ua.Server.pdb" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Configuration\bin\Debug\netstandard2.0\Opc.Ua.Configuration.dll" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Configuration\bin\Debug\netstandard2.0\Opc.Ua.Configuration.pdb" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Gds.Server.Common\bin\Debug\net462\Opc.Ua.Gds.Server.Common.dll" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Gds.Server.Common\bin\Debug\net462\Opc.Ua.Gds.Server.Common.pdb" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Gds.Server.Common\bin\Debug\netstandard2.0\Opc.Ua.Gds.Server.Common.dll" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Gds.Server.Common\bin\Debug\netstandard2.0\Opc.Ua.Gds.Server.Common.pdb" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Gds.Client.Common\bin\Debug\net462\Opc.Ua.Gds.Client.Common.dll" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Gds.Client.Common\bin\Debug\net462\Opc.Ua.Gds.Client.Common.pdb" target="lib\net462" />
+    <file src="..\Libraries\Opc.Ua.Gds.Client.Common\bin\Debug\netstandard2.0\Opc.Ua.Gds.Client.Common.dll" target="lib\netstandard2.0" />
+    <file src="..\Libraries\Opc.Ua.Gds.Client.Common\bin\Debug\netstandard2.0\Opc.Ua.Gds.Client.Common.pdb" target="lib\netstandard2.0" />
   </files>
 </package>
