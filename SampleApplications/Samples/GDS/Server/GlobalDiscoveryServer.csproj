@@ -177,7 +177,7 @@
       <Name>UA Server Controls</Name>
       <Private>True</Private>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.GDS.ServerCommon\GlobalDiscoveryServerLibrary.csproj">
+    <ProjectReference Include="..\..\..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj">
       <Project>{77860818-3989-4d5d-95ff-437925891383}</Project>
       <Name>GlobalDiscoveryServerLibrary</Name>
     </ProjectReference>
