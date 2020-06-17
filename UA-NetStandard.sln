@@ -38,8 +38,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reference Client", "Applica
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reference Server", "Applications\ReferenceServer\Reference Server.csproj", "{42EF4F25-29BF-4AB7-B403-8523694A3B36}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GlobalDiscoveryClientControls", "..\UA-.NETStandard-Samples\Samples\GDS\ClientControls\GlobalDiscoveryClientControls.csproj", "{228EC503-2E77-45C9-87AC-3BB312E43196}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -171,18 +169,6 @@ Global
 		{42EF4F25-29BF-4AB7-B403-8523694A3B36}.Release|x64.Build.0 = Release|Any CPU
 		{42EF4F25-29BF-4AB7-B403-8523694A3B36}.Release|x86.ActiveCfg = Release|Any CPU
 		{42EF4F25-29BF-4AB7-B403-8523694A3B36}.Release|x86.Build.0 = Release|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|x64.Build.0 = Debug|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Debug|x86.Build.0 = Debug|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|Any CPU.Build.0 = Release|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|x64.ActiveCfg = Release|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|x64.Build.0 = Release|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|x86.ActiveCfg = Release|Any CPU
-		{228EC503-2E77-45C9-87AC-3BB312E43196}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
