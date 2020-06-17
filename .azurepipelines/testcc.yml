@@ -29,15 +29,15 @@ jobs:
     displayName: Restore ${{ parameters.configuration }}
     inputs:
       command: restore
-      projects: '**/*[.t]Tests.csproj'
+      projects: '**/*.Tests.csproj'
       arguments: '--configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: '**/*[.t]Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      projects: '**/*.Tests.csproj'
+      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 
