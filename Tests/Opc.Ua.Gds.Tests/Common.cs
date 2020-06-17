@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,7 +37,7 @@ using Opc.Ua.Gds.Client;
 using Opc.Ua.Test;
 
 
-namespace Opc.Ua.Gds.Test
+namespace Opc.Ua.Gds.Tests
 {
     public class ApplicationTestDataGenerator
     {
@@ -131,10 +131,8 @@ namespace Opc.Ua.Gds.Test
                     serverCapabilities = RandomServerCapabilities();
                     break;
             }
-            ApplicationTestData testData = new ApplicationTestData
-            {
-                ApplicationRecord = new ApplicationRecordDataType
-                {
+            ApplicationTestData testData = new ApplicationTestData {
+                ApplicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { new LocalizedText("en-us", appName) },
                     ApplicationUri = appUri,
                     ApplicationType = appType,

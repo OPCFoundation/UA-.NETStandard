@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -28,16 +28,14 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 
-
-namespace Opc.Ua.Gds.Test
+namespace Opc.Ua.Gds.Tests
 {
 
-    public class X509TestUtils
+    public static class X509TestUtils
     {
         public static void VerifyApplicationCertIntegrity(byte[] certificate, byte[] privateKey, string privateKeyPassword, string privateKeyFormat, byte[][] issuerCertificates)
         {
@@ -74,8 +72,7 @@ namespace Opc.Ua.Gds.Test
             CertificateTrustList trustedStore = new CertificateTrustList();
             trustedStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(trustedStore, issuerStore, null);
-            Assert.That(() =>
-            {
+            Assert.That(() => {
                 certValidator.Validate(newCert);
             }, Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;
@@ -193,9 +190,9 @@ namespace Opc.Ua.Gds.Test
                 {
                     case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
                     case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                        {
-                            return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                        }
+                    {
+                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
+                    }
                 }
             }
 

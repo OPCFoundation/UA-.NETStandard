@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,23 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using Opc.Ua.Client;
-using Opc.Ua.Gds;
-using Opc.Ua.Gds.Client;
-using Opc.Ua.Gds.Test;
-using Opc.Ua.Test;
-using NUnit.Framework;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
-using System.Collections.Generic;
+using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.Gds.Client;
+using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
 
-namespace NUnit.Opc.Ua.Gds.Test
+namespace Opc.Ua.Gds.Tests
 {
 
     [TestFixture, Category("GDSPush")]
@@ -613,8 +610,7 @@ namespace NUnit.Opc.Ua.Gds.Test
             {
                 EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(discoveryUrl, true);
                 ApplicationDescription description = endpointDescription.Server;
-                _applicationRecord = new ApplicationRecordDataType
-                {
+                _applicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { description.ApplicationName },
                     ApplicationUri = description.ApplicationUri,
                     ApplicationType = description.ApplicationType,
