@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix>1.04.359</VersionPrefix>
+    <VersionPrefix>1.04.362</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
     <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
     <Company>OPC Foundation</Company>
