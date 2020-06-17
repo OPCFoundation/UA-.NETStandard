@@ -27,19 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Configuration;
-using Opc.Ua.Gds.Client;
 using System;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Client;
 
 
-namespace Opc.Ua.Gds.Test
+namespace Opc.Ua.Gds.Tests
 {
 
     public class GlobalDiscoveryTestClient
     {
-        public GlobalDiscoveryServerClient GDSClient { get { return _client;  } }
+        public GlobalDiscoveryServerClient GDSClient => _client;
         public static bool AutoAccept = false;
 
         public GlobalDiscoveryTestClient(bool autoAccept)
@@ -53,8 +53,7 @@ namespace Opc.Ua.Gds.Test
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance
-            {
+            ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestClient"
@@ -73,8 +72,7 @@ namespace Opc.Ua.Gds.Test
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl)
-            {
+            _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))

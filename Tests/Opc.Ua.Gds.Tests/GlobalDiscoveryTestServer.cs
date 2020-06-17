@@ -27,20 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Configuration;
-using Opc.Ua.Gds.Server;
-using Opc.Ua.Gds.Server.Database.Linq;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database.Linq;
 
 
-namespace Opc.Ua.Gds.Test
+namespace Opc.Ua.Gds.Tests
 {
 
     public class GlobalDiscoveryTestServer
     {
-        public GlobalDiscoverySampleServer Server { get { return m_server; } }
+        public GlobalDiscoverySampleServer Server => m_server;
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
         {
@@ -50,8 +50,7 @@ namespace Opc.Ua.Gds.Test
         public async Task StartServer(bool clean, int basePort = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance
-            {
+            ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
@@ -150,7 +149,7 @@ namespace Opc.Ua.Gds.Test
         }
 
         public void StopServer()
-        { 
+        {
             if (m_server != null)
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");

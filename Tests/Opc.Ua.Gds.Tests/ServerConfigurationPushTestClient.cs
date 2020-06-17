@@ -27,19 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Configuration;
-using Opc.Ua.Gds.Client;
 using System;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Client;
 
 
-namespace Opc.Ua.Gds.Test
+namespace Opc.Ua.Gds.Tests
 {
 
     public class ServerConfigurationPushTestClient
     {
-        public ServerPushConfigurationClient PushClient { get { return _client; } }
+        public ServerPushConfigurationClient PushClient => _client;
         public static bool AutoAccept = false;
 
         public ServerConfigurationPushTestClient(bool autoAccept)
@@ -54,8 +54,7 @@ namespace Opc.Ua.Gds.Test
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance
-            {
+            ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
@@ -74,8 +73,7 @@ namespace Opc.Ua.Gds.Test
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            _client = new ServerPushConfigurationClient(application)
-            {
+            _client = new ServerPushConfigurationClient(application) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (String.IsNullOrEmpty(clientConfiguration.AppUserName))
