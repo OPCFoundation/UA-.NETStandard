@@ -277,8 +277,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new Variant("test"),
                 new Variant(new Int32[] {1, 2, 3, 4, 5 }),
                 new Variant(new Int64[] {1, 2, 3, 4, 5 }),
-                new Variant(new string[] {"1", "2", "3", "4", "5" })
+                new Variant(new string[] {"1", "2", "3", "4", "5" }),
+                //TODO: works as expected, but the expected need to be tweaked for the Int32 result
+                //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
+                new Variant(new Int32[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
             };
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a Matrix in a Variant.
+        /// </summary>
+        [Theory]
+        [Category("Array")]
+        public void ReEncodeVariantArrayInDataValue(
+            EncodingType encoderType,
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int arrayDimension = RandomSource.NextInt32(99) + 1;
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
+            var variant = new Variant(randomData, new TypeInfo(builtInType, 1));
             EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
         }
 
@@ -311,6 +331,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType builtInType
             )
         {
+            Assume.That(builtInType != BuiltInType.Null);
             int matrixDimension = RandomSource.NextInt32(8) + 2;
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);

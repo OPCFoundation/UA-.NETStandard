@@ -74,6 +74,13 @@ namespace Opc.Ua
                 return;
             }
 
+            // An enumeration can contain Int32
+            if (sanityCheck.BuiltInType == BuiltInType.Int32 &&
+                typeInfo.BuiltInType == BuiltInType.Enumeration)
+            {
+                return;
+            }
+
             System.Diagnostics.Debug.Assert(
                 sanityCheck.BuiltInType == m_typeInfo.BuiltInType,
                 Utils.Format("{0} != {1}",

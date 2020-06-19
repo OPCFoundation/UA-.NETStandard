@@ -863,7 +863,16 @@ namespace Opc.Ua
             {
                 if (value != null)
                 {
-                    m_writer.WriteString(Utils.Format("{0}_{1}", value.ToString(), Convert.ToInt32(value, CultureInfo.InvariantCulture)));
+                    var valueSymbol = value.ToString();
+                    var valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString();
+                    if (valueSymbol != valueInt32)
+                    {
+                        m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));
+                    }
+                    else
+                    {
+                        m_writer.WriteString(valueSymbol);
+                    }
                 }
 
                 EndField(fieldName);

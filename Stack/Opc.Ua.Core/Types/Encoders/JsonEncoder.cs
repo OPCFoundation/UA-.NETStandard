@@ -1321,6 +1321,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Writes an enumerated Int32 value to the stream.
+        /// </summary>
+        public void WriteEnumerated(string fieldName, int numeric)
+        {
+            var numericString = numeric.ToString(CultureInfo.InvariantCulture);
+            WriteSimpleField(fieldName, numericString, !UseReversibleEncoding);
+        }
+
+        /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
         public void WriteBooleanArray(string fieldName, IList<bool> values)
@@ -2108,7 +2117,7 @@ namespace Opc.Ua
                 }
                 foreach (Int32 value in values)
                 {
-                    WriteInt32(null, value);
+                    WriteEnumerated(null, value);
                 }
             }
 

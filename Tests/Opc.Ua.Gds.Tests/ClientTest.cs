@@ -90,7 +90,6 @@ namespace Opc.Ua.Gds.Tests
         }
         #endregion
         #region Test Methods
-
         /// <summary>
         /// Clean the app database from application Uri used during test.
         /// </summary>

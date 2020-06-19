@@ -32,6 +32,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -428,7 +429,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         }
                         else
                         {
-                            encoder.WriteInt32(fieldName, (int)value);
+                            encoder.WriteEnumerated(fieldName, (Enumeration)value);
                         }
                         return;
                     }
@@ -446,14 +447,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     case BuiltInType.Variant: { encoder.WriteVariantArray(fieldName, (VariantCollection)value); return; }
                     case BuiltInType.Enumeration:
                     {
-                        if (arrayType.IsEnum)
-                        {
-                            encoder.WriteEnumeratedArray(fieldName, array, arrayType);
-                        }
-                        else
-                        {
-                            Assume.That(false, "Support for Enum Int32 arrays is not implemented yet");
-                        }
+                        encoder.WriteEnumeratedArray(fieldName, array, arrayType);
                         return;
                     }
                 }
@@ -626,6 +620,29 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 dimensions[i] = RandomSource.NextInt32(8) + 2;
             }
+        }
+
+        protected enum TestEnumType
+        {
+            /// <remarks />
+            [EnumMember(Value = "One_1")]
+            One = 1,
+
+            /// <remarks />
+            [EnumMember(Value = "Two_2")]
+            Two = 2,
+
+            /// <remarks />
+            [EnumMember(Value = "Three_3")]
+            Three = 3,
+
+            /// <remarks />
+            [EnumMember(Value = "Ten_10")]
+            Ten = 10,
+
+            /// <remarks />
+            [EnumMember(Value = "Hundred_100")]
+            Hundred = 100,
         }
         #endregion
 
