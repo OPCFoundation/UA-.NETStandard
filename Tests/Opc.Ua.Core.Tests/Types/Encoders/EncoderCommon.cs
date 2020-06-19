@@ -113,7 +113,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             .ToList().Where(b =>
                 (b != BuiltInType.Variant) &&
                 (b != BuiltInType.DiagnosticInfo) &&
-                (b != BuiltInType.DataValue)
+                (b != BuiltInType.DataValue) &&
+                (b < BuiltInType.Number || b > BuiltInType.UInteger)
              ).ToArray();
 
         [DatapointSource]
@@ -433,9 +434,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                     case BuiltInType.Variant: { encoder.WriteVariant(fieldName, (Variant)value); return; }
                     case BuiltInType.DiagnosticInfo: { encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value); return; }
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger: { encoder.WriteVariant(fieldName, new Variant(value)); return; }
                 }
             }
             else
@@ -500,10 +498,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return type.IsEnum ? decoder.ReadEnumerated(fieldName, type) : (object)decoder.ReadInt32(fieldName);
                 }
                 case BuiltInType.DiagnosticInfo: { return decoder.ReadDiagnosticInfo(fieldName); }
-                case BuiltInType.Variant:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger: { return decoder.ReadVariant(fieldName); }
+                case BuiltInType.Variant: { return decoder.ReadVariant(fieldName); }
             }
             Assert.Fail($"Unknown BuiltInType {builtInType}");
             return null;
@@ -517,6 +512,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (value == null)
             {
                 return value;
+            }
+            if (builtInType == BuiltInType.Variant)
+            {
+                // decoder result will be an Int32
+                var matrix = value as Matrix;
+                if (matrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                {
+                    return new Matrix(matrix.Elements, BuiltInType.Int32, matrix.Dimensions);
+                }
             }
             if (encoderType == EncodingType.Binary)
             {
@@ -595,6 +599,33 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Calculates the number of elements from a dimension array.
+        /// </summary>
+        protected static int ElementsFromDimension(int[] dimensions)
+        {
+            int elements = 1;
+            for (int i = 0; i < dimensions.Length; i++)
+            {
+                if (dimensions[i] != 0)
+                {
+                    elements *= dimensions[i];
+                }
+            }
+            return elements;
+        }
+
+        /// <summary>
+        /// Sets random array dimensions between 2 and 10.
+        /// </summary>
+        protected void SetMatrixDimensions(int[] dimensions)
+        {
+            for (int i = 0; i < dimensions.Length; i++)
+            {
+                dimensions[i] = RandomSource.NextInt32(8) + 2;
+            }
         }
         #endregion
 

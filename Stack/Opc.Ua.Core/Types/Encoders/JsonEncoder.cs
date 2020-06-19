@@ -1086,7 +1086,14 @@ namespace Opc.Ua
             if (UseReversibleEncoding && !isNull)
             {
                 PushStructure(fieldName);
-                WriteByte("Type", (byte)value.TypeInfo.BuiltInType);
+                // encode enums as int32.
+                byte encodingByte = (byte)value.TypeInfo.BuiltInType;
+                if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                {
+                    encodingByte = (byte)BuiltInType.Int32;
+                }
+
+                WriteByte("Type", encodingByte);
                 fieldName = "Body";
             }
 
@@ -2083,9 +2090,26 @@ namespace Opc.Ua
             }
 
             // encode each element in the array.
-            foreach (Enum value in values)
+            Type arrayType = values.GetType().GetElementType();
+            if (arrayType.IsEnum)
             {
-                WriteEnumerated(null, value);
+                foreach (Enum value in values)
+                {
+                    WriteEnumerated(null, value);
+                }
+            }
+            else
+            {
+                if (arrayType != typeof(Int32))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", arrayType.FullName));
+                }
+                foreach (Int32 value in values)
+                {
+                    WriteInt32(null, value);
+                }
             }
 
             PopArray();
@@ -2168,18 +2192,8 @@ namespace Opc.Ua
                     case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])value); return; }
                     case BuiltInType.Enumeration:
                     {
-                        Enum[] enums = value as Enum[];
-                        string[] values = new string[enums.Length];
-
-                        for (int ii = 0; ii < enums.Length; ii++)
-                        {
-                            string text = enums[ii].ToString();
-                            text += "_";
-                            text += ((int)(object)enums[ii]).ToString(CultureInfo.InvariantCulture);
-                            values[ii] = text;
-                        }
-
-                        WriteStringArray(null, values);
+                        Array array = value as Array;
+                        WriteEnumeratedArray(null, array, array.GetType().GetElementType());
                         return;
                     }
 
@@ -2215,7 +2229,15 @@ namespace Opc.Ua
                 Matrix matrix = value as Matrix;
                 if (matrix != null)
                 {
-                    WriteVariantMatrix(null, matrix);
+                    if (UseReversibleEncoding)
+                    {
+                        WriteVariantContents(matrix.Elements, new TypeInfo(typeInfo.BuiltInType, 1));
+                    }
+                    else
+                    {
+                        int index = 0;
+                        WriteStructureMatrix(matrix, 0, ref index, typeInfo);
+                    }
                     return;
                 }
             }
@@ -2228,6 +2250,41 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Write multi dimensional array in structure.
+        /// </summary>
+        private void WriteStructureMatrix(
+            Matrix matrix,
+            int dim,
+            ref int index,
+            TypeInfo typeInfo)
+        {
+            var arrayLen = matrix.Dimensions[dim];
+            if (dim == matrix.Dimensions.Length - 1)
+            {
+                // Create a slice of values for the top dimension
+                var copy = Array.CreateInstance(
+                    matrix.Elements.GetType().GetElementType(), arrayLen);
+                Array.Copy(matrix.Elements, index, copy, 0, arrayLen);
+                // Write slice as value rank
+                if (m_commaRequired)
+                {
+                    m_writer.Write(",");
+                }
+                WriteVariantContents(copy, new TypeInfo(typeInfo.BuiltInType, 1));
+                index += arrayLen;
+            }
+            else
+            {
+                PushArray(null);
+                for (var i = 0; i < arrayLen; i++)
+                {
+                    WriteStructureMatrix(matrix, dim + 1, ref index, typeInfo);
+                }
+                PopArray();
+            }
+        }
+
         /// <summary>
         /// Write multi dimensional array in Variant.
         /// </summary>

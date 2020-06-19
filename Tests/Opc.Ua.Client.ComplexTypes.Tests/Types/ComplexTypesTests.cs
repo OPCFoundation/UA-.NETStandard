@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexType(StructureType structureType)
         {
             // EncoderCommon.BuiltInTypes subtracted by the number of unused types.
-            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 6;
+            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 3;
             var complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType, nameof(CreateComplexType));
             Assert.NotNull(complexType);

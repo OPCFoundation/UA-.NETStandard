@@ -1386,26 +1386,25 @@ namespace Opc.Ua
                     return Variant.Null;
                 }
 
+                Variant array;
                 if (token is Array)
                 {
-                    var array = ReadVariantBody("Body", type);
-                    var dimensions = ReadInt32Array("Dimensions");
-
-                    if (array.Value is Array && dimensions != null && dimensions.Count > 1)
-                    {
-                        array = new Variant(new Matrix((Array)array.Value, type, dimensions.ToArray()));
-                    }
-
-                    return array;
+                    array = ReadVariantBody("Body", type);
                 }
                 else if (token is List<object>)
                 {
-                    return ReadVariantArrayBody("Body", type);
+                    array = ReadVariantArrayBody("Body", type);
                 }
                 else
                 {
                     return ReadVariantBody("Body", type);
                 }
+                var dimensions = ReadInt32Array("Dimensions");
+                if (array.Value is Array && dimensions != null && dimensions.Count > 1)
+                {
+                    array = new Variant(new Matrix((Array)array.Value, type, dimensions.ToArray()));
+                }
+                return array;
             }
             finally
             {

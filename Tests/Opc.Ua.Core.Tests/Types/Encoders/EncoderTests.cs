@@ -132,18 +132,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             )
         {
             object randomData = TypeInfo.GetDefaultValue(builtInType);
-            switch (builtInType)
+            if (builtInType == BuiltInType.ExtensionObject)
             {
-                case BuiltInType.Number: 
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
-                    randomData = new Variant(randomData);
-                    break;
                 // special case for extension object, default from TypeInfo must be null
                 // or encoding of extension objects fails.
-                case BuiltInType.ExtensionObject:
-                    randomData = ExtensionObject.Null;
-                    break;
+                randomData = ExtensionObject.Null;
             }
             EncodeDecode(encoderType, builtInType, randomData);
         }
@@ -287,6 +280,45 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new Variant(new string[] {"1", "2", "3", "4", "5" })
             };
             EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a Matrix in a Variant.
+        /// </summary>
+        [Theory]
+        [Category("Matrix")]
+        public void ReEncodeVariantMatrixInDataValue(
+            EncodingType encoderType,
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            int[] dimensions = new int[matrixDimension];
+            SetMatrixDimensions(dimensions);
+            int elements = ElementsFromDimension(dimensions);
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
+            var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a Matrix in a Variant.
+        /// </summary>
+        [Theory]
+        [Category("Matrix")]
+        public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleJson(
+            BuiltInType builtInType
+            )
+        {
+            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            int[] dimensions = new int[matrixDimension];
+            SetMatrixDimensions(dimensions);
+            int elements = ElementsFromDimension(dimensions);
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
+            var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
+            string json = EncodeDataValue(EncodingType.Json, BuiltInType.Variant, variant, false);
+            PrettifyAndValidateJson(json);
         }
         #endregion
 

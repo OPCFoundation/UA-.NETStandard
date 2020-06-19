@@ -1792,14 +1792,22 @@ namespace Opc.Ua
 
                         case BuiltInType.Enumeration:
                         {
-                            Enum[] enums = value as Enum[];
-                            int[] ints = new int[enums.Length];
-
-                            for (int ii = 0; ii < enums.Length; ii++)
+                            int[] ints = value as int[];
+                            if (ints == null)
                             {
-                                ints[ii] = (int)(object)enums[ii];
+                                Enum[] enums = value as Enum[];
+                                if (enums == null)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadEncodingError,
+                                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                                }
+                                ints = new int[enums.Length];
+                                for (int ii = 0; ii < enums.Length; ii++)
+                                {
+                                    ints[ii] = (int)(object)enums[ii];
+                                }
                             }
-
                             WriteInt32Array("ListOfInt32", ints);
                             return;
                         }
