@@ -180,7 +180,9 @@ namespace Opc.Ua.Bindings
         {
             // suppress warnings
             ConnectionWaiting = null;
+            ConnectionWaiting?.Invoke(null,null);
             ConnectionStatusChanged = null;
+            ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
         }
         #endregion
