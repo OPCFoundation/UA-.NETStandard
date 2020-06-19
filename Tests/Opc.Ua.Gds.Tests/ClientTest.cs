@@ -42,7 +42,6 @@ namespace Opc.Ua.Gds.Tests
     /// </summary>
     [TestFixture, Category("GDSRegistrationAndPull")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [Parallelizable]
     public class ClientTest
     {
         #region Test Setup
