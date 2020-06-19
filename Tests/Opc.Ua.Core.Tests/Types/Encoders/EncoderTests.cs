@@ -303,7 +303,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Verify encode and decode of a Matrix in a Variant.
+        /// Verify encode of a Matrix in a Variant to non reversible JSON.
         /// </summary>
         [Theory]
         [Category("Matrix")]
