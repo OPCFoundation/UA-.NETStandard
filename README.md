@@ -25,7 +25,7 @@ Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websit
 10. OPC UA [Reference Server](Applications/ReferenceServer/README.md).
 11. OPC UA [Console Reference Server](Applications/ConsoleReferenceServer).
 12. OPC UA [Reference Client](Applications/ReferenceClient).
-13. OPC UA [Reference Server](SampleApplications/Workshop/Reference/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the Compliance Test Tool (CTT) Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/ua-compliance-test-tool-uactt/). 
+13. OPC UA [Reference Server](Applications/ReferenceServer/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the Compliance Test Tool (CTT) Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
 14. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .Net projects.
 
 ## Project Information
