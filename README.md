@@ -67,7 +67,7 @@ By default all sample applications are configured to register with a Local Disco
 3. Hit `F5` to build and execute the sample.
 
 ## How to build and run the console samples on Windows, Linux and iOS
-This section describes how to run the and **NetCoreConsoleServer** sample application.
+This section describes how to run the and **NetCoreReferenceServer** sample application.
 
 Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .Net Standard 2.0 is required.
 
@@ -76,10 +76,9 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 
 ### Start the server 
 1. Open a command prompt. 
-2. Navigate to the folder **Applications/NetCoreConsoleServer**. 
-3. To run the server sample type `dotnet run --project NetCoreConsoleServer.csproj -a`. 
+2. Navigate to the folder **Applications/NetCoreReferenceServer**. 
+3. To run the server sample type `dotnet run --project NetCoreReferenceServer.csproj -a`. 
     - The server is now running and waiting for connections. 
-    - The `-a` flag allows to auto accept unknown certificates and should only be used to simplify testing.
 
 ## Contributing
 We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.
