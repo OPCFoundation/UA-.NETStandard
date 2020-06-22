@@ -178,6 +178,11 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void CreateReverseConnection(Uri url, int timeout)
         {
+            // suppress warnings
+            ConnectionWaiting = null;
+            ConnectionWaiting?.Invoke(null,null);
+            ConnectionStatusChanged = null;
+            ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();
         }
         #endregion

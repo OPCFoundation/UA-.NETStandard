@@ -32,6 +32,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -113,7 +114,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             .ToList().Where(b =>
                 (b != BuiltInType.Variant) &&
                 (b != BuiltInType.DiagnosticInfo) &&
-                (b != BuiltInType.DataValue)
+                (b != BuiltInType.DataValue) &&
+                (b < BuiltInType.Number || b > BuiltInType.UInteger)
              ).ToArray();
 
         [DatapointSource]
@@ -427,15 +429,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         }
                         else
                         {
-                            encoder.WriteInt32(fieldName, (int)value);
+                            encoder.WriteEnumerated(fieldName, (Enumeration)value);
                         }
                         return;
                     }
                     case BuiltInType.Variant: { encoder.WriteVariant(fieldName, (Variant)value); return; }
                     case BuiltInType.DiagnosticInfo: { encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value); return; }
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger: { encoder.WriteVariant(fieldName, new Variant(value)); return; }
                 }
             }
             else
@@ -448,14 +447,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     case BuiltInType.Variant: { encoder.WriteVariantArray(fieldName, (VariantCollection)value); return; }
                     case BuiltInType.Enumeration:
                     {
-                        if (arrayType.IsEnum)
-                        {
-                            encoder.WriteEnumeratedArray(fieldName, array, arrayType);
-                        }
-                        else
-                        {
-                            Assume.That(false, "Support for Enum Int32 arrays is not implemented yet");
-                        }
+                        encoder.WriteEnumeratedArray(fieldName, array, arrayType);
                         return;
                     }
                 }
@@ -500,10 +492,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return type.IsEnum ? decoder.ReadEnumerated(fieldName, type) : (object)decoder.ReadInt32(fieldName);
                 }
                 case BuiltInType.DiagnosticInfo: { return decoder.ReadDiagnosticInfo(fieldName); }
-                case BuiltInType.Variant:
-                case BuiltInType.Number:
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger: { return decoder.ReadVariant(fieldName); }
+                case BuiltInType.Variant: { return decoder.ReadVariant(fieldName); }
             }
             Assert.Fail($"Unknown BuiltInType {builtInType}");
             return null;
@@ -517,6 +506,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (value == null)
             {
                 return value;
+            }
+            if (builtInType == BuiltInType.Variant)
+            {
+                // decoder result will be an Int32
+                var matrix = value as Matrix;
+                if (matrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+                {
+                    return new Matrix(matrix.Elements, BuiltInType.Int32, matrix.Dimensions);
+                }
             }
             if (encoderType == EncodingType.Binary)
             {
@@ -595,6 +593,56 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Calculates the number of elements from a dimension array.
+        /// </summary>
+        protected static int ElementsFromDimension(int[] dimensions)
+        {
+            int elements = 1;
+            for (int i = 0; i < dimensions.Length; i++)
+            {
+                if (dimensions[i] != 0)
+                {
+                    elements *= dimensions[i];
+                }
+            }
+            return elements;
+        }
+
+        /// <summary>
+        /// Sets random array dimensions between 2 and 10.
+        /// </summary>
+        protected void SetMatrixDimensions(int[] dimensions)
+        {
+            for (int i = 0; i < dimensions.Length; i++)
+            {
+                dimensions[i] = RandomSource.NextInt32(8) + 2;
+            }
+        }
+
+        protected enum TestEnumType
+        {
+            /// <remarks />
+            [EnumMember(Value = "One_1")]
+            One = 1,
+
+            /// <remarks />
+            [EnumMember(Value = "Two_2")]
+            Two = 2,
+
+            /// <remarks />
+            [EnumMember(Value = "Three_3")]
+            Three = 3,
+
+            /// <remarks />
+            [EnumMember(Value = "Ten_10")]
+            Ten = 10,
+
+            /// <remarks />
+            [EnumMember(Value = "Hundred_100")]
+            Hundred = 100,
         }
         #endregion
 

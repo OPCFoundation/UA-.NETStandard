@@ -41,6 +41,7 @@ namespace Opc.Ua.Gds.Tests
     /// Test GDS Registration and Client Pull.
     /// </summary>
     [TestFixture, Category("GDSRegistrationAndPull")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
     public class ClientTest
     {
         #region Test Setup
@@ -89,7 +90,6 @@ namespace Opc.Ua.Gds.Tests
         }
         #endregion
         #region Test Methods
-
         /// <summary>
         /// Clean the app database from application Uri used during test.
         /// </summary>

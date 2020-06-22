@@ -132,18 +132,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             )
         {
             object randomData = TypeInfo.GetDefaultValue(builtInType);
-            switch (builtInType)
+            if (builtInType == BuiltInType.ExtensionObject)
             {
-                case BuiltInType.Number: 
-                case BuiltInType.Integer:
-                case BuiltInType.UInteger:
-                    randomData = new Variant(randomData);
-                    break;
                 // special case for extension object, default from TypeInfo must be null
                 // or encoding of extension objects fails.
-                case BuiltInType.ExtensionObject:
-                    randomData = ExtensionObject.Null;
-                    break;
+                randomData = ExtensionObject.Null;
             }
             EncodeDecode(encoderType, builtInType, randomData);
         }
@@ -284,9 +277,69 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 new Variant("test"),
                 new Variant(new Int32[] {1, 2, 3, 4, 5 }),
                 new Variant(new Int64[] {1, 2, 3, 4, 5 }),
-                new Variant(new string[] {"1", "2", "3", "4", "5" })
+                new Variant(new string[] {"1", "2", "3", "4", "5" }),
+                //TODO: works as expected, but the expected need to be tweaked for the Int32 result
+                //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
+                new Variant(new Int32[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
             };
             EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a Matrix in a Variant.
+        /// </summary>
+        [Theory]
+        [Category("Array")]
+        public void ReEncodeVariantArrayInDataValue(
+            EncodingType encoderType,
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int arrayDimension = RandomSource.NextInt32(99) + 1;
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
+            var variant = new Variant(randomData, new TypeInfo(builtInType, 1));
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
+        }
+
+        /// <summary>
+        /// Verify encode and decode of a Matrix in a Variant.
+        /// </summary>
+        [Theory]
+        [Category("Matrix")]
+        public void ReEncodeVariantMatrixInDataValue(
+            EncodingType encoderType,
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            int[] dimensions = new int[matrixDimension];
+            SetMatrixDimensions(dimensions);
+            int elements = ElementsFromDimension(dimensions);
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
+            var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
+            EncodeDecodeDataValue(encoderType, BuiltInType.Variant, variant);
+        }
+
+        /// <summary>
+        /// Verify encode of a Matrix in a Variant to non reversible JSON.
+        /// </summary>
+        [Theory]
+        [Category("Matrix")]
+        public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleJson(
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int matrixDimension = RandomSource.NextInt32(8) + 2;
+            int[] dimensions = new int[matrixDimension];
+            SetMatrixDimensions(dimensions);
+            int elements = ElementsFromDimension(dimensions);
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
+            var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
+            string json = EncodeDataValue(EncodingType.Json, BuiltInType.Variant, variant, false);
+            PrettifyAndValidateJson(json);
         }
         #endregion
 

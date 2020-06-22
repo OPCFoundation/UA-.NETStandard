@@ -44,6 +44,7 @@ namespace Opc.Ua.Gds.Tests
 {
 
     [TestFixture, Category("GDSPush")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
     public class PushTest
     {
         #region Test Setup

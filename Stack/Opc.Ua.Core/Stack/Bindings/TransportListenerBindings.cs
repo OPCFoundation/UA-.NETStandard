@@ -80,6 +80,8 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
+            listener.Dispose();
+
             return true;
         }
         #endregion

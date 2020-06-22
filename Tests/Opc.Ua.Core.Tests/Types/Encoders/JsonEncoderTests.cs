@@ -43,31 +43,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class JsonEncoderTests : EncoderCommon
     {
         #region DataSource
-        enum TestEnumType
-        {
-            /// <remarks />
-            [EnumMember(Value = "One_1")]
-            One = 1,
-
-            /// <remarks />
-            [EnumMember(Value = "Two_2")]
-            Two = 2,
-
-            /// <remarks />
-            [EnumMember(Value = "Three_3")]
-            Three = 3,
-
-            /// <remarks />
-            [EnumMember(Value = "Ten_10")]
-            Ten = 10,
-
-            /// <remarks />
-            [EnumMember(Value = "Hundred_100")]
-            Hundred = 100,
-        }
-
         static TestEnumType[] TestEnumArray = new TestEnumType[]
             { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred };
+        static Int32[] TestInt32Array = new Int32[]
+            { 2, 3, 10 };
 
         /// <summary>
         /// Constants used by test data set.
@@ -284,8 +263,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, TestEnumType.Ten, $"{TestEnumType.Ten.ToString("d")}", $"\"{TestEnumType.Ten.ToString()}_{TestEnumType.Ten.ToString("d")}\""},
             {   BuiltInType.Enumeration, (TestEnumType) 11, "11", "\"11\""},
 
+            {   BuiltInType.Enumeration, (Int32) 1, "1", "\"1\""},
+            {   BuiltInType.Enumeration, (Int32)TestEnumType.Two, TestEnumType.Two.ToString("d"), $"\"{TestEnumType.Two.ToString("d")}\""},
+            {   BuiltInType.Enumeration, (Int32)TestEnumType.Hundred, $"{TestEnumType.Hundred.ToString("d")}", $"\"{TestEnumType.Hundred.ToString("d")}\""},
+            {   BuiltInType.Enumeration, (Int32) 22, "22", "\"22\""},
+
             // arrays
             {   BuiltInType.Enumeration, TestEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
+            {   BuiltInType.Enumeration, TestInt32Array, "[2,3,10]", "[\"2\",\"3\",\"10\"]"},
         }.ToArray();
         #endregion
 

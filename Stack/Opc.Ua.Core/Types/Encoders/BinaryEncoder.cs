@@ -1762,7 +1762,6 @@ namespace Opc.Ua
 
             // encode enums as int32.
             byte encodingByte = (byte)value.TypeInfo.BuiltInType;
-
             if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
             {
                 encodingByte = (byte)BuiltInType.Int32;
@@ -1852,24 +1851,25 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                     {
                         // Check whether the value to encode is int array.
-                        var directInts = valueToEncode as int[];
-                        if (directInts != null)
+                        int[] ints = valueToEncode as int[];
+                        if (ints == null)
                         {
-                            // It is int array - we use it directly.
-                            WriteInt32Array(null, directInts);
-                            return;
-                        }
-
-                        Enum[] enums = valueToEncode as Enum[];
-                        int[] ints = new int[enums.Length];
-
-                        for (int ii = 0; ii < enums.Length; ii++)
-                        {
-                            ints[ii] = (int)(object)enums[ii];
+                            Enum[] enums = valueToEncode as Enum[];
+                            if (enums == null)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadEncodingError,
+                                    Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                            }
+                            ints = new int[enums.Length];
+                            for (int ii = 0; ii < enums.Length; ii++)
+                            {
+                                ints[ii] = (int)(object)enums[ii];
+                            }
                         }
 
                         WriteInt32Array(null, ints);
-                        return;
+                        break;
                     }
 
                     case BuiltInType.Variant:
