@@ -299,6 +299,7 @@ namespace Opc.Ua.Export
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
+            exportedNode.Extensions = node.Extensions;
 
             if (!String.IsNullOrEmpty(node.SymbolicName) && node.SymbolicName != node.BrowseName.Name)
             {
@@ -627,6 +628,7 @@ namespace Opc.Ua.Export
             importedNode.ReleaseStatus = node.ReleaseStatus;
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
+            importedNode.Extensions = node.Extensions;
 
             if (!String.IsNullOrEmpty(node.SymbolicName))
             {
