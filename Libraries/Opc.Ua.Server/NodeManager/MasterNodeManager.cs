@@ -859,8 +859,23 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < targetIds.Count; ii++)
                 {
-                    BrowsePathTarget target = new BrowsePathTarget();
+                    // Check the Role permissions for target nodes
+                    INodeManager targetNodeManager = null;
+                    object targetHandle = GetManagerHandle(ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris), out targetNodeManager);
 
+                    if (targetHandle != null && targetNodeManager != null)
+                    {
+                        NodeMetadata nodeMetadata = targetNodeManager.GetNodeMetadata(context, targetHandle, BrowseResultMask.All);
+                        ServiceResult serviceResult = ValidateRolePermissions(context, nodeMetadata, PermissionType.Browse);
+
+                        if (ServiceResult.IsBad(serviceResult))
+                        {
+                            // Remove target node without role permissions.
+                            continue;
+                        }
+                    }
+
+                    BrowsePathTarget target = new BrowsePathTarget();
                     target.TargetId = targetIds[ii];
                     target.RemainingPathIndex = UInt32.MaxValue;
 
