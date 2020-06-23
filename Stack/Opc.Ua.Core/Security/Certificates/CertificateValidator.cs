@@ -751,8 +751,6 @@ namespace Opc.Ua
                     issuer = issuers[ii];
                 }
 
-
-
                 // check for chain status errors.
                 if (element.ChainElementStatus.Length > 0)
                 {
