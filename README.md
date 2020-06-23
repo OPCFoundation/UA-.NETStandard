@@ -62,7 +62,7 @@ By default all sample applications are configured to register with a Local Disco
 
 ## How to build and run the reference samples in Visual Studio on Windows
 
-1. Open the UA-NetStandard.sln solution file using Visual Studio 2017.  
+1. Open the UA Reference.sln solution file using Visual Studio 2017.  
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
 
@@ -72,7 +72,7 @@ This section describes how to run the and **NetCoreReferenceServer** sample appl
 Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .Net Standard 2.0 is required.
 
 ### Prerequisites
-1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore UA-NetStandard.sln`. This command calls into NuGet to restore the tree of dependencies.
+1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore UA Reference.sln`. This command calls into NuGet to restore the tree of dependencies.
 
 ### Start the server 
 1. Open a command prompt. 
