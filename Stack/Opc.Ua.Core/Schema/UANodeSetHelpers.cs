@@ -189,7 +189,7 @@ namespace Opc.Ua.Export
                     UAMethod value = new UAMethod();
                     value.Executable = o.Executable;
 
-                    if (o.TypeDefinitionId != o.NodeId)
+                    if (o.TypeDefinitionId != null && !o.TypeDefinitionId.IsNullNodeId && o.TypeDefinitionId != o.NodeId)
                     {
                         value.MethodDeclarationId = Export(o.TypeDefinitionId, context.NamespaceUris);
                     }
