@@ -206,6 +206,7 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+
                 for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
                 {
                     IEventMonitoredItem monitoredItem = EventMonitoredItems[ii];
@@ -218,10 +219,12 @@ namespace Opc.Ua.Server
             {
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
                 BaseEventState baseEventState = e as BaseEventState;
+
                 if (baseEventState != null)
                 {
                     ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.EventType?.Value, PermissionType.ReceiveEvents);
+
                     if (ServiceResult.IsBad(validationResult))
                     {
                         // skip event reporting for EventType without permissions
@@ -230,17 +233,18 @@ namespace Opc.Ua.Server
 
                     validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem),
                         baseEventState?.SourceNode?.Value, PermissionType.ReceiveEvents);
+
                     if (ServiceResult.IsBad(validationResult))
                     {
                         // skip event reporting for SourceNode without permissions
                         continue;
                     }
+                }
 
-                    lock (NodeManager.Lock)
-                    {
-                        // enqueue event
-                        monitoredItem?.QueueEvent(e);
-                    }
+                lock (NodeManager.Lock)
+                {
+                    // enqueue event
+                    monitoredItem?.QueueEvent(e);
                 }
             }
         }

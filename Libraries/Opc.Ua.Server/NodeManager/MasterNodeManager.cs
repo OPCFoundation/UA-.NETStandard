@@ -208,6 +208,58 @@ namespace Opc.Ua.Server
 
             references.Add(reference);
         }
+
+        /// <summary>
+        /// Determine the required history access permission depending on the HistoryUpdateDetails
+        /// </summary>
+        /// <param name="historyUpdateDetails">The HistoryUpdateDetails passed in</param>
+        /// <returns>The corresponding history access permission</returns>
+        protected static PermissionType DetermineHistoryAccessPermission(HistoryUpdateDetails historyUpdateDetails)
+        {
+            Type detailsType = historyUpdateDetails.GetType();
+
+            if (detailsType == typeof(UpdateDataDetails))
+            {
+                UpdateDataDetails updateDataDetails = (UpdateDataDetails)historyUpdateDetails;
+                return GetHistoryPermissionType(updateDataDetails.PerformInsertReplace);
+            }
+            else if (detailsType == typeof(UpdateStructureDataDetails))
+            {
+                UpdateStructureDataDetails updateStructureDataDetails = (UpdateStructureDataDetails)historyUpdateDetails;
+                return GetHistoryPermissionType(updateStructureDataDetails.PerformInsertReplace);
+            }
+            else if (detailsType == typeof(UpdateEventDetails))
+            {
+                UpdateEventDetails updateEventDetails = (UpdateEventDetails)historyUpdateDetails;
+                return GetHistoryPermissionType(updateEventDetails.PerformInsertReplace);
+            }
+            else if (detailsType == typeof(DeleteRawModifiedDetails) ||
+                detailsType == typeof(DeleteAtTimeDetails) ||
+                detailsType == typeof(DeleteEventDetails))
+            {
+                return PermissionType.DeleteHistory;
+            }
+
+            return PermissionType.ModifyHistory;
+        }
+
+        /// <summary>
+        ///  Determine the History PermissionType depending on PerformUpdateType 
+        /// </summary>
+        /// <param name="updateType"></param>
+        /// <returns>The corresponding PermissionType</returns>
+        protected static PermissionType GetHistoryPermissionType(PerformUpdateType updateType)
+        {
+            switch (updateType)
+            {
+                case PerformUpdateType.Insert:
+                    return PermissionType.InsertHistory;
+                case PerformUpdateType.Update:
+                    return PermissionType.InsertHistory | PermissionType.ModifyHistory;
+                default: // PerformUpdateType.Replace or PerformUpdateType.Remove
+                    return PermissionType.ModifyHistory;
+            }
+        }
         #endregion
 
         #region Public Interface
@@ -859,8 +911,23 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < targetIds.Count; ii++)
                 {
-                    BrowsePathTarget target = new BrowsePathTarget();
+                    // Check the role permissions for target nodes
+                    INodeManager targetNodeManager = null;
+                    object targetHandle = GetManagerHandle(ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris), out targetNodeManager);
 
+                    if (targetHandle != null && targetNodeManager != null)
+                    {
+                        NodeMetadata nodeMetadata = targetNodeManager.GetNodeMetadata(context, targetHandle, BrowseResultMask.All);
+                        ServiceResult serviceResult = ValidateRolePermissions(context, nodeMetadata, PermissionType.Browse);
+
+                        if (ServiceResult.IsBad(serviceResult))
+                        {
+                            // Remove target node without role permissions.
+                            continue;
+                        }
+                    }
+
+                    BrowsePathTarget target = new BrowsePathTarget();
                     target.TargetId = targetIds[ii];
                     target.RemainingPathIndex = UInt32.MaxValue;
 
@@ -2821,12 +2888,12 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(serviceResult))
             {
                 // check access rights and permissions
-                serviceResult = ValidatePermissions(operationContext, historyUpdateDetails.NodeId, PermissionType.ModifyHistory);
+                PermissionType requiredPermission = DetermineHistoryAccessPermission(historyUpdateDetails);
+                serviceResult = ValidatePermissions(operationContext, historyUpdateDetails.NodeId, requiredPermission);
             }
 
             return serviceResult;
         }
-
         #region Validate Permissions Methods
 
         /// <summary>

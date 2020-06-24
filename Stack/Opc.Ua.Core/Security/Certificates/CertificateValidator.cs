@@ -752,28 +752,36 @@ namespace Opc.Ua
                 }
 
                 // check for chain status errors.
-                foreach (X509ChainStatus status in element.ChainElementStatus)
+                if (element.ChainElementStatus.Length > 0)
                 {
-                    ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
-
-                    if (ServiceResult.IsBad(result))
+                    foreach (X509ChainStatus status in element.ChainElementStatus)
                     {
-                        // check untrusted certificates.
-                        if (trustedCertificate == null)
-                        {
-                            ServiceResult errorResult = new ServiceResult(
-                                result.StatusCode,
-                                result.SymbolicId,
-                                result.NamespaceUri,
-                                result.LocalizedText,
-                                result.AdditionalInfo,
-                                StatusCodes.BadCertificateUntrusted);
+                        ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
 
-                            throw new ServiceResultException(errorResult);
+                        if (ServiceResult.IsBad(result))
+                        {
+                            // check untrusted certificates.
+                            if (trustedCertificate == null)
+                            {
+                                ServiceResult errorResult = new ServiceResult(
+                                    result.StatusCode,
+                                    result.SymbolicId,
+                                    result.NamespaceUri,
+                                    result.LocalizedText,
+                                    result.AdditionalInfo,
+                                    StatusCodes.BadCertificateUntrusted);
+
+                                throw new ServiceResultException(errorResult);
+                            }
+
+                            throw new ServiceResultException(result);
                         }
 
-                        throw new ServiceResultException(result);
+                        chainStatusChecked = true;
                     }
+                }
+                else
+                {
                     chainStatusChecked = true;
                 }
 

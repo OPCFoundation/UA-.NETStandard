@@ -3680,6 +3680,7 @@ namespace Opc.Ua.Server
 
             INodeManager nodeManager = null;
             object nodeHandle = Server.NodeManager.GetManagerHandle(nodeId, out nodeManager);
+
             if (nodeHandle == null || nodeManager == null)
             {
                 // ignore unknown nodes.
