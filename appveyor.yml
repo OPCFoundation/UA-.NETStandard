@@ -4,7 +4,7 @@
 #---------------------------------#
 
 # version format
-version: 1.4.360.{build}-{branch}
+version: 1.4.362.{build}-{branch}
 
 
 # branches to build
@@ -33,12 +33,12 @@ clone_depth: 5                      # clone entire repository history if not def
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"
-    test_name: "Tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj"
+    test_name: "void"
     param: ""
-  - solution_name: "UA-NetStandard.sln"
-    test_name: "Tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj"
+  - solution_name: "UA Reference.sln"
+    test_name: "void"
     param: ""
-  - solution_name: "UA-NetStandard.sln"
+  - solution_name: "UA Reference.sln"
     test_name: "void"
     param: "/p:NoHttps=true"
 
