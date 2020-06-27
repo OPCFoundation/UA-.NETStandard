@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -230,7 +230,7 @@ namespace Quickstarts.ReferenceServer
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.defaultKeySize, CertificateFactory.defaultLifeTime);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.DefaultKeySize, CertificateFactory.DefaultLifeTime);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
