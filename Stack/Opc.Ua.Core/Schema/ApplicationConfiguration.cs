@@ -736,7 +736,7 @@ namespace Opc.Ua
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
             m_rejectUnknownRevocationStatus = false;
-            m_minCertificateKeySize = CertificateFactory.defaultKeySize;
+            m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = false;
         }
