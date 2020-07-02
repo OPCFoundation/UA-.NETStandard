@@ -71,7 +71,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create all certs and CRL
             m_caChain = new X509Certificate2[kCaChainCount];
-            m_constraintChain = new X509Certificate2[kCaChainCount];
             m_caDupeChain = new X509Certificate2[kCaChainCount];
             m_caAllSameIssuerChain = new X509Certificate2[kCaChainCount];
             m_crlChain = new X509CRL[kCaChainCount];
