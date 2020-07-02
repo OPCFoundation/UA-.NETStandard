@@ -301,12 +301,12 @@ public class CertificateFactory
 
             // Basic constraints
             BasicConstraints basicConstraints = new BasicConstraints(isCA);
-            if (pathLengthConstraint >= 0 && isCA)
+            if (isCA && pathLengthConstraint >= 0)
             {
                 basicConstraints = new BasicConstraints(pathLengthConstraint);
             }
-            else if (issuerCAKeyCert == null)
-            {
+            else if (!isCA && issuerCAKeyCert == null)
+            {   // self-signed
                 basicConstraints = new BasicConstraints(0);
             }
             cg.AddExtension(X509Extensions.BasicConstraints.Id, true, basicConstraints);
@@ -1169,7 +1169,7 @@ public class CertificateFactory
     /// <summary>
     /// Get public key parameters from a X509Certificate2
     /// </summary>
-    private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
+    internal static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
         RSA rsa = null;
         try
@@ -1191,7 +1191,7 @@ public class CertificateFactory
     /// Get private key parameters from a X509Certificate2.
     /// The private key must be exportable.
     /// </summary>
-    private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
+    internal static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
         RSA rsa = null;
         try
