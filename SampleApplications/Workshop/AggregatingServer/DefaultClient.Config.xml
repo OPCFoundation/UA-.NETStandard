@@ -1,0 +1,454 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  schemaLocation="./Schema/ApplicationConfiguration.xsd"
+>
+  <!-- A human readable but not necessarily unique name for the application instance -->
+  <ApplicationName>DefaultClient</ApplicationName>
+  
+  <!-- A globally unique identifier for the application instance.
+       This is overridden with the value contained in the application certificate. -->
+  <ApplicationUri>urn:localhost:phi-ware:DefaultClient</ApplicationUri>
+  
+  <!-- A globally unique URI for the product (usually assigned by the product vendor) -->
+  <ProductUri>http://phi-ware.com/UA/DefaultClient/</ProductUri>
+    
+  <!-- Indicates the type of application (Client, Server or ClientServer). -->
+  <ApplicationType>Client_1</ApplicationType>
+  
+  <!-- Specifies security related configuration information -->
+  <SecurityConfiguration>
+    
+    <!-- The location of the application instance certificate in the Windows certificate store -->
+    <ApplicationCertificate>
+      <StoreType>X509Store</StoreType>
+      <StorePath>CurrentUser\UA_MachineDefault</StorePath>
+
+      <!-- The subject for the certificate 
+           Note that subject names are complex structures. Only text that appears here is treated as the CommonName component.
+           The first certificate found is used if multiple certificates with the same CommonName and a matching hostname exist.
+           Also a complete distinguished name can be specified here: 'CN=UA Sample Client, DC=localhost'.
+           In this case the first certificate matching the complete distinguished name is used. localhost is replaced with the hostname.
+           If no certificate is found, a new self signed application certificate is created.
+           The Thumbprint should be specified if the CN or DN does not uniquely identify a certificate. -->
+      <SubjectName>CN=UA Default Client, C=SK, S=Bratislava, O=phi-ware, DC=localhost</SubjectName>
+
+      <!-- The SHA1 thumbprint for the certificate.
+           The thumbprint uniquely identifies a certificate.
+           It should be specified in this file, however, the samples rely on quick and 
+           dirty scripts to create new certificate on each machine. A commerical application 
+           would generate the initial certificate itself and update the thumbprint accordingly -->
+      <!--<Thumbprint>3a35fb798fc6dee8a7e7e4652b0e28fc14c6ee0f</Thumbprint>-->
+      
+    </ApplicationCertificate>
+
+    <!-- The list of certification authorities. 
+    
+         Typical web browsing applications trust any certificate issued by a CA in the 
+         "Trusted Root Certification Authorities" certificate store. However, this approach is 
+         not appropriate for UA because Adminstrators have no control over the CAs that get
+         placed in that Root store to facilitate web browsing. This means Adminstrators must
+         specify a different store that is used only for UA related CAs and/or they must explicitly
+         specify the certificate for each trusted certification authority. -->
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuer</StorePath>
+    </TrustedIssuerCertificates>
+    
+    <!-- The list of trusted certificates. 
+    
+         Some UA applications will use self-signed certificates (certificates without a CA)
+         which means that every application which communicates with it must be configured to 
+         trust it.
+         
+         Adminstrators may designate a certificate store that contains trusted UA application 
+         instance certificates (this store should not be the same as the store used for CAs 
+         certificates). Alternately, Administrators may enter the certificates explicitly in
+         this list.
+         
+         Note that entries in this list may either reference a certificate in the store or
+         may contained the entire certificate encoded as base64 data.
+         -->
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trusted</StorePath>
+    </TrustedPeerCertificates>
+    
+    <!-- Applications exchange Nonces during the CreateSession. This value specifies the length. Must be >= 32 -->
+    <NonceLength>32</NonceLength>
+
+    <!-- The directory used to store invalid certficates for later review by the administrator. -->
+    <RejectedCertificateStore>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
+    </RejectedCertificateStore>
+    
+    <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. -->
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    
+    <!-- Specifies whether the complete certificate chain should be sent for CA signed certificates. -->
+    <SendCertificateChain>false</SendCertificateChain>
+
+    <!-- Where the User issuer certificates are stored -->
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\issuerUser</StorePath>
+    </UserIssuerCertificates>
+
+    <!-- Where the User trust list is stored-->
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
+    </TrustedUserCertificates>
+    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
+</SecurityConfiguration>
+
+  <TransportConfigurations></TransportConfigurations>
+  
+  <!-- Specifies quotas used to by the transport layer -->
+  <TransportQuotas>
+    
+    <!-- The default timeout in milliseconds for operations (used by clients) -->
+    <OperationTimeout>120000</OperationTimeout>
+    
+    <!-- The maximum length for a string value in any message -->
+    <MaxStringLength>1048576</MaxStringLength>
+    
+    <!-- The maximum length for a byte string value in any message -->
+    <MaxByteStringLength>4194304</MaxByteStringLength>
+    
+    <!-- The maximum length for any array in a message. 
+         Note that some protocols do not distinguish between bytes and arrays. 
+         In these cases the binding will choose the larger of 
+         MaxByteStringLength or MaxArrayLength-->
+    <MaxArrayLength>65535</MaxArrayLength>
+    
+    <!-- The maximum size of any message -->
+    <MaxMessageSize>4194304</MaxMessageSize>
+    
+    <!-- The maximum buffer size 
+         This value controls how big a block of memory the transport layer allocates.
+         Setting this value to a large value will reduce performance and use a lot of RAM -->
+    <MaxBufferSize>65535</MaxBufferSize>
+    
+    <!-- The lifetime of a SecureChannel in milliseconds.
+         This specifies how long the server will keep a broken channel around while waiting 
+         for a client to reconnect.
+         Not used by HTTP or .NET TCP bindings -->
+    <ChannelLifetime>300000</ChannelLifetime>
+    
+    <!-- The lifetime of a SecurityToken in milliseconds.
+         This specifies how long a security token can be used without renewal. -->
+    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
+    
+  </TransportQuotas>
+  
+  <!-- This element only needs to be specified for Server or ClientServer applications -->
+  <ServerConfiguration>
+    
+    <!-- The set of addresses. One for each supported protocol.    
+         Note that "localhost" is replace with the hostname when the configuration is loaded.
+    
+         Additional URLs are created by appending strings to the base address.
+         For example, a URL used for an endpoint which uses the Basic256 security policy would look like this:
+         http://localhost:61211/UA/SampleClient/Basic256Sha256 -->
+    <BaseAddresses>
+      <ua:String>opc.tcp://localhost:61210/UA/SampleClient</ua:String>
+      <ua:String>https://localhost:61212/UA/SampleClient</ua:String>
+    </BaseAddresses>
+
+    <!-- 
+    These list the alternate addresses (via firewalls, multiple NICs etc.) that can be
+    used to communicate with the server. The URL used by the client when calling
+    FindServers/GetEndpoints or CreateSession will be used to filter the list of
+    endpoints returned by checking for alternate base addresses that have a domain
+    that matches the domain in the url provided by the client.
+    
+    Note that any additional domains should be listed in the server's certificate. If they
+    are left out the client make refuse to connect because it has no way to know if the 
+    alternate domain was authorized by the server administrator.
+    -->
+
+    <!--
+    <AlternateBaseAddresses>
+      <ua:String>http://mycompany.com:40000/UA/SampleClient</ua:String>
+    </AlternateBaseAddresses>
+    -->
+
+    <!-- The security policies supported by the server.
+         
+         The SDK combines these with the base address to create as many EndpointDescriptions as required.
+         Protocols such as HTTP only allow one SecurityPolicy per endpoint to addition URLs are constructed
+         using the SecurityPolicy and SecurityMode.
+         
+         The first policy in the list is assigned to base address. -->
+    <SecurityPolicies>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <!--Removing no security option from the configuration as this is a security risk
+        <ServerSecurityPolicy>
+        <SecurityMode>None_1</SecurityMode>
+        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</SecurityPolicyUri>
+      </ServerSecurityPolicy>-->
+      <ServerSecurityPolicy>
+        <SecurityMode>Sign_2</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+      <ServerSecurityPolicy>
+        <SecurityMode>SignAndEncrypt_3</SecurityMode>
+        <SecurityPolicyUri></SecurityPolicyUri>
+      </ServerSecurityPolicy>
+    </SecurityPolicies>
+
+    <MinRequestThreadCount>5</MinRequestThreadCount>
+    <MaxRequestThreadCount>100</MaxRequestThreadCount>
+    <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
+    
+    <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
+    <UserTokenPolicies>
+      <!-- Allows anonymous users -->
+      <ua:UserTokenPolicy>
+        <ua:TokenType>Anonymous_0</ua:TokenType>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#None</ua:SecurityPolicyUri>
+      </ua:UserTokenPolicy>
+      
+      <!-- Allows username/password -->
+      <ua:UserTokenPolicy>
+        <ua:TokenType>UserName_1</ua:TokenType>          
+        <!-- passwords must be encrypted - this specifies what algorithm to use -->
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+      </ua:UserTokenPolicy>
+
+      <!-- Allows user certificates -->
+      <ua:UserTokenPolicy>
+        <ua:TokenType>Certificate_2</ua:TokenType>
+        <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+      </ua:UserTokenPolicy>
+      <!--
+      Issued tokens are any type of WS-Security compliant token
+      This is a URN assigned by OASIS to SAML Security Tokens
+      tokens must be encrypted - this specifies what algorithm to use
+      <ua:UserTokenPolicy>
+        <ua:TokenType>IssuedToken_3</ua:TokenType>
+        <ua:IssuedTokenType>urn:oasis:names:tc:SAML:1.0:assertion:Assertion</ua:IssuedTokenType>
+        <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
+      </ua:UserTokenPolicy>
+      -->
+    </UserTokenPolicies>
+    
+    <!-- Whether the server updates its diagnostic information -->
+    <DiagnosticsEnabled>true</DiagnosticsEnabled>
+    
+    <!-- The maximum number of simultaneous sessions -->
+    <MaxSessionCount>100</MaxSessionCount>
+    
+    <!-- The minimum session lifetime permitted by the server -->
+    <MinSessionTimeout>10000</MinSessionTimeout>
+    
+    <!-- The maximum session lifetime permitted by the server -->
+    <MaxSessionTimeout>3600000</MaxSessionTimeout>
+    
+    <!-- The maximum number of browse continuation points per session -->
+    <MaxBrowseContinuationPoints>10</MaxBrowseContinuationPoints>
+    
+    <!-- The maximum number of query continuation points per session -->
+    <MaxQueryContinuationPoints>10</MaxQueryContinuationPoints>
+    
+    <!-- The maximum number of history continuation points per session -->
+    <MaxHistoryContinuationPoints>100</MaxHistoryContinuationPoints>
+    
+    <!-- The maximum age of an incoming request -->
+    <MaxRequestAge>600000</MaxRequestAge>
+    
+    <!-- The minimum allowed publishing interval (in milliseconds) -->
+    <MinPublishingInterval>100</MinPublishingInterval>
+
+    <!-- The maximum allowed publishing interval (in milliseconds) -->
+    <MaxPublishingInterval>3600000</MaxPublishingInterval>
+    
+    <!-- The publishing resolution. Requested publishing intervals are rounded up to the next multiple of this value.-->
+    <PublishingResolution>100</PublishingResolution>
+    
+    <!-- The maximum subscription lifetime.
+         This controls the maximum keep alive count. Smaller publishing intervals will allow large keep alives
+         provided the maximum subscription lifetime is not exceeded -->
+    <MaxSubscriptionLifetime>3600000</MaxSubscriptionLifetime>
+
+    <!-- The maximum number of sent messages kept in the queue for each subscription-->
+    <MaxMessageQueueSize>100</MaxMessageQueueSize>
+
+    <!-- The maximum number of notifications kept in the queue for each monitored item-->
+    <MaxNotificationQueueSize>100</MaxNotificationQueueSize>
+
+    <!-- The maximum number of notifications in a single publish response -->
+    <MaxNotificationsPerPublish>1000</MaxNotificationsPerPublish>
+
+    <!-- The minimum sampling rate for rarely changing metadata information (such as the server status) -->
+    <MinMetadataSamplingInterval>1000</MinMetadataSamplingInterval>
+
+    <!-- The set of supported sampling rates -->
+    <AvailableSamplingRates />
+
+    <!-- Servers must create a secure channel with the DiscoveryServer 
+         This element specifies the connection information.
+         Note that server will use the discovery endpoint to update this information -->
+
+    <RegistrationEndpoint>
+      <ua:EndpointUrl>opc.tcp://localhost:4840</ua:EndpointUrl>
+      <ua:Server>
+        <ua:ApplicationUri>opc.tcp://localhost:4840</ua:ApplicationUri>
+        <ua:ApplicationType>DiscoveryServer_3</ua:ApplicationType>
+        <ua:DiscoveryUrls>
+          <ua:String>opc.tcp://localhost:4840</ua:String>
+        </ua:DiscoveryUrls>
+      </ua:Server>
+      <ua:SecurityMode>SignAndEncrypt_3</ua:SecurityMode>
+      <ua:SecurityPolicyUri />
+      <ua:UserIdentityTokens />
+    </RegistrationEndpoint>
+
+    <!-- The maximum interval between registration. 0 disables periodic registration -->
+    <MaxRegistrationInterval>0</MaxRegistrationInterval>
+
+    <!-- The file used to save nodes added to the CoreNodeManager. If missing the CoreNodeManger will discard nodes when it stops. -->
+    <NodeManagerSaveFile>Opc.Ua.Server.nodes.xml</NodeManagerSaveFile>
+
+    <!-- The minimum subscription lifetime.
+    This ensures subscriptions are not set to expire too quickly. The revised lifetime count
+    and keep alive count are calculated with this value. -->
+    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    <MaxPublishRequestCount>20</MaxPublishRequestCount>
+    <MaxSubscriptionCount>100</MaxSubscriptionCount>
+    <MaxEventQueueSize>10000</MaxEventQueueSize>
+
+    <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
+    <ServerProfileArray>
+      <ua:String>Standard UA Server Profile</ua:String>
+      <ua:String>Data Access Server Facet</ua:String>
+      <ua:String>Method Server Facet</ua:String>
+    </ServerProfileArray>
+    <ShutdownDelay>5</ShutdownDelay>
+    <ServerCapabilities>
+      <ua:String>DA</ua:String>
+    </ServerCapabilities>
+    <SupportedPrivateKeyFormats>
+      <ua:String>PFX</ua:String>
+      <ua:String>PEM</ua:String>
+    </SupportedPrivateKeyFormats>
+    <MaxTrustListSize>0</MaxTrustListSize>
+    <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+
+  </ServerConfiguration>
+  
+  <!-- This element is only required for Client and ClientServer applications -->
+  <ClientConfiguration>
+    <!-- The default timeout for new sessions -->
+    <DefaultSessionTimeout>600000</DefaultSessionTimeout>
+    
+    <!-- The well-known URLs for the local discovery servers
+         URLs are tested in the order they appear in this list. -->
+    <WellKnownDiscoveryUrls>
+      <ua:String>opc.tcp://{0}:4840/UADiscovery</ua:String>
+      <ua:String>http://{0}:52601/UADiscovery</ua:String>
+      <ua:String>http://{0}/UADiscovery/Default.svc</ua:String>
+    </WellKnownDiscoveryUrls>
+    
+    <!-- EndpointDescriptions for system wide discovery servers -->
+  <DiscoveryServers></DiscoveryServers>
+    
+    <!-- The file used to save the EndpointDescriptions for servers known to the Client -->
+    <EndpointCacheFilePath/>
+  
+  <!-- The minimum subscription lifetime.
+  This ensures subscriptions are not set to expire too quickly. The requesed lifetime count
+  and keep alive count are calculated using this value and the request publishing interval -->
+  <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
+    
+  </ClientConfiguration>
+
+  <!--
+  <Extensions>
+    <ua:XmlElement>
+      <MemoryBufferConfiguration xmlns="http://samples.org/UA/memorybuffer">
+        <Buffers>
+          <MemoryBufferInstance>
+            <Name>UInt32</Name>
+            <TagCount>100</TagCount>
+            <DataType>UInt32</DataType>
+          </MemoryBufferInstance>
+          <MemoryBufferInstance>
+            <Name>Double</Name>
+            <TagCount>100</TagCount>
+            <DataType>Double</DataType>
+          </MemoryBufferInstance>
+        </Buffers>
+      </MemoryBufferConfiguration>
+    </ua:XmlElement>
+  </Extensions>
+  -->
+  
+  <!--
+  Masks supported by the trace feature. 
+  Servers will detect changes within 5 seconds.
+  
+  Do not output any messages.
+  None = 0x0;
+
+  Output error messages.
+  Error = 0x1;
+
+  Output informational messages.
+  Information = 0x2;
+
+  Output stack traces.
+  StackTrace = 0x4;
+
+  Output basic messages for service calls.
+  Service = 0x8;
+
+  Output detailed messages for service calls.
+  ServiceDetail = 0x10;
+
+  Output basic messages for each operation.
+  Operation = 0x20;
+
+  Output detailed messages for each operation.
+  OperationDetail = 0x40;
+
+  Output messages related to application initialization or shutdown
+  StartStop = 0x80;
+
+  Output messages related to a call to an external system.
+  ExternalSystem = 0x100;
+
+  Output messages related to security
+  Security = 0x200;
+  -->
+  
+  <TraceConfiguration>
+    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Opc.Ua.SampleClient.log.txt</OutputFilePath>
+    <DeleteOnLoad>true</DeleteOnLoad>
+    <!-- Show Only Errors -->
+    <!-- <TraceMasks>1</TraceMasks> -->
+    <!-- Show Only Security and Errors -->
+    <!-- <TraceMasks>513</TraceMasks> -->
+    <!-- Show Only Security, Errors and Trace -->
+    <!-- <TraceMasks>515</TraceMasks> -->
+    <!-- Show Only Security, COM Calls, Errors and Trace -->
+    <!-- <TraceMasks>771</TraceMasks> -->
+    <!-- Show Only Security, Service Calls, Errors and Trace -->
+    <!-- <TraceMasks>523</TraceMasks> -->
+    <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
+    <!-- <TraceMasks>519</TraceMasks> -->
+  </TraceConfiguration>
+
+  <!-- Enables the hi-res clock for the process to allows for shorter (<100ms) publishing and sampling intervals. -->
+  <!-- QueryPerformanceCounter does not work on all multi-core machines so enabling the hi-res clock by default is not recommended. -->
+  <DisableHiResClock>true</DisableHiResClock>
+  
+</ApplicationConfiguration>
