@@ -1,5 +1,7 @@
 extraction:
   csharp:
     index:
-      dotnet:
-        version: 2.1.301
+      solution: "UA Core Library.sln"
+      msbuild:
+        configuration: "release"
+        platform: "Any CPU"

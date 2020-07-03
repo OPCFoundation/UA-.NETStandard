@@ -1169,7 +1169,7 @@ public class CertificateFactory
     /// <summary>
     /// Get public key parameters from a X509Certificate2
     /// </summary>
-    internal static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
+    private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
     {
         RSA rsa = null;
         try
@@ -1191,7 +1191,7 @@ public class CertificateFactory
     /// Get private key parameters from a X509Certificate2.
     /// The private key must be exportable.
     /// </summary>
-    internal static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
+    private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
     {
         RSA rsa = null;
         try
