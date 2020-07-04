@@ -15,19 +15,19 @@
       <group targetFramework="net462" >
         <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.2.0"/>
         <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "2.2.0"/>
-        <dependency id="Newtonsoft.Json" version="10.0.3"/>
-        <dependency id="Portable.BouncyCastle" version="1.8.4"/>
+        <dependency id="Newtonsoft.Json" version="12.0.3"/>
+        <dependency id="Portable.BouncyCastle" version="1.8.6.7"/>
       </group>
       <group targetFramework="netstandard2.0" >
         <dependency id="Microsoft.AspNetCore.Server.Kestrel" version="2.2.0"/>
         <dependency id="Microsoft.AspNetCore.Server.Kestrel.Https" version= "2.2.0"/>
-        <dependency id="Newtonsoft.Json" version="10.0.3"/>
-        <dependency id="Portable.BouncyCastle" version="1.8.4"/>
+        <dependency id="Newtonsoft.Json" version="12.0.3"/>
+        <dependency id="Portable.BouncyCastle" version="1.8.6.7"/>
         <dependency id="System.Data.Common" version="4.3.0"/>
         <dependency id="System.ServiceModel.Primitives" version="4.5.3"/>
         <dependency id="System.Net.NameResolution" version="4.3.0"/>
         <dependency id="System.Reflection.TypeExtensions" version="4.4.0" />
-        <dependency id="System.Net.Websockets.Client" version="4.3.2" />
+        <dependency id="System.Net.Http" version="4.3.4" />
       </group>
     </dependencies>
   </metadata>
