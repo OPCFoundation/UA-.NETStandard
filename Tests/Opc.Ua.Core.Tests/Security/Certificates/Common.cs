@@ -35,10 +35,6 @@ using Opc.Ua.Test;
 
 namespace Opc.Ua.Core.Tests
 {
-    public class ApplicationRecordDataType
-    {
-    }
-
     public class ApplicationTestDataGenerator
     {
         private int m_randomStart = 1;
@@ -149,7 +145,6 @@ namespace Opc.Ua.Core.Tests
             }
             return result;
         }
-
     }
 
     public class ApplicationTestData
@@ -202,6 +197,5 @@ namespace Opc.Ua.Core.Tests
                 store.Dispose();
             }
         }
-
     }
 }

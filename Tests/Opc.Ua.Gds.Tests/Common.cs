@@ -284,7 +284,7 @@ namespace Opc.Ua.Gds.Tests
         }
     }
 
-    public class TestUtils
+    public static class TestUtils
     {
         public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
         {

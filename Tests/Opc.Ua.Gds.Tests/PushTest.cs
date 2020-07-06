@@ -433,10 +433,10 @@ namespace Opc.Ua.Gds.Tests
                 _applicationRecord.ApplicationNames[0].Text,
                 _selfSignedServerCert.Subject,
                 null,
-                CertificateFactory.defaultKeySize,
+                CertificateFactory.DefaultKeySize,
                 DateTime.UtcNow,
-                CertificateFactory.defaultLifeTime,
-                CertificateFactory.defaultHashSize);
+                CertificateFactory.DefaultLifeTime,
+                CertificateFactory.DefaultHashSize);
 
             byte[] privateKey = null;
             if (keyFormat == "PFX")
@@ -819,10 +819,10 @@ namespace Opc.Ua.Gds.Tests
                 null,
                 subjectName,
                 null,
-                CertificateFactory.defaultKeySize,
+                CertificateFactory.DefaultKeySize,
                 DateTime.UtcNow,
-                CertificateFactory.defaultLifeTime,
-                CertificateFactory.defaultHashSize,
+                CertificateFactory.DefaultLifeTime,
+                CertificateFactory.DefaultHashSize,
                 true,
                 null,
                 null);
