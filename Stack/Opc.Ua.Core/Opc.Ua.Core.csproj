@@ -19,7 +19,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Schema\Opc.Ua.NodeSet.xml" />
     <None Remove="Schema\Opc.Ua.NodeSet2.xml" />
     <None Remove="Schema\Opc.Ua.Types.bsd" />
     <None Remove="Types\Schemas\BuiltInTypes.bsd" />
@@ -27,7 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Schema\Opc.Ua.NodeSet.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
     <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes;Types\Utils\LocalizedData.txt;Schema\ServerCapabilities.csv" />
