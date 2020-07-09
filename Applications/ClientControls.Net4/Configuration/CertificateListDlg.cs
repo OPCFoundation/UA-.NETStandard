@@ -112,7 +112,7 @@ namespace Opc.Ua.Client.Controls
                     types.Add(CertificateListFilterType.Application);
                 }
 
-                if (CaCK.Checked)
+                if (CertificateAuthorityCK.Checked)
                 {
                     types.Add(CertificateListFilterType.CA);
                 }
