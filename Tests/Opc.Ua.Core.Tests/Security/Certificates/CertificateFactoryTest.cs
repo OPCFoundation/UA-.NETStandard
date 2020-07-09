@@ -133,6 +133,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             )
         {
             var subject = "CN=CA Test Cert";
+            int pathLengthConstraint = (keyHashPair.KeySize / 512) - -1;
             var cert = CertificateFactory.CreateCertificate(
                 null, null, null,
                 null, null, subject,
@@ -140,14 +141,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 DateTime.UtcNow, 25 * 12,
                 keyHashPair.HashSize,
                 isCA: true,
-                pathLengthConstraint: -1);
+                pathLengthConstraint: pathLengthConstraint);
 
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
             var plainCert = new X509Certificate2(cert.RawData);
             Assert.NotNull(plainCert);
-            VerifyCACert(subject, plainCert);
+            VerifyCACert(plainCert, subject, pathLengthConstraint);
             CertificateFactory.VerifySelfSigned(cert);
             CertificateFactory.VerifyRSAKeyPair(cert, cert);
         }
@@ -213,7 +214,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(testApp.ApplicationUri, applicationUri);
         }
 
-        public static void VerifyCACert(string subject, X509Certificate2 cert)
+        public static void VerifyCACert(X509Certificate2 cert, string subject, int pathLengthConstraint)
         {
             Assert.NotNull(cert);
             Assert.False(cert.HasPrivateKey);
@@ -225,7 +226,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(constraints);
             Assert.True(constraints.Critical);
             Assert.True(constraints.CertificateAuthority);
-            Assert.True(constraints.HasPathLengthConstraint);
+            if (pathLengthConstraint < 0)
+            {
+                Assert.False(constraints.HasPathLengthConstraint);
+            }
+            else
+            {
+                Assert.True(constraints.HasPathLengthConstraint);
+                Assert.AreEqual(pathLengthConstraint, constraints.PathLengthConstraint);
+            }
 
             // key usage
             var keyUsage = FindExtension<X509KeyUsageExtension>(cert);
