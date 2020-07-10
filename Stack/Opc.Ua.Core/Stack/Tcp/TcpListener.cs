@@ -55,9 +55,13 @@ namespace Opc.Ua.Bindings
                         m_listeningSocketIPv6 = null;
                     }
 
-                    foreach (TcpServerChannel channel in m_channels.Values)
+                    if (m_channels != null)
                     {
-                        Utils.SilentDispose(channel);
+                        foreach (TcpServerChannel channel in m_channels.Values)
+                        {
+                            Utils.SilentDispose(channel);
+                        }
+                        m_channels = null;
                     }
                 }
             }
