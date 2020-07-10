@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             )
         {
             var subject = "CN=CA Test Cert";
-            int pathLengthConstraint = (keyHashPair.KeySize / 512) - -1;
+            int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
             var cert = CertificateFactory.CreateCertificate(
                 null, null, null,
                 null, null, subject,
