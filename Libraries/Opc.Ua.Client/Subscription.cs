@@ -1180,8 +1180,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public IList<MonitoredItem> CreateItems()
         {
-            VerifySubscriptionState(true);                       
-            
+            VerifySubscriptionState(true);
+
             ResolveItemNodeIds();
 
             MonitoredItemCreateRequestCollection requestItems = new MonitoredItemCreateRequestCollection();
@@ -1914,12 +1914,17 @@ namespace Opc.Ua.Client
         /// Throws an exception if the subscription is not in the correct state.
         /// </summary>
         private void VerifySubscriptionState(bool created)
-        {            
+        {
+            if (m_session == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "Session has not been set.");
+            }
+
             if (created && m_id == 0)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been created.");
             }
-                
+
             if (!created && m_id != 0)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
