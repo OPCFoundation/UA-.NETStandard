@@ -102,6 +102,7 @@ namespace Opc.Ua
                 {
                     // check that value provided is actually an array.
                     Array array = value.Value.Value as Array;
+                    string str = value.Value.Value as string;
 
                     if (array != null)
                     {
@@ -115,6 +116,22 @@ namespace Opc.Ua
 
                         // check for single element.
                         if (range.End < 0 && array.Length != 1)
+                        {
+                            return StatusCodes.BadIndexRangeInvalid;
+                        }
+                    }
+                    else if(str != null)
+                    {
+                        NumericRange range = value.ParsedIndexRange;
+
+                        // check that the number of elements to write matches the index range.
+                        if (range.End >= 0 && (range.End - range.Begin != str.Length - 1))
+                        {
+                            return StatusCodes.BadIndexRangeNoData;
+                        }
+
+                        // check for single element.
+                        if (range.End < 0 && str.Length != 1)
                         {
                             return StatusCodes.BadIndexRangeInvalid;
                         }
