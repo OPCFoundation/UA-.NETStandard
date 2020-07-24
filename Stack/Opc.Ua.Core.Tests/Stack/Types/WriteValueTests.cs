@@ -123,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             WriteValue writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
-                Value = new DataValue("Hello world"),
+                Value = new DataValue(new Variant("Hello world")),
                 IndexRange = "0:10"
             };
 
@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             WriteValue writeValue = new WriteValue() {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
-                Value = new DataValue(new int[] { 1, 2, 3, 4, 5 }),
+                Value = new DataValue(new Variant(new int[] { 1, 2, 3, 4, 5 })),
                 IndexRange = "0:4"
             };
 
@@ -161,6 +161,37 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.True(ServiceResult.IsBad(validateResult), "WriteValue.Validate result was not Bad");
             Assert.AreEqual(new StatusCode(StatusCodes.BadIndexRangeNoData), validateResult.StatusCode);
 
+        }
+
+        /// <summary>
+        /// Test that WriteValue.Validate() accepts String and ByteString array when IndexRange has sub ranges defined
+        /// </summary>
+        [Test]
+        [Category("WriteValue")]
+        public void ArraySubRangeIndexRangeValidationTest()
+        {
+            // Test with String array
+            WriteValue writeValue = new WriteValue() {
+                AttributeId = Attributes.Value,
+                NodeId = new NodeId(4000, 8),
+                Value = new DataValue(new Variant(new string[] { "ha" })),
+                IndexRange = "0,1:2"
+            };
+
+            Assert.AreEqual(BuiltInType.String, writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
+            Assert.True(ServiceResult.IsGood(WriteValue.Validate(writeValue)), "WriteValue.Validate result was not Good");
+
+            // Test with ByteString array
+            writeValue.Value = new DataValue(new Variant(new byte[][] { new byte[] { 0x22, 0x21 } }));
+            Assert.AreEqual(BuiltInType.ByteString, writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
+            Assert.True(ServiceResult.IsGood(WriteValue.Validate(writeValue)), "WriteValue.Validate result was not Good");
+
+            // Negative test with Int32 array
+            writeValue.Value = new DataValue(new Variant(new int[] { 1, 2 }));
+            Assert.AreEqual(BuiltInType.Int32, writeValue.Value.WrappedValue.TypeInfo.BuiltInType);
+            ServiceResult validateResult = WriteValue.Validate(writeValue);
+            Assert.True(ServiceResult.IsBad(validateResult), "WriteValue.Validate result was not Good");
+            Assert.AreEqual(new StatusCode(StatusCodes.BadTypeMismatch), validateResult.StatusCode);
         }
 
     }

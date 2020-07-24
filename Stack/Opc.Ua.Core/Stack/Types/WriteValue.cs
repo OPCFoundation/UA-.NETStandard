@@ -95,7 +95,16 @@ namespace Opc.Ua
 
                     if (matrix == null)
                     {
-                        return StatusCodes.BadTypeMismatch;
+                        // Check for String or ByteString arrays. Those DataTypes have special handling
+                        // when using sub ranges.
+                        bool isArrayWithValidDataType = value.Value.Value is Array &&
+                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String ||
+                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
+
+                        if (!isArrayWithValidDataType)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
                     }
                 }
                 else
