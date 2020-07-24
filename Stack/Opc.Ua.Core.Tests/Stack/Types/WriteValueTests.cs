@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         }
 
         /// <summary>
-        /// Test that WriteValue.Validate() accepts Matrix value when IndexRange has SubRanges assigned
+        /// Test that WriteValue.Validate() accepts IndexRange for string values
         /// </summary>
         [Test]
         [Category("WriteValue")]
@@ -138,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         }
 
         /// <summary>
-        /// Test that WriteValue.Validate() accepts Matrix value when IndexRange has SubRanges assigned
+        /// Test that WriteValue.Validate() accepts IndexRange for Array values
         /// </summary>
         [Test]
         [Category("WriteValue")]
