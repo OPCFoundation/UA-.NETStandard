@@ -10,6 +10,8 @@ One of the reference implementations inside this project has been certified for 
 
 Furthermore, cloud applications and services (such as ASP.Net, DNX, Azure Websites, Azure Webjobs, Azure Nano Server and Azure Service Fabric) are also supported.
 
+More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) packages can be found in the [OPC UA .NET Standard Samples](https://github.com/OPCFoundation/UA-.NETStandard-Samples) repository.
+
 ## For more information and license terms, see [here](http://opcfoundation.github.io/UA-.NETStandard).
 
 ## Features included
