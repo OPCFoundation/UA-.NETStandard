@@ -99,6 +99,39 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             Assert.AreEqual(5, range[0, 0]);
         }
 
+        /// <summary>
+        /// Test that Matrix object can be updated by NumericRange.UpdateRange
+        /// </summary>
+        [Test]
+        [Category("NumericRange")]
+        public void UpdateRangeMatrixTest()
+        {
+            int[,] dstInt3x3Matrix = new int[,]
+            {
+                { 1, 2, 3 },
+                { 4, 5, 6 },
+                { 7, 8, 9 },
+            };
+
+            Matrix dstMatrix = new Matrix(dstInt3x3Matrix, BuiltInType.Int32);
+
+            // Update the center element
+            Opc.Ua.NumericRange numericRange = Opc.Ua.NumericRange.Parse("1,1");
+            object dst = dstMatrix;
+            StatusCode statusCode = numericRange.UpdateRange(ref dst, new int[,] { { 10 } });
+
+            Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
+
+            int[,] modifiedInt3x3Matrix = ((Matrix)dst).ToArray() as int[,];
+
+            Assert.AreEqual(new int[,]
+            {
+                { 1, 2, 3 },
+                { 4, 10, 6 },
+                { 7, 8, 9 },
+            }, modifiedInt3x3Matrix);
+        }
+
     }
 
     #endregion
