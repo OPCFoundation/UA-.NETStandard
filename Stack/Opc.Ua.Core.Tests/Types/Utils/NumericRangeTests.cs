@@ -74,14 +74,14 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         [Category("NumericRange")]
         public void ApplyRangeMatrixTest()
         {
-            int[,] int2x2Matrix = new int[,]
+            int[,] int3x3Matrix = new int[,]
             {
                 { 1, 2, 3 },
                 { 4, 5, 6 },
                 { 7, 8, 9 },
             };
 
-            Matrix matrix = new Matrix(int2x2Matrix, BuiltInType.Int32);
+            Matrix matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
 
             // Select the center element
             Opc.Ua.NumericRange numericRange = Opc.Ua.NumericRange.Parse("1,1");
