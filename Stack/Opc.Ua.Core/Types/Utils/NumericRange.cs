@@ -689,7 +689,7 @@ namespace Opc.Ua
             {
                 Matrix matrix = dst as Matrix;
 
-                if (matrix == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (matrix == null || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -702,7 +702,7 @@ namespace Opc.Ua
             {
                 Matrix matrix = src as Matrix;
 
-                if (matrix == null || matrix.Dimensions.Length != m_subranges.Length)
+                if (matrix == null || m_subranges == null || matrix.Dimensions.Length != m_subranges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
