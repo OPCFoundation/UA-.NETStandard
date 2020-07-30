@@ -1,6 +1,6 @@
-﻿FROM microsoft/dotnet:2.0-runtime
+﻿FROM microsoft/dotnet:2.1-runtime
 
 COPY ./publish /publish
 WORKDIR /publish
 
-ENTRYPOINT ["dotnet", "ConsoleReferenceServer.dll"]
+ENTRYPOINT ["dotnet", "NetCoreReferenceServer.dll"]

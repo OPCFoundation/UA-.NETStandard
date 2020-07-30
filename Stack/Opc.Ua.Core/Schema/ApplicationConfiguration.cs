@@ -1961,6 +1961,13 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 20)]
         public int Timeout { get; set; }
+
+        /// <summary>
+        /// The maximum count of active reverse connect sessions.
+        /// 0 or undefined means unlimited number of sessions.
+        /// </summary>
+        [DataMember(Order = 30)]
+        public int MaxSessionCount { get; set; }
         #endregion
     }
     #endregion
