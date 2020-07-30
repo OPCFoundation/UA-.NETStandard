@@ -242,6 +242,11 @@ namespace Opc.Ua.Bindings
             Utils.Trace("HttpsTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
         }
 
+        void ITransportChannel.Reconnect(ITransportWaitingConnection connection)
+        {
+            throw new NotImplementedException();
+        }
+
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();

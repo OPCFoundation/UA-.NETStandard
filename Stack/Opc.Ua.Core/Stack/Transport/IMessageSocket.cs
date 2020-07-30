@@ -136,6 +136,11 @@ namespace Opc.Ua.Bindings
         int Handle { get; }
 
         /// <summary>
+        /// Returns the features implemented by the message socket.
+        /// </summary>
+        TransportChannelFeatures MessageSocketFeatures { get; }
+
+        /// <summary>
         /// Connects to an endpoint.
         /// </summary>
         Task<bool> BeginConnect(

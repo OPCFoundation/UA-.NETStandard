@@ -278,6 +278,13 @@ namespace Opc.Ua.Bindings
         /// <value>The socket handle.</value>
         public int Handle => m_socket != null ? m_socket.GetHashCode() : -1;
 
+
+        /// <summary>
+        /// Gets the transport channel features implemented by this message socket.
+        /// </summary>
+        /// <value>The transport channel feature.</value>
+        public TransportChannelFeatures MessageSocketFeatures => TransportChannelFeatures.ReverseConnect /* TODO: | TransportChannelFeatures.Reconnect*/;
+
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>

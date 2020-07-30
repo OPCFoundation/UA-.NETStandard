@@ -134,7 +134,7 @@ namespace Opc.Ua.Client
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
                 this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = serverUri;
+                ServerUri = Utils.ReplaceLocalhost(serverUri);
             }
 
             /// <summary>
@@ -156,7 +156,7 @@ namespace Opc.Ua.Client
                 Uri endpointUrl,
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
             {
-                EndpointUrl = endpointUrl;
+                EndpointUrl = new Uri(Utils.ReplaceLocalhost(endpointUrl.ToString()));
                 OnConnectionWaiting = onConnectionWaiting;
                 ReverseConnectStrategy = ReverseConnectStrategy.Once;
             }
@@ -176,6 +176,7 @@ namespace Opc.Ua.Client
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
+            m_cts = new CancellationTokenSource();
         }
         #endregion
 
@@ -183,7 +184,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Dispose implementation.
         /// </summary>
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            Dispose(true);
+        }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -429,6 +433,8 @@ namespace Opc.Ua.Client
             lock (m_registrations)
             {
                 m_registrations.Clear();
+                m_cts.Cancel();
+                m_cts = new CancellationTokenSource();
             }
         }
 
@@ -488,6 +494,8 @@ namespace Opc.Ua.Client
             lock (m_registrations)
             {
                 m_registrations.Add(registration);
+                m_cts.Cancel();
+                m_cts = new CancellationTokenSource();
             }
             return registration.GetHashCode();
         }
@@ -512,6 +520,8 @@ namespace Opc.Ua.Client
                 if (toRemove != null)
                 {
                     m_registrations.Remove(toRemove);
+                    m_cts.Cancel();
+                    m_cts = new CancellationTokenSource();
                 }
             }
         }
@@ -587,7 +597,57 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
         {
+            DateTime startTime = DateTime.UtcNow;
+            DateTime endTime = startTime + TimeSpan.FromMilliseconds(m_configuration.HoldTime);
+            bool matched = MatchRegistration(sender, e);
+            while (!matched)
+            {
+                Utils.Trace("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                try
+                {
+                    CancellationToken ct;
+                    lock (m_registrations)
+                    {
+                        ct = m_cts.Token;
+                    }
+                    TimeSpan delay = endTime - DateTime.UtcNow;
+                    if (delay.TotalMilliseconds > 0)
+                    {
+                        Task.Delay(delay, ct).Wait();
+                    }
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    if (ex.InnerException.GetType() == typeof(TaskCanceledException))
+                    {
+                        matched = MatchRegistration(sender, e);
+                        if (matched)
+                        {
+                            Utils.Trace("Matched reverse connection after {0}ms", (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                        }
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            Utils.Trace("{0} reverse connection: {1} {2} after {3}ms",
+                e.Accepted ? "Accepted" : "Rejected",
+                e.ServerUri, e.EndpointUrl, (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+        }
+
+        /// <summary>
+        /// Match the waiting connection with a registration, callback registration,
+        /// return if connection is accepted in event.
+        /// </summary>
+        /// <returns>true if a match was found.</returns>
+        private bool MatchRegistration(object sender, ConnectionWaitingEventArgs e)
+        {
             Registration callbackRegistration = null;
+            bool found = false;
             lock (m_registrations)
             {
                 // first try to match single registrations
@@ -599,6 +659,7 @@ namespace Opc.Ua.Client
                     {
                         callbackRegistration = registration;
                         e.Accepted = true;
+                        found = true;
                         Utils.Trace("Accepted reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
                         break;
                     }
@@ -613,6 +674,7 @@ namespace Opc.Ua.Client
                         {
                             callbackRegistration = registration;
                             e.Accepted = true;
+                            found = true;
                             Utils.Trace("Accept any reverse connection for approval: {0} {1}", e.ServerUri, e.EndpointUrl);
                             break;
                         }
@@ -630,17 +692,16 @@ namespace Opc.Ua.Client
 
             callbackRegistration?.OnConnectionWaiting?.Invoke(sender, e);
 
-            if (!e.Accepted)
-            {
-                Utils.Trace("Rejected reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
-            }
+            return found;
         }
 
         /// <summary>
         /// Raised when a connection status changes.
         /// </summary>
-        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e) =>
+        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        {
             Utils.Trace("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+        }
         #endregion
 
         #region Private Fields
@@ -652,6 +713,7 @@ namespace Opc.Ua.Client
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
         private readonly List<Registration> m_registrations;
+        private CancellationTokenSource m_cts;
         #endregion
     }
 }

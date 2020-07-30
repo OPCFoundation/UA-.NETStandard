@@ -2161,8 +2161,10 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
-        [DataMember(Order = 1, IsRequired = false)]
+        [DataMember(Order = 10, IsRequired = false)]
         public ReverseConnectClientEndpointCollection ClientEndpoints { get; set; }
+        [DataMember(Order = 20, IsRequired = false)]
+        public int HoldTime { get; set; }
         #endregion
     }
     #endregion
