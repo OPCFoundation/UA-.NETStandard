@@ -8,7 +8,7 @@
   <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
-  
+
   <SecurityConfiguration>
 
     <!-- Where the application instance certificate is stored (MachineDefault) -->
@@ -39,7 +39,7 @@
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
     <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-    
+
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
     The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
     <RejectSHA1SignedCertificates>false</RejectSHA1SignedCertificates>
@@ -59,7 +59,7 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trustedUser</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
-  
+
   <TransportConfigurations></TransportConfigurations>
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -134,7 +134,7 @@
     <MinRequestThreadCount>5</MinRequestThreadCount>
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
     <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
-    
+
     <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
     <UserTokenPolicies>
       <!-- Allows anonymous users -->
@@ -155,7 +155,7 @@
         <ua:TokenType>Certificate_2</ua:TokenType>
         <!-- certificate possession must be proven with a digital signature - this specifies what algorithm to use -->
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
-     </ua:UserTokenPolicy>
+      </ua:UserTokenPolicy>
     </UserTokenPolicies>
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
@@ -219,9 +219,10 @@
 
     <!-- see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles -->
     <ServerProfileArray>
-      <ua:String>Standard UA Server Profile</ua:String>
-      <ua:String>Data Access Server Facet</ua:String>
-      <ua:String>Method Server Facet</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/StandardUA2017</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/DataAccess</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/Methods</ua:String>
+      <ua:String>http://opcfoundation.org/UA-Profile/Server/ReverseConnect</ua:String>
     </ServerProfileArray>
     <ShutdownDelay>5</ShutdownDelay>
     <ServerCapabilities>
@@ -233,7 +234,20 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
-
+    <!--  Reverse connection parameters for aggregation server sample -->
+    <!--
+    <ReverseConnect>
+      <Clients>
+        <ReverseConnectClient>
+          <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
+          <MaxSessionCount>0</MaxSessionCount>
+        </ReverseConnectClient>
+      </Clients>
+      <ConnectInterval>15000</ConnectInterval>
+      <ConnectTimeout>30000</ConnectTimeout>
+      <RejectTimeout>60000</RejectTimeout>
+    </ReverseConnect>
+    -->
   </ServerConfiguration>
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC Foundation/Logs/Quickstarts.ReferenceServer.log.txt</OutputFilePath>
@@ -251,5 +265,5 @@
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
     <!-- <TraceMasks>519</TraceMasks> -->
   </TraceConfiguration>
-  
+
 </ApplicationConfiguration>

@@ -27,12 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
-using System.IdentityModel.Selectors;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua;
+using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -47,7 +46,7 @@ namespace Quickstarts.ReferenceServer
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the EmptyNodeManager which provides access to the data exposed by the Server.
     /// </remarks>
-    public partial class ReferenceServer : StandardServer
+    public partial class ReferenceServer : ReverseConnectServer
     {
         #region Overridden Methods
         /// <summary>
@@ -144,14 +143,14 @@ namespace Quickstarts.ReferenceServer
             try
             {
                 // allow a faster sampling interval for CurrentTime node.
-                server.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+                ServerInternal.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
             }
             catch
             { }
-            
-        }
 
+        }
         #endregion
+
         #region User Validation Functions
         /// <summary>
         /// Creates the objects used to validate the user identity tokens supported by the server.

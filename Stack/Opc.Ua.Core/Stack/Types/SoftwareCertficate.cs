@@ -11,26 +11,23 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.ServiceModel;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using System.IO;
-using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// The SoftwareCertificate class.
-	/// </summary>
-	public partial class SoftwareCertificate
-	{
+    /// <summary>
+    /// The SoftwareCertificate class.
+    /// </summary>
+    public partial class SoftwareCertificate
+    {
         /// <summary>
         /// The SignedSoftwareCertificate that contains the SoftwareCertificate
         /// </summary>
         public X509Certificate2 SignedCertificate
         {
-            get { return m_signedCertificate;  } 
+            get { return m_signedCertificate; }
             set { m_signedCertificate = value; }
         }
 

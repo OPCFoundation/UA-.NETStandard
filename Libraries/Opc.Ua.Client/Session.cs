@@ -722,7 +722,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the number of outstanding publish or keep alive requests which appear to hung.
+        /// Gets the number of outstanding publish or keep alive requests which appear to be missing.
         /// </summary>
         public int DefunctRequestCount
         {

@@ -72,7 +72,7 @@ namespace Opc.Ua.Client.Controls
             this.SubjectNameTB = new System.Windows.Forms.TextBox();
             this.IssuedCK = new System.Windows.Forms.CheckBox();
             this.SelfSignedCK = new System.Windows.Forms.CheckBox();
-            this.CaCK = new System.Windows.Forms.CheckBox();
+            this.CertificateAuthorityCK = new System.Windows.Forms.CheckBox();
             this.ApplicationCK = new System.Windows.Forms.CheckBox();
             this.CertificateTypeLB = new System.Windows.Forms.Label();
             this.IssuerNameLB = new System.Windows.Forms.Label();
@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.Controls
             this.FiltersGB.Controls.Add(this.SubjectNameTB);
             this.FiltersGB.Controls.Add(this.IssuedCK);
             this.FiltersGB.Controls.Add(this.SelfSignedCK);
-            this.FiltersGB.Controls.Add(this.CaCK);
+            this.FiltersGB.Controls.Add(this.CertificateAuthorityCK);
             this.FiltersGB.Controls.Add(this.ApplicationCK);
             this.FiltersGB.Controls.Add(this.CertificateTypeLB);
             this.FiltersGB.Controls.Add(this.IssuerNameLB);
@@ -254,15 +254,15 @@ namespace Opc.Ua.Client.Controls
             this.SelfSignedCK.Text = "Self-signed";
             this.SelfSignedCK.UseVisualStyleBackColor = true;
             // 
-            // CaCK
+            // CertificateAuthorityCK
             // 
-            this.CaCK.AutoSize = true;
-            this.CaCK.Location = new System.Drawing.Point(184, 92);
-            this.CaCK.Name = "CaCK";
-            this.CaCK.Size = new System.Drawing.Size(117, 17);
-            this.CaCK.TabIndex = 8;
-            this.CaCK.Text = "Certificate Authority";
-            this.CaCK.UseVisualStyleBackColor = true;
+            this.CertificateAuthorityCK.AutoSize = true;
+            this.CertificateAuthorityCK.Location = new System.Drawing.Point(184, 92);
+            this.CertificateAuthorityCK.Name = "CertificateAuthorityCK";
+            this.CertificateAuthorityCK.Size = new System.Drawing.Size(117, 17);
+            this.CertificateAuthorityCK.TabIndex = 8;
+            this.CertificateAuthorityCK.Text = "Certificate Authority";
+            this.CertificateAuthorityCK.UseVisualStyleBackColor = true;
             // 
             // ApplicationCK
             // 
@@ -360,7 +360,7 @@ namespace Opc.Ua.Client.Controls
         private System.Windows.Forms.TextBox SubjectNameTB;
         private System.Windows.Forms.CheckBox IssuedCK;
         private System.Windows.Forms.CheckBox SelfSignedCK;
-        private System.Windows.Forms.CheckBox CaCK;
+        private System.Windows.Forms.CheckBox CertificateAuthorityCK;
         private System.Windows.Forms.CheckBox ApplicationCK;
         private System.Windows.Forms.Button FilterBTN;
         private System.Windows.Forms.CheckBox PrivateKeyCK;

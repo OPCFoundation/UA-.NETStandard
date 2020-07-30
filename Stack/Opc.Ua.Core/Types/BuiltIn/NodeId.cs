@@ -799,7 +799,7 @@ namespace Opc.Ua
 
             ExpandedNodeId expandedId = new ExpandedNodeId(nodeId);
 
-            if (nodeId.NamespaceIndex > 1)
+            if (nodeId.NamespaceIndex > 0)
             {
                 string uri = namespaceTable.GetString(nodeId.NamespaceIndex);
 

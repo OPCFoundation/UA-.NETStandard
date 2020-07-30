@@ -17,7 +17,7 @@
       </group>
       <group targetFramework="netcoreapp2.0" >
         <dependency id="OPCFoundation.NetStandard.Opc.Ua" version="$version$"/>
-        <dependency id="System.Reflection.Emit" version="4.6.0" />
+        <dependency id="System.Reflection.Emit" version="4.7.0" />
       </group>
     </dependencies>
   </metadata>

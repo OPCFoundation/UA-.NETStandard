@@ -736,7 +736,7 @@ namespace Opc.Ua
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = true;
             m_rejectUnknownRevocationStatus = false;
-            m_minCertificateKeySize = CertificateFactory.defaultKeySize;
+            m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = false;
         }
@@ -1961,6 +1961,13 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 20)]
         public int Timeout { get; set; }
+
+        /// <summary>
+        /// The maximum count of active reverse connect sessions.
+        /// 0 or undefined means unlimited number of sessions.
+        /// </summary>
+        [DataMember(Order = 30)]
+        public int MaxSessionCount { get; set; }
         #endregion
     }
     #endregion
