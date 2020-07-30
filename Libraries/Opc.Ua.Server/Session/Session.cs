@@ -936,7 +936,8 @@ namespace Opc.Ua.Server
             policy = null;
 
             // check for empty token.
-            if (identityToken == null || identityToken.Body == null)
+            if (identityToken == null || identityToken.Body == null ||
+                identityToken.Body.GetType() == typeof(Opc.Ua.AnonymousIdentityToken))
             {
                 // not changing the token if already activated.
                 if (m_activated)
