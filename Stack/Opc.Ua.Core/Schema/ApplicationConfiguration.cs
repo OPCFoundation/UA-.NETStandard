@@ -1945,6 +1945,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
+            Enabled = true;
         }
         #endregion
 
@@ -1964,10 +1965,17 @@ namespace Opc.Ua
 
         /// <summary>
         /// The maximum count of active reverse connect sessions.
-        /// 0 or undefined means unlimited number of sessions.
+        ///  0 or undefined means unlimited number of sessions.
+        ///  1 means a single connection is created at a time.
         /// </summary>
         [DataMember(Order = 30)]
         public int MaxSessionCount { get; set; }
+
+        /// <summary>
+        /// Specifies whether the sending of reverse connect attempts is enabled.
+        /// </summary>
+        [DataMember(Order = 40)]
+        public bool Enabled { get; set; }
         #endregion
     }
     #endregion

@@ -2645,7 +2645,8 @@ namespace Opc.Ua
             TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
             System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType ||
                 (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte));
+                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
+                (builtInType == BuiltInType.Variant));
 #endif
         }
         #endregion
