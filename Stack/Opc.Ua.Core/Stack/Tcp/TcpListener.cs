@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -189,7 +190,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
-        public event EventHandler<ConnectionWaitingEventArgs> ConnectionWaiting;
+        public event ConnectionWaitingHandlerAsync ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.
@@ -344,7 +345,7 @@ namespace Opc.Ua.Bindings
         /// Transfers the channel to a waiting connection.
         /// </summary>
         /// <returns>TRUE if the channel should be kept open; FALSE otherwise.</returns>
-        public bool TransferListenerChannel(
+        public async Task<bool> TransferListenerChannel(
             uint channelId,
             string serverUri,
             Uri endpointUrl)
@@ -363,7 +364,7 @@ namespace Opc.Ua.Bindings
             if (ConnectionWaiting != null)
             {
                 var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
-                ConnectionWaiting(this, args);
+                await ConnectionWaiting(this, args);
                 accepted = args.Accepted;
             }
 

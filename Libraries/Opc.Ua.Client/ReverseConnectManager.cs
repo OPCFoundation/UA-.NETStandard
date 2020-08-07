@@ -175,6 +175,7 @@ namespace Opc.Ua.Client
         {
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
+            m_registrationsLock = new object();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
             m_cts = new CancellationTokenSource();
         }
@@ -430,11 +431,10 @@ namespace Opc.Ua.Client
         /// </summary>
         public void ClearWaitingConnections()
         {
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 m_registrations.Clear();
-                m_cts.Cancel();
-                m_cts = new CancellationTokenSource();
+                CancelAndRenewTokenSource();
             }
         }
 
@@ -491,11 +491,10 @@ namespace Opc.Ua.Client
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting) {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 m_registrations.Add(registration);
-                m_cts.Cancel();
-                m_cts = new CancellationTokenSource();
+                CancelAndRenewTokenSource();
             }
             return registration.GetHashCode();
         }
@@ -506,7 +505,7 @@ namespace Opc.Ua.Client
         /// <param name="hashCode">The hashcode returned by the registration.</param>
         public void UnregisterWaitingConnection(int hashCode)
         {
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 Registration toRemove = null;
                 foreach (var registration in m_registrations)
@@ -520,8 +519,7 @@ namespace Opc.Ua.Client
                 if (toRemove != null)
                 {
                     m_registrations.Remove(toRemove);
-                    m_cts.Cancel();
-                    m_cts = new CancellationTokenSource();
+                    CancelAndRenewTokenSource();
                 }
             }
         }
@@ -581,7 +579,7 @@ namespace Opc.Ua.Client
                 m_endpointUrls[endpointUrl] = info;
                 reverseConnectHost.CreateListener(
                     endpointUrl,
-                    new EventHandler<ConnectionWaitingEventArgs>(OnConnectionWaiting),
+                    new ConnectionWaitingHandlerAsync(OnConnectionWaiting),
                     new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
             }
             catch (ArgumentException ae)
@@ -595,7 +593,7 @@ namespace Opc.Ua.Client
         /// Raised when a reverse connection is waiting,
         /// finds and calls a waiting connection.
         /// </summary>
-        private void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
+        private async Task OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
         {
             DateTime startTime = DateTime.UtcNow;
             DateTime endTime = startTime + TimeSpan.FromMilliseconds(m_configuration.HoldTime);
@@ -606,30 +604,23 @@ namespace Opc.Ua.Client
                 try
                 {
                     CancellationToken ct;
-                    lock (m_registrations)
+                    lock (m_registrationsLock)
                     {
                         ct = m_cts.Token;
                     }
                     TimeSpan delay = endTime - DateTime.UtcNow;
                     if (delay.TotalMilliseconds > 0)
                     {
-                        Task.Delay(delay, ct).Wait();
+                        await Task.Delay(delay, ct);
                     }
                     break;
                 }
-                catch (Exception ex)
+                catch (TaskCanceledException)
                 {
-                    if (ex.InnerException.GetType() == typeof(TaskCanceledException))
+                    matched = MatchRegistration(sender, e);
+                    if (matched)
                     {
-                        matched = MatchRegistration(sender, e);
-                        if (matched)
-                        {
-                            Utils.Trace("Matched reverse connection after {0}ms", (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
-                        }
-                    }
-                    else
-                    {
-                        throw;
+                        Utils.Trace("Matched reverse connection after {0}ms", (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
                     }
                 }
             }
@@ -648,7 +639,7 @@ namespace Opc.Ua.Client
         {
             Registration callbackRegistration = null;
             bool found = false;
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 // first try to match single registrations
                 foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
@@ -702,6 +693,16 @@ namespace Opc.Ua.Client
         {
             Utils.Trace("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
         }
+
+        /// <summary>
+        /// Renew the cancellation token after use.
+        /// </summary>
+        private void CancelAndRenewTokenSource()
+        {
+            CancellationTokenSource cts = m_cts;
+            m_cts = new CancellationTokenSource();
+            cts.Cancel();
+        }
         #endregion
 
         #region Private Fields
@@ -713,6 +714,7 @@ namespace Opc.Ua.Client
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
         private readonly List<Registration> m_registrations;
+        private readonly object m_registrationsLock = new object();
         private CancellationTokenSource m_cts;
         #endregion
     }

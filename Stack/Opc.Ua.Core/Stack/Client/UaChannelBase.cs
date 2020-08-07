@@ -996,7 +996,7 @@ namespace Opc.Ua
                         communicationObject.Close();
                     }
                 }
-                catch (Exception)
+                catch
                 {
                     // ignore errors.
                 }
