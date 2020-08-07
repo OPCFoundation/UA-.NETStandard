@@ -18,7 +18,6 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Bindings
 {
-
     /// <summary>
     /// Manages the connections for a UA TCP server.
     /// </summary>
@@ -57,7 +56,7 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        foreach (TcpServerChannel channel in m_channels.Values)
+                        foreach (var channel in m_channels.Values)
                         {
                             Utils.SilentDispose(channel);
                         }
