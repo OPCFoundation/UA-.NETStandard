@@ -551,7 +551,7 @@ namespace Opc.Ua.Server
                     {
                         // give the client some time to receive the response
                         // before the certificate update may disconnect all sessions
-                        await Task.Delay(1000);
+                        await Task.Delay(1000).ConfigureAwait(false);
                         await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration);
                     }
                 );

@@ -50,6 +50,9 @@ namespace Opc.Ua.Client
     /// </remarks>
     public class ReverseConnectManager : IDisposable
     {
+        // a good default value for reverse hello configurations, if undefined
+        public const int DefaultWaitTimeout = 20000;
+
         private enum ReverseConnectManagerState
         {
             New = 0,
@@ -447,16 +450,30 @@ namespace Opc.Ua.Client
         public async Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
             string serverUri,
-            CancellationToken ct)
+            CancellationToken ct = default(CancellationToken))
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
             int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
-                (object sender, ConnectionWaitingEventArgs e) => tcs.SetResult(e),
+                (object sender, ConnectionWaitingEventArgs e) => tcs.TrySetResult(e),
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {
-                await Task.Delay(-1, ct).ConfigureAwait(false);
-                tcs.SetCanceled();
+                try
+                {
+                    if (ct == default(CancellationToken))
+                    {
+                        var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
+                        await Task.Delay(m_configuration.WaitTimeout).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Task.Delay(-1, ct).ConfigureAwait(false);
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                }
+                tcs.TrySetCanceled();
             };
 
             await Task.WhenAny(new Task[] {
@@ -464,7 +481,7 @@ namespace Opc.Ua.Client
                 listenForCancelTaskFnc()
             }).ConfigureAwait(false);
 
-            if (!tcs.Task.IsCompleted)
+            if (!tcs.Task.IsCompleted || tcs.Task.IsCanceled)
             {
                 UnregisterWaitingConnection(hashCode);
                 throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for the reverse connection timed out.");
@@ -611,7 +628,7 @@ namespace Opc.Ua.Client
                     TimeSpan delay = endTime - DateTime.UtcNow;
                     if (delay.TotalMilliseconds > 0)
                     {
-                        await Task.Delay(delay, ct);
+                        await Task.Delay(delay, ct).ConfigureAwait(false);
                     }
                     break;
                 }
@@ -713,7 +730,7 @@ namespace Opc.Ua.Client
         private ReverseConnectClientConfiguration m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
-        private readonly List<Registration> m_registrations;
+        private List<Registration> m_registrations;
         private readonly object m_registrationsLock = new object();
         private CancellationTokenSource m_cts;
         #endregion

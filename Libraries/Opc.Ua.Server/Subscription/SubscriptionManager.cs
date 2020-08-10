@@ -280,7 +280,7 @@ namespace Opc.Ua.Server
             }
 
             //remove the expired subscription status change notifications for this session
-            lock (m_statusMessages)
+            lock (m_statusMessagesLock)
             {
                 Queue<StatusMessage> statusQueue = null;
                 if (m_statusMessages.TryGetValue(sessionId, out statusQueue))
@@ -583,7 +583,7 @@ namespace Opc.Ua.Server
                 publishingIntervalCount = GetPublishingIntervalCount();
             }
 
-            lock (m_statusMessages)
+            lock (m_statusMessagesLock)
             {
                 Queue<StatusMessage> messagesQueue = null;
                 if (!m_statusMessages.TryGetValue(session.Id, out messagesQueue))
@@ -739,7 +739,7 @@ namespace Opc.Ua.Server
         /// <param name="subscription">The subscription.</param>
         internal void SubscriptionExpired(Subscription subscription)
         {
-            lock (m_statusMessages)
+            lock (m_statusMessagesLock)
             {
                 StatusMessage message = new StatusMessage();
                 message.SubscriptionId = subscription.Id;
@@ -870,7 +870,7 @@ namespace Opc.Ua.Server
                 Utils.Trace("Publish #{0} ReceivedFromClient", context.ClientHandle);
 
                 // check for status messages.
-                lock (m_statusMessages)
+                lock (m_statusMessagesLock)
                 {
                     Queue<StatusMessage> statusQueue = null;
 
@@ -1661,6 +1661,7 @@ namespace Opc.Ua.Server
         private Dictionary<uint,Subscription> m_subscriptions;
         private List<Subscription> m_abandonedSubscriptions;
         private Dictionary<NodeId, Queue<StatusMessage>> m_statusMessages;
+        private object m_statusMessagesLock = new object();
         private Dictionary<NodeId,SessionPublishQueue> m_publishQueues;
         private ManualResetEvent m_shutdownEvent;
 

@@ -114,8 +114,7 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
-                Task.Run(() =>
-                {
+                Task.Run(() => {
                     MonitorSessions(m_minSessionTimeout);
                 });
             }
@@ -331,7 +330,7 @@ namespace Opc.Ua.Server
                 // parse the token manually if the identity is not provided.
                 if (identity == null)
                 {
-                    identity = new UserIdentity(newIdentity);
+                    identity = newIdentity != null ? new UserIdentity(newIdentity) : new UserIdentity();
                 }
 
                 // use the identity as the effectiveIdentity if not provided.

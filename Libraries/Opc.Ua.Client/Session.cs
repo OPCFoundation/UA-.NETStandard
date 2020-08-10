@@ -938,18 +938,18 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
-            bool updateFromServer,
+            bool updateBeforeConnect,
             bool checkDomain,
             string sessionName,
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct
+            CancellationToken ct = default(CancellationToken)
             )
         {
             if (reverseConnectManager == null)
             {
-                return await Create(configuration, endpoint, updateFromServer,
+                return await Create(configuration, endpoint, updateBeforeConnect,
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales);
             }
 
@@ -961,12 +961,13 @@ namespace Opc.Ua.Client
                     endpoint.ReverseConnect.ServerUri,
                     ct);
 
-                if (updateFromServer)
+                if (updateBeforeConnect)
                 {
                     await endpoint.UpdateFromServerAsync(
                         endpoint.EndpointUrl, connection,
                         endpoint.Description.SecurityMode,
                         endpoint.Description.SecurityPolicyUri);
+                    updateBeforeConnect = false;
                     connection = null;
                 }
             } while (connection == null);

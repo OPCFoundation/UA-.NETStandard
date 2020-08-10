@@ -1900,20 +1900,20 @@ namespace Opc.Ua
         /// The interval after which a new reverse connection is attempted.
         /// </summary>
         [DataMember(Order = 20)]
-        public int ConnectInterval { get; set; }
+        public int ConnectInterval { get; set; } = 15000;
 
         /// <summary>
         /// The default timeout to wait for a response to a reverse connection.
         /// </summary>
         [DataMember(Order = 30)]
-        public int ConnectTimeout { get; set; }
+        public int ConnectTimeout { get; set; } = 30000;
 
         /// <summary>
         /// The timeout to wait to establish a new reverse
         /// connection after a rejected attempt.
         /// </summary>
         [DataMember(Order = 40)]
-        public int RejectTimeout { get; set; }
+        public int RejectTimeout { get; set; } = 60000;
         #endregion
     }
     #endregion
@@ -1967,6 +1967,8 @@ namespace Opc.Ua
         /// The maximum count of active reverse connect sessions.
         ///  0 or undefined means unlimited number of sessions.
         ///  1 means a single connection is created at a time.
+        ///  n disables reverse hello once the total number of sessions
+        ///  in the server reaches n.
         /// </summary>
         [DataMember(Order = 30)]
         public int MaxSessionCount { get; set; }
@@ -1975,7 +1977,7 @@ namespace Opc.Ua
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
         [DataMember(Order = 40)]
-        public bool Enabled { get; set; }
+        public bool Enabled { get; set; } = true;
         #endregion
     }
     #endregion
@@ -2178,8 +2180,19 @@ namespace Opc.Ua
         #region Public Properties
         [DataMember(Order = 10, IsRequired = false)]
         public ReverseConnectClientEndpointCollection ClientEndpoints { get; set; }
+
+        /// <summary>
+        /// The time a reverse hello port is held open to wait for a
+        /// reverse connection until the request is rejected.
+        /// </summary>
         [DataMember(Order = 20, IsRequired = false)]
-        public int HoldTime { get; set; }
+        public int HoldTime { get; set; } = 15000;
+
+        /// <summary>
+        /// The timeout to wait for a reverse hello message.
+        /// </summary>
+        [DataMember(Order = 30, IsRequired = false)]
+        public int WaitTimeout { get; set; } = 15000;
         #endregion
     }
     #endregion

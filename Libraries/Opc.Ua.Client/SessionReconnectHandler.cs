@@ -163,13 +163,11 @@ namespace Opc.Ua.Client
                 {
                     if (m_reverseConnectManager != null)
                     {
-                        var cts = new CancellationTokenSource(m_reconnectPeriod);
                         var connection = await m_reverseConnectManager.WaitForConnection(
                                 new Uri(m_session.Endpoint.EndpointUrl),
-                                null, //TODO: use ServerUri,
-                                cts.Token
+                                m_session.Endpoint.Server.ApplicationUri
                             );
-                        
+
                         m_session.Reconnect(connection);
                     }
                     else
@@ -189,7 +187,8 @@ namespace Opc.Ua.Client
                     if ((sre != null &&
                         (sre.StatusCode == StatusCodes.BadTcpInternalError ||
                          sre.StatusCode == StatusCodes.BadCommunicationError ||
-                         sre.StatusCode == StatusCodes.BadNotConnected)) ||
+                         sre.StatusCode == StatusCodes.BadNotConnected ||
+                         sre.StatusCode == StatusCodes.BadTimeout)) ||
                         exception is System.ServiceModel.EndpointNotFoundException)
                     {
                         // check if reconnecting is still an option.
@@ -210,11 +209,9 @@ namespace Opc.Ua.Client
                 Session session;
                 if (m_reverseConnectManager != null)
                 {
-                    var cts = new CancellationTokenSource(m_reconnectPeriod);
                     var connection = await m_reverseConnectManager.WaitForConnection(
                             new Uri(m_session.Endpoint.EndpointUrl),
-                            null, //TODO: use ServerUri,
-                            cts.Token
+                            m_session.Endpoint.Server.ApplicationUri
                         );
 
                     session = Session.Recreate(m_session, connection);
