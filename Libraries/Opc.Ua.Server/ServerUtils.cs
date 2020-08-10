@@ -61,7 +61,6 @@ namespace Opc.Ua.Server
         }
 
         private static Queue<Event> m_events = new Queue<Event>();
-        private static object m_eventsLock = new object();
         private static bool m_eventsEnabled;
 
         /// <summary>
@@ -77,7 +76,7 @@ namespace Opc.Ua.Server
                 {
                     if (!value)
                     {
-                        lock (m_eventsLock)
+                        lock (m_events)
                         {
                             m_events.Clear();
                         }
@@ -98,7 +97,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.WriteValue;
@@ -129,7 +128,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.QueueValue;
@@ -153,7 +152,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.FilterValue;
@@ -177,7 +176,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.DiscardValue;
@@ -201,7 +200,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.PublishValue;
@@ -232,7 +231,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.CreateItem;
@@ -267,7 +266,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (m_eventsLock)
+            lock (m_events)
             {
                 Event e = new Event();
                 e.EventType = EventType.ModifyItem;

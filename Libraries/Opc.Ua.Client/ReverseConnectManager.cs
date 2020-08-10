@@ -463,7 +463,7 @@ namespace Opc.Ua.Client
                     if (ct == default(CancellationToken))
                     {
                         var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
-                        await Task.Delay(m_configuration.WaitTimeout).ConfigureAwait(false);
+                        await Task.Delay(waitTimeout).ConfigureAwait(false);
                     }
                     else
                     {
@@ -471,8 +471,7 @@ namespace Opc.Ua.Client
                     }
                 }
                 catch (TaskCanceledException)
-                {
-                }
+                { }
                 tcs.TrySetCanceled();
             };
 
