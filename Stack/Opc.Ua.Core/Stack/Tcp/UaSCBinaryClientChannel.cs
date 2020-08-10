@@ -146,10 +146,13 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation = operation;
 
                 State = TcpChannelState.Connecting;
-                if (Socket != null)
+                if (ReverseSocket)
                 {
-                    // send the hello message.
-                    SendHelloMessage(operation);
+                    if (Socket != null)
+                    {
+                        // send the hello message as response to the reverse hello message.
+                        SendHelloMessage(operation);
+                    }
                 }
                 else
                 {
@@ -672,7 +675,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a socket error.
         /// </summary>
-        protected override void HandleSocketError(ServiceResult result) => ForceReconnect(result);
+        protected override void HandleSocketError(ServiceResult result)
+        {
+            ForceReconnect(result);
+        }
 
         /// <summary>
         /// Called when a write operation completes.
@@ -810,7 +816,7 @@ namespace Opc.Ua.Bindings
 
                     if (token == CurrentToken)
                     {
-                        Utils.Trace("TCP CHANNEL {0}: Attempting Renew Token Now: TokenId={1}", ChannelId, token.TokenId);
+                        Utils.Trace("TCP CHANNEL {0}: Attempting Renew Token Now: TokenId={1}", ChannelId, token?.TokenId);
 
                         // do nothing if not connected.
                         if (State != TcpChannelState.Open)
@@ -851,15 +857,18 @@ namespace Opc.Ua.Bindings
                         Socket = null;
                     }
 
-                    // create an operation.
-                    m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, null);
+                    if (!ReverseSocket)
+                    {
+                        // create an operation.
+                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, null);
 
-                    State = TcpChannelState.Connecting;
-                    Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () =>
-                        await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation,
-                            CancellationToken.None).ConfigureAwait(false)
-                            );
+                        State = TcpChannelState.Connecting;
+                        Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                        task = Task.Run(async () =>
+                            await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation,
+                                CancellationToken.None).ConfigureAwait(false)
+                                );
+                    }
                 }
             }
             catch (Exception e)

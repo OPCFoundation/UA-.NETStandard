@@ -433,6 +433,7 @@ namespace Opc.Ua.Bindings
             {
                 m_channel.Socket = socket;
                 m_channel.Socket.ChangeSink(m_channel);
+                m_channel.ReverseSocket = true;
             }
         }
         #endregion

@@ -2192,7 +2192,7 @@ namespace Opc.Ua
         /// The timeout to wait for a reverse hello message.
         /// </summary>
         [DataMember(Order = 30, IsRequired = false)]
-        public int WaitTimeout { get; set; } = 15000;
+        public int WaitTimeout { get; set; } = 20000;
         #endregion
     }
     #endregion

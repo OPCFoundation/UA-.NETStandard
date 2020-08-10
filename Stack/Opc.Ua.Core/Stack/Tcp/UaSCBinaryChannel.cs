@@ -592,7 +592,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
-            
+
             offset += 4;
 
             buffer[offset++] = (byte)((messageSize & 0x000000FF));
@@ -614,11 +614,13 @@ namespace Opc.Ua.Bindings
         protected internal IMessageSocket Socket
         {
             get { return m_socket; }
-            set
-            {
-                m_socket = value;
-            }
+            set { m_socket = value; }
         }
+
+        /// <summary>
+        /// Whether the client channel uses a reverse hello socket.
+        /// </summary>
+        protected internal bool ReverseSocket { get; set; }
 
         /// <summary>
         /// The buffer manager for the channel.
