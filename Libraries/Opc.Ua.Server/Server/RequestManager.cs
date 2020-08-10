@@ -29,12 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using System.Security.Principal;
 
 namespace Opc.Ua.Server
-{    
+{
     /// <summary>
     /// An object that manages requests from within the server.
     /// </summary>
@@ -49,18 +47,18 @@ namespace Opc.Ua.Server
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
 
-            m_server       = server;
-            m_requests     = new Dictionary<uint,OperationContext>();
+            m_server = server;
+            m_requests = new Dictionary<uint, OperationContext>();
             m_requestTimer = null;
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -69,17 +67,17 @@ namespace Opc.Ua.Server
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_requestTimer")]
         protected virtual void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 List<OperationContext> operations = null;
 
-                lock (m_lock)
+                lock (m_requestsLock)
                 {
                     operations = new List<OperationContext>(m_requests.Values);
                     m_requests.Clear();
                 }
-                
+
                 foreach (OperationContext operation in operations)
                 {
                     operation.SetStatusCode(StatusCodes.BadSessionClosed);
@@ -87,7 +85,7 @@ namespace Opc.Ua.Server
 
                 Utils.SilentDispose(m_requestTimer);
                 m_requestTimer = null;
-            }            
+            }
         }
         #endregion
 
@@ -113,7 +111,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         /// <summary>
         /// Called when a new request arrives.
         /// </summary>
@@ -122,7 +120,7 @@ namespace Opc.Ua.Server
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            lock (m_requests)
+            lock (m_requestsLock)
             {
                 m_requests.Add(context.RequestId, context);
 
@@ -132,7 +130,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         /// <summary>
         /// Called when a request completes (normally or abnormally).
         /// </summary>
@@ -140,8 +138,8 @@ namespace Opc.Ua.Server
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            lock (m_requests)
-            {      
+            lock (m_requestsLock)
+            {
                 // find the completed request.
                 bool deadlineExists = false;
 
@@ -169,7 +167,7 @@ namespace Opc.Ua.Server
                 m_requests.Remove(context.RequestId);
             }
         }
-        
+
         /// <summary>
         /// Called when the client wishes to cancel one or more requests.
         /// </summary>
@@ -178,8 +176,8 @@ namespace Opc.Ua.Server
             List<uint> cancelledRequests = new List<uint>();
 
             // flag requests as cancelled.
-            lock (m_requests)
-            {      
+            lock (m_requestsLock)
+            {
                 foreach (OperationContext request in m_requests.Values)
                 {
                     if (request.ClientHandle == requestHandle)
@@ -195,7 +193,7 @@ namespace Opc.Ua.Server
 
             // raise notifications.
             lock (m_lock)
-            {   
+            {
                 for (int ii = 0; ii < cancelledRequests.Count; ii++)
                 {
                     if (m_RequestCancelled != null)
@@ -207,7 +205,7 @@ namespace Opc.Ua.Server
                         catch (Exception e)
                         {
                             Utils.Trace(e, "Unexpected error reporting RequestCancelled event.");
-                        }                        
+                        }
                     }
                 }
             }
@@ -223,8 +221,8 @@ namespace Opc.Ua.Server
             List<uint> expiredRequests = new List<uint>();
 
             // flag requests as expired.
-            lock (m_requests)
-            {      
+            lock (m_requestsLock)
+            {
                 foreach (OperationContext request in m_requests.Values)
                 {
                     if (request.OperationDeadline < DateTime.UtcNow)
@@ -237,7 +235,7 @@ namespace Opc.Ua.Server
 
             // raise notifications.
             lock (m_lock)
-            {   
+            {
                 for (int ii = 0; ii < expiredRequests.Count; ii++)
                 {
                     if (m_RequestCancelled != null)
@@ -249,7 +247,7 @@ namespace Opc.Ua.Server
                         catch (Exception e)
                         {
                             Utils.Trace(e, "Unexpected error reporting RequestCancelled event.");
-                        }                        
+                        }
                     }
                 }
             }
@@ -260,17 +258,18 @@ namespace Opc.Ua.Server
         private object m_lock = new object();
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private IServerInternal m_server;
-        private Dictionary<uint,OperationContext> m_requests;
+        private Dictionary<uint, OperationContext> m_requests;
+        private object m_requestsLock = new object();
         private Timer m_requestTimer;
         private event RequestCancelledEventHandler m_RequestCancelled;
         #endregion
     }
-    
+
     /// <summary>
     /// Called when a request is cancelled.
     /// </summary>
     public delegate void RequestCancelledEventHandler(
         RequestManager source,
-        uint           requestId,
-        StatusCode     statusCode);
+        uint requestId,
+        StatusCode statusCode);
 }
