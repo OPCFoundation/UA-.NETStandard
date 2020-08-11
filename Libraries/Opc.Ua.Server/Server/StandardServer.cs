@@ -2960,7 +2960,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                // check for connected clients
+                // check for connected clients.
                 IList<Session> currentessions = this.ServerInternal.SessionManager.GetSessions();
 
                 if (currentessions.Count > 0)
@@ -2977,6 +2977,12 @@ namespace Opc.Ua.Server
                         ServerInternal.Status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
                         ServerInternal.Status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
                         ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+
+                        // exit if all client connections are closed.
+                        if (ServerInternal.SessionManager.GetSessions().Count == 0)
+                        {
+                            break;
+                        }
 
                         Thread.Sleep(1000);
                     }
