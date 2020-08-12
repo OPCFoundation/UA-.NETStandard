@@ -283,7 +283,7 @@ namespace Opc.Ua.Bindings
         /// Gets the transport channel features implemented by this message socket.
         /// </summary>
         /// <value>The transport channel feature.</value>
-        public TransportChannelFeatures MessageSocketFeatures => TransportChannelFeatures.ReverseConnect /* TODO: | TransportChannelFeatures.Reconnect*/;
+        public TransportChannelFeatures MessageSocketFeatures => TransportChannelFeatures.ReverseConnect | TransportChannelFeatures.Reconnect;
 
         /// <summary>
         /// Connects to an endpoint.
