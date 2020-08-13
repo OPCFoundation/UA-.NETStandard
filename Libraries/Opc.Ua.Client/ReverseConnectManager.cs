@@ -458,20 +458,15 @@ namespace Opc.Ua.Client
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {
-                try
+                if (ct == default(CancellationToken))
                 {
-                    if (ct == default(CancellationToken))
-                    {
-                        var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
-                        await Task.Delay(waitTimeout).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await Task.Delay(-1, ct).ConfigureAwait(false);
-                    }
+                    var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
+                    await Task.Delay(waitTimeout).ConfigureAwait(false);
                 }
-                catch (TaskCanceledException)
-                { }
+                else
+                {
+                    await Task.Delay(-1, ct).ContinueWith(tsk => { }).ConfigureAwait(false);
+                }
                 tcs.TrySetCanceled();
             };
 
@@ -617,28 +612,29 @@ namespace Opc.Ua.Client
             while (!matched)
             {
                 Utils.Trace("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
-                try
+                CancellationToken ct;
+                lock (m_registrationsLock)
                 {
-                    CancellationToken ct;
-                    lock (m_registrationsLock)
-                    {
-                        ct = m_cts.Token;
-                    }
-                    TimeSpan delay = endTime - DateTime.UtcNow;
-                    if (delay.TotalMilliseconds > 0)
-                    {
-                        await Task.Delay(delay, ct).ConfigureAwait(false);
-                    }
-                    break;
+                    ct = m_cts.Token;
                 }
-                catch (TaskCanceledException)
+                TimeSpan delay = endTime - DateTime.UtcNow;
+                if (delay.TotalMilliseconds > 0)
                 {
-                    matched = MatchRegistration(sender, e);
-                    if (matched)
-                    {
-                        Utils.Trace("Matched reverse connection after {0}ms", (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                    await Task.Delay(delay, ct).ContinueWith(tsk => {
+                        if (tsk.IsCanceled)
+                        {
+                            matched = MatchRegistration(sender, e);
+                            if (matched)
+                            {
+                                Utils.Trace("Matched reverse connection {0} {1} after {2}ms",
+                                     e.ServerUri, e.EndpointUrl,
+                                    (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                            }
+                        }
                     }
+                    ).ConfigureAwait(false);
                 }
+                break;
             }
 
             Utils.Trace("{0} reverse connection: {1} {2} after {3}ms",

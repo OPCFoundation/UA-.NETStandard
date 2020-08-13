@@ -373,15 +373,12 @@ namespace Opc.Ua.Bindings
                 moreAddresses = addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index;
                 if (moreAddresses && !m_tcs.Task.IsCompleted)
                 {
-                    try
-                    {
-                        await Task.Delay(DefaultRetryNextAddressTimeout, cts).ConfigureAwait(false);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // discontinue address retry loop on cancellation
-                        moreAddresses = false;
-                    }
+                    await Task.Delay(DefaultRetryNextAddressTimeout, cts).ContinueWith(tsk => {
+                        if (tsk.IsCanceled)
+                        {
+                            moreAddresses = false;
+                        }
+                    }).ConfigureAwait(false);
                 }
 
                 if (!moreAddresses || m_tcs.Task.IsCompleted)
