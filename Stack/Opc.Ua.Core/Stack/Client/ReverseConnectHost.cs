@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// </summary>
         public void CreateListener(
             Uri url,
-            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            ConnectionWaitingHandlerAsync OnConnectionWaiting,
             EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
             )
         {
@@ -87,7 +87,7 @@ namespace Opc.Ua
 
         public Uri Url { get; private set; }
         private ITransportListener m_listener;
-        private EventHandler<ConnectionWaitingEventArgs> m_onConnectionWaiting;
+        private ConnectionWaitingHandlerAsync m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
     }
     #endregion

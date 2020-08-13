@@ -165,7 +165,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
-        public event EventHandler<ConnectionWaitingEventArgs> ConnectionWaiting;
+        public event ConnectionWaitingHandlerAsync ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.

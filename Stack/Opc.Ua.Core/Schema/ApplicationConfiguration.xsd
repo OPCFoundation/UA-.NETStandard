@@ -229,6 +229,8 @@
   <xs:complexType name="ReverseConnectClientConfiguration">
     <xs:sequence>
       <xs:element name="ClientEndpoints" type="ListOfReverseConnectClientEndpoint" minOccurs="0" nillable="true" />
+      <xs:element name="HoldTime" type="xs:int" minOccurs="0" />
+      <xs:element name="WaitTimeout" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 
@@ -134,7 +135,7 @@ namespace Opc.Ua.Server
             else
             {
                 var reverseConnection = new ReverseConnectProperty(url, timeout, maxSessionCount, false, enabled);
-                lock (m_connections)
+                lock (m_connectionsLock)
                 {
                     m_connections[url] = reverseConnection;
                     Utils.Trace("Reverse Connection added for EndpointUrl: {0}.", url);
@@ -151,9 +152,9 @@ namespace Opc.Ua.Server
         public virtual bool RemoveReverseConnection(Uri url)
         {
             if (url == null) throw new ArgumentNullException(nameof(url));
-            lock (m_connections)
+            lock (m_connectionsLock)
             {
-                bool connectionRemoved =  m_connections.Remove(url);
+                bool connectionRemoved = m_connections.Remove(url);
 
                 if (connectionRemoved)
                 {
@@ -172,11 +173,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Return a dictionary of configured reverse connection Urls.
         /// </summary>
-        public virtual Dictionary<Uri, ReverseConnectProperty> GetReverseConnections()
+        public virtual ReadOnlyDictionary<Uri, ReverseConnectProperty> GetReverseConnections()
         {
-            lock (m_connections)
+            lock (m_connectionsLock)
             {
-                return m_connections;
+                return new ReadOnlyDictionary<Uri, ReverseConnectProperty>(m_connections);
             }
         }
         #endregion
@@ -189,7 +190,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                lock (m_connections)
+                lock (m_connectionsLock)
                 {
                     foreach (var reverseConnection in m_connections.Values)
                     {
@@ -201,7 +202,7 @@ namespace Opc.Ua.Server
                         }
 
                         // try the reverse connect
-                        if ((reverseConnection.Enabled ) &&
+                        if ((reverseConnection.Enabled) &&
                             (reverseConnection.MaxSessionCount == 0 ||
                             (reverseConnection.MaxSessionCount == 1 && reverseConnection.LastState == ReverseConnectState.Closed) ||
                              reverseConnection.MaxSessionCount > ServerInternal.SessionManager.GetSessions().Count))
@@ -238,7 +239,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
         {
-            lock (m_connections)
+            lock (m_connectionsLock)
             {
                 ReverseConnectProperty reverseConnection = null;
                 if (m_connections.TryGetValue(e.EndpointUrl, out reverseConnection))
@@ -282,7 +283,7 @@ namespace Opc.Ua.Server
             {
                 DisposeTimer();
             }
-            lock (m_connections)
+            lock (m_connectionsLock)
             {
                 if (m_connectInterval > 0 &&
                     m_connections.Count > 0 &&
@@ -299,7 +300,7 @@ namespace Opc.Ua.Server
         private void DisposeTimer()
         {
             // start registration timer.
-            lock (m_connections)
+            lock (m_connectionsLock)
             {
                 if (m_reverseConnectTimer != null)
                 {
@@ -314,7 +315,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ClearConnections(bool configEntry)
         {
-            lock (m_connections)
+            lock (m_connectionsLock)
             {
                 var toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
                 foreach (var entry in toRemove)
@@ -337,7 +338,7 @@ namespace Opc.Ua.Server
             // add configuration reverse client connection properties.
             if (reverseConnect != null)
             {
-                lock (m_connections)
+                lock (m_connectionsLock)
                 {
                     m_connectInterval = reverseConnect.ConnectInterval > 0 ? reverseConnect.ConnectInterval : DefaultReverseConnectInterval;
                     m_connectTimeout = reverseConnect.ConnectTimeout > 0 ? reverseConnect.ConnectTimeout : DefaultReverseConnectTimeout;
@@ -369,6 +370,7 @@ namespace Opc.Ua.Server
         private int m_connectTimeout;
         private int m_rejectTimeout;
         private Dictionary<Uri, ReverseConnectProperty> m_connections;
+        private object m_connectionsLock = new object();
         #endregion
     }
 }

@@ -922,6 +922,69 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Creates a new communication session with a server using a reverse connect manager.
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="reverseConnectManager">The reverse connect manager for the client connection.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="updateBeforeConnect">If set to <c>true</c> the discovery endpoint is used to update the endpoint description before connecting.</param>
+        /// <param name="checkDomain">If set to <c>true</c> then the domain in the certificate must match the endpoint used.</param>
+        /// <param name="sessionName">The name to assign to the session.</param>
+        /// <param name="sessionTimeout">The timeout period for the session.</param>
+        /// <param name="userIdentity">The user identity to associate with the session.</param>
+        /// <param name="preferredLocales">The preferred locales.</param>
+        /// <returns>The new session object.</returns>
+        public static async Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default(CancellationToken)
+            )
+        {
+            if (reverseConnectManager == null)
+            {
+                return await Create(configuration, endpoint, updateBeforeConnect,
+                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales);
+            }
+
+            ITransportWaitingConnection connection = null;
+            do
+            {
+                connection = await reverseConnectManager.WaitForConnection(
+                    endpoint.EndpointUrl,
+                    endpoint.ReverseConnect.ServerUri,
+                    ct);
+
+                if (updateBeforeConnect)
+                {
+                    await endpoint.UpdateFromServerAsync(
+                        endpoint.EndpointUrl, connection,
+                        endpoint.Description.SecurityMode,
+                        endpoint.Description.SecurityPolicyUri);
+                    updateBeforeConnect = false;
+                    connection = null;
+                }
+            } while (connection == null);
+
+            return await Create(
+                configuration,
+                connection,
+                endpoint,
+                false,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales);
+        }
+
+        /// <summary>
         /// Recreates a session based on a specified template.
         /// </summary>
         /// <param name="template">The Session object to use as template</param>
@@ -934,6 +997,56 @@ namespace Opc.Ua.Client
             // create the channel object used to connect to the server.
             ITransportChannel channel = SessionChannel.Create(
                 template.m_configuration,
+                template.m_endpoint.Description,
+                template.m_endpoint.Configuration,
+                template.m_instanceCertificate,
+                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
+                    template.m_instanceCertificateChain : null,
+                messageContext);
+
+            // create the session object.
+            Session session = new Session(channel, template, true);
+
+            try
+            {
+                // open the session.
+                session.Open(
+                    template.m_sessionName,
+                    (uint)template.m_sessionTimeout,
+                    template.m_identity,
+                    template.m_preferredLocales,
+                    template.m_checkDomain);
+
+                // create the subscriptions.
+                foreach (Subscription subscription in session.Subscriptions)
+                {
+                    subscription.Create();
+                }
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+            }
+
+            return session;
+        }
+
+        /// <summary>
+        /// Recreates a session based on a specified template.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="connection">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        public static Session Recreate(Session template, ITransportWaitingConnection connection)
+        {
+            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the channel object used to connect to the server.
+            ITransportChannel channel = SessionChannel.Create(
+                template.m_configuration,
+                connection,
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
@@ -992,7 +1105,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
-        public void Reconnect()
+        public void Reconnect() => Reconnect(null);
+
+        /// <summary>
+        /// Reconnects to the server after a network failure using a waiting connection.
+        /// </summary>
+        public void Reconnect(ITransportWaitingConnection connection)
         {
             try
             {
@@ -1066,24 +1184,50 @@ namespace Opc.Ua.Client
 
                 Utils.Trace("Session REPLACING channel.");
 
-                // check if the channel supports reconnect.
-                if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                if (connection != null)
                 {
-                    TransportChannel.Reconnect();
+                    // check if the channel supports reconnect.
+                    if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    {
+                        TransportChannel.Reconnect(connection);
+                    }
+                    else
+                    {
+                        // initialize the channel which will be created with the server.
+                        ITransportChannel channel = SessionChannel.Create(
+                            m_configuration,
+                            connection,
+                            m_endpoint.Description,
+                            m_endpoint.Configuration,
+                            m_instanceCertificate,
+                            m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                            MessageContext);
+
+                        // disposes the existing channel.
+                        TransportChannel = channel;
+                    }
                 }
                 else
                 {
-                    // initialize the channel which will be created with the server.
-                    ITransportChannel channel = SessionChannel.Create(
-                        m_configuration,
-                        m_endpoint.Description,
-                        m_endpoint.Configuration,
-                        m_instanceCertificate,
-                        m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                        MessageContext);
+                    // check if the channel supports reconnect.
+                    if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    {
+                        TransportChannel.Reconnect();
+                    }
+                    else
+                    {
+                        // initialize the channel which will be created with the server.
+                        ITransportChannel channel = SessionChannel.Create(
+                            m_configuration,
+                            m_endpoint.Description,
+                            m_endpoint.Configuration,
+                            m_instanceCertificate,
+                            m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
+                            MessageContext);
 
-                    // disposes the existing channel.
-                    TransportChannel = channel;
+                        // disposes the existing channel.
+                        TransportChannel = channel;
+                    }
                 }
 
                 // reactivate session.

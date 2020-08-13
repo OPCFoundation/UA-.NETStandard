@@ -64,7 +64,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// A masking indicating which features are implemented.
         /// </summary>
-        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest;
+        public TransportChannelFeatures SupportedFeatures =>
+            TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen |
+            TransportChannelFeatures.BeginSendRequest |
+            ((Socket != null) ? Socket.MessageSocketFeatures : 0);
 
         /// <summary>
         /// Gets the description for the endpoint used by the channel.
@@ -109,16 +112,7 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
-
-            m_channel = new UaSCUaBinaryClientChannel(
-                Guid.NewGuid().ToString(),
-                m_bufferManager,
-                m_messageSocketFactory,
-                m_quotas,
-                m_settings.ClientCertificate,
-                m_settings.ClientCertificateChain,
-                m_settings.ServerCertificate,
-                m_settings.Description);
+            CreateChannel();
         }
 
         /// <summary>
@@ -132,25 +126,7 @@ namespace Opc.Ua.Bindings
             TransportChannelSettings settings)
         {
             SaveSettings(connection.EndpointUrl, settings);
-
-            var socket = connection.Handle as IMessageSocket;
-            if (socket == null)
-            {
-                throw new ArgumentException("Connection Handle is not of type IMessageSocket.");
-            }
-
-            m_channel = new UaSCUaBinaryClientChannel(
-                Guid.NewGuid().ToString(),
-                m_bufferManager,
-                m_messageSocketFactory,
-                m_quotas,
-                m_settings.ClientCertificate,
-                m_settings.ClientCertificateChain,
-                m_settings.ServerCertificate,
-                m_settings.Description);
-
-            m_channel.Socket = socket;
-            m_channel.Socket.ChangeSink(m_channel);
+            CreateChannel(connection);
         }
 
         /// <summary>
@@ -177,15 +153,7 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
                 // create the channel.
-                m_channel = new UaSCUaBinaryClientChannel(
-                    Guid.NewGuid().ToString(),
-                    m_bufferManager,
-                    m_messageSocketFactory,
-                    m_quotas,
-                    m_settings.ClientCertificate,
-                    m_settings.ClientCertificateChain,
-                    m_settings.ServerCertificate,
-                    m_settings.Description);
+                CreateChannel(null);
 
                 // begin connect operation.
                 return m_channel.BeginConnect(this.m_url, m_operationTimeout, callback, callbackData);
@@ -210,7 +178,17 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Calling this method will cause outstanding requests over the current secure channel to fail.
         /// </remarks>
-        public void Reconnect()
+        public void Reconnect() => Reconnect(null);
+
+        /// <summary>
+        /// Closes any existing secure channel and opens a new one.
+        /// </summary>
+        /// <param name="connection">A reverse connection, null otherwise.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <remarks>
+        /// Calling this method will cause outstanding requests over the current secure channel to fail.
+        /// </remarks>
+        public void Reconnect(ITransportWaitingConnection connection)
         {
             Utils.Trace("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
 
@@ -225,7 +203,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     // reconnect.
-                    OpenOnDemand();
+                    CreateChannel(connection);
 
                     // begin connect operation.
                     IAsyncResult result = m_channel.BeginConnect(m_url, m_operationTimeout, null, null);
@@ -358,7 +336,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_channel == null)
                     {
-                        OpenOnDemand();
+                        CreateChannel();
                     }
 
                     channel = m_channel;
@@ -426,8 +404,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Opens the channel before sending the request.
         /// </summary>
-        private void OpenOnDemand()
+        /// <param name="connection">A reverse connection, null otherwise.</param>
+        private void CreateChannel(ITransportWaitingConnection connection = null)
         {
+            IMessageSocket socket = null;
+            if (connection != null)
+            {
+                socket = connection.Handle as IMessageSocket;
+                if (socket == null)
+                {
+                    throw new ArgumentException("Connection Handle is not of type IMessageSocket.");
+                }
+            }
+
             // create the channel.
             m_channel = new UaSCUaBinaryClientChannel(
                 Guid.NewGuid().ToString(),
@@ -438,6 +427,14 @@ namespace Opc.Ua.Bindings
                 m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
                 m_settings.Description);
+
+            // use socket for reverse connections, ignore otherwise
+            if (socket != null)
+            {
+                m_channel.Socket = socket;
+                m_channel.Socket.ChangeSink(m_channel);
+                m_channel.ReverseSocket = true;
+            }
         }
         #endregion
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
@@ -80,6 +81,14 @@ namespace Opc.Ua.Client
         /// </summary>
         public void BeginReconnect(Session session, int reconnectPeriod, EventHandler callback)
         {
+            BeginReconnect(session, null, reconnectPeriod, callback);
+        }
+
+        /// <summary>
+        /// Begins the reconnect process using a reverse connection.
+        /// </summary>
+        public void BeginReconnect(Session session, ReverseConnectManager reverseConnectManager, int reconnectPeriod, EventHandler callback)
+        {
             lock (m_lock)
             {
                 if (m_reconnectTimer != null)
@@ -91,16 +100,18 @@ namespace Opc.Ua.Client
                 m_reconnectFailed = false;
                 m_reconnectPeriod = reconnectPeriod;
                 m_callback = callback;
+                m_reverseConnectManager = reverseConnectManager;
                 m_reconnectTimer = new System.Threading.Timer(OnReconnect, null, reconnectPeriod, Timeout.Infinite);
             }
         }
+
         #endregion
 
         #region Private Methods
         /// <summary>
         /// Called when the reconnect timer expires.
         /// </summary>
-        private void OnReconnect(object state)
+        private async void OnReconnect(object state)
         {
             try
             {
@@ -111,7 +122,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do the reconnect.
-                if (DoReconnect())
+                if (await DoReconnect())
                 {
                     lock (m_lock)
                     {
@@ -143,14 +154,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server.
         /// </summary>
-        private bool DoReconnect()
+        private async Task<bool> DoReconnect()
         {
             // try a reconnect.
             if (!m_reconnectFailed)
             {
                 try
                 {
-                    m_session.Reconnect();
+                    if (m_reverseConnectManager != null)
+                    {
+                        var connection = await m_reverseConnectManager.WaitForConnection(
+                                new Uri(m_session.Endpoint.EndpointUrl),
+                                m_session.Endpoint.Server.ApplicationUri
+                            );
+
+                        m_session.Reconnect(connection);
+                    }
+                    else
+                    {
+                        m_session.Reconnect();
+                    }
 
                     // monitored items should start updating on their own.
                     return true;
@@ -164,7 +187,8 @@ namespace Opc.Ua.Client
                     if ((sre != null &&
                         (sre.StatusCode == StatusCodes.BadTcpInternalError ||
                          sre.StatusCode == StatusCodes.BadCommunicationError ||
-                         sre.StatusCode == StatusCodes.BadNotConnected)) ||
+                         sre.StatusCode == StatusCodes.BadNotConnected ||
+                         sre.StatusCode == StatusCodes.BadTimeout)) ||
                         exception is System.ServiceModel.EndpointNotFoundException)
                     {
                         // check if reconnecting is still an option.
@@ -182,7 +206,20 @@ namespace Opc.Ua.Client
             // re-create the session.
             try
             {
-                Session session = Session.Recreate(m_session);
+                Session session;
+                if (m_reverseConnectManager != null)
+                {
+                    var connection = await m_reverseConnectManager.WaitForConnection(
+                            new Uri(m_session.Endpoint.EndpointUrl),
+                            m_session.Endpoint.Server.ApplicationUri
+                        );
+
+                    session = Session.Recreate(m_session, connection);
+                }
+                else
+                {
+                    session = Session.Recreate(m_session);
+                }
                 m_session.Close();
                 m_session = session;
                 return true;
@@ -202,6 +239,7 @@ namespace Opc.Ua.Client
         private int m_reconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
+        private ReverseConnectManager m_reverseConnectManager;
         #endregion
     }
 }

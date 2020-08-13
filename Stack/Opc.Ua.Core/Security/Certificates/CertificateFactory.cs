@@ -157,7 +157,7 @@ public class CertificateFactory
             return null;
         }
 
-        lock (m_certificates)
+        lock (m_certificatesLock)
         {
             X509Certificate2 cachedCertificate = null;
 
@@ -1418,6 +1418,7 @@ public class CertificateFactory
     #endregion
 
     private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
+    private static object m_certificatesLock = new object();
     private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
 }
 

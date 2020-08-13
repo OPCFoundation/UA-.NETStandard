@@ -278,6 +278,13 @@ namespace Opc.Ua.Bindings
         /// <value>The socket handle.</value>
         public int Handle => m_socket != null ? m_socket.GetHashCode() : -1;
 
+
+        /// <summary>
+        /// Gets the transport channel features implemented by this message socket.
+        /// </summary>
+        /// <value>The transport channel feature.</value>
+        public TransportChannelFeatures MessageSocketFeatures => TransportChannelFeatures.ReverseConnect | TransportChannelFeatures.Reconnect;
+
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
@@ -366,15 +373,12 @@ namespace Opc.Ua.Bindings
                 moreAddresses = addressesV6.Length > arrayV6Index || addressesV4.Length > arrayV4Index;
                 if (moreAddresses && !m_tcs.Task.IsCompleted)
                 {
-                    try
-                    {
-                        await Task.Delay(DefaultRetryNextAddressTimeout, cts).ConfigureAwait(false);
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // discontinue address retry loop on cancellation
-                        moreAddresses = false;
-                    }
+                    await Task.Delay(DefaultRetryNextAddressTimeout, cts).ContinueWith(tsk => {
+                        if (tsk.IsCanceled)
+                        {
+                            moreAddresses = false;
+                        }
+                    }).ConfigureAwait(false);
                 }
 
                 if (!moreAddresses || m_tcs.Task.IsCompleted)

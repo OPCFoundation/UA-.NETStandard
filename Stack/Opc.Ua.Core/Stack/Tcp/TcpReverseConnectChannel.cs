@@ -107,10 +107,10 @@ namespace Opc.Ua.Bindings
 
                 State = TcpChannelState.Connecting;
 
-                Task t = Task.Run(() => {
+                Task t = Task.Run(async () => {
                     try
                     {
-                        if (!m_listener.TransferListenerChannel(Id, serverUri, endpointUri))
+                        if (false == await m_listener.TransferListenerChannel(Id, serverUri, endpointUri))
                         {
                             m_responseRequired = true;
                             ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");

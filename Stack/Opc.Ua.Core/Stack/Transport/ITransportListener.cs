@@ -12,9 +12,16 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+
+    /// <summary>
+    /// The delegate for the async connection waiting handler.
+    /// </summary>
+    public delegate Task ConnectionWaitingHandlerAsync(object sender, ConnectionWaitingEventArgs args);
+
     /// <summary>
     /// This is an interface to a listener which supports UA binary encoding.
     /// </summary>
@@ -56,7 +63,7 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
-        event EventHandler<ConnectionWaitingEventArgs> ConnectionWaiting;
+        event ConnectionWaitingHandlerAsync ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.

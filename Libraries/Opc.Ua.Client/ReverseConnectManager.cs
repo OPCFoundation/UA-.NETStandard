@@ -50,6 +50,9 @@ namespace Opc.Ua.Client
     /// </remarks>
     public class ReverseConnectManager : IDisposable
     {
+        // a good default value for reverse hello configurations, if undefined
+        public const int DefaultWaitTimeout = 20000;
+
         private enum ReverseConnectManagerState
         {
             New = 0,
@@ -134,7 +137,7 @@ namespace Opc.Ua.Client
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
                 this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = serverUri;
+                ServerUri = Utils.ReplaceLocalhost(serverUri);
             }
 
             /// <summary>
@@ -156,7 +159,7 @@ namespace Opc.Ua.Client
                 Uri endpointUrl,
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
             {
-                EndpointUrl = endpointUrl;
+                EndpointUrl = new Uri(Utils.ReplaceLocalhost(endpointUrl.ToString()));
                 OnConnectionWaiting = onConnectionWaiting;
                 ReverseConnectStrategy = ReverseConnectStrategy.Once;
             }
@@ -175,7 +178,9 @@ namespace Opc.Ua.Client
         {
             m_state = ReverseConnectManagerState.New;
             m_registrations = new List<Registration>();
+            m_registrationsLock = new object();
             m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
+            m_cts = new CancellationTokenSource();
         }
         #endregion
 
@@ -183,7 +188,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Dispose implementation.
         /// </summary>
-        public void Dispose() => Dispose(true);
+        public void Dispose()
+        {
+            Dispose(true);
+        }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -426,9 +434,10 @@ namespace Opc.Ua.Client
         /// </summary>
         public void ClearWaitingConnections()
         {
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 m_registrations.Clear();
+                CancelAndRenewTokenSource();
             }
         }
 
@@ -441,16 +450,24 @@ namespace Opc.Ua.Client
         public async Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
             string serverUri,
-            CancellationToken ct)
+            CancellationToken ct = default(CancellationToken))
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
             int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
-                (object sender, ConnectionWaitingEventArgs e) => tcs.SetResult(e),
+                (object sender, ConnectionWaitingEventArgs e) => tcs.TrySetResult(e),
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {
-                await Task.Delay(-1, ct).ConfigureAwait(false);
-                tcs.SetCanceled();
+                if (ct == default(CancellationToken))
+                {
+                    var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
+                    await Task.Delay(waitTimeout).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Task.Delay(-1, ct).ContinueWith(tsk => { }).ConfigureAwait(false);
+                }
+                tcs.TrySetCanceled();
             };
 
             await Task.WhenAny(new Task[] {
@@ -458,7 +475,7 @@ namespace Opc.Ua.Client
                 listenForCancelTaskFnc()
             }).ConfigureAwait(false);
 
-            if (!tcs.Task.IsCompleted)
+            if (!tcs.Task.IsCompleted || tcs.Task.IsCanceled)
             {
                 UnregisterWaitingConnection(hashCode);
                 throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for the reverse connection timed out.");
@@ -485,9 +502,10 @@ namespace Opc.Ua.Client
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting) {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 m_registrations.Add(registration);
+                CancelAndRenewTokenSource();
             }
             return registration.GetHashCode();
         }
@@ -498,7 +516,7 @@ namespace Opc.Ua.Client
         /// <param name="hashCode">The hashcode returned by the registration.</param>
         public void UnregisterWaitingConnection(int hashCode)
         {
-            lock (m_registrations)
+            lock (m_registrationsLock)
             {
                 Registration toRemove = null;
                 foreach (var registration in m_registrations)
@@ -512,6 +530,7 @@ namespace Opc.Ua.Client
                 if (toRemove != null)
                 {
                     m_registrations.Remove(toRemove);
+                    CancelAndRenewTokenSource();
                 }
             }
         }
@@ -571,7 +590,7 @@ namespace Opc.Ua.Client
                 m_endpointUrls[endpointUrl] = info;
                 reverseConnectHost.CreateListener(
                     endpointUrl,
-                    new EventHandler<ConnectionWaitingEventArgs>(OnConnectionWaiting),
+                    new ConnectionWaitingHandlerAsync(OnConnectionWaiting),
                     new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
             }
             catch (ArgumentException ae)
@@ -585,10 +604,54 @@ namespace Opc.Ua.Client
         /// Raised when a reverse connection is waiting,
         /// finds and calls a waiting connection.
         /// </summary>
-        private void OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
+        private async Task OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
+        {
+            DateTime startTime = DateTime.UtcNow;
+            DateTime endTime = startTime + TimeSpan.FromMilliseconds(m_configuration.HoldTime);
+            bool matched = MatchRegistration(sender, e);
+            while (!matched)
+            {
+                Utils.Trace("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                CancellationToken ct;
+                lock (m_registrationsLock)
+                {
+                    ct = m_cts.Token;
+                }
+                TimeSpan delay = endTime - DateTime.UtcNow;
+                if (delay.TotalMilliseconds > 0)
+                {
+                    await Task.Delay(delay, ct).ContinueWith(tsk => {
+                        if (tsk.IsCanceled)
+                        {
+                            matched = MatchRegistration(sender, e);
+                            if (matched)
+                            {
+                                Utils.Trace("Matched reverse connection {0} {1} after {2}ms",
+                                     e.ServerUri, e.EndpointUrl,
+                                    (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                            }
+                        }
+                    }
+                    ).ConfigureAwait(false);
+                }
+                break;
+            }
+
+            Utils.Trace("{0} reverse connection: {1} {2} after {3}ms",
+                e.Accepted ? "Accepted" : "Rejected",
+                e.ServerUri, e.EndpointUrl, (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+        }
+
+        /// <summary>
+        /// Match the waiting connection with a registration, callback registration,
+        /// return if connection is accepted in event.
+        /// </summary>
+        /// <returns>true if a match was found.</returns>
+        private bool MatchRegistration(object sender, ConnectionWaitingEventArgs e)
         {
             Registration callbackRegistration = null;
-            lock (m_registrations)
+            bool found = false;
+            lock (m_registrationsLock)
             {
                 // first try to match single registrations
                 foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
@@ -599,6 +662,7 @@ namespace Opc.Ua.Client
                     {
                         callbackRegistration = registration;
                         e.Accepted = true;
+                        found = true;
                         Utils.Trace("Accepted reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
                         break;
                     }
@@ -613,6 +677,7 @@ namespace Opc.Ua.Client
                         {
                             callbackRegistration = registration;
                             e.Accepted = true;
+                            found = true;
                             Utils.Trace("Accept any reverse connection for approval: {0} {1}", e.ServerUri, e.EndpointUrl);
                             break;
                         }
@@ -630,17 +695,26 @@ namespace Opc.Ua.Client
 
             callbackRegistration?.OnConnectionWaiting?.Invoke(sender, e);
 
-            if (!e.Accepted)
-            {
-                Utils.Trace("Rejected reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
-            }
+            return found;
         }
 
         /// <summary>
         /// Raised when a connection status changes.
         /// </summary>
-        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e) =>
+        private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        {
             Utils.Trace("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+        }
+
+        /// <summary>
+        /// Renew the cancellation token after use.
+        /// </summary>
+        private void CancelAndRenewTokenSource()
+        {
+            CancellationTokenSource cts = m_cts;
+            m_cts = new CancellationTokenSource();
+            cts.Cancel();
+        }
         #endregion
 
         #region Private Fields
@@ -651,7 +725,9 @@ namespace Opc.Ua.Client
         private ReverseConnectClientConfiguration m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
-        private readonly List<Registration> m_registrations;
+        private List<Registration> m_registrations;
+        private readonly object m_registrationsLock = new object();
+        private CancellationTokenSource m_cts;
         #endregion
     }
 }

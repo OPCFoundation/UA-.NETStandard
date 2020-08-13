@@ -157,7 +157,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The following BuiltInTypes are for coding convenience
         /// internally used in the .NET Standard library.
-        /// The types can not be used for encoding/decoding.
+        /// The enumerations are not used for encoding/decoding.
         /// </remarks>
 
         /// <summary>

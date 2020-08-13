@@ -319,6 +319,16 @@ namespace Opc.Ua
         public abstract void Reconnect();
 
         /// <summary>
+        /// Closes any existing secure channel and opens a new one using an existing channel.
+        /// </summary>
+        /// <param name="connection">The reverse transport connection for the Reconnect.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <remarks>
+        /// Calling this method will cause outstanding requests over the current secure channel to fail.
+        /// </remarks>
+        public abstract void Reconnect(ITransportWaitingConnection connection);
+
+        /// <summary>
         /// Begins an asynchronous operation to close the existing secure channel and open a new one.
         /// </summary>
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
@@ -986,7 +996,7 @@ namespace Opc.Ua
                         communicationObject.Close();
                     }
                 }
-                catch (Exception)
+                catch
                 {
                     // ignore errors.
                 }
@@ -999,6 +1009,12 @@ namespace Opc.Ua
             {
                 communicationObject.Opened += new EventHandler(InnerChannel_Opened);
             }
+        }
+
+        /// <inheritdoc/>
+        public override void Reconnect(ITransportWaitingConnection connection)
+        {
+            throw new NotImplementedException("Reconnect for waiting connections is not supported for this channel");
         }
         #endregion
 

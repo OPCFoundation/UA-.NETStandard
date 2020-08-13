@@ -13,6 +13,7 @@
 using System;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -50,7 +51,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Used to transfer a reverse connection socket to the client.
         /// </summary>
-        bool TransferListenerChannel(
+        Task<bool> TransferListenerChannel(
             uint channelId,
             string serverUri,
             Uri endpointUrl);
