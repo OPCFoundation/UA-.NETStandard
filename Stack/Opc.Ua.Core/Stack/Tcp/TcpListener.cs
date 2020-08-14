@@ -181,7 +181,10 @@ namespace Opc.Ua.Bindings
         {
             lock (m_lock)
             {
-                m_channels.Remove(channelId);
+                if (m_channels != null)
+                {
+                    m_channels.Remove(channelId);
+                }
             }
 
             Utils.Trace("Channel {0} closed", channelId);
