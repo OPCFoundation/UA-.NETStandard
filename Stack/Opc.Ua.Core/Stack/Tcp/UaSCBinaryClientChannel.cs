@@ -1026,6 +1026,9 @@ namespace Opc.Ua.Bindings
 
                 uint channelId = ChannelId;
 
+                // close the socket.
+                State = TcpChannelState.Closed;
+
                 // dispose of the tokens.
                 ChannelId = 0;
                 DiscardTokens();
@@ -1034,9 +1037,6 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation = null;
                 m_requestedToken = null;
                 m_reconnecting = false;
-
-                // close the socket.
-                State = TcpChannelState.Closed;
 
                 if (Socket != null)
                 {
