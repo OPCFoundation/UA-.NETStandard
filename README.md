@@ -19,12 +19,12 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 
 1. Fully ported Core OPC UA Stack and Libraries (Client, Server, Configuration, Complex Types & GDS assemblies).
 2. Reference sample Server and Client. 
-3. X.509 certificate support for client and server authentication.
+3. X.509 [Certificate](Docs/Certificates.md) support for client and server authentication.
 4. SHA-2 support (up to SHA512) including security profile Basic256Sha256, Aes128Sha256RsaOaep and  Aes256Sha256RsaPss for configurations with high security needs.
 5. Anonymous, username and X.509 certificate user authentication.
 6. UA-TCP & HTTPS transports (client and server).
 7. [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
-8. Folder & OS-level (X509Store) certificate-store support.
+8. Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
 9. Sessions and Subscriptions.
 
 ##### Samples and Nuget packages
@@ -38,7 +38,6 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 ## Project Information
 
 ### General Project Info
-
 [![Github top language](https://img.shields.io/github/languages/top/OPCFoundation/UA-.NETStandard)](https://github.com/OPCFoundation/UA-.NETStandard)
 [![Github stars](https://img.shields.io/github/stars/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
 [![Github forks](https://img.shields.io/github/forks/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard)
@@ -47,12 +46,10 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 [![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 
 ### Build Status
-
 [![Build Status](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=11&branchName=master)
 [![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
 
 ### Code Quality
-
 [![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/11?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=11&contextType=build)
 [![Coverage Status](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/11/master?style=plastic)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master)
 
@@ -83,7 +80,7 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 
 ### Self signed certificates for the sample applications
 
-All required application certificates for OPC UA are created at the first start of each application in a directory or OS-level certificate store and remain in use until deleted from the store. 
+All required application certificates for OPC UA are created at the first start of each application in a directory or OS-level certificate store and remain in use until deleted from the store. Please read [Certificates](Docs/Certificates.md) for more information about certificates and stores
 
 ### Local Discovery Server
 
