@@ -285,7 +285,11 @@ namespace Opc.Ua.Bindings
                 catch (Exception ex)
                 {
                     // no IPv4 support.
-                    m_listeningSocket = null;
+                    if (m_listeningSocket != null)
+                    {
+                        m_listeningSocket.Dispose();
+                        m_listeningSocket = null;
+                    }
                     Utils.Trace("failed to create IPv4 listening socket: " + ex.Message);
                 }
 
@@ -307,7 +311,11 @@ namespace Opc.Ua.Bindings
                 catch (Exception ex)
                 {
                     // no IPv6 support
-                    m_listeningSocketIPv6 = null;
+                    if (m_listeningSocketIPv6 != null)
+                    {
+                        m_listeningSocketIPv6.Dispose();
+                        m_listeningSocketIPv6 = null;
+                    }
                     Utils.Trace("failed to create IPv6 listening socket: " + ex.Message);
                 }
 
