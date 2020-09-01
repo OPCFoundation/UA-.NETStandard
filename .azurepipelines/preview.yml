@@ -33,14 +33,14 @@ jobs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }}'
-  - script: echo '##vso[task.setvariable NUGETPREVIEW=nugetpreviewversion]nugetpreviewversion'
+  # - script: echo '##vso[task.setvariable NUGETPREVIEW=$(nugetpreviewversion)]'
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     inputs:
       command: 'pack'
       packagesToPack: '**/*.nuspec'
       versioningScheme: 'byEnvVar'
-      versionEnvVar: 'NUGETPREVIEW'
+      versionEnvVar: 'nugetpreviewversion'
       includeSymbols: true
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
