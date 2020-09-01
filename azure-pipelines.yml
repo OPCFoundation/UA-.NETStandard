@@ -47,7 +47,8 @@ stages:
       configuration: Debug
 - stage: nugetpreview
   condition: ne( variables['NUGETVERSION'], '')
-#  dependsOn: [testdebug,testrelease,solutions,build,buildnohttps]
+  dependsOn: [] 
+  #[testdebug,testrelease,solutions,build,buildnohttps]
   displayName: 'Push Nuget Preview'
   jobs:
   - template: .azurepipelines/preview.yml
