@@ -158,9 +158,9 @@ namespace Opc.Ua.Bindings
                 {
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
                     task = Task.Run(async () =>
-                        await Socket.BeginConnect(
+                        await (Socket?.BeginConnect(
                             m_via, m_ConnectCallback, operation,
-                            new CancellationTokenSource(timeout).Token));
+                            new CancellationTokenSource(timeout).Token) ?? Task.FromResult(false)));
                 }
             }
 
@@ -865,9 +865,9 @@ namespace Opc.Ua.Bindings
                         State = TcpChannelState.Connecting;
                         Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
                         task = Task.Run(async () =>
-                            await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation,
-                                CancellationToken.None).ConfigureAwait(false)
-                                );
+                            await (Socket?.BeginConnect(
+                                m_via, m_ConnectCallback, m_handshakeOperation,
+                                CancellationToken.None) ?? Task.FromResult(false)));
                     }
                 }
             }
