@@ -10,7 +10,7 @@ jobs:
     vmImage: 'windows-2019'
   variables:
     msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
-    nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)-$(Year:yyyy)$(Month:mm)$(DayOfMonth:dd)$(Rev:.r)-preview'
+    nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)$(Date:yyyyMMdd)$(Rev:.r)-preview'
   steps:
   - task: NuGetToolInstaller@1
     inputs:
