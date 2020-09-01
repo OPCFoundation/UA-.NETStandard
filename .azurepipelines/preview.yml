@@ -5,11 +5,12 @@ parameters:
   buildoption: ''
 jobs:
 - job: buildnuget
-  displayName: Build Nuget Packages
+  displayName: Build Nuget Preview Packages
   pool:
     vmImage: 'windows-2019'
   variables:
     msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+    nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)-$(Year:yyyy)$(Month:mm)$(DayOfMonth:dd)$(Rev:.r)-preview'
   steps:
   - task: NuGetToolInstaller@1
     inputs:
@@ -32,14 +33,17 @@ jobs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }}'
+  - script: echo '##vso[task.setvariable NUGETPREVIEW=nugetpreviewversion]nugetpreviewversion'
   - task: NuGetCommand@2
+    displayName: Pack Nuget Preview
     inputs:
       command: 'pack'
       packagesToPack: '**/*.nuspec'
       versioningScheme: 'byEnvVar'
-      versionEnvVar: 'NUGETVERSION'
+      versionEnvVar: 'NUGETPREVIEW'
       includeSymbols: true
   - task: NuGetCommand@2
+    displayName: Upload Nuget Preview
     inputs:
       command: 'push'
       packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
