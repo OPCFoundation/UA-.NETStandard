@@ -45,3 +45,12 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Debug
+- stage: nugetpreview
+  condition: ne( variables['NUGETVERSION'], '')
+  continueOnError: true
+#  dependsOn: [testdebug,testrelease,solutions,build,buildnohttps]
+  displayName: 'Push Nuget Preview'
+  jobs:
+  - template: .azurepipelines/preview.yml
+    parameters:
+      configuration: Debug

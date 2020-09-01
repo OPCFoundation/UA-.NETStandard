@@ -1,0 +1,48 @@
+#
+# Build all .Net Core projects on all platforms
+#
+parameters:
+  buildoption: ''
+jobs:
+- job: buildnuget
+  displayName: Build Nuget Packages
+  pool:
+    vmImage: 'windows-2019'
+  variables:
+    msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+  steps:
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
+  - task: DotNetCoreCLI@2
+    displayName: Release Restore
+    inputs:
+      command: restore
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--configuration Release'
+  - task: DotNetCoreCLI@2
+    displayName: Release Build
+    inputs:
+      command: build
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }}'
+  - task: DotNetCoreCLI@2
+    displayName: Debug Build
+    inputs:
+      command: build
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }}'
+  - task: NuGetCommand@2
+    inputs:
+      command: 'pack'
+      packagesToPack: '**/*.nuspec'
+      versioningScheme: 'byEnvVar'
+      versionEnvVar: 'NUGETVERSION'
+      includeSymbols: true
+  - task: NuGetCommand@2
+    inputs:
+      command: 'push'
+      packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+      nuGetFeedType: 'internal'
+      publishVstsFeed: '865bd736-d0a6-4260-a336-d09d3eb39375/986181c2-3f3f-4a1c-9a70-3ead6139a294'
+      allowPackageConflicts: true
