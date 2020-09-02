@@ -23,8 +23,10 @@ jobs:
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--configuration Release'
   - task: DownloadSecureFile@1
+    condition: ne( '$(VSTSFEED)', '')
     name: strongnamefile
     displayName: 'Download Strong Name Key'
+    continueOnError: true
     inputs:
       secureFile: 'OPCFoundation.NetStandard.Key.snk'
   - task: DotNetCoreCLI@2
