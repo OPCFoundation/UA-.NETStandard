@@ -2,7 +2,6 @@
 # Build preview packages for internal feed
 #
 parameters:
-  buildoption: ''
   upload: false
 jobs:
 - job: buildnuget
@@ -33,7 +32,7 @@ jobs:
     inputs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }} $(msbuildsign)'
+      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
