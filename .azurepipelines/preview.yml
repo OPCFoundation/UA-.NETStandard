@@ -1,5 +1,5 @@
 #
-# Build all .Net Core projects on all platforms
+# Build preview packages for internal feed
 #
 parameters:
   buildoption: ''
@@ -10,7 +10,7 @@ jobs:
     vmImage: 'windows-2019'
   variables:
     msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
-    nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)$(Date:yyyyMMdd)$(Rev:.r)-preview'
+    nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)-$(Build.BuildNumber)-preview'
   steps:
   - task: NuGetToolInstaller@1
     inputs:
@@ -33,7 +33,6 @@ jobs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }}'
-  # - script: echo '##vso[task.setvariable NUGETPREVIEW=$(nugetpreviewversion)]'
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     inputs:
