@@ -3,6 +3,7 @@
 #
 parameters:
   buildoption: ''
+  upload: false
 jobs:
 - job: buildnuget
   displayName: Build Nuget Preview Packages
@@ -43,9 +44,10 @@ jobs:
       includeSymbols: true
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
+    condition: ${{ variables.upload }}
     inputs:
       command: 'push'
       packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
       nuGetFeedType: 'internal'
-      publishVstsFeed: '865bd736-d0a6-4260-a336-d09d3eb39375/986181c2-3f3f-4a1c-9a70-3ead6139a294'
+      publishVstsFeed: '$(VSTSFEED)'
       allowPackageConflicts: true
