@@ -46,7 +46,7 @@ stages:
     parameters:
       configuration: Debug
 - stage: nugetpreview
-  condition: ne( variables['VSTSFEED'], '')
+  condition: ne( $(VSTSFEED), '')
   dependsOn: [testdebug,testrelease,solutions,build,buildnohttps]
   displayName: 'Push Nuget Preview'
   jobs:
