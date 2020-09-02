@@ -12,7 +12,7 @@ jobs:
   variables:
     strongnamekey: 'OPCFoundation.NetStandard.Key.snk'
     msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
-    msbuildsign='/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
+    msbuildsign: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
     nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)-$(Build.BuildNumber)-preview'
   steps:
   - task: NuGetToolInstaller@1
