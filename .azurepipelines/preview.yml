@@ -10,7 +10,9 @@ jobs:
   pool:
     vmImage: 'windows-2019'
   variables:
+    strongnamekey: 'OPCFoundation.NetStandard.Key.snk'
     msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+    msbuildsign='/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
     nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)-$(Build.BuildNumber)-preview'
   steps:
   - task: NuGetToolInstaller@1
@@ -22,18 +24,23 @@ jobs:
       command: restore
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--configuration Release'
+  - task: DownloadSecureFile@1
+    name: strongnamefile
+    displayName: 'Download Strong Name Key'
+    inputs:
+      secureFile: '$(strongnamekey)'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }}'
+      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }} $(msbuildsign)'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }}'
+      arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     inputs:
