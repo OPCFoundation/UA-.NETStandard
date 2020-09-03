@@ -1,0 +1,18 @@
+# Azure pipeline
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+pr:
+  autoCancel: true
+  branches:
+    include:
+    - '*'
+
+stages:
+- stage: nugetpreview
+  condition: ne( '$(VSTSFEED)', '')
+  displayName: 'Push Nuget Preview'
+  jobs:
+  - template: .azurepipelines/preview.yml
+    parameters:
+      upload: ${{ startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}
