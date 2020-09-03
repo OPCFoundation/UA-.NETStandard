@@ -10,7 +10,7 @@ pr:
 
 stages:
 - stage: nugetpreview
-  condition: ne( '$(VSTSFEED)', '')
+  condition: ne( variables['VSTSFEED'], '')
   displayName: 'Push Nuget Preview'
   jobs:
   - template: .azurepipelines/preview.yml
