@@ -34,6 +34,7 @@ using System.Threading;
 using System.Numerics;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Range = Opc.Ua.Range;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -1699,12 +1700,12 @@ namespace Quickstarts.ReferenceServer
             return (CreateAnalogItemVariable(parent, path, name, dataType, valueRank, initialValues, null));
         }
 
-        private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, object initialValues, Range customRange)
+        private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, object initialValues, Opc.Ua.Range customRange)
         {
             return CreateAnalogItemVariable(parent, path, name, (uint)dataType, valueRank, initialValues, customRange);
         }
 
-        private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, NodeId dataType, int valueRank, object initialValues, Range customRange)
+        private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, NodeId dataType, int valueRank, object initialValues, Opc.Ua.Range customRange)
         {
             AnalogItemState variable = new AnalogItemState(parent);
             variable.BrowseName = new QualifiedName(path, NamespaceIndex);
