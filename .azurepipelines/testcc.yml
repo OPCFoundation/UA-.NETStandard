@@ -3,6 +3,7 @@
 #
 parameters:
   configuration: 'Release'
+  framework: netcoreapp2.1
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
 jobs:
@@ -15,20 +16,6 @@ jobs:
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:
-  - task: UseDotNet@2
-    displayName: 'Install .NET Core SDK'
-    inputs:
-      packageType: sdk
-      version: 2.1.x
-      includePreviewVersions: false
-      installationPath: $(Agent.ToolsDirectory)/dotnet
-  - task: UseDotNet@2
-    displayName: 'Install .NET Core SDK'
-    inputs:
-      packageType: sdk
-      version: 3.1.x
-      includePreviewVersions: false
-      installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
@@ -44,7 +31,7 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 
