@@ -1,0 +1,57 @@
+#
+# Build preview packages for internal feed
+#
+parameters:
+  upload: false
+jobs:
+- job: buildnuget
+  displayName: Build Nuget Preview Packages
+  pool:
+    vmImage: 'windows-2019'
+  variables:
+    msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+    msbuildsign: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
+    nugetpreviewversion: '$(NUGETVERSION)-$(Build.SourceBranchName)-$(Build.BuildNumber)-preview'
+  steps:
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
+  - task: DotNetCoreCLI@2
+    displayName: Release Restore
+    inputs:
+      command: restore
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--configuration Release'
+  - task: DownloadSecureFile@1
+    name: strongnamefile
+    displayName: 'Download Strong Name Key'
+    inputs:
+      secureFile: 'OPCFoundation.NetStandard.Key.snk'
+  - task: DotNetCoreCLI@2
+    displayName: Release Build
+    inputs:
+      command: build
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+  - task: DotNetCoreCLI@2
+    displayName: Debug Build
+    inputs:
+      command: build
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+  - task: NuGetCommand@2
+    displayName: Pack Nuget Preview
+    inputs:
+      command: 'pack'
+      packagesToPack: '**/*.nuspec'
+      versioningScheme: 'byEnvVar'
+      versionEnvVar: 'nugetpreviewversion'
+  - task: NuGetCommand@2
+    displayName: Upload Nuget Preview
+    condition: ${{ variables.upload }}
+    inputs:
+      command: 'push'
+      packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg'
+      nuGetFeedType: 'internal'
+      publishVstsFeed: '$(VSTSFEED)'
+      allowPackageConflicts: true
