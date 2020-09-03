@@ -3,6 +3,7 @@
 #
 parameters:
   configuration: 'Release'
+  framework: netcoreapp2.1
   agents: '@{}'
 jobs:
 - job: testprep
@@ -46,4 +47,4 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --configuration ${{ parameters.configuration }}'
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
