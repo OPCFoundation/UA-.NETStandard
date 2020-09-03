@@ -23,6 +23,36 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.ComplexTypes.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Gds.Tests", "Tests\Opc.Ua.Gds.Tests\Opc.Ua.Gds.Tests.csproj", "{7F726313-45CA-4571-AC8E-67DDBC196B21}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0152A569-8287-4E49-9F02-E27FD700B719}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		azure-pipelines-preview.yml = azure-pipelines-preview.yml
+		azure-pipelines.yml = azure-pipelines.yml
+		Directory.Build.props = Directory.Build.props
+		lgtm.yml = lgtm.yml
+		targets.props = targets.props
+		version.props = version.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{F69ABCC3-ED93-446B-AC70-D6AA5F047781}"
+	ProjectSection(SolutionItems) = preProject
+		nuget\Opc.Ua.Client.ComplexTypes.nuspec = nuget\Opc.Ua.Client.ComplexTypes.nuspec
+		nuget\Opc.Ua.Client.ComplexTypes.Symbols.nuspec = nuget\Opc.Ua.Client.ComplexTypes.Symbols.nuspec
+		nuget\Opc.Ua.nuspec = nuget\Opc.Ua.nuspec
+		nuget\Opc.Ua.Symbols.nuspec = nuget\Opc.Ua.Symbols.nuspec
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipelines", "{1C25BE72-C337-42AE-9F7C-D6B45F7B7079}"
+	ProjectSection(SolutionItems) = preProject
+		.azurepipelines\ci.yml = .azurepipelines\ci.yml
+		.azurepipelines\get-matrix.ps1 = .azurepipelines\get-matrix.ps1
+		.azurepipelines\get-root.ps1 = .azurepipelines\get-root.ps1
+		.azurepipelines\preview.yml = .azurepipelines\preview.yml
+		.azurepipelines\sln.yml = .azurepipelines\sln.yml
+		.azurepipelines\test.yml = .azurepipelines\test.yml
+		.azurepipelines\testcc.yml = .azurepipelines\testcc.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -72,6 +102,10 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F69ABCC3-ED93-446B-AC70-D6AA5F047781} = {0152A569-8287-4E49-9F02-E27FD700B719}
+		{1C25BE72-C337-42AE-9F7C-D6B45F7B7079} = {0152A569-8287-4E49-9F02-E27FD700B719}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA3AA3AE-CE8A-4DF1-BED8-CA0BAFC87303}
