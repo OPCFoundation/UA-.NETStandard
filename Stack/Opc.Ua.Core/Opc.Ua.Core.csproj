@@ -1,8 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  
+  <!-- TODO: to be removed once finalized -->
+  <Target Name="VSVersion" BeforeTargets="Build">
+    <Message Text="Dotnet Version: '$(DotnetVersion)'" Importance="High" />
+    <Message Text="Visual Studio Version: '$(VisualStudioVersion)'" Importance="High" />
+    <Message Text="MS Build Version: '$(MSBuildVersion)'" Importance="High" />
+    <Message Text="MS Build Tools Version: '$(MSBuildToolsVersion)'" Importance="High" />
+    <Message Text="Tests Frameworks: '$(TestsTargetFrameworks)'" Importance="High" />
+    <Message Text="Lib Frameworks: '$(LibTargetFrameworks)'" Importance="High" />
+  </Target>
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>Opc.Ua.Core</PackageId>
@@ -13,7 +23,7 @@
   <PropertyGroup>
     <DefineConstants Condition=" '$(NoHttps)' == 'true' ">$(DefineConstants);NO_HTTPS</DefineConstants>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
@@ -28,7 +38,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Schema\Opc.Ua.NodeSet2.xml" />
     <EmbeddedResource Include="Schema\Opc.Ua.Types.bsd" />
-    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes;Types\Utils\LocalizedData.txt;Schema\ServerCapabilities.csv" />
+    <EmbeddedResource Include="Stack\Generated\Opc.Ua.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
+    <EmbeddedResource Include="Schema\ServerCapabilities.csv" />
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
@@ -45,7 +57,7 @@
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Net.Http" />
   </ItemGroup>
-  
+
   <ItemGroup Condition="$(DefineConstants.Contains('NO_HTTPS'))=='false'">
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets" Version="2.2.1" />
@@ -59,11 +71,19 @@
     <PackageReference Include="System.Reflection.TypeExtensions" Version="4.4.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
-    
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="System.Data.Common" Version="4.3.0" />
+    <PackageReference Include="System.ServiceModel.Primitives" Version="4.7.0" />
+    <PackageReference Include="System.Net.NameResolution" Version="4.3.0" />
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+  </ItemGroup>
+
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
-  
+
   <Target Name="GetPackagingOutputs" />
 
 </Project>

@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
     <AssemblyName>Opc.Ua.Server</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <LangVersion>6</LangVersion>
     <PackageId>Opc.Ua.Server</PackageId>
     <RootNamespace>Opc.Ua.Server</RootNamespace>
