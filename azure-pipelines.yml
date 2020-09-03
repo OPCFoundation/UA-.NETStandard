@@ -45,3 +45,10 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Debug
+- stage: nugetpreview
+  condition: ne( variables['VSTSFEED'], '')
+  displayName: 'Push Nuget Preview'
+  jobs:
+  - template: .azurepipelines/preview.yml
+    parameters:
+      upload: ${{ startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}
