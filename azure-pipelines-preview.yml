@@ -2,15 +2,19 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-pr:
-  autoCancel: true
+pr: none
+
+trigger:
   branches:
     include:
-    - '*'
+    - master
+  paths:
+    include:
+    - 'Stack/' 
+    - 'Libraries/' 
 
 stages:
 - stage: nugetpreview
-  condition: ne( '$(VSTSFEED)', '')
   displayName: 'Push Nuget Preview'
   jobs:
   - template: .azurepipelines/preview.yml

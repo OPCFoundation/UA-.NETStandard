@@ -830,7 +830,8 @@ namespace Opc.Ua.Gds.Tests
             var application = _goodApplicationTestSet[0];
             Assert.Null(application.CertificateRequestId);
             // load csr with invalid app URI
-            byte[] certificateRequest = File.ReadAllBytes("test.csr");
+            var testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
+            byte[] certificateRequest = File.ReadAllBytes(testCSR);
             Assert.That(() => {
                 NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
                 application.ApplicationRecord.ApplicationId,

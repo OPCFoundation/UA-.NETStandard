@@ -657,11 +657,24 @@ namespace Opc.Ua
                         if (!writable)
                         {
                             localFile = new FileInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
+#if NETFRAMEWORK
+                            if (!localFile.Exists)
+                            {
+                                var localFile2 = new FileInfo(Utils.Format("{0}{1}{2}",
+                                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                                    Path.DirectorySeparatorChar, filePath));
+                                if (localFile2.Exists)
+                                {
+                                    localFile = localFile2;
+                                }
+                            }
+#endif
                         }
                         else
                         {
                             localFile = new FileInfo(Utils.Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, filePath));
                         }
+
                         if (localFile.Exists)
                         {
                             return localFile.FullName;
