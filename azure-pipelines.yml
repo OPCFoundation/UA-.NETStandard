@@ -35,6 +35,7 @@ stages:
       configuration: Release
       framework: net462
       agents: '@{ windows = "windows-2019" }'
+      jobnamesuffix: net462
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
@@ -47,6 +48,7 @@ stages:
     parameters:
       configuration: Release
       framework: netcoreapp3.1
+      jobnamesuffix: core3
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
