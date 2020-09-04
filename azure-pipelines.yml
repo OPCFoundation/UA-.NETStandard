@@ -2,11 +2,17 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-pr:
+pr: 
   autoCancel: true
   branches:
     include:
     - '*'
+  paths:
+    include:
+    - '*' 
+    exclude:
+    - 'Docs/*' 
+    - 'README.md' 
 
 stages:
 - stage: build
