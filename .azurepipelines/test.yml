@@ -7,7 +7,7 @@ parameters:
   agents: '@{}'
 jobs:
 - job: testprep
-  displayName: Prepare Test Jobs ${{ parameters.configuration }}
+  displayName: Prepare Test Jobs ${{ parameters.configuration }} (${{ parameters.framework }})
   pool:
     vmImage: 'windows-2019'
   variables:

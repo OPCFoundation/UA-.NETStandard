@@ -1,15 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   
-  <!-- TODO: to be removed once finalized -->
-  <Target Name="VSVersion" BeforeTargets="Build">
-    <Message Text="Dotnet Version: '$(DotnetVersion)'" Importance="High" />
-    <Message Text="Visual Studio Version: '$(VisualStudioVersion)'" Importance="High" />
-    <Message Text="MS Build Version: '$(MSBuildVersion)'" Importance="High" />
-    <Message Text="MS Build Tools Version: '$(MSBuildToolsVersion)'" Importance="High" />
-    <Message Text="Tests Frameworks: '$(TestsTargetFrameworks)'" Importance="High" />
-    <Message Text="Lib Frameworks: '$(LibTargetFrameworks)'" Importance="High" />
-  </Target>
-
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>

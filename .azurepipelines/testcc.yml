@@ -3,12 +3,12 @@
 #
 parameters:
   configuration: 'Release'
-  framework: netcoreapp2.1
+  framework: 'netcoreapp2.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
 jobs:
 - job: testcc
-  displayName: Run Code Coverage for ${{ parameters.agent }}
+  displayName: Run Code Coverage for ${{ parameters.agent }} (${{ parameters.framework }})
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
