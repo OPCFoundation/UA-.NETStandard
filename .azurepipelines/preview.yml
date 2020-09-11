@@ -9,9 +9,13 @@ jobs:
   pool:
     vmImage: 'windows-2019'
   variables:
-    msbuildversion: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
-    msbuildsign: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
-    nugetpreviewversion: '$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
+  - group: codesign
+  - name: msbuildversion
+    value: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+  - name: msbuildsign
+    value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
+  - name: nugetpreviewversion
+    value: '$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
   steps:
   - task: DotNetCoreCLI@2
     inputs:
@@ -51,7 +55,10 @@ jobs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
-  - script: AzureSignTool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v "$(Build.ArtifactStagingDirectory)/**/Opc.Ua.*.dll"
+  - script: |
+      echo $(SigningURL)
+      echo AzureSignTool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v $(Build.ArtifactStagingDirectory)/**/Opc.Ua.*.dll
+      AzureSignTool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v $(Build.ArtifactStagingDirectory)/**/Opc.Ua.*.dll
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     inputs:
@@ -59,6 +66,10 @@ jobs:
       packagesToPack: '**/*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
+  - script: |
+      echo $(SigningURL)
+      echo NuGetKeyVaultSignTool sign --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" $(Build.ArtifactStagingDirectory)/**/*.nupkg
+      NuGetKeyVaultSignTool sign --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" $(Build.ArtifactStagingDirectory)/**/*.nupkg
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
     condition: ${{ variables.upload }}
