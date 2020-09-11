@@ -27,7 +27,7 @@ jobs:
     inputs:
       command: 'custom'
       custom: 'tool'
-      arguments: 'install --global NuGetKeyVaultSignTool'
+      arguments: 'install --tool-path . NuGetKeyVaultSignTool'
     displayName: Install NuGetKeyVaultSignTool
   - task: PowerShell@2
     displayName: Sign Nuget
