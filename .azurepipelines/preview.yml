@@ -59,8 +59,9 @@ jobs:
     displayName: 'Sign Assemblies'
     inputs:
       script: |
-        echo azuresigntool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v $(Build.ArtifactStagingDirectory)/**/Opc.Ua.*.dll
-        azuresigntool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v $(Build.ArtifactStagingDirectory)/**/Opc.Ua.*.dll
+        dir /s
+        echo azuresigntool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v 
+        azuresigntool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl .azurepipelines/signlist.txt
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     continueOnError: true

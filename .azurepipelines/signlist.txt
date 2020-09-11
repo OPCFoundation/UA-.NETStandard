@@ -1,0 +1,6 @@
+Stack\Opc.Ua.Core\bin\Release\netstandard2.1\Opc.Ua.Core.dll
+Stack\Opc.Ua.Core\bin\Release\netstandard2.0\Opc.Ua.Core.dll
+Stack\Opc.Ua.Core\bin\Release\net462\Opc.Ua.Core.dll
+Libraries\Opc.Ua.Server\bin\Release\netstandard2.1\Opc.Ua.Server.dll
+Libraries\Opc.Ua.Server\bin\Release\netstandard2.0\Opc.Ua.Server.dll
+Libraries\Opc.Ua.Server\bin\Release\net462\Opc.Ua.Server.dll
