@@ -59,9 +59,7 @@ jobs:
     displayName: 'Sign Assemblies'
     inputs:
       script: |
-        dir /s
-        echo azuresigntool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v 
-        azuresigntool sign -coe -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl .azurepipelines/signlist.txt
+        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -fd sha256 -tr http://timestamp.digicert.com -td sha256 -v -ifl .azurepipelines/signlist.txt
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     continueOnError: true
@@ -70,12 +68,17 @@ jobs:
       packagesToPack: '**/*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
-  - task: CmdLine@2
+  - task: PowerShell@2
     displayName: 'Sign Nuget'
     inputs:
       script: |
-        echo NuGetKeyVaultSignTool sign --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" $(Build.ArtifactStagingDirectory)/**/*.nupkg
-        NuGetKeyVaultSignTool sign --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" $(Build.ArtifactStagingDirectory)/**/*.nupkg
+        NuGetKeyVaultSignTool sign "$(Build.ArtifactStagingDirectory)/**/*.nupkg" `
+        --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 `
+        --azure-key-vault-url "$(SigningVaultURL)" `
+        --azure-key-vault-client-id "$(SigningClientId)" `
+        --azure-key-vault-tenant-id "$(SigningTenantId)" `
+        --azure-key-vault-client-secret "$(SigningClientSecret)" `
+        --azure-key-vault-certificate "$(SigningCertName)" `
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
     condition: ${{ variables.upload }}
