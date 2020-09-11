@@ -29,6 +29,18 @@ jobs:
       custom: 'tool'
       arguments: 'install --global NuGetKeyVaultSignTool'
     displayName: Install NuGetKeyVaultSignTool
+  - task: PowerShell@2
+    displayName: 'Sign Nuget'
+    inputs:
+      targetType: 'inline'
+      script: |
+        NuGetKeyVaultSignTool sign "$(Build.ArtifactStagingDirectory)/**/*.nupkg" `
+        --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 `
+        --azure-key-vault-url "$(SigningVaultURL)" `
+        --azure-key-vault-client-id "$(SigningClientId)" `
+        --azure-key-vault-tenant-id "$(SigningTenantId)" `
+        --azure-key-vault-client-secret "$(SigningClientSecret)" `
+        --azure-key-vault-certificate "$(SigningCertName)" `
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
@@ -71,6 +83,7 @@ jobs:
   - task: PowerShell@2
     displayName: 'Sign Nuget'
     inputs:
+      targetType: 'inline'
       script: |
         NuGetKeyVaultSignTool sign "$(Build.ArtifactStagingDirectory)/**/*.nupkg" `
         --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 `
