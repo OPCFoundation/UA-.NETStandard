@@ -13,6 +13,18 @@ jobs:
     msbuildsign: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
     nugetpreviewversion: '$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
   steps:
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: 'custom'
+      custom: 'tool'
+      arguments: 'install --global azuresigntool'
+    displayName: Install AzureSignTool
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: 'custom'
+      custom: 'tool'
+      arguments: 'install --global NuGetKeyVaultSignTool'
+    displayName: Install NuGetKeyVaultSignTool
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
@@ -39,6 +51,7 @@ jobs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+  - script: AzureSignTool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v "$(Build.ArtifactStagingDirectory)/**/Opc.Ua.*.dll"
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     inputs:

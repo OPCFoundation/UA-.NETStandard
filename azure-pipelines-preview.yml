@@ -19,4 +19,4 @@ stages:
   jobs:
   - template: .azurepipelines/preview.yml
     parameters:
-      upload: ${{ startsWith(variables['Build.SourceBranch'], 'refs/heads/') }}
+      upload: not(eq(variables['build.reason'], 'PullRequest'))
