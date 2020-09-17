@@ -78,14 +78,14 @@ jobs:
     displayName: 'List of nuget packages to sign'
     inputs:
       script: |
-        dir /b /s $(Build.ArtifactStagingDirectory)\*.nupkg > .\nupkglist.txt
+        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.nupkg > .\nupkglist.txt
         type .\nupkglist.txt
   - task: PowerShell@2
     displayName: Sign Nuget
     inputs:
       targetType: 'inline'
       script: |
-        .\NuGetKeyVaultSignTool sign a\**\*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
+        .\NuGetKeyVaultSignTool sign **/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
     condition: ${{ variables.upload }}
