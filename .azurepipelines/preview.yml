@@ -27,6 +27,11 @@ jobs:
     displayName: 'Download NugetKeyVaultSignTool'
     inputs:
       secureFile: 'NuGetKeyVaultSignTool.3.0.44-g4b67deaa33.nupkg'
+  - task: CmdLine@2
+    displayName: 'Copy package to root'
+    inputs:
+      script: |
+        copy $(nugetkeyvaultsignfile.secureFilePath) .
   - task: DotNetCoreCLI@2
     inputs:
       command: 'custom'
