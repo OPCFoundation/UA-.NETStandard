@@ -23,7 +23,7 @@ jobs:
     inputs:
       secureFile: 'OPCFoundation.NetStandard.Key.snk'
   - task: DownloadSecureFile@1
-    name: strongnamefile
+    name: nugetkeyvaultsignfile
     displayName: 'Download NugetKeyVaultSignTool'
     inputs:
       secureFile: 'NuGetKeyVaultSignTool.3.0.44-g4b67deaa33.nupkg'
