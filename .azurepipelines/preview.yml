@@ -17,6 +17,16 @@ jobs:
   - name: nugetpreviewversion
     value: '$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
   steps:
+  - task: DownloadSecureFile@1
+    name: strongnamefile
+    displayName: 'Download Strong Name Key'
+    inputs:
+      secureFile: 'OPCFoundation.NetStandard.Key.snk'
+  - task: DownloadSecureFile@1
+    name: strongnamefile
+    displayName: 'Download NugetKeyVaultSignTool'
+    inputs:
+      secureFile: 'NuGetKeyVaultSignTool.3.0.44-g4b67deaa33.nupkg'
   - task: DotNetCoreCLI@2
     inputs:
       command: 'custom'
@@ -27,7 +37,7 @@ jobs:
     inputs:
       command: 'custom'
       custom: 'tool'
-      arguments: 'install --tool-path . NuGetKeyVaultSignTool'
+      arguments: 'install -v diag --add-source . --version 3.0.44-g4b67deaa33 --tool-path . NuGetKeyVaultSignTool'
     displayName: Install NuGetKeyVaultSignTool
   - task: NuGetToolInstaller@1
     inputs:
@@ -38,11 +48,6 @@ jobs:
       command: restore
       projects: '**/Opc.Ua.*.csproj'
       arguments: '--configuration Release'
-  - task: DownloadSecureFile@1
-    name: strongnamefile
-    displayName: 'Download Strong Name Key'
-    inputs:
-      secureFile: 'OPCFoundation.NetStandard.Key.snk'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
@@ -80,12 +85,12 @@ jobs:
       script: |
         dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.nupkg > .\nupkglist.txt
         type .\nupkglist.txt
-  - task: PowerShell@2
-    displayName: Sign Nuget
+  - task: CmdLine@2
+    displayName: Sign Nuget packages
+    continueOnError: true
     inputs:
-      targetType: 'inline'
       script: |
-        .\NuGetKeyVaultSignTool sign **/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
+        NuGetKeyVaultSignTool sign **/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
     condition: ${{ variables.upload }}
