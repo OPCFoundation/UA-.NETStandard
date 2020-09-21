@@ -32,7 +32,7 @@ jobs:
     inputs:
       command: 'custom'
       custom: 'tool'
-      arguments: 'install -v diag --version 3.0.45 --tool-path . NuGetKeyVaultSignTool'
+      arguments: 'install --version 3.0.45 --tool-path . NuGetKeyVaultSignTool'
     displayName: Install NuGetKeyVaultSignTool
   - task: NuGetToolInstaller@1
     inputs:
