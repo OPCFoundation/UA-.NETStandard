@@ -42,6 +42,7 @@ jobs:
     inputs:
       command: 'custom'
       custom: 'tool'
+      # use the private build of the signing tool until the issue is fixed
       arguments: 'install -v diag --add-source . --version 3.0.44-g4b67deaa33 --tool-path . NuGetKeyVaultSignTool'
     displayName: Install NuGetKeyVaultSignTool
   - task: NuGetToolInstaller@1
@@ -73,6 +74,7 @@ jobs:
         type .\signlist.txt
   - task: CmdLine@2
     displayName: 'Sign Assemblies'
+    condition: ne( variables['SigningClientSecret'], '')
     inputs:
       script: |
         azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl .azurepipelines/signlist.txt
@@ -92,6 +94,7 @@ jobs:
         type .\nupkglist.txt
   - task: CmdLine@2
     displayName: Sign Nuget packages
+    condition: ne( variables['SigningClientSecret'], '')
     continueOnError: true
     inputs:
       script: |
