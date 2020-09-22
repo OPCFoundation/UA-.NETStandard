@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
             m_monitoringMode = monitoringMode;
             m_clientHandle = clientHandle;
             m_samplingInterval = samplingInterval;
-            m_nextSampleTime = DateTime.UtcNow.Ticks;
+            m_nextSampleTime = HiResClock.TickCount64;
             m_readyToPublish = false;
             m_readyToTrigger = false;
             m_alwaysReportUpdates = alwaysReportUpdates;
@@ -102,17 +102,17 @@ namespace Opc.Ua.Server
             m_monitoringMode = monitoringMode;
             m_clientHandle = clientHandle;
             m_samplingInterval = samplingInterval;
-            m_nextSampleTime = DateTime.UtcNow.Ticks;
+            m_nextSampleTime = HiResClock.TickCount64;
             m_readyToPublish = false;
             m_readyToTrigger = false;
             m_queue = null;
             m_filter = filter;
             m_range = 0;
             m_alwaysReportUpdates = alwaysReportUpdates;
-        
+
             if (range != null)
             {
-                m_range = range.High  - range.Low;
+                m_range = range.High - range.Low;
             }
 
             if (queueSize > 1)
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public bool AlwaysReportUpdates
         {
-            get { return m_alwaysReportUpdates;  }
+            get { return m_alwaysReportUpdates; }
             set { m_alwaysReportUpdates = value; }
         }
 
@@ -172,14 +172,14 @@ namespace Opc.Ua.Server
                         return Int32.MaxValue;
                     }
 
-                    DateTime now = DateTime.UtcNow;
+                    var now = HiResClock.TickCount64;
 
-                    if (m_nextSampleTime <= now.Ticks)
+                    if (m_nextSampleTime <= now)
                     {
                         return 0;
                     }
 
-                    return (int)((m_nextSampleTime - now.Ticks)/TimeSpan.TicksPerMillisecond); 
+                    return (int)(m_nextSampleTime - now);
                 }
             }
         }
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public double SamplingInterval
         {
-            get 
+            get
             {
                 lock (m_lock)
                 {
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        
+
         /// <summary>
         /// Modifies the monitored item parameters,
         /// </summary>
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server
         {
             return Modify(diagnosticsMasks, timestampsToReturn, clientHandle, samplingInterval, 0, false, null, null);
         }
-        
+
         /// <summary>
         /// Modifies the monitored item parameters,
         /// </summary>
@@ -241,17 +241,17 @@ namespace Opc.Ua.Server
                 m_clientHandle = clientHandle;
 
                 // subtract the previous sampling interval.
-                long oldSamplingInterval = (long)(m_samplingInterval*TimeSpan.TicksPerMillisecond);
+                long oldSamplingInterval = (long)m_samplingInterval;
 
                 if (oldSamplingInterval < m_nextSampleTime)
                 {
                     m_nextSampleTime -= oldSamplingInterval;
                 }
-                
+
                 m_samplingInterval = samplingInterval;
 
                 // calculate the next sampling interval.                
-                long newSamplingInterval = (long)(m_samplingInterval*TimeSpan.TicksPerMillisecond);
+                long newSamplingInterval = (long)m_samplingInterval;
 
                 if (m_samplingInterval > 0)
                 {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server
 
                 if (range != null)
                 {
-                    m_range = range.High  - range.Low;
+                    m_range = range.High - range.Low;
                 }
 
                 // update the queue size.
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server
                 return ServiceResult.Good;
             }
         }
-                
+
         /// <summary>
         /// Called when the attribute being monitored changed. Reads and queues the value.
         /// </summary>
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server
                     }
 
                     // re-queue if too little time has passed since the last publish.
-                    long now = DateTime.UtcNow.Ticks;
+                    long now = HiResClock.TickCount64;
 
                     if (m_nextSampleTime > now)
                     {
@@ -480,7 +480,7 @@ namespace Opc.Ua.Server
                 result.RevisedSamplingInterval = m_samplingInterval;
                 result.RevisedQueueSize = 0;
                 result.FilterResult = null;
-                
+
                 if (m_queue != null)
                 {
                     result.RevisedQueueSize = m_queue.QueueSize;
@@ -542,7 +542,7 @@ namespace Opc.Ua.Server
                     copy.SourcePicoseconds = value.SourcePicoseconds;
                     copy.ServerTimestamp = value.ServerTimestamp;
                     copy.ServerPicoseconds = value.ServerPicoseconds;
-                    
+
                     value = copy;
 
                     // ensure the data value matches the error status code.
@@ -579,8 +579,8 @@ namespace Opc.Ua.Server
             {
                 m_semanticsChanged = true;
             }
-        }        
-                
+        }
+
         /// <summary>
         /// Sets a flag indicating that the structure of the monitored node has changed.
         /// </summary>
@@ -593,8 +593,8 @@ namespace Opc.Ua.Server
             {
                 m_structureChanged = true;
             }
-        }    
-        
+        }
+
         /// <summary>
         /// Changes the monitoring mode.
         /// </summary>
@@ -611,13 +611,13 @@ namespace Opc.Ua.Server
 
                 if (previousMode == MonitoringMode.Disabled)
                 {
-                    m_nextSampleTime = DateTime.UtcNow.Ticks;
+                    m_nextSampleTime = HiResClock.TickCount64;
                     m_lastError = null;
                     m_lastValue = null;
                 }
 
                 m_monitoringMode = monitoringMode;
-                
+
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
                     m_readyToPublish = false;
@@ -642,8 +642,8 @@ namespace Opc.Ua.Server
         private void IncrementSampleTime()
         {
             // update next sample time.
-            long now = DateTime.UtcNow.Ticks;            
-            long samplingInterval = (long)(m_samplingInterval*TimeSpan.TicksPerMillisecond);
+            long now = HiResClock.TickCount64;
+            long samplingInterval = (long)m_samplingInterval;
 
             if (m_nextSampleTime > 0)
             {
@@ -651,7 +651,7 @@ namespace Opc.Ua.Server
 
                 if (samplingInterval > 0 && delta >= 0)
                 {
-                    m_nextSampleTime += ((delta/samplingInterval)+1)*samplingInterval;                 
+                    m_nextSampleTime += ((delta / samplingInterval) + 1) * samplingInterval;
                 }
             }
 
@@ -681,11 +681,11 @@ namespace Opc.Ua.Server
                 // update publish flag.
                 m_readyToPublish = false;
                 m_readyToTrigger = false;
-                                
+
                 // check if queuing is enabled.
                 if (m_queue == null)
                 {
-                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);                        
+                    Publish(context, m_lastValue, m_lastError, notifications, diagnostics);
                 }
                 else
                 {
@@ -694,22 +694,22 @@ namespace Opc.Ua.Server
 
                     while (m_queue.Publish(out value, out error))
                     {
-                        Publish(context, value, error, notifications, diagnostics);     
+                        Publish(context, value, error, notifications, diagnostics);
                     }
                 }
 
                 return true;
             }
         }
-        
+
         /// <summary>
         /// Publishes a value.
         /// </summary>
         private void Publish(
-            OperationContext context, 
+            OperationContext context,
             DataValue value,
             ServiceResult error,
-            Queue<MonitoredItemNotification> notifications, 
+            Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics)
         {
             // set semantics changed bit.
@@ -723,7 +723,7 @@ namespace Opc.Ua.Server
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetSemanticsChanged(true), 
+                        error.StatusCode.SetSemanticsChanged(true),
                         error.SymbolicId,
                         error.NamespaceUri,
                         error.LocalizedText,
@@ -733,7 +733,7 @@ namespace Opc.Ua.Server
 
                 m_semanticsChanged = false;
             }
-            
+
             // set structure changed bit.
             if (m_structureChanged)
             {
@@ -745,7 +745,7 @@ namespace Opc.Ua.Server
                 if (error != null)
                 {
                     error = new ServiceResult(
-                        error.StatusCode.SetStructureChanged(true), 
+                        error.StatusCode.SetStructureChanged(true),
                         error.SymbolicId,
                         error.NamespaceUri,
                         error.LocalizedText,
@@ -787,7 +787,7 @@ namespace Opc.Ua.Server
             }
 
             diagnostics.Enqueue(diagnosticInfo);
-        }        
+        }
         #endregion
 
         #region Private Fields
@@ -812,8 +812,8 @@ namespace Opc.Ua.Server
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_alwaysReportUpdates;
-		private bool m_semanticsChanged;
-		private bool m_structureChanged;
+        private bool m_semanticsChanged;
+        private bool m_structureChanged;
         #endregion
     }
 }
