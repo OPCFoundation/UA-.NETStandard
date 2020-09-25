@@ -22,7 +22,8 @@ jobs:
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
-    value: '' #'$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
+    value: '$(NBGV_Version)$(NBGV_PrereleaseVersion)'
+    #value: '' #'$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
   - name: signinglist
     value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
@@ -68,7 +69,7 @@ jobs:
     condition: ne( variables['SigningClientSecret'], '')
     inputs:
       script: |
-        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl .azurepipelines/signlist.txt
+        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl ${{ variables.signinglist }}
   - task: DotNetCoreCLI@2
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
