@@ -74,8 +74,14 @@ jobs:
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
       command: pack
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore -o $(Build.ArtifactStagingDirectory) --no-build --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+      packagesToPack: '**/Opc.Ua.*.csproj'
+      configuration: ${{parameters.config}}
+      configurationToPack: ${{parameters.config}}
+      nobuild: true
+      versioningScheme: 'byEnvVar'
+      versionEnvVar: 'nugetpreviewversion'
+      outputDir: $(Build.ArtifactStagingDirectory)
+      includesymbols: true
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     continueOnError: true
@@ -92,7 +98,7 @@ jobs:
         type .\nupkglist.txt
   - task: CmdLine@2
     displayName: Sign Nuget packages
-    condition: ne( variables['SigningClientSecret'], '')
+    condition: and(ne( variables['SigningClientSecret'], ''), succeeded())
     continueOnError: true
     inputs:
       script: |
