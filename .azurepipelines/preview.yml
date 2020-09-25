@@ -19,7 +19,6 @@ jobs:
   - group: codesign
   - name: msbuildversion
     value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
-    # value: '' #'/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
@@ -56,13 +55,13 @@ jobs:
     displayName: Release Restore
     inputs:
       command: restore
-      projects: '**/Opc.Ua.*.csproj'
+      projects: 'UA Core Library.sln'
       arguments: '--configuration ${{parameters.config}}'
   - task: DotNetCoreCLI@2
     displayName: Build ${{parameters.config}}
     inputs:
       command: build
-      projects: '**/Opc.Ua.*.csproj'
+      projects: 'UA Core Library.sln'
       arguments: '--no-restore --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: CmdLine@2
     displayName: 'Sign Assemblies'
@@ -74,7 +73,7 @@ jobs:
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
       command: pack
-      packagesToPack: '**/Opc.Ua.*.csproj'
+      packagesToPack:  'UA Core Library.sln'
       configuration: ${{parameters.config}}
       configurationToPack: ${{parameters.config}}
       nobuild: true
@@ -92,7 +91,7 @@ jobs:
     displayName: 'List of nuget packages to sign'
     inputs:
       script: |
-        dir /b /s .\OPCFoundation.*.nupkg > .\nupkglist.txt
+        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.nupkg > .\nupkglist.txt
         type .\nupkglist.txt
   - task: CmdLine@2
     displayName: Sign Nuget packages
