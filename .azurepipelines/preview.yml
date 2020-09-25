@@ -3,11 +3,8 @@
 #
 parameters:
 - name: upload
-  type: string
-  default: False
-  values: 
-  - False
-  - True
+  type: boolean
+  default: false
 - name: config
   type: string
   default: Release
