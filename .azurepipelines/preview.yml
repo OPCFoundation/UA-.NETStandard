@@ -2,20 +2,34 @@
 # Build preview packages for internal feed
 #
 parameters:
-  upload: false
+- name: upload
+  type: string
+  default: False
+  values: 
+  - False
+  - True
+- name: config
+  type: string
+  default: Release
+  values: 
+  - Debug
+  - Release
+
 jobs:
-- job: buildnuget
-  displayName: Build Nuget Preview Packages
+- job: nuget${{parameters.config}}
+  displayName: Pack Nugets ${{parameters.config}}
   pool:
     vmImage: 'windows-2019'
   variables:
   - group: codesign
   - name: msbuildversion
-    value: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+    value: '' #'/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
-    value: '$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
+    value: '' #'$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
+  - name: signinglist
+    value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
   - task: DownloadSecureFile@1
     name: strongnamefile
@@ -37,30 +51,35 @@ jobs:
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./tools/scripts/set-version.ps1
   - task: DotNetCoreCLI@2
     displayName: Release Restore
     inputs:
       command: restore
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--configuration Release'
+      arguments: '--configuration ${{parameters.config}}'
   - task: DotNetCoreCLI@2
-    displayName: Release Build
+    displayName: Build ${{parameters.config}}
     inputs:
       command: build
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
-  - task: DotNetCoreCLI@2
-    displayName: Debug Build
-    inputs:
-      command: build
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+      arguments: '--no-restore --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: CmdLine@2
     displayName: 'Sign Assemblies'
     condition: ne( variables['SigningClientSecret'], '')
     inputs:
       script: |
         azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl .azurepipelines/signlist.txt
+  - task: DotNetCoreCLI@2
+    displayName: Pack Nuget ${{parameters.config}}
+    inputs:
+      command: pack
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--no-restore -o $(Build.ArtifactStagingDirectory) --no-build --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     continueOnError: true

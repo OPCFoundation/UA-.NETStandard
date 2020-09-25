@@ -4,10 +4,17 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <AssemblyName>Opc.Ua.Gds.Client.Common</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>Opc.Ua.Gds.Client.Common</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Client</RootNamespace>
     <LangVersion>6</LangVersion>
     <Description>OPC UA GDS Client Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+    <AssemblyName>$(AssemblyName).Debug</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
