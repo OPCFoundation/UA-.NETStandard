@@ -79,14 +79,17 @@ jobs:
       nobuild: true
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
+      includeSymbols: true
   - task: NuGetCommand@2
-    displayName: Pack Nuget Preview
+    displayName: Pack Nuget Legacy
+    condition: and(eq( '${{parameters.config}}', 'Release'), succeeded())
     continueOnError: true
     inputs:
       command: 'pack'
       packagesToPack: '**/Opc.Ua.*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
+      includeSymbols: true
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:

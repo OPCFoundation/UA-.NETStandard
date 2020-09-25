@@ -20,3 +20,8 @@ stages:
   - template: .azurepipelines/preview.yml
     parameters:
       upload: not(eq(variables['build.reason'], 'PullRequest'))
+      config: 'Release'
+  - template: .azurepipelines/preview.yml
+    parameters:
+      upload: not(eq(variables['build.reason'], 'PullRequest'))
+      config: 'Debug'
