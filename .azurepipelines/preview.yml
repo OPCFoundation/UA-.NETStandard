@@ -50,7 +50,7 @@ jobs:
     displayName: Versioning
     inputs:
       targetType: filePath
-      filePath: ./tools/scripts/set-version.ps1
+      filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
     displayName: Release Restore
     inputs:
