@@ -52,7 +52,7 @@ jobs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
-    displayName: Release Restore
+    displayName: Restore ${{parameters.config}}
     inputs:
       command: restore
       projects: 'UA Core Library.sln'
@@ -82,19 +82,18 @@ jobs:
       includeSymbols: true
   - task: NuGetCommand@2
     displayName: Pack Nuget Legacy
-    condition: and(eq( '${{parameters.config}}', 'Release'), succeeded())
+    condition: and(eq('${{parameters.config}}', 'Release'), succeeded())
     continueOnError: true
     inputs:
       command: 'pack'
-      packagesToPack: '**/Opc.Ua.*.nuspec'
+      packagesToPack: '**/Opc.*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
-      includeSymbols: true
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
       script: |
-        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.nupkg > .\nupkglist.txt
+        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.*nupkg > .\nupkglist.txt
         type .\nupkglist.txt
   - task: CmdLine@2
     displayName: Sign Nuget packages
@@ -105,7 +104,7 @@ jobs:
         NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
-    condition: false #${{ variables.upload }}
+    condition: ${{ variables.upload }}
     inputs:
       command: 'push'
       packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'
