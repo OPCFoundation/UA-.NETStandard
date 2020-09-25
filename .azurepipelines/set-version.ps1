@@ -13,6 +13,9 @@ $version = & (Join-Path $PSScriptRoot "get-version.ps1")
 if ($version.Public -eq 'True')
 {
    & ./tools/nbgv  @("cloud", "-c", "-a", "-v", "$($version.Full)$($version.Pre)")
+   # Override NuGetPackageVersion for 4 digit version
+   Write-Host "##vso[task.setvariable variable=NBGV_NuGetPackageVersion;isOutput=true]$($version.Full)$($version.Pre)"
+   Write-Host "##vso[task.setvariable variable=NuGetPackageVersion;isOutput=true]$($version.Full)$($version.Pre)"
 }
 else
 {

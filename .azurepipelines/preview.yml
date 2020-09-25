@@ -23,8 +23,7 @@ jobs:
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
-    value: '$(NBGV_Version)$(NBGV_PrereleaseVersion)'
-    #value: '' #'$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
+    value: '$(NBGV_NuGetPackageVersion)'
   - name: signinglist
     value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
@@ -80,15 +79,15 @@ jobs:
       configurationToPack: ${{parameters.config}}
       nobuild: true
       versioningScheme: 'byEnvVar'
-      versionEnvVar: 'NuGetPackageVersion'
+      versionEnvVar: 'nugetpreviewversion'
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     continueOnError: true
     inputs:
       command: 'pack'
-      packagesToPack: '**/*.nuspec'
+      packagesToPack: '**/Opc.Ua.*.nuspec'
       versioningScheme: 'byEnvVar'
-      versionEnvVar: 'NuGetPackageVersion'
+      versionEnvVar: 'nugetpreviewversion'
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
