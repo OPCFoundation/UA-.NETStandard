@@ -18,7 +18,8 @@ jobs:
   variables:
   - group: codesign
   - name: msbuildversion
-    value: '' #'/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+    value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
+    # value: '' #'/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
@@ -79,9 +80,7 @@ jobs:
       configurationToPack: ${{parameters.config}}
       nobuild: true
       versioningScheme: 'byEnvVar'
-      versionEnvVar: 'nugetpreviewversion'
-      outputDir: $(Build.ArtifactStagingDirectory)
-      includesymbols: true
+      versionEnvVar: 'NuGetPackageVersion'
   - task: NuGetCommand@2
     displayName: Pack Nuget Preview
     continueOnError: true
@@ -89,12 +88,12 @@ jobs:
       command: 'pack'
       packagesToPack: '**/*.nuspec'
       versioningScheme: 'byEnvVar'
-      versionEnvVar: 'nugetpreviewversion'
+      versionEnvVar: 'NuGetPackageVersion'
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
       script: |
-        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.nupkg > .\nupkglist.txt
+        dir /b /s .\OPCFoundation.*.nupkg > .\nupkglist.txt
         type .\nupkglist.txt
   - task: CmdLine@2
     displayName: Sign Nuget packages
@@ -105,7 +104,7 @@ jobs:
         NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
   - task: NuGetCommand@2
     displayName: Upload Nuget Preview
-    condition: ${{ variables.upload }}
+    condition: false #${{ variables.upload }}
     inputs:
       command: 'push'
       packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'
