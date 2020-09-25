@@ -107,7 +107,7 @@ jobs:
     condition: ${{ variables.upload }}
     inputs:
       command: 'push'
-      packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'
+      packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.*nupkg'
       nuGetFeedType: 'internal'
       publishVstsFeed: '$(VSTSFEED)'
       allowPackageConflicts: true
