@@ -9,7 +9,6 @@
     <Description>OPC UA Server Class Library</Description>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
     <IsPackable>true</IsPackable>
-    <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">

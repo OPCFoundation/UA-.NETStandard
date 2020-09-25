@@ -8,7 +8,6 @@
     <RootNamespace>Opc.Ua.Client</RootNamespace>
     <Description>OPC UA Client Class Library</Description>
     <IsPackable>true</IsPackable>
-    <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">

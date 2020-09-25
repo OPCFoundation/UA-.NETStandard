@@ -7,6 +7,7 @@
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes</PackageId>
     <RootNameSpace>Opc.Ua.Client.ComplexTypes</RootNameSpace>
     <Description>OPC UA Complex Types Client Class Library</Description>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
