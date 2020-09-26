@@ -10,10 +10,8 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <!--<GeneratePackageOnBuild>true</GeneratePackageOnBuild>-->
+    <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
   <PropertyGroup Condition="'$(IsPackable)' != 'false'">
     <PackageIcon>logo.jpg</PackageIcon>
@@ -23,7 +21,7 @@
     <PackageTags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</PackageTags>
   </PropertyGroup>
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)/.azurepipelines/logo.jpg" Pack="true" PackagePath="/"/>
+    <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="/"/>
   </ItemGroup>
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>

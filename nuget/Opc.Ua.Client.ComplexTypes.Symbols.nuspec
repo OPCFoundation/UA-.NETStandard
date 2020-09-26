@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>OPCFoundation.NetStandard.Opc.Ua.Symbols</id>
+    <id>OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes.Symbols</id>
     <version>1.04.360.0</version>
-    <title>OPC UA .Net Standard Library Symbols</title>
-    <description>This package contains the OPC UA reference implementation debug version and is targeting the .NET Standard Library.</description>
+    <title>OPC UA .Net Standard Complex Type Library Symbols</title>
+    <description>This package contains the OPC UA complex type client debug version and is targeting the .NET Standard Library.</description>
     <authors>OPC Foundation</authors>
     <language>en-US</language>
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
@@ -15,9 +15,6 @@
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Server.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Client.Common.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common.Debug" version="$version$"/>
     </dependencies>
   </metadata>
   <files>

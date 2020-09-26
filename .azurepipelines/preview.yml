@@ -17,12 +17,16 @@ jobs:
     vmImage: 'windows-2019'
   variables:
   - group: codesign
+  - name:
+    isPublicRelease: $[eq(variables['NBGV_PublicRelease'], 'True')]
   - name: msbuildversion
     value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
     value: '$(NBGV_NuGetPackageVersion)'
+  - name: nugetpublicversion
+    value: '$(NBGV_Version)$(NBGV_PrereleaseVersion)'
   - name: signinglist
     value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
@@ -77,18 +81,24 @@ jobs:
       configuration: ${{parameters.config}}
       configurationToPack: ${{parameters.config}}
       nobuild: true
-      #versioningScheme: 'byEnvVar'
-      #versionEnvVar: 'nugetpreviewversion'
-      #includeSymbols: true
   - task: NuGetCommand@2
-    displayName: Pack Nuget Legacy
-    condition: and(eq('${{parameters.config}}', 'Release'), succeeded())
+    displayName: Pack Nuget Legacy Preview
+    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()),not(isPublicRelease))
     continueOnError: true
     inputs:
       command: 'pack'
       packagesToPack: '**/Opc.*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
+  - task: NuGetCommand@2
+    displayName: Pack Nuget Legacy Public
+    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()),isPublicRelease)
+    continueOnError: true
+    inputs:
+      command: 'pack'
+      packagesToPack: '**/Opc.*.nuspec'
+      versioningScheme: 'byEnvVar'
+      versionEnvVar: 'nugetpublicversion'
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
