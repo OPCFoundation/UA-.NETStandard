@@ -17,8 +17,8 @@ jobs:
     vmImage: 'windows-2019'
   variables:
   - group: codesign
-  - name:
-    isPublicRelease: $[eq(variables['NBGV_PublicRelease'], 'True')]
+  - name: isPublicRelease
+    value: $[eq(variables['NBGV_PublicRelease'], 'True')]
   - name: msbuildversion
     value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
   - name: msbuildsign
