@@ -83,7 +83,7 @@ jobs:
       nobuild: true
   - task: NuGetCommand@2
     displayName: Pack Nuget Legacy Preview
-    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()),not(isPublicRelease))
+    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()), not(variables['isPublicRelease']))
     continueOnError: true
     inputs:
       command: 'pack'
@@ -92,7 +92,7 @@ jobs:
       versionEnvVar: 'nugetpreviewversion'
   - task: NuGetCommand@2
     displayName: Pack Nuget Legacy Public
-    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()),isPublicRelease)
+    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()), variables['isPublicRelease'])
     continueOnError: true
     inputs:
       command: 'pack'
