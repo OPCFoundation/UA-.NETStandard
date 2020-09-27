@@ -17,8 +17,6 @@ jobs:
     vmImage: 'windows-2019'
   variables:
   - group: codesign
-  - name: isPublicRelease
-    value: $[eq(variables['NBGV_PublicRelease'], 'True')]
   - name: msbuildversion
     value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
   - name: msbuildsign
@@ -83,7 +81,7 @@ jobs:
       nobuild: true
   - task: NuGetCommand@2
     displayName: Pack Nuget Legacy Preview
-    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()), not(variables['isPublicRelease']))
+    condition: and(succeeded(), and(eq('${{parameters.config}}', 'Release'), ne(variables['NBGV_PublicRelease'], 'True')))
     continueOnError: true
     inputs:
       command: 'pack'
@@ -92,7 +90,7 @@ jobs:
       versionEnvVar: 'nugetpreviewversion'
   - task: NuGetCommand@2
     displayName: Pack Nuget Legacy Public
-    condition: and(and(eq('${{parameters.config}}', 'Release'), succeeded()), variables['isPublicRelease'])
+    condition: and(succeeded(), and(eq('${{parameters.config}}', 'Release'), eq(variables['NBGV_PublicRelease'], 'True')))
     continueOnError: true
     inputs:
       command: 'pack'
