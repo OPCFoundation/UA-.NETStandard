@@ -19,9 +19,9 @@ stages:
   jobs:
   - template: .azurepipelines/preview.yml
     parameters:
-      upload: ne(variables['build.reason'], 'PullRequest')
+      upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
       config: 'Release'
   - template: .azurepipelines/preview.yml
     parameters:
-      upload: ne(variables['build.reason'], 'PullRequest')
+      upload: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
       config: 'Debug'
