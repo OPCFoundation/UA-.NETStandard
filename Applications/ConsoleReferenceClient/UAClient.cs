@@ -402,8 +402,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 subscription.DisplayName = "Console ReferenceClient Subscription";
                 subscription.PublishingEnabled = true;
                 subscription.PublishingInterval = 1000;
-                subscription.KeepAliveCount = 10;
-                subscription.LifetimeCount = 10;
 
                 m_session.AddSubscription(subscription);
 
