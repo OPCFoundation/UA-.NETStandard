@@ -61,8 +61,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MainForm.cs">
@@ -73,6 +75,18 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SubscriptionOutput.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SubscriptionOutput.Designer.cs">
+      <DependentUpon>SubscriptionOutput.cs</DependentUpon>
+    </Compile>
+    <Compile Include="WriteOutput.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="WriteOutput.Designer.cs">
+      <DependentUpon>WriteOutput.cs</DependentUpon>
+    </Compile>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -97,6 +111,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </Content>
+    <EmbeddedResource Include="SubscriptionOutput.resx">
+      <DependentUpon>SubscriptionOutput.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="WriteOutput.resx">
+      <DependentUpon>WriteOutput.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

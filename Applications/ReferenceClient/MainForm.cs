@@ -36,6 +36,8 @@ using System.IO;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Controls;
+using System.Diagnostics;
+using System.Collections;
 
 namespace Quickstarts.ReferenceClient
 {
@@ -203,6 +205,142 @@ namespace Quickstarts.ReferenceClient
             {
                 MessageBox.Show("Unable to launch help documentation. Error: " + ex.Message);
             }
+        }
+
+        /* 
+           TODO:
+           Sufficient error trapping.
+        */
+        private Subscription m_subscription;
+        private List<MonitoredItem> monitoredItems = new List<MonitoredItem>();
+        private SubscriptionOutput subscriptionOutputWindow;
+        private WriteOutput writeOutputWindow;
+        private void subscribeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            if ((NodeId)BrowseCTRL.SelectedNode.NodeId != null)
+            {
+                if (subscriptionOutputWindow == null)
+                {
+                    subscriptionOutputWindow = new SubscriptionOutput();
+                }
+
+                if (m_subscription == null)
+                {
+                    m_subscription = new Subscription(m_session.DefaultSubscription);
+                    m_subscription.PublishingEnabled = true;
+                    m_subscription.PublishingInterval = 1000;
+                    m_session.AddSubscription(m_subscription);
+                    m_subscription.Create();
+                }
+
+                if (monitoredItems.Count == 0)
+                {
+                    if (BrowseCTRL.GetChildOfSelectedNode(0) != null)
+                    {
+                        BrowseDescription nodeToBrowse = new BrowseDescription();
+                        nodeToBrowse.NodeId = (NodeId)BrowseCTRL.SelectedNode.NodeId;
+
+                        nodeToBrowse.BrowseDirection = BrowseDirection.Forward;
+                        nodeToBrowse.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences;
+                        nodeToBrowse.IncludeSubtypes = true;
+                        nodeToBrowse.NodeClassMask = (uint)(NodeClass.Variable);
+                        nodeToBrowse.ResultMask = (uint)(BrowseResultMask.All);
+
+                        ReferenceDescriptionCollection references = ClientUtils.Browse(m_session, nodeToBrowse, false);
+                        subscriptionOutputWindow.label1.Text = "You selected a folder: these are the child nodes:\n";
+                        foreach (var item in references)
+                        {
+                            var mi = new MonitoredItem(m_subscription.DefaultItem);
+                            mi.StartNodeId = (NodeId)item.NodeId;
+                            mi.AttributeId = Attributes.DisplayName;
+                            mi.MonitoringMode = MonitoringMode.Reporting;
+                            mi.SamplingInterval = 1000;
+                            mi.QueueSize = 0;
+                            mi.DiscardOldest = true;
+                            mi.Notification += new MonitoredItemNotificationEventHandler(Mi_Notification);
+                            monitoredItems.Add(mi);
+                        }
+                    } else
+                    {
+                        var mi = new MonitoredItem(m_subscription.DefaultItem);
+                        mi.StartNodeId = (NodeId)BrowseCTRL.SelectedNode.NodeId;
+                        mi.AttributeId = Attributes.Value;
+                        mi.MonitoringMode = MonitoringMode.Reporting;
+                        mi.SamplingInterval = 1000;
+                        mi.QueueSize = 0;
+                        mi.DiscardOldest = true;
+                        mi.Notification += new MonitoredItemNotificationEventHandler(Mi_Notification);
+                        // define event handler for this item, and then add to subscription
+                        mi.Notification += new MonitoredItemNotificationEventHandler(monitoredItem_Notification);
+                        monitoredItems.Add(mi);
+                    }
+                    m_subscription.AddItems(monitoredItems);
+                }
+                subscriptionOutputWindow.Show();
+                subscriptionOutputWindow.FormClosed += OutputWindow_FormClosed;
+                m_subscription.ApplyChanges();
+            }
+        }
+
+        private void OutputWindow_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            m_subscription.Delete(false);
+            m_subscription = null;
+            monitoredItems = new List<MonitoredItem>();
+            subscriptionOutputWindow = null;
+        }
+
+        private void Mi_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new MonitoredItemNotificationEventHandler(Mi_Notification), monitoredItem, e);
+                return;
+            }
+            MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
+            if (notification == null)
+            {
+                return;
+            }
+            String output = Utils.Format("Node: {0}\n", notification.Value.WrappedValue.ToString());
+            if (!subscriptionOutputWindow.label1.Text.Contains(output))
+            {
+                subscriptionOutputWindow.label1.Text += output;
+            }
+        }
+
+        public void monitoredItem_Notification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new MonitoredItemNotificationEventHandler(monitoredItem_Notification), monitoredItem, e);
+                return;
+            }
+            MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
+            if (notification == null)
+            {
+                return;
+            }
+            String output = "value: " + Utils.Format("{0}", notification.Value.WrappedValue.ToString()) +
+              ";\nStatusCode: " + Utils.Format("{0}", notification.Value.StatusCode.ToString()) +
+              ";\nSource timestamp: " + notification.Value.SourceTimestamp.ToString() +
+              ";\nServer timestamp: " + notification.Value.ServerTimestamp.ToString();
+
+            subscriptionOutputWindow.label1.Text = output;
+        }
+
+        private void writeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            /*
+            List<WriteValue> nodesToWrite = new List<WriteValue>();
+            if ((NodeId)BrowseCTRL.SelectedNode.NodeId != null)
+            {
+                m_session.Write(nodesToWrite);
+            }
+            */
+            writeOutputWindow = new WriteOutput(m_session);
+            writeOutputWindow.Show();
         }
     }
 }

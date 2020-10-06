@@ -1414,12 +1414,17 @@ namespace Quickstarts.ReferenceServer
                     #endregion
 
                     #region MyCompany
-                    FolderState myCompanyFolder = CreateFolder(root, "MyCompany", "MyCompany");
-                    const string myCompany = "MyCompany_";
+                    FolderState myCompanyFolder = CreateFolder(root, "Kreonta", "Kreonta");
+                    const string myCompany = "Kreonta_";
 
                     BaseDataVariableState myCompanyInstructions = CreateVariable(myCompanyFolder, myCompany + "Instructions", "Instructions", DataTypeIds.String, ValueRanks.Scalar);
                     myCompanyInstructions.Value = "A place for the vendor to describe their address-space.";
                     variables.Add(myCompanyInstructions);
+
+                    BaseDataVariableState myCompanyEmployeeCount = CreateVariable(myCompanyFolder, "/Kreonta/EmployeeCount", "EmployeeCount", BuiltInType.Int32, ValueRanks.Scalar);
+                    myCompanyEmployeeCount.Value = "5";
+                    myCompanyEmployeeCount.OnSimpleWriteValue = new NodeValueSimpleEventHandler(OnWriteMyCompanyEmployeeCount);
+                    variables.Add(myCompanyEmployeeCount);
                     #endregion
                 }
                 catch (Exception e)
@@ -1430,6 +1435,12 @@ namespace Quickstarts.ReferenceServer
                 AddPredefinedNode(SystemContext, root);
                 m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
             }
+        }
+
+        private ServiceResult OnWriteMyCompanyEmployeeCount(ISystemContext ctx, NodeState node, ref object value)
+        {
+            System.Windows.Forms.MessageBox.Show("Received '" + value.ToString() + "'.");
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnWriteInterval(ISystemContext context, NodeState node, ref object value)
