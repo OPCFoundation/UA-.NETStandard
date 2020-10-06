@@ -13,9 +13,6 @@ $version = & (Join-Path $PSScriptRoot "get-version.ps1")
 if ($version.Public -eq 'True')
 {
    & ./tools/nbgv  @("cloud", "-c", "-a", "-v", "$($version.Full)$($version.Pre)")
-   # Override NuGetPackageVersion for 4 digit version
-   Write-Host "##vso[task.setvariable variable=NBGV_NuGetPackageVersion;isOutput=true]$($version.Full)$($version.Pre)"
-   Write-Host "##vso[task.setvariable variable=NuGetPackageVersion;isOutput=true]$($version.Full)$($version.Pre)"
 }
 else
 {
@@ -28,7 +25,5 @@ if ($LastExitCode -ne 0) {
 
 # Set build environment version numbers in pipeline context
 Write-Host "Setting version build variables:"
-
-# Write-Host "##vso[build.updatebuildnumber]$($version.Full)$($version.Pre)"
 Write-Host "##vso[task.setvariable variable=Version_Full;isOutput=true]$($version.Full)"
 Write-Host "##vso[task.setvariable variable=Version_Prefix;isOutput=true]$($version.Prefix)"

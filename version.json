@@ -6,8 +6,7 @@
     "semVer": 2
   },
   "publicReleaseRefSpec": [
-    "^refs/heads/master$",
-    "^refs/heads/v\\d+\\.\\d+$"
+    "^refs/heads/master$"
   ],
   "cloudBuild": {
     "setVersionVariables": true,
