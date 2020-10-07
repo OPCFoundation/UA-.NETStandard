@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>OPCFoundation.NetStandard.Opc.Ua.Symbols</id>
     <version>1.04.360.0</version>
@@ -8,8 +8,9 @@
     <authors>OPC Foundation</authors>
     <language>en-US</language>
     <projectUrl>https://github.com/OPCFoundation/UA-.NETStandard</projectUrl>
-    <icon>images\logo.jpg</icon>
-    <licenseUrl>https://opcfoundation.org/license/redistributables/1.3/</licenseUrl>
+    <icon>images/logo.jpg</icon>
+    <license type="file">licenses/LICENSE.txt</license>
+    <!-- deprecated <licenseUrl>https://opcfoundation.org/license/redistributables/1.3/</licenseUrl> -->
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Debug" version="$version$"/>
@@ -21,6 +22,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="logo.jpg" target="images\" />
+    <file src="logo.jpg" target="images/" />
+    <file src="../Licenses/OPC Foundation REDISTRIBUTABLES Agreement of Use.txt" target="licenses/LICENSE.txt"/>
   </files>
 </package>

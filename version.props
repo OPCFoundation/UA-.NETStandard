@@ -6,6 +6,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+  </ItemGroup>
   <PropertyGroup Condition="'$(NBGV_PublicRelease)' == 'True'">
     <Version>$(NBGV_Version)$(NBGV_PrereleaseVersion)</Version>
     <VersionPrefix>$(NBGV_SimpleVersion)</VersionPrefix>
