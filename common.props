@@ -15,7 +15,7 @@
     <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
   
-  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
+  <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/redistributables/1.3/</PackageLicenseUrl>-->
