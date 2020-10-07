@@ -27,9 +27,6 @@ init:
 # clone directory
 clone_folder: c:\projects\UA-.NetStandard
 
-# set clone depth
-clone_depth: 5                      # clone entire repository history if not defined
-
 environment:
   matrix:
   - solution_name: "UA Core Library.sln"

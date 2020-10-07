@@ -4,10 +4,16 @@
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <AssemblyName>Opc.Ua.Gds.Server.Common</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>Opc.Ua.Gds.Server.Common</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Gds.Server.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds.Server</RootNamespace>
     <LangVersion>6</LangVersion>
     <Description>OPC UA GDS Server Class Library</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+    <AssemblyName>$(AssemblyName).Debug</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

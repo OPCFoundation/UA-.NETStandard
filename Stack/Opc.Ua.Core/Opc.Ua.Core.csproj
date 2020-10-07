@@ -5,9 +5,15 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
-    <PackageId>Opc.Ua.Core</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+    <AssemblyName>$(AssemblyName).Debug</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup>
