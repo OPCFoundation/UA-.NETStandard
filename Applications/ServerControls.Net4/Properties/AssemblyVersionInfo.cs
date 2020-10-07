@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Reciprocal Community License ("RCL") Version 1.00
  * 
@@ -33,6 +33,6 @@ internal static class AssemblyVersionInfo
     /// <summary>
     /// The current copy right notice.
     /// </summary>
-    public const string Copyright = "Copyright © 2004-2019 OPC Foundation, Inc";
+    public const string Copyright = "Copyright © 2004-2020 OPC Foundation, Inc";
 
 }
