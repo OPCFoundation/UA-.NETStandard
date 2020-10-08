@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// A class that defines constants used by UA applications.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class StatusCodes
     {
         /// <summary>
@@ -810,7 +810,7 @@ namespace Opc.Ua
         public const uint BadTcpSecureChannelUnknown = 0x807F0000;
 
         /// <summary>
-        /// The size of the message specified in the header is too large.
+        /// The size of the message chunk specified in the header is too large.
         /// </summary>
         public const uint BadTcpMessageTooLarge = 0x80800000;
 
