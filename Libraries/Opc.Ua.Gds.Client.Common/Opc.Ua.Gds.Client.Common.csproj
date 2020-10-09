@@ -9,6 +9,7 @@
     <LangVersion>6</LangVersion>
     <Description>OPC UA GDS Client Class Library</Description>
     <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
