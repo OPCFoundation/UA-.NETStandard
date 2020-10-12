@@ -612,7 +612,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="keySize">Size of the key.</param>
-        /// <param name="lifetimeInMonths">The lifetime in months.</param>
+        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <returns>The new certificate</returns>
         private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
             ApplicationConfiguration configuration,

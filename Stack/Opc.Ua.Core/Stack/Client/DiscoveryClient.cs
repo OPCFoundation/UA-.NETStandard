@@ -293,6 +293,7 @@ namespace Opc.Ua
         /// <param name="discoveryUrl">The discovery url.</param>
         /// <param name="endpointConfiguration">The configuration to use with the endpoint.</param>
         /// <param name="messageContext">The message context to use when serializing the messages.</param>
+        /// <param name="clientCertificate">The client certificate to use.</param>
         /// <returns></returns>
         public static ITransportChannel Create(
             Uri discoveryUrl,

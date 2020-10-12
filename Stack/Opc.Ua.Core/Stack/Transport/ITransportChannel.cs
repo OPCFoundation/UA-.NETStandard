@@ -131,7 +131,7 @@ namespace Opc.Ua
         /// <param name="callbackData">The callback data to return with the callback.</param>
         /// <returns>The result which must be passed to the EndReconnect method.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect" />
+        /// <seealso cref="Reconnect()" />
         IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData);
 
         /// <summary>
@@ -139,7 +139,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="result">The result returned from the BeginReconnect call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect" />
+        /// <seealso cref="Reconnect()" />
         void EndReconnect(IAsyncResult result);
 
         /// <summary>

@@ -2662,11 +2662,10 @@ namespace Opc.Ua.Server
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
-        /// <param name="bindingFactory">The binding factory.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="endpoints">The endpoints.</param>
         /// <returns>
-        /// Returns IList of a host for a UA service which type is <seealso cref="ServiceHost"/>.
+        /// Returns IList of a host for a UA service.
         /// </returns>
         protected override IList<Task> InitializeServiceHosts(
             ApplicationConfiguration          configuration, 

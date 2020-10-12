@@ -580,7 +580,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Add endpoint for reverse connection.
         /// </summary>
-        /// <param name="endpointUrl"></param>
+        /// <param name="endpointUrl">The endpoint Url of the reverse connect client endpoint.</param>
+        /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
             var reverseConnectHost = new ReverseConnectHost();

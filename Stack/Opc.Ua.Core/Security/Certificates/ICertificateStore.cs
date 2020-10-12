@@ -45,6 +45,7 @@ namespace Opc.Ua
         /// Adds a certificate to the store.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
+        /// <param name="password">The certificate password.</param>
         Task Add(X509Certificate2 certificate, string password = null);
 
         /// <summary>

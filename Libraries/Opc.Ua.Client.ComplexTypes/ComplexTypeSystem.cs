@@ -695,7 +695,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Helper to ensure the expanded nodeId contains a valid namespaceUri.
         /// </summary>
         /// <param name="expandedNodeId">The expanded nodeId.</param>
-        /// <param name="namespaceTable">The session namespace table.</param>
         /// <returns>The normalized expanded nodeId.</returns>
         private ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId)
         {

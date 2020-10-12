@@ -47,6 +47,8 @@ namespace Opc.Ua.Gds.Client
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
         /// </summary>
         /// <param name="application">The application.</param>
+        /// <param name="endpointUrl">The endpoint Url.</param>
+        /// <param name="adminUserIdentity">The user identity for the administrator.</param>
         public GlobalDiscoveryServerClient(
             ApplicationInstance application, 
             string endpointUrl,
@@ -372,7 +374,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Queries the GDS for any servers matching the criteria.
         /// </summary>
-        /// <param name="startingRecordId">The id of the first record to return.</param>
         /// <param name="maxRecordsToReturn">The max records to return.</param>
         /// <param name="applicationName">The filter applied to the application name.</param>
         /// <param name="applicationUri">The filter applied to the application uri.</param>
@@ -662,7 +663,9 @@ namespace Opc.Ua.Gds.Client
         /// Signs the certificate.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <param name="certificate">The certificate to renew.</param>
+        /// <param name="certificateGroupId">The group of the trust list.</param>
+        /// <param name="certificateTypeId">The type of the trust list.</param>
+        /// <param name="certificateRequest">The certificate signing request (CSR).</param>
         /// <returns>The id for the request which is used to check when it is approved.</returns>
         public NodeId StartSigningRequest(
             NodeId applicationId,
@@ -797,7 +800,8 @@ namespace Opc.Ua.Gds.Client
         /// Gets the certificate status.
         /// </summary>
         /// <param name="applicationId">The application id.</param>
-        /// <param name="certificateGroupId">Type of the trust list.</param>
+        /// <param name="certificateGroupId">Group of the trust list.</param>
+        /// <param name="certificateTypeId">Type of the trust list.</param>
         /// <returns></returns>
         public Boolean GetCertificateStatus(
             NodeId applicationId,

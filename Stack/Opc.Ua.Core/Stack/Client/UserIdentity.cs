@@ -49,7 +49,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a UA identity token.
         /// </summary>
-        /// <param name="token">The token.</param>
+        /// <param name="issuedToken">The token.</param>
         public UserIdentity(IssuedIdentityToken issuedToken)
         {
             Initialize(issuedToken);

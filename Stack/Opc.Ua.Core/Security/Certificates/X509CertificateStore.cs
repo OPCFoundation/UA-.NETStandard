@@ -109,7 +109,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
+        /// <summary cref="ICertificateStore.Add(X509Certificate2, string)" />
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
