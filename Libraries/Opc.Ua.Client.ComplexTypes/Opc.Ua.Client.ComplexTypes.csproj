@@ -12,7 +12,6 @@
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
-    <AssemblyName>$(AssemblyName).Debug</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
