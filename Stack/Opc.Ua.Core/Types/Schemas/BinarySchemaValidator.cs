@@ -512,6 +512,9 @@ namespace Opc.Ua.Schema.Binary
         #endregion
 
         #region Private Fields
+        /// <summary>
+        /// Well known embedded binary schemas.
+        /// </summary>
         protected readonly static string[][] WellKnownDictionaries = new string[][]
         {
             new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Types.Schemas.StandardTypes.bsd" },

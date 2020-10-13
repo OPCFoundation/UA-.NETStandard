@@ -35,6 +35,9 @@ using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
+    /// <summary>
+    /// A complex type with optional fields.
+    /// </summary>
     public class OptionalFieldsComplexType : BaseComplexType
     {
         #region Constructors

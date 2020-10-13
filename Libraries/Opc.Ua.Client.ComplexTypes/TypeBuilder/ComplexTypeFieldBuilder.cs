@@ -40,6 +40,11 @@ namespace Opc.Ua.Client.ComplexTypes
     public class ComplexTypeFieldBuilder : IComplexTypeFieldBuilder
     {
         #region Constructors
+        /// <summary>
+        /// The field builder for a complex type.
+        /// </summary>
+        /// <param name="structureBuilder">The type builder to use.</param>
+        /// <param name="structureType">The structure type.</param>
         public ComplexTypeFieldBuilder(
             TypeBuilder structureBuilder,
             StructureType structureType)

@@ -307,6 +307,9 @@ namespace Opc.Ua.Gds.Client
 
         }
 
+        /// <summary>
+        /// Disconnect the client connection.
+        /// </summary>
         public void Disconnect()
         {
             if (Session != null)

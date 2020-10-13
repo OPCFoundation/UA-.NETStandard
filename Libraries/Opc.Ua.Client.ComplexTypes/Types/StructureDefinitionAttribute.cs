@@ -32,11 +32,24 @@ using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
+    /// <summary>
+    /// The known base complex types.
+    /// </summary>
     public enum StructureBaseDataType
     {
+        /// <summary>
+        /// The type is a structure.
+        /// </summary>
         Structure,
+
+        /// <summary>
+        /// The type is an OptionSet.
+        /// </summary>
         OptionSet,
+
+        /// <summary>
+        /// The type is a Union.
+        /// </summary>
         Union
     }
 

@@ -730,20 +730,34 @@ namespace Opc.Ua.Test
         #endregion
 
         #region String
-        /// <summary cref="GetRandom(Type)" />
+        /// <summary>
+        /// Creates a random string with a random locale.
+        /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public string GetRandomString()
         {
             return CreateString(GetRandomLocale(), false);
         }
+
+        /// <summary>
+        /// Creates a random string for the locale.
+        /// </summary>
         public string GetRandomString(string locale)
         {
             return CreateString(locale, false);
         }
+
+        /// <summary>
+        /// Creates a random symbol with a random locale.
+        /// </summary>
         public string GetRandomSymbol()
         {
             return CreateString(GetRandomLocale(), true);
         }
+
+        /// <summary>
+        /// Creates a random symbol for the locale.
+        /// </summary>
         public string GetRandomSymbol(string locale)
         {
             return CreateString(locale, false);
