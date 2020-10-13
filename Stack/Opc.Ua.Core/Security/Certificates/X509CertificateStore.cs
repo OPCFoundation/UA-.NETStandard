@@ -22,10 +22,13 @@ using System.Threading.Tasks;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Provides access to a simple file based certificate store.
+    /// Provides access to a simple X509Store based certificate store.
     /// </summary>
     public class X509CertificateStore : ICertificateStore
     {
+        /// <summary>
+        /// Create an instance of the certificate store.
+        /// </summary>
         public X509CertificateStore()
         {
             // defaults
@@ -33,11 +36,15 @@ namespace Opc.Ua
             m_storeLocation = StoreLocation.CurrentUser;
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
-            // nothing to do
+            Dispose(true);
         }
 
+        /// <summary>
+        /// Dispose method for derived classes.
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             // nothing to do
@@ -45,10 +52,9 @@ namespace Opc.Ua
 
         /// <summary cref="ICertificateStore.Open(string)" />
         /// <remarks>
-        /// Syntax: StoreLocation\StoreName		
-        /// Examples:
-        /// LocalMachine\My
-        /// CurrentUser\Trust
+        /// Syntax: StoreLocation\StoreName
+        /// Example:
+        ///   CurrentUser\My
         /// </remarks>
         public void Open(string path)
         {
@@ -95,11 +101,13 @@ namespace Opc.Ua
             m_storeName = path.Substring(index + 1);
         }
 
+        /// <inheritdoc/>
         public void Close()
         {
             // nothing to do
         }
 
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -127,6 +135,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc/>
         public Task<bool> Delete(string thumbprint)
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -145,6 +154,7 @@ namespace Opc.Ua
             return Task.FromResult(true);
         }
 
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
@@ -165,7 +175,7 @@ namespace Opc.Ua
             }
         }
 
-        public bool SupportsCRLs { get { return false; } }
+        public bool SupportsCRLs => false;
 
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {

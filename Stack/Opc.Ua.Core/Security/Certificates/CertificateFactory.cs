@@ -46,11 +46,17 @@ namespace Opc.Ua
     {
         RandomNumberGenerator m_prg;
 
+        /// <summary>
+        /// Creates an instance of a crypthographic secure random number generator.
+        /// </summary>
         public CertificateFactoryRandomGenerator()
         {
             m_prg = RandomNumberGenerator.Create();
         }
 
+        /// <summary>
+        /// Dispose the random number generator.
+        /// </summary>
         public void Dispose()
         {
             m_prg.Dispose();
@@ -62,14 +68,20 @@ namespace Opc.Ua
         /// <summary>Add more seed material to the generator. Not needed here.</summary>
         public void AddSeedMaterial(long seed) { }
 
-        /// <summary>Fill byte array with random values.</summary>
+        /// <summary>
+        /// Fills an array of bytes with a cryptographically strong
+        /// random sequence of values.
+        /// </summary>
         /// <param name="bytes">Array to be filled.</param>
         public void NextBytes(byte[] bytes)
         {
             m_prg.GetBytes(bytes);
         }
 
-        /// <summary>Fill byte array with random values.</summary>
+        /// <summary>
+        /// Fills an array of bytes with a cryptographically strong
+        /// random sequence of values.
+        /// </summary>
         /// <param name="bytes">Array to receive bytes.</param>
         /// <param name="start">Index to start filling at.</param>
         /// <param name="len">Length of segment to fill.</param>
@@ -83,16 +95,30 @@ namespace Opc.Ua
 }
 
 /// <summary>
-/// Always use this converter class to create a X509Name object 
-/// from X509Certificate subject.
+/// A converter class to create a X509Name object 
+/// from a X509Certificate subject.
 /// </summary>
+/// <remarks>
+/// Handles subtle differences in the string representation
+/// of the .NET and the Bouncy Castle implementation.
+/// </remarks>
 public class CertificateFactoryX509Name : X509Name
 {
+
+    /// <summary>
+    /// Create the X509Name from a distinguished name.
+    /// </summary>
+    /// <param name="distinguishedName">The distinguished name.</param>
     public CertificateFactoryX509Name(string distinguishedName) :
         base(true, ConvertToX509Name(distinguishedName))
     {
     }
 
+    /// <summary>
+    /// Create the X509Name from a distinguished name.
+    /// </summary>
+    /// <param name="reverse">Reverse the order of the names.</param>
+    /// <param name="distinguishedName">The distinguished name.</param>
     public CertificateFactoryX509Name(bool reverse, string distinguishedName) :
         base(reverse, ConvertToX509Name(distinguishedName))
     {
@@ -108,7 +134,7 @@ public class CertificateFactoryX509Name : X509Name
 /// <summary>
 /// Creates certificates.
 /// </summary>
-public class CertificateFactory
+public static class CertificateFactory
 {
     #region Public Constants
     /// <summary>
@@ -876,7 +902,7 @@ public class CertificateFactory
             string serializedPrivate = Convert.ToBase64String(serializedPrivateBytes);
             textWriter.WriteLine("-----BEGIN PRIVATE KEY-----");
             while (serializedPrivate.Length > 64)
-            {   
+            {
                 textWriter.WriteLine(serializedPrivate.Substring(0, 64));
                 serializedPrivate = serializedPrivate.Substring(64);
             }
@@ -1314,9 +1340,9 @@ public class CertificateFactory
             {
                 case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
                 case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                    {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                    }
+                {
+                    return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
+                }
             }
         }
 

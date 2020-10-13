@@ -48,7 +48,7 @@ namespace Opc.Ua.Client
     {
         #region Constructors
         /// <summary>
-        /// Constructs a new instance of the session.
+        /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Constructs a new instance of the session.
+        /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -86,6 +86,14 @@ namespace Opc.Ua.Client
             Initialize(channel, configuration, endpoint, clientCertificate);
         }
 
+        /// <summary>
+        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// </summary>
+        /// <param name="channel">The channel used to communicate with the server.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="endpoint">The endpoint use to initialize the channel.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">A collection of available endpoints to connect to the server.</param>
         public Session(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
@@ -96,7 +104,6 @@ namespace Opc.Ua.Client
                 base(channel)
         {
             Initialize(channel, configuration, endpoint, clientCertificate);
-
             m_expectedServerEndpoints = availableEndpoints;
         }
 
@@ -1111,7 +1118,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
-        public void Reconnect() => Reconnect(null);
+        public void Reconnect()
+        {
+            Reconnect(null);
+        }
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
