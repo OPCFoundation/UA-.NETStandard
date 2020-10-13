@@ -44,6 +44,11 @@ namespace Opc.Ua
         #endregion
 
         #region Constructors
+        /// <summary>
+        /// Create a JSON decoder to decode a string.
+        /// </summary>
+        /// <param name="json">The JSON encoded string.</param>
+        /// <param name="context">The service message context to use.</param>
         public JsonDecoder(string json, ServiceMessageContext context)
         {
             if (context == null)
@@ -60,7 +65,13 @@ namespace Opc.Ua
             m_stack.Push(m_root);
         }
 
-        public JsonDecoder(System.Type systemType, JsonTextReader reader, ServiceMessageContext context)
+        /// <summary>
+        /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
+        /// </summary>
+        /// <param name="systemType">The system type of the encoded JSON stram.</param>
+        /// <param name="reader">The text reader.</param>
+        /// <param name="context">The service message context to use.</param>
+        public JsonDecoder(Type systemType, JsonTextReader reader, ServiceMessageContext context)
         {
             Initialize();
 

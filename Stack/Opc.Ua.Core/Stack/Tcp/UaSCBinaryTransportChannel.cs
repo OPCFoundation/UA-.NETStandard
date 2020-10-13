@@ -22,6 +22,10 @@ namespace Opc.Ua.Bindings
     public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
     {
         #region Constructors
+        /// <summary>
+        /// Create a transport channel from a message socket factory.
+        /// </summary>
+        /// <param name="messageSocketFactory">The message socket factory.</param>
         public UaSCUaBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
         {
             m_messageSocketFactory = messageSocketFactory;

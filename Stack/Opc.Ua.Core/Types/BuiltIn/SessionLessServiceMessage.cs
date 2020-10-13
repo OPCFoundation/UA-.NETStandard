@@ -14,13 +14,27 @@ using System;
 
 namespace Opc.Ua
 {
-
+    /// <summary>
+    /// 
+    /// </summary>
     public class SessionLessServiceMessage 
     {
+        /// <summary>
+        /// The namespaces URIs referenced by the message.
+        /// </summary>
         public NamespaceTable NamespaceUris;
+
+        /// <summary>
+        /// The server URIs referenced by the message.
+        /// </summary>
         public StringTable ServerUris;
+
+        /// <summary>
+        /// The message to encode or the decoded message.
+        /// </summary>
         public IEncodeable Message;
 
+        /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
             if (NamespaceUris != null && NamespaceUris.Count > 1)
@@ -73,6 +87,7 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
             NamespaceUris = new NamespaceTable();

@@ -25,6 +25,9 @@ namespace Opc.Ua.Bindings
 
     public class TcpTransportChannel : UaSCUaBinaryTransportChannel
     {
+        /// <summary>
+        /// Create a Tcp transport channel.
+        /// </summary>
         public TcpTransportChannel() :
             base(new TcpMessageSocketFactory())
         {

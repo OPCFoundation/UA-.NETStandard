@@ -20,9 +20,14 @@ namespace Opc.Ua
     /// </summary>
     public class ConnectionWaitingEventArgs : EventArgs, ITransportWaitingConnection
     {
-        protected ConnectionWaitingEventArgs(string serverUrl, Uri endpointUrl)
+        /// <summary>
+        /// Create a connection waiting event for a reverse hello message.
+        /// </summary>
+        /// <param name="serverUri">The Uri of the server.</param>
+        /// <param name="endpointUrl">The endpoint Url of the server.</param>
+        protected ConnectionWaitingEventArgs(string serverUri, Uri endpointUrl)
         {
-            ServerUri = serverUrl;
+            ServerUri = serverUri;
             EndpointUrl = endpointUrl;
             Accepted = false;
         }
