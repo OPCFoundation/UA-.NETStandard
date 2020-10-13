@@ -55,6 +55,9 @@ namespace Opc.Ua.Server
         }
 
         #region Public Methods
+        /// <summary>
+        /// The delegate for the discarded value handler.
+        /// </summary>
         public delegate void DiscardedValueHandler();
 
         /// <summary>

@@ -101,6 +101,9 @@ namespace Opc.Ua
             get { return m_sourceFilePath; }
         }
 
+        /// <summary>
+        /// Get or set the certificate validator which is configured to use.
+        /// </summary>
         public CertificateValidator CertificateValidator
         {
             get { return m_certificateValidator; }
