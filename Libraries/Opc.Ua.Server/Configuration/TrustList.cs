@@ -34,11 +34,17 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// The implementation of a server trustlist.
+    /// </summary>
     public class TrustList
     {
         const int DefaultTrustListCapacity = 0x10000;
 
         #region Constructors
+        /// <summary>
+        /// Initialize the trustlist with default values.
+        /// </summary>
         public TrustList(Opc.Ua.TrustListState node, string trustedListPath, string issuerListPath, SecureAccess readAccess, SecureAccess writeAccess)
         {
             m_node = node;
@@ -57,9 +63,11 @@ namespace Opc.Ua.Server
             node.RemoveCertificate.OnCall = new RemoveCertificateMethodStateMethodCallHandler(RemoveCertificate);
         }
         #endregion
+
         #region Public Methods
         public delegate void SecureAccess(ISystemContext context);
         #endregion
+
         #region Private Methods
         private ServiceResult Open(
             ISystemContext context,
@@ -118,8 +126,7 @@ namespace Opc.Ua.Server
                 m_sessionId = context.SessionId;
                 fileHandle = ++m_fileHandle;
 
-                TrustListDataType trustList = new TrustListDataType()
-                {
+                TrustListDataType trustList = new TrustListDataType() {
                     SpecifiedLists = (uint)masks
                 };
 
@@ -530,8 +537,7 @@ namespace Opc.Ua.Server
             TrustListDataType trustList
             )
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext()
-            {
+            ServiceMessageContext messageContext = new ServiceMessageContext() {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -548,8 +554,7 @@ namespace Opc.Ua.Server
             Stream strm)
         {
             TrustListDataType trustList = new TrustListDataType();
-            ServiceMessageContext messageContext = new ServiceMessageContext()
-            {
+            ServiceMessageContext messageContext = new ServiceMessageContext() {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
