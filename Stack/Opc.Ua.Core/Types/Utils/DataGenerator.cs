@@ -1053,6 +1053,9 @@ namespace Opc.Ua.Test
         #endregion
 
         #region DiagnosticInfo
+        /// <summary>
+        /// Get random diagnostic info.
+        /// </summary>
         public DiagnosticInfo GetRandomDiagnosticInfo()
         {
             // TODO: return random values

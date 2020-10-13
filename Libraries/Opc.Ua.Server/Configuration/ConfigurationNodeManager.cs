@@ -334,7 +334,8 @@ namespace Opc.Ua.Server
         /// Determine if the impersonated user has admin access.
         /// </summary>
         /// <param name="context"></param>
-        /// <exception cref="ServiceResultException(StatusCodes.BadUserAccessDenied)"/>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;

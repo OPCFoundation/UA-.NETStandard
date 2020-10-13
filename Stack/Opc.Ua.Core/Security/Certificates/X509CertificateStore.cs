@@ -175,28 +175,40 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
         public bool SupportsCRLs => false;
 
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             return StatusCodes.BadNotSupported;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
         public List<X509CRL> EnumerateCRLs()
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
         public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
         public void AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
         public bool DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);

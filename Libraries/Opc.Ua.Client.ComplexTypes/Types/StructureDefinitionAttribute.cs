@@ -70,6 +70,10 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Public Methods
+        /// <summary>
+        /// Convert the base type node id to a <see cref="StructureBaseDataType"/>.
+        /// </summary>
+        /// <param name="baseTypeId">The base type nodeId.</param>
         public static StructureBaseDataType FromBaseType(NodeId baseTypeId)
         {
             if (baseTypeId == DataTypeIds.Union)
@@ -85,8 +89,17 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region  Public Properties
+        /// <summary>
+        /// The default encoding Id.
+        /// </summary>
         public string DefaultEncodingId { get; set; }
+        /// <summary>
+        /// The base DataType.
+        /// </summary>
         public StructureBaseDataType BaseDataType { get; set; }
+        /// <summary>
+        /// The structure type.
+        /// </summary>
         public StructureType StructureType { get; set; }
         #endregion
     }

@@ -39,7 +39,9 @@ using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
+    /// <summary>
+    /// The base class for all complex types.
+    /// </summary>
     public class BaseComplexType :
         IEncodeable, IFormattable,
         IComplexTypeProperties,

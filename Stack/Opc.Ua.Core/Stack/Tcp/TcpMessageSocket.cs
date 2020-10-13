@@ -835,6 +835,9 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Event factory
+        /// <summary>
+        /// Create event args for TcpMessageSocket.
+        /// </summary>
         public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
         {
             return new TcpMessageSocketAsyncEventArgs();

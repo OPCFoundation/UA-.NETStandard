@@ -2184,6 +2184,9 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// A collection of reverse connect client endpoints.
+        /// </summary>
         [DataMember(Order = 10, IsRequired = false)]
         public ReverseConnectClientEndpointCollection ClientEndpoints { get; set; }
 
@@ -2234,6 +2237,9 @@ namespace Opc.Ua
         #endregion
 
         #region Persistent Properties
+        /// <summary>
+        /// The endpoint Url of a reverse connect client.
+        /// </summary>
         [DataMember(Order = 1, IsRequired = false)]
         public string EndpointUrl { get; set; }
         #endregion
@@ -2241,6 +2247,9 @@ namespace Opc.Ua
     #endregion
 
     #region ReverseConnectClientEndpointCollection Class
+    /// <summary>
+    /// A collection of reverse connect client endpoints.
+    /// </summary>
     [CollectionDataContract(Name = "ListOfReverseConnectClientEndpoint", Namespace = Namespaces.OpcUaConfig, ItemName = "ClientEndpoint")]
     public class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
     {
