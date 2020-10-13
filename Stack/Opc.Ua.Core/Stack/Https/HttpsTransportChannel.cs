@@ -28,41 +28,49 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportChannel : ITransportChannel
     {
+        /// <inheritdoc/>
         public void Dispose()
         {
         }
 
+        /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures
         {
             get { return TransportChannelFeatures.Open | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest; }
         }
 
+        /// <inheritdoc/>
         public EndpointDescription EndpointDescription
         {
             get { return m_settings.Description; }
         }
 
+        /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
         {
             get { return m_settings.Configuration; }
         }
 
+        /// <inheritdoc/>
         public ServiceMessageContext MessageContext
         {
             get { return m_quotas.MessageContext; }
         }
 
+        /// <inheritdoc/>
         public ChannelToken CurrentToken
         {
             get { return null; }
         }
 
+        /// <inheritdoc/>
         public int OperationTimeout
         {
             get { return m_operationTimeout; }
             set { m_operationTimeout = value; }
         }
 
+        /// <inheritdoc/>
         public void Initialize(
             Uri url,
             TransportChannelSettings settings)
@@ -71,7 +79,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Initializes a secure channel with the endpoint identified by the URL.
+        /// Initializes a secure channel with a waiting reverse connection.
         /// </summary>
         /// <param name="connection">The connection to use.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
@@ -83,6 +91,7 @@ namespace Opc.Ua.Bindings
             SaveSettings(connection.EndpointUrl, settings);
         }
 
+        /// <inheritdoc/>
         public void Open()
         {
             try
@@ -136,6 +145,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         public void Close()
         {
             if (m_client != null)
@@ -144,6 +154,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// The async result class for the Https transport.
+        /// </summary>
         private class AsyncResult : AsyncResultBase
         {
             public IServiceRequest Request;
@@ -163,6 +176,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
             HttpResponseMessage response = null;
@@ -202,6 +216,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
             AsyncResult result2 = result as AsyncResult;
@@ -227,52 +242,74 @@ namespace Opc.Ua.Bindings
             return result2 as IServiceResponse;
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public void EndOpen(IAsyncResult result)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public void Reconnect()
         {
             Utils.Trace("HttpsTransportChannel RECONNECT: Reconnecting to {0}.", m_url);
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         void ITransportChannel.Reconnect(ITransportWaitingConnection connection)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public void EndReconnect(IAsyncResult result)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public void EndClose(IAsyncResult result)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
         public IServiceResponse SendRequest(IServiceRequest request)
         {
             IAsyncResult result = BeginSendRequest(request, null, null);
             return EndSendRequest(result);
         }
 
+        /// <summary>
+        /// Save the settings for a connection.
+        /// </summary>
+        /// <param name="url">The server url.</param>
+        /// <param name="settings">The settings for the transport channel.</param>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
             m_url = new Uri(url.ToString());
