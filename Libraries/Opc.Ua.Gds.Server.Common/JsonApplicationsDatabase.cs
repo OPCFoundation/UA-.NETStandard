@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -32,13 +32,26 @@ using Newtonsoft.Json;
 
 namespace Opc.Ua.Gds.Server.Database.Linq
 {
+    /// <summary>
+    /// A GDS database with JSON storage.
+    /// </summary>
+    /// <remarks>
+    /// This db is good for testing but not for production use.
+    /// </remarks>
     public class JsonApplicationsDatabase : LinqApplicationsDatabase
     {
         #region Constructors
+        /// <summary>
+        /// Create a JSON database.
+        /// </summary>
         public JsonApplicationsDatabase(string fileName)
         {
             m_fileName = fileName;
         }
+
+        /// <summary>
+        /// Load the JSON application database.
+        /// </summary>
         static public JsonApplicationsDatabase Load(string fileName)
         {
             try
@@ -54,15 +67,24 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
         #endregion
+
         #region Public Members
+        /// <summary>
+        /// Save the complete database.
+        /// </summary>
         public override void Save()
         {
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
             File.WriteAllText(m_fileName, json);
         }
+
+        /// <summary>
+        /// Get or set the filename.
+        /// </summary>
         [JsonIgnore]
         public string FileName { get { return m_fileName; } private set { m_fileName = value; } }
         #endregion
+
         #region Private Fields
         [JsonIgnore]
         string m_fileName;
