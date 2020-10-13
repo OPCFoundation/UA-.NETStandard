@@ -2671,9 +2671,12 @@ namespace Opc.Ua
             return result == 0;
         }
 
+        /// <summary>
+        /// Cryptographic Nonce helper functions. 
+        /// </summary>
         public static class Nonce
         {
-            static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
+            static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
             /// <summary>
             /// Generates a Nonce for cryptographic functions.

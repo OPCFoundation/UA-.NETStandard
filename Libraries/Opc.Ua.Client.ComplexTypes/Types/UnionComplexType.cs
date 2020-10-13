@@ -35,6 +35,9 @@ using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
+    /// <summary>
+    /// Implements a union complex type.
+    /// </summary>
     public class UnionComplexType : BaseComplexType
     {
         #region Constructors

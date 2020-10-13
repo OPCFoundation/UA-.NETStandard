@@ -65,6 +65,10 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Public Methods
+        /// <summary>
+        /// Delegate to validate the access to the trust list.
+        /// </summary>
+        /// <param name="context"></param>
         public delegate void SecureAccess(ISystemContext context);
         #endregion
 

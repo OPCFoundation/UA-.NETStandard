@@ -1893,6 +1893,9 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// A collection of reverse connect clients.
+        /// </summary>
         [DataMember(Order = 10)]
         public ReverseConnectClientCollection Clients { get; set; }
 
@@ -1983,6 +1986,9 @@ namespace Opc.Ua
     #endregion
 
     #region ReverseConnectClientCollection Class
+    /// <summary>
+    /// A collection of reverse connect clients.
+    /// </summary>
     [CollectionDataContract(Name = "ListOfReverseConnectClient", Namespace = Namespaces.OpcUaConfig, ItemName = "ReverseConnectClient")]
     public class ReverseConnectClientCollection : List<ReverseConnectClient>
     {

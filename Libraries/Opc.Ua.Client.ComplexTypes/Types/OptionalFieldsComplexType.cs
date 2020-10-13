@@ -297,6 +297,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Members
+        /// <inheritdoc/>
         protected override void InitializePropertyAttributes()
         {
             base.InitializePropertyAttributes();

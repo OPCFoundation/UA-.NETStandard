@@ -60,11 +60,15 @@ namespace Opc.Ua.Client.ComplexTypes
     public class StructureDefinitionAttribute : Attribute
     {
         #region Constructors
+        /// <summary>
+        /// Create the attribute for a structure definition.
+        /// </summary>
         public StructureDefinitionAttribute()
         {
             StructureType = StructureType.Structure;
         }
         #endregion
+
         #region Public Methods
         public static StructureBaseDataType FromBaseType(NodeId baseTypeId)
         {
@@ -79,6 +83,7 @@ namespace Opc.Ua.Client.ComplexTypes
             return StructureBaseDataType.Structure;
         }
         #endregion
+
         #region  Public Properties
         public string DefaultEncodingId { get; set; }
         public StructureBaseDataType BaseDataType { get; set; }

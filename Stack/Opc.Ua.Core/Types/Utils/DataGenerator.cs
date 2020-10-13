@@ -1039,6 +1039,9 @@ namespace Opc.Ua.Test
         #endregion
 
         #region DataValue
+        /// <summary>
+        /// Get a random DataValue.
+        /// </summary>
         public DataValue GetRandomDataValue()
         {
             Variant variant = GetRandomVariant();

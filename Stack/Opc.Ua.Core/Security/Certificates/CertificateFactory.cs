@@ -144,6 +144,7 @@ public static class CertificateFactory
     /// The security parameters may change over time,
     /// so they are only readonly values, not constants.
     /// </remarks>
+    ///
     public static readonly ushort DefaultKeySize = 2048;
     public static readonly ushort DefaultHashSize = 256;
     public static readonly ushort DefaultLifeTime = 12;

@@ -404,6 +404,11 @@ namespace Opc.Ua
         {
         }
 
+        /// <summary>
+        /// Read a decoded JSON field.
+        /// </summary>
+        /// <param name="fieldName">The name of the field.</param>
+        /// <param name="token">The returned object token of the field.</param>
         public bool ReadField(string fieldName, out object token)
         {
             token = null;
