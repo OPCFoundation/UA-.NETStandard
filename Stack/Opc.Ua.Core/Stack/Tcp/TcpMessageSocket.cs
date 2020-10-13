@@ -127,7 +127,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// 
+        /// The socket event args.
         /// </summary>
         public SocketAsyncEventArgs Args => m_args;
 

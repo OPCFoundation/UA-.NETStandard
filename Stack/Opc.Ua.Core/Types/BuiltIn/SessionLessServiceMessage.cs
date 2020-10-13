@@ -15,7 +15,7 @@ using System;
 namespace Opc.Ua
 {
     /// <summary>
-    /// 
+    /// A session-less service message.
     /// </summary>
     public class SessionLessServiceMessage 
     {
