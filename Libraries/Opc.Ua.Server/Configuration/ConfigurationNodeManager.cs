@@ -37,52 +37,61 @@ using System.Xml;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Special identity only for the system configuration.
+    /// Priviledged identity which can access the system configuration.
     /// </summary>
     public class SystemConfigurationIdentity : IUserIdentity
     {
         private IUserIdentity m_identity;
 
+        /// <summary>
+        /// Create a user identity with the priviledge
+        /// to modify the system configuration.
+        /// </summary>
+        /// <param name="identity">The user identity.</param>
         public SystemConfigurationIdentity(IUserIdentity identity)
         {
             m_identity = identity;
         }
+
         #region IUserIdentity
+        /// <inheritdoc/>
         public string DisplayName
         {
             get { return m_identity.DisplayName; }
         }
 
-        /// <summary>
-        /// The user token policy.
-        /// </summary>
-        /// <value>The user token policy.</value>
+        /// <inheritdoc/>
         public string PolicyId
         {
             get { return m_identity.PolicyId; }
         }
 
+        /// <inheritdoc/>
         public UserTokenType TokenType
         {
             get { return m_identity.TokenType; }
         }
 
+        /// <inheritdoc/>
         public XmlQualifiedName IssuedTokenType
         {
             get { return m_identity.IssuedTokenType; }
         }
 
+        /// <inheritdoc/>
         public bool SupportsSignatures
         {
             get { return m_identity.SupportsSignatures; }
         }
 
+        /// <inheritdoc/>
         public NodeIdCollection GrantedRoleIds
         {
             get { return m_identity.GrantedRoleIds; }
             set { m_identity.GrantedRoleIds = value; }
         }
 
+        /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()
         {
             return m_identity.GetIdentityToken();
@@ -121,6 +130,7 @@ namespace Opc.Ua.Server
             m_certificateGroups.Add(defaultApplicationGroup);
         }
         #endregion
+
         #region INodeManager Members
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
@@ -320,6 +330,12 @@ namespace Opc.Ua.Server
             return namespaceMetadataState;
         }
 
+        /// <summary>
+        /// Determine if the impersonated user has admin access.
+        /// </summary>
+        /// <param name="context"></param>
+        /// <exception cref="ServiceResultException"/>
+        /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context)
         {
             OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;

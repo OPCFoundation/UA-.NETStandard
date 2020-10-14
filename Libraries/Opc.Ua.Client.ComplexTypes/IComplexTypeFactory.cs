@@ -61,6 +61,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Target namespace information.
         /// </summary>
         string TargetNamespace { get; }
+
+        /// <summary>
+        /// Target namespace index.
+        /// </summary>
         int TargetNamespaceIndex { get; }
 
         /// <summary>

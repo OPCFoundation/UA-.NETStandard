@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -31,63 +31,85 @@ using System.Xml;
 
 namespace Opc.Ua.Gds.Server
 {
+    /// <summary>
+    /// The supported roles in a GDS server.
+    /// </summary>
     public enum GdsRole
     {
+        /// <summary>
+        /// The GDS application Administrator.
+        /// </summary>
         ApplicationAdmin,
+
+        /// <summary>
+        /// The GDS application user.
+        /// </summary>
         ApplicationUser
     }
 
+    /// <summary>
+    /// The role based identity for a GDS server.
+    /// </summary>
     public class RoleBasedIdentity : IUserIdentity
     {
         private IUserIdentity m_identity;
         private GdsRole m_role;
 
+        /// <summary>
+        /// Initialize the role based identity.
+        /// </summary>
         public RoleBasedIdentity(IUserIdentity identity, GdsRole role)
         {
             m_identity = identity;
             m_role = role;
         }
 
+        /// <inheritdoc/>
         public NodeIdCollection GrantedRoleIds
         {
             get { return m_identity.GrantedRoleIds; }
             set { m_identity.GrantedRoleIds = value; }
         }
 
+        /// <summary>
+        /// The role in the context of a Gds.
+        /// </summary>
         public GdsRole Role
         {
             get { return m_role; }
         }
 
+        /// <inheritdoc/>
         public string DisplayName
         {
             get { return m_identity.DisplayName; }
         }
 
-        /// <summary>
-        /// The user token policy.
-        /// </summary>
-        /// <value>The user token policy.</value>
+        /// <inheritdoc/>
         public string PolicyId
         {
             get { return m_identity.PolicyId; }
         }
 
+        /// <inheritdoc/>
         public UserTokenType TokenType
         {
             get { return m_identity.TokenType; }
         }
 
+        /// <inheritdoc/>
         public XmlQualifiedName IssuedTokenType
         {
             get { return m_identity.IssuedTokenType; }
         }
 
+        /// <inheritdoc/>
         public bool SupportsSignatures
         {
             get { return m_identity.SupportsSignatures; }
         }
 
+        /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()
         {
             return m_identity.GetIdentityToken();

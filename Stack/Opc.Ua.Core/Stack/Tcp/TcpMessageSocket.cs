@@ -25,6 +25,9 @@ namespace Opc.Ua.Bindings
 
     public class TcpTransportChannel : UaSCUaBinaryTransportChannel
     {
+        /// <summary>
+        /// Create a Tcp transport channel.
+        /// </summary>
         public TcpTransportChannel() :
             base(new TcpMessageSocketFactory())
         {
@@ -39,7 +42,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The method creates a new instance of a TCP transport channel
         /// </summary>
-        /// <returns> the transport channel</returns>
+        /// <returns>The transport channel</returns>
         public ITransportChannel Create()
         {
             return new TcpTransportChannel();
@@ -51,6 +54,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocketAsyncEventArgs : IMessageSocketAsyncEventArgs
     {
+        /// <summary>
+        /// Create the event args for the async TCP message socket.
+        /// </summary>
         public TcpMessageSocketAsyncEventArgs()
         {
             m_args = new SocketAsyncEventArgs {
@@ -59,25 +65,29 @@ namespace Opc.Ua.Bindings
         }
 
         #region IDisposable Members
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
             m_args.Dispose();
         }
         #endregion
 
+        /// <inheritdoc/>
         public object UserToken { get; set; }
 
+        /// <inheritdoc/>
         public void SetBuffer(byte[] buffer, int offset, int count)
         {
             m_args.SetBuffer(buffer, offset, count);
         }
 
+        /// <inheritdoc/>
         public bool IsSocketError => m_args.SocketError != SocketError.Success;
+
+        /// <inheritdoc/>
         public string SocketErrorString => m_args.SocketError.ToString();
 
+        /// <inheritdoc/>
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
             add
@@ -92,6 +102,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         protected void OnComplete(object sender, SocketAsyncEventArgs e)
         {
             if (e.UserToken == null)
@@ -102,17 +113,25 @@ namespace Opc.Ua.Bindings
             m_internalComplete(this, e.UserToken as IMessageSocketAsyncEventArgs);
         }
 
+        /// <inheritdoc/>
         public int BytesTransferred => m_args.BytesTransferred;
 
+        /// <inheritdoc/>
         public byte[] Buffer => m_args.Buffer;
 
+        /// <inheritdoc/>
         public BufferCollection BufferList
         {
             get { return m_args.BufferList as BufferCollection; }
             set { m_args.BufferList = value; }
         }
 
-        public SocketAsyncEventArgs m_args;
+        /// <summary>
+        /// The socket event args.
+        /// </summary>
+        public SocketAsyncEventArgs Args => m_args;
+
+        private SocketAsyncEventArgs m_args;
         private event EventHandler<IMessageSocketAsyncEventArgs> m_internalComplete;
     }
 
@@ -121,31 +140,40 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocketConnectAsyncEventArgs : IMessageSocketAsyncEventArgs
     {
+        /// <summary>
+        /// Create the async event args for a TCP message socket.
+        /// </summary>
+        /// <param name="error">The socket error.</param>
         public TcpMessageSocketConnectAsyncEventArgs(SocketError error)
         {
             m_socketError = error;
         }
 
         #region IDisposable Members
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
         }
         #endregion
 
+        /// <inheritdoc/>
         public object UserToken { get; set; }
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public void SetBuffer(byte[] buffer, int offset, int count)
         {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc/>
         public bool IsSocketError => m_socketError != SocketError.Success;
 
+        /// <inheritdoc/>
         public string SocketErrorString => m_socketError.ToString();
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
             add
@@ -158,10 +186,15 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
         public int BytesTransferred => 0;
 
+        /// <inheritdoc/>
+        /// <remarks>Not implemented here.</remarks>
         public byte[] Buffer => null;
 
+        /// <inheritdoc/>
+        /// <remarks>Not implememnted here.</remarks>
         public BufferCollection BufferList
         {
             get { return null; }
@@ -796,12 +829,15 @@ namespace Opc.Ua.Bindings
             {
                 throw new InvalidOperationException("The socket is not connected.");
             }
-            eventArgs.m_args.SocketError = SocketError.NotConnected;
-            return m_socket.SendAsync(eventArgs.m_args);
+            eventArgs.Args.SocketError = SocketError.NotConnected;
+            return m_socket.SendAsync(eventArgs.Args);
         }
         #endregion
 
         #region Event factory
+        /// <summary>
+        /// Create event args for TcpMessageSocket.
+        /// </summary>
         public IMessageSocketAsyncEventArgs MessageSocketEventArgs()
         {
             return new TcpMessageSocketAsyncEventArgs();

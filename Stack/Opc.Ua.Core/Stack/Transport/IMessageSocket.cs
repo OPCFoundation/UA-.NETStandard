@@ -175,6 +175,9 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Event factory
+        /// <summary>
+        /// Get the message socket event args.
+        /// </summary>
         IMessageSocketAsyncEventArgs MessageSocketEventArgs();
         #endregion
     }

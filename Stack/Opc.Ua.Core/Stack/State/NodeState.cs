@@ -2933,7 +2933,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Populates a table with all references in the hierarchy. 
+        /// Populates a table with all references in the hierarchy.
         /// </summary>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="browsePath">The path to the parent object.</param>
@@ -4670,10 +4670,10 @@ namespace Opc.Ua
         #endregion
     }
 
-    [Flags]
     /// <summary>
     /// Indicates what has changed in a node.
     /// </summary>
+    [Flags]
     public enum NodeStateChangeMasks
     {
         /// <summary>

@@ -40,8 +40,19 @@ namespace Opc.Ua.Client.ComplexTypes
     public class StructureTypeIdAttribute : Attribute
     {
         #region  Public Properties
+        /// <summary>
+        /// The complex type id attribute.
+        /// </summary>
         public string ComplexTypeId { get; set; }
+
+        /// <summary>
+        /// The binary encoding id attribute.
+        /// </summary>
         public string BinaryEncodingId { get; set; }
+
+        /// <summary>
+        /// The xml encoding id attribute.
+        /// </summary>
         public string XmlEncodingId { get; set; }
         #endregion
     }

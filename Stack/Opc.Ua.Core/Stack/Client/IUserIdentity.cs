@@ -31,6 +31,7 @@ namespace Opc.Ua
         /// <value>The user token policy.</value>
         string PolicyId { get; }
 
+        /// <summary>
         /// The type of identity token used.
         /// </summary>
         /// <value>The type of the token.</value>

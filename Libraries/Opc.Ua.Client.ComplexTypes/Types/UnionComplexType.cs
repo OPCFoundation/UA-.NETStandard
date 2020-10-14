@@ -35,6 +35,9 @@ using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
+    /// <summary>
+    /// Implements a union complex type.
+    /// </summary>
     public class UnionComplexType : BaseComplexType
     {
         #region Constructors
@@ -333,6 +336,9 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Fields
+        /// <summary>
+        /// The selector for the value of the Union.
+        /// </summary>
         protected UInt32 m_switchField;
         #endregion
     }

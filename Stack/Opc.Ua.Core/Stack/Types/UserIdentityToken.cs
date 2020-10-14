@@ -241,6 +241,9 @@ namespace Opc.Ua
         #endregion
     }
 
+    /// <summary>
+    /// The issued token type.
+    /// </summary>
     public enum IssuedTokenType
     {
         GenericWSS,

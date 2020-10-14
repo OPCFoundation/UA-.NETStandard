@@ -1494,7 +1494,6 @@ namespace Opc.Ua
         /// Processes the request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="calldata">The calldata passed with the request.</param>
         protected virtual void ProcessRequest(IEndpointIncomingRequest request)
         {
             request.CallSynchronously();

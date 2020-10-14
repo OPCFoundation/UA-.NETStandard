@@ -35,6 +35,9 @@ using System.Text;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
+    /// <summary>
+    /// A complex type with optional fields.
+    /// </summary>
     public class OptionalFieldsComplexType : BaseComplexType
     {
         #region Constructors
@@ -294,6 +297,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Members
+        /// <inheritdoc/>
         protected override void InitializePropertyAttributes()
         {
             base.InitializePropertyAttributes();

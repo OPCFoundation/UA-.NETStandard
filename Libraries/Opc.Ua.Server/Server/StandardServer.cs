@@ -2662,11 +2662,10 @@ namespace Opc.Ua.Server
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
-        /// <param name="bindingFactory">The binding factory.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="endpoints">The endpoints.</param>
         /// <returns>
-        /// Returns IList of a host for a UA service which type is <seealso cref="ServiceHost"/>.
+        /// Returns IList of a host for a UA service.
         /// </returns>
         protected override IList<Task> InitializeServiceHosts(
             ApplicationConfiguration          configuration, 
@@ -3143,11 +3142,10 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        protected object m_lock = new object();
+        protected readonly object m_lock = new object();
+        private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
-
-        private object m_registrationLock = new object();
         private ConfiguredEndpointCollection m_registrationEndpoints;
         private RegisteredServer m_registrationInfo;
         private Timer m_registrationTimer;

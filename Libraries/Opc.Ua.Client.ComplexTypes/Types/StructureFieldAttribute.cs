@@ -40,6 +40,9 @@ namespace Opc.Ua.Client.ComplexTypes
     public class StructureFieldAttribute : Attribute
     {
         #region Constructors
+        /// <summary>
+        /// Initialize a field attribute with defaults.
+        /// </summary>
         public StructureFieldAttribute()
         {
             ValueRank = -1;
@@ -49,8 +52,19 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region  Public Properties
+        /// <summary>
+        /// The value rank of the field.
+        /// </summary>
         public Int32 ValueRank { get; set; }
+
+        /// <summary>
+        /// The maximum string length of the field.
+        /// </summary>
         public UInt32 MaxStringLength { get; set; }
+
+        /// <summary>
+        /// If the field is optional.
+        /// </summary>
         public bool IsOptional { get; set; }
         #endregion
     }

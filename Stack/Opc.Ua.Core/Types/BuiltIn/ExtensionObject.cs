@@ -629,7 +629,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array of extension objects to an array of the specified type.
         /// </summary>
-        /// <param name="extensions">The array to convert.</param>
+        /// <param name="source">The array to convert.</param>
         /// <param name="elementType">The type of each element.</param>
         /// <returns>The new array</returns>
         /// <remarks>
@@ -662,7 +662,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array of extension objects to a List of the specified type.
         /// </summary>
-        /// <param name="extensions">The array to convert.</param>
+        /// <param name="source">The array to convert.</param>
         /// <returns>The new typed List</returns>
         /// <remarks>
         /// Will add null elements if individual elements cannot be converted.

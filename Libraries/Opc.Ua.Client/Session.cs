@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client
 {
@@ -47,7 +48,7 @@ namespace Opc.Ua.Client
     {
         #region Constructors
         /// <summary>
-        /// Constructs a new instance of the session.
+        /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -62,7 +63,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Constructs a new instance of the session.
+        /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -85,6 +86,14 @@ namespace Opc.Ua.Client
             Initialize(channel, configuration, endpoint, clientCertificate);
         }
 
+        /// <summary>
+        /// Constructs a new instance of the <see cref="Session"/> class.
+        /// </summary>
+        /// <param name="channel">The channel used to communicate with the server.</param>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="endpoint">The endpoint use to initialize the channel.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">A collection of available endpoints to connect to the server.</param>
         public Session(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
@@ -95,7 +104,6 @@ namespace Opc.Ua.Client
                 base(channel)
         {
             Initialize(channel, configuration, endpoint, clientCertificate);
-
             m_expectedServerEndpoints = availableEndpoints;
         }
 
@@ -321,7 +329,7 @@ namespace Opc.Ua.Client
                 // the server nonce should be validated if the token includes a secret.
                 if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is not the correct length or not random enough.");
+                    throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "The server nonce has not the correct length or is not random enough.");
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
@@ -330,6 +338,10 @@ namespace Opc.Ua.Client
                     if (!m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is equal with previously returned nonce.");
+                    }
+                    else
+                    {
+                        Utils.Trace((int)TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error was suppressed.");
                     }
                 }
             }
@@ -933,6 +945,7 @@ namespace Opc.Ua.Client
         /// <param name="sessionTimeout">The timeout period for the session.</param>
         /// <param name="userIdentity">The user identity to associate with the session.</param>
         /// <param name="preferredLocales">The preferred locales.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
         public static async Task<Session> Create(
             ApplicationConfiguration configuration,
@@ -1105,7 +1118,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
-        public void Reconnect() => Reconnect(null);
+        public void Reconnect()
+        {
+            Reconnect(null);
+        }
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
@@ -1571,8 +1587,9 @@ namespace Opc.Ua.Client
         /// <summary>
         ///  Returns the data dictionary that contains the description.
         /// </summary>
-        /// <param name="dictionaryId">The dictionary id.</param>
-        /// <returns></returns>
+        /// <param name="dictionaryNode">The dictionary id.</param>
+        /// <param name="forceReload"></param>
+        /// <returns>The dictionary.</returns>
         public async Task<DataDictionary> LoadDataDictionary(ReferenceDescription dictionaryNode, bool forceReload = false)
         {
             // check if the dictionary has already been loaded.
@@ -4491,8 +4508,7 @@ namespace Opc.Ua.Client
                 // Delete abandoned subscription from server.
                 Utils.Trace("Received Publish Response for Unknown SubscriptionId={0}", subscriptionId);
 
-                Task.Run(() =>
-                {
+                Task.Run(() => {
                     DeleteSubscription(subscriptionId);
                 });
             }

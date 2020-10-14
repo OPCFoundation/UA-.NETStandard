@@ -125,7 +125,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
+        /// <summary cref="ICertificateStore.Add(X509Certificate2, String)" />
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -226,7 +226,11 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.GetPublicKeyFilePath" />
+        /// <summary>
+        /// Returns the path to the public key file.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint of the certificate.</param>
+        /// <returns>The path.</returns>
         public string GetPublicKeyFilePath(string thumbprint)
         {
             Entry entry = Find(thumbprint);
@@ -244,7 +248,11 @@ namespace Opc.Ua
             return entry.CertificateFile.FullName;
         }
 
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
+        /// <summary>
+        /// Returns the path to the private key file.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint of the certificate.</param>
+        /// <returns>The path.</returns>
         public string GetPrivateKeyFilePath(string thumbprint)
         {
             Entry entry = Find(thumbprint);

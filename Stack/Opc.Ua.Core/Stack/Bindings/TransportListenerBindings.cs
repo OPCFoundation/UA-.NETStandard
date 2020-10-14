@@ -33,8 +33,15 @@ namespace Opc.Ua.Bindings
         }
 
         #region Public Properties
+        /// <summary>
+        /// Dictionary of transported listeners.
+        /// </summary>
         public static Dictionary<string, Type> TransportListeners { get; private set; }
 
+        /// <summary>
+        /// Get a transport listener for a uri scheme.
+        /// </summary>
+        /// <param name="uriScheme">The uri scheme.</param>
         public static ITransportListener GetTransportListener(string uriScheme)
         {
             Type listenerType;

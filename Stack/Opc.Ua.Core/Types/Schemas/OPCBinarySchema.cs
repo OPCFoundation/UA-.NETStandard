@@ -15,6 +15,9 @@ using System.Xml;
 
 namespace Opc.Ua.Schema.Binary
 {
+    /// <summary>
+    /// The binary schema documentation.
+    /// </summary>
     [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
     [DataContractAttribute()]
     [System.Diagnostics.DebuggerStepThroughAttribute()]
