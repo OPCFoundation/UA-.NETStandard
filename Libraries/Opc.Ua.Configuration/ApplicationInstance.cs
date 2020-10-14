@@ -580,7 +580,7 @@ namespace Opc.Ua.Configuration
                     // get IP addresses only if necessary.
                     if (addresses == null)
                     {
-                        addresses = await Utils.GetHostAddresses(computerName);
+                        addresses = await Utils.GetHostAddressesAsync(computerName);
                     }
 
                     // check for ip addresses.
