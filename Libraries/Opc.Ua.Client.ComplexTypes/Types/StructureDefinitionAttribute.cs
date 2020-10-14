@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -32,11 +32,24 @@ using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
+    /// <summary>
+    /// The known base complex types.
+    /// </summary>
     public enum StructureBaseDataType
     {
+        /// <summary>
+        /// The type is a structure.
+        /// </summary>
         Structure,
+
+        /// <summary>
+        /// The type is an OptionSet.
+        /// </summary>
         OptionSet,
+
+        /// <summary>
+        /// The type is a Union.
+        /// </summary>
         Union
     }
 
@@ -47,12 +60,20 @@ namespace Opc.Ua.Client.ComplexTypes
     public class StructureDefinitionAttribute : Attribute
     {
         #region Constructors
+        /// <summary>
+        /// Create the attribute for a structure definition.
+        /// </summary>
         public StructureDefinitionAttribute()
         {
             StructureType = StructureType.Structure;
         }
         #endregion
+
         #region Public Methods
+        /// <summary>
+        /// Convert the base type node id to a <see cref="StructureBaseDataType"/>.
+        /// </summary>
+        /// <param name="baseTypeId">The base type nodeId.</param>
         public static StructureBaseDataType FromBaseType(NodeId baseTypeId)
         {
             if (baseTypeId == DataTypeIds.Union)
@@ -66,9 +87,19 @@ namespace Opc.Ua.Client.ComplexTypes
             return StructureBaseDataType.Structure;
         }
         #endregion
+
         #region  Public Properties
+        /// <summary>
+        /// The default encoding Id.
+        /// </summary>
         public string DefaultEncodingId { get; set; }
+        /// <summary>
+        /// The base DataType.
+        /// </summary>
         public StructureBaseDataType BaseDataType { get; set; }
+        /// <summary>
+        /// The structure type.
+        /// </summary>
         public StructureType StructureType { get; set; }
         #endregion
     }

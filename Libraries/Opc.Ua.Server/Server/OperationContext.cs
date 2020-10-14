@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -44,6 +44,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
         /// <param name="requestType">Type of the request.</param>
+        /// <param name="identity">The identity used in the request.</param>
         public OperationContext(RequestHeader requestHeader, RequestType requestType, IUserIdentity identity = null)
         {
             if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));

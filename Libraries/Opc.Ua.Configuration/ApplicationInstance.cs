@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -35,9 +35,21 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Configuration
 {
+    /// <summary>
+    /// Interface to create application callbacks.
+    /// </summary>
     public abstract class IApplicationMessageDlg
     {
+        /// <summary>
+        /// The application message.
+        /// </summary>
+        /// <param name="text">The text of the message.</param>
+        /// <param name="ask">If the application should ask the user.</param>
         public abstract void Message(string text, Boolean ask = false);
+
+        /// <summary>
+        /// Show the message and return result.
+        /// </summary>
         public abstract Task<bool> ShowAsync();
     }
 
@@ -126,6 +138,9 @@ namespace Opc.Ua.Configuration
         /// <value>If true the application will not be visible to the GDS local agent after installation.</value>
         public bool NoGdsAgentAdmin { get; set; }
 
+        /// <summary>
+        /// Get or set the message dialog.
+        /// </summary>
         public static IApplicationMessageDlg MessageDlg { get; set; }
         #endregion
 
@@ -565,7 +580,7 @@ namespace Opc.Ua.Configuration
                     // get IP addresses only if necessary.
                     if (addresses == null)
                     {
-                        addresses = await Utils.GetHostAddresses(computerName);
+                        addresses = await Utils.GetHostAddressesAsync(computerName);
                     }
 
                     // check for ip addresses.
@@ -612,7 +627,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="keySize">Size of the key.</param>
-        /// <param name="lifetimeInMonths">The lifetime in months.</param>
+        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <returns>The new certificate</returns>
         private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
             ApplicationConfiguration configuration,

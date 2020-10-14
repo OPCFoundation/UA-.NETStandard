@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -61,6 +61,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Target namespace information.
         /// </summary>
         string TargetNamespace { get; }
+
+        /// <summary>
+        /// Target namespace index.
+        /// </summary>
         int TargetNamespaceIndex { get; }
 
         /// <summary>

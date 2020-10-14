@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -814,6 +814,12 @@
     <opc:EnumeratedValue Name="Information" Value="0" />
     <opc:EnumeratedValue Name="Error" Value="1" />
   </opc:EnumeratedType>
+
+  <opc:StructuredType Name="AliasNameDataType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="AliasName" TypeName="ua:QualifiedName" />
+    <opc:Field Name="NoOfReferencedNodes" TypeName="opc:Int32" />
+    <opc:Field Name="ReferencedNodes" TypeName="ua:ExpandedNodeId" LengthField="NoOfReferencedNodes" />
+  </opc:StructuredType>
 
   <opc:EnumeratedType Name="IdType" LengthInBits="32">
     <opc:EnumeratedValue Name="Numeric" Value="0" />

@@ -1,13 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  
+
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
-    <PackageId>Opc.Ua.Core</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -37,7 +43,7 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="Portable.BouncyCastle" Version="1.8.6.7" />
+    <PackageReference Include="Portable.BouncyCastle" Version="1.8.8" />
     <PackageReference Include="System.Formats.Asn1" Version="5.0.0-rc.1.20451.14" />
   </ItemGroup>
 

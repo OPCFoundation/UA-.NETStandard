@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -22,6 +22,10 @@ namespace Opc.Ua.Bindings
     public class UaSCUaBinaryTransportChannel : ITransportChannel, IMessageSocketChannel
     {
         #region Constructors
+        /// <summary>
+        /// Create a transport channel from a message socket factory.
+        /// </summary>
+        /// <param name="messageSocketFactory">The message socket factory.</param>
         public UaSCUaBinaryTransportChannel(IMessageSocketFactory messageSocketFactory)
         {
             m_messageSocketFactory = messageSocketFactory;
@@ -241,7 +245,7 @@ namespace Opc.Ua.Bindings
         /// The result which must be passed to the EndReconnect method.
         /// </returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect"/>
+        /// <seealso cref="Reconnect()"/>
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
         {
             throw new NotImplementedException();
@@ -252,7 +256,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="result">The result returned from the BeginReconnect call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect"/>
+        /// <seealso cref="Reconnect()"/>
         public void EndReconnect(IAsyncResult result)
         {
             throw new NotImplementedException();

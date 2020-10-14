@@ -2,20 +2,36 @@
 # Build preview packages for internal feed
 #
 parameters:
-  upload: false
+- name: upload
+  type: string
+  default: False
+  values: 
+  - False
+  - True
+- name: config
+  type: string
+  default: Release
+  values: 
+  - Debug
+  - Release
+
 jobs:
-- job: buildnuget
-  displayName: Build Nuget Preview Packages
+- job: nuget${{parameters.config}}
+  displayName: Pack Nugets ${{parameters.config}}
   pool:
     vmImage: 'windows-2019'
   variables:
   - group: codesign
   - name: msbuildversion
-    value: '/p:Version=$(NUGETVERSION) /p:AssemblyVersion=$(NUGETVERSION) /p:FileVersion=$(NUGETVERSION)'
+    value: '/p:Version=$(NBGV_Version) /p:AssemblyVersion=$(NBGV_SimpleVersion) /p:FileVersion=$(NBGV_AssemblyFileVersion)'
   - name: msbuildsign
     value: '/p:AssemblyOriginatorKeyFile=$(strongnamefile.secureFilePath) /p:SignAssembly=true'
   - name: nugetpreviewversion
-    value: '$(NUGETVERSION)-$(Build.BuildNumber)-$(Build.SourceBranchName)-preview'
+    value: '$(NBGV_NuGetPackageVersion)'
+  - name: nugetpublicversion
+    value: '$(NBGV_Version)$(NBGV_PrereleaseVersion)'
+  - name: signinglist
+    value: '.azurepipelines/signlist${{parameters.config}}.txt'
   steps:
   - task: DownloadSecureFile@1
     name: strongnamefile
@@ -26,7 +42,7 @@ jobs:
     inputs:
       command: 'custom'
       custom: 'tool'
-      arguments: 'install --global azuresigntool'
+      arguments: 'install --tool-path . azuresigntool'
     displayName: Install AzureSignTool
   - task: DotNetCoreCLI@2
     inputs:
@@ -37,57 +53,80 @@ jobs:
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
-    displayName: Release Restore
+    displayName: Restore ${{parameters.config}}
     inputs:
       command: restore
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--configuration Release'
+      projects: 'UA Core Library.sln'
+      arguments: '--configuration ${{parameters.config}}'
   - task: DotNetCoreCLI@2
-    displayName: Release Build
+    displayName: Build ${{parameters.config}}
     inputs:
       command: build
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Release ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
-  - task: DotNetCoreCLI@2
-    displayName: Debug Build
-    inputs:
-      command: build
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Debug ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+      projects: 'UA Core Library.sln'
+      arguments: '--no-incremental --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
   - task: CmdLine@2
     displayName: 'Sign Assemblies'
     condition: ne( variables['SigningClientSecret'], '')
     inputs:
       script: |
-        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl .azurepipelines/signlist.txt
+        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl ${{ variables.signinglist }}
+  - task: DotNetCoreCLI@2
+    displayName: Pack Nuget ${{parameters.config}}
+    inputs:
+      command: pack
+      packagesToPack:  'UA Core Library.sln'
+      configuration: ${{parameters.config}}
+      configurationToPack: ${{parameters.config}}
+      nobuild: true
   - task: NuGetCommand@2
-    displayName: Pack Nuget Preview
+    displayName: Pack Nuget Legacy Preview
+    condition: and(succeeded(), and(eq('${{parameters.config}}', 'Release'), ne(variables['NBGV_PublicRelease'], 'True')))
     continueOnError: true
     inputs:
       command: 'pack'
-      packagesToPack: '**/*.nuspec'
+      packagesToPack: '**/Opc.*.nuspec'
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
+  - task: NuGetCommand@2
+    displayName: Pack Nuget Legacy Public
+    condition: and(succeeded(), and(eq('${{parameters.config}}', 'Release'), eq(variables['NBGV_PublicRelease'], 'True')))
+    continueOnError: true
+    inputs:
+      command: 'pack'
+      packagesToPack: '**/Opc.*.nuspec'
+      versioningScheme: 'byEnvVar'
+      versionEnvVar: 'nugetpublicversion'
   - task: CmdLine@2
     displayName: 'List of nuget packages to sign'
     inputs:
       script: |
-        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.nupkg > .\nupkglist.txt
+        dir /b /s $(Build.ArtifactStagingDirectory)\OPCFoundation.*.*nupkg > .\nupkglist.txt
         type .\nupkglist.txt
   - task: CmdLine@2
     displayName: Sign Nuget packages
-    condition: ne( variables['SigningClientSecret'], '')
+    condition: and(succeeded(), ne( variables['SigningClientSecret'], ''))
     continueOnError: true
     inputs:
       script: |
         NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
-  - task: NuGetCommand@2
-    displayName: Upload Nuget Preview
-    condition: ${{ variables.upload }}
+        NuGetKeyVaultSignTool sign $(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.snupkg --file-digest sha256 --timestamp-rfc3161 http://timestamp.digicert.com --timestamp-digest sha256 --azure-key-vault-url "$(SigningVaultURL)" --azure-key-vault-client-id "$(SigningClientId)" --azure-key-vault-tenant-id "$(SigningTenantId)" --azure-key-vault-client-secret "$(SigningClientSecret)" --azure-key-vault-certificate "$(SigningCertName)" 
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Artifacts'
     inputs:
-      command: 'push'
-      packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'
-      nuGetFeedType: 'internal'
-      publishVstsFeed: '$(VSTSFEED)'
-      allowPackageConflicts: true
+      path: $(Build.ArtifactStagingDirectory)
+      artifact: 'opcua_${{parameters.config}}_$(NBGV_Version)_$(NBGV_NugetPackageVersion)'
+  - ${{ if eq(parameters.upload, 'True') }}:
+    - task: NuGetCommand@2
+      displayName: Upload Nuget Preview
+      inputs:
+        command: 'push'
+        packagesToPush: '$(Build.ArtifactStagingDirectory)/**/OPCFoundation.*.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: '$(VSTSFEED)'
+        allowPackageConflicts: true

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// An interface to a UA server implementation.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public interface ISessionServer : IServerBase
     {
         #if (!OPCUA_EXCLUDE_FindServers)
@@ -496,7 +496,7 @@ namespace Opc.Ua
     /// A basic implementation of the UA server.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class SessionServerBase : ServerBase, ISessionServer
     {
         #if (!OPCUA_EXCLUDE_FindServers)
@@ -1316,7 +1316,7 @@ namespace Opc.Ua
     /// An interface to a UA server implementation.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public interface IDiscoveryServer : IServerBase
     {
         #if (!OPCUA_EXCLUDE_FindServers)
@@ -1384,7 +1384,7 @@ namespace Opc.Ua
     /// A basic implementation of the UA server.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public partial class DiscoveryServerBase : ServerBase, IDiscoveryServer
     {
         #if (!OPCUA_EXCLUDE_FindServers)

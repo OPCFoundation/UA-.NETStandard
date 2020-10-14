@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -1017,7 +1017,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="hostname">The hostname.</param>
         /// <returns>The hostname to use for URL filtering.</returns>
-        protected async Task<string> NormalizeHostname(string hostname)
+        protected string NormalizeHostname(string hostname)
         {
             string computerName = Utils.GetHostName();
 
@@ -1039,7 +1039,7 @@ namespace Opc.Ua
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
-                IPAddress[] addresses = await Utils.GetHostAddresses(Utils.GetHostName());
+                IPAddress[] addresses = Utils.GetHostAddresses(Utils.GetHostName());
 
                 for (int ii = 0; ii < addresses.Length; ii++)
                 {
@@ -1494,7 +1494,6 @@ namespace Opc.Ua
         /// Processes the request.
         /// </summary>
         /// <param name="request">The request.</param>
-        /// <param name="calldata">The calldata passed with the request.</param>
         protected virtual void ProcessRequest(IEndpointIncomingRequest request)
         {
             request.CallSynchronously();

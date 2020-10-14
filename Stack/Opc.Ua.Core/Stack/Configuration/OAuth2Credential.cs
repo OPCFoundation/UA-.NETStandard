@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
+
+// suppress warnings until OAuth 2.0 is supported
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace Opc.Ua
 {
@@ -141,8 +143,7 @@ namespace Opc.Ua
 
                             if (uri == serverApplicationUri)
                             {
-                                var credential = new OAuth2Credential()
-                                {
+                                var credential = new OAuth2Credential() {
                                     AuthorityUrl = ii.AuthorityUrl,
                                     GrantType = ii.GrantType,
                                     ClientId = ii.ClientId,
@@ -192,8 +193,7 @@ namespace Opc.Ua
 
                     if (String.Compare(uri, authorityUrl, StringComparison.OrdinalIgnoreCase) == 0)
                     {
-                        var credential = new OAuth2Credential()
-                        {
+                        var credential = new OAuth2Credential() {
                             AuthorityUrl = authorityUrl,
                             GrantType = ii.GrantType,
                             ClientId = ii.ClientId,

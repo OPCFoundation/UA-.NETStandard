@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -313,6 +313,10 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
+        /// <summary>
+        /// Push the begin of a structure on the decoder stack.
+        /// </summary>
+        /// <param name="fieldName">The name of the structure field.</param>
         public void PushStructure(string fieldName)
         {
             m_nestingLevel++;
@@ -341,6 +345,10 @@ namespace Opc.Ua
             m_writer.Write("{");
         }
 
+        /// <summary>
+        /// Push the begin of an array on the decoder stack.
+        /// </summary>
+        /// <param name="fieldName">The name of the array field.</param>
         public void PushArray(string fieldName)
         {
             m_nestingLevel++;
@@ -369,6 +377,9 @@ namespace Opc.Ua
             m_writer.Write("[");
         }
 
+        /// <summary>
+        /// Pop the structure from the decoder stack.
+        /// </summary>
         public void PopStructure()
         {
             if (m_nestingLevel > 1 || m_topLevelIsArray ||
@@ -381,6 +392,9 @@ namespace Opc.Ua
             m_nestingLevel--;
         }
 
+        /// <summary>
+        /// Pop the array from the decoder stack.
+        /// </summary>
         public void PopArray()
         {
             if (m_nestingLevel > 1 || m_topLevelIsArray ||

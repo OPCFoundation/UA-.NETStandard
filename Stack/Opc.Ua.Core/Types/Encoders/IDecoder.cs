@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -31,10 +31,10 @@ namespace Opc.Ua
         ServiceMessageContext Context { get; }
 
         /// <summary>
-        /// Sets the mapping tables to use during decoding.
+        /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
-        /// <param name="namespaceUris">The namespace uris.</param>
-        /// <param name="serverUris">The server uris.</param>
+        /// <param name="namespaceUris">The namespaces URIs referenced by the data being decoded.</param>
+        /// <param name="serverUris">The server URIs referenced by the data being decoded.</param>
         void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris);
 
         /// <summary>
