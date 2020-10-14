@@ -951,15 +951,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc cref="Dns.GetHostAddressesAsync"/>
-        public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress)
+        public static Task<IPAddress[]> GetHostAddresses(string hostNameOrAddress)
         {
             return Dns.GetHostAddressesAsync(hostNameOrAddress);
-        }
-
-        /// <inheritdoc cref="Dns.GetHostAddresses"/>
-        public static IPAddress[] GetHostAddresses(string hostNameOrAddress)
-        {
-            return Dns.GetHostAddresses(hostNameOrAddress);
         }
 
         /// <inheritdoc cref="Dns.GetHostName"/>

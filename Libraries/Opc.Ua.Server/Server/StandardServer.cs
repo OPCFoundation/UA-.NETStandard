@@ -2269,11 +2269,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RegistrationValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
+            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName()).Result;
 
             foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
             {
-                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
+                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain).Result;
 
                 foreach (System.Net.IPAddress actualAddress in actualAddresses)
                 {

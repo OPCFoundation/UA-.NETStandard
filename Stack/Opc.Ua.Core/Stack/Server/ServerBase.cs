@@ -1017,7 +1017,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="hostname">The hostname.</param>
         /// <returns>The hostname to use for URL filtering.</returns>
-        protected string NormalizeHostname(string hostname)
+        protected async Task<string> NormalizeHostname(string hostname)
         {
             string computerName = Utils.GetHostName();
 
@@ -1039,7 +1039,7 @@ namespace Opc.Ua
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
-                IPAddress[] addresses = Utils.GetHostAddresses(Utils.GetHostName());
+                IPAddress[] addresses = await Utils.GetHostAddresses(Utils.GetHostName());
 
                 for (int ii = 0; ii < addresses.Length; ii++)
                 {
