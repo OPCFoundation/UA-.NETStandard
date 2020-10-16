@@ -6,7 +6,6 @@
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleReferenceClient</PackageId>
     <Company>OPC Foundation</Company>
-    <Product>OPC UA SDK</Product>
     <Description>.NET Console Reference Client</Description>
     <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
     <RootNamespace>Quickstarts.ConsoleReferenceClient</RootNamespace>

@@ -11,17 +11,35 @@
 */
 
 
-#if !NO_HTTPS
-
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
+
+    /// <summary>
+    /// Creates a new HttpsTransportChannel with ITransportChannel interface.
+    /// </summary>
+    public class HttpsTransportChannelFactory : ITransportChannelBinding
+    {
+        /// <summary>
+        /// The protocol supported by the channel.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeHttps;
+
+        /// <summary>
+        /// The method creates a new instance of a Https transport channel
+        /// </summary>
+        /// <returns>The transport channel</returns>
+        public ITransportChannel Create()
+        {
+            return new HttpsTransportChannel();
+        }
+    }
 
     /// <summary>
     /// Wraps the HttpsTransportChannel and provides an ITransportChannel implementation.
@@ -34,34 +52,22 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public TransportChannelFeatures SupportedFeatures
-        {
-            get { return TransportChannelFeatures.Open | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest; }
-        }
+        public string UriScheme => Utils.UriSchemeHttps;
 
         /// <inheritdoc/>
-        public EndpointDescription EndpointDescription
-        {
-            get { return m_settings.Description; }
-        }
+        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.Open | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest;
 
         /// <inheritdoc/>
-        public EndpointConfiguration EndpointConfiguration
-        {
-            get { return m_settings.Configuration; }
-        }
+        public EndpointDescription EndpointDescription => m_settings.Description;
 
         /// <inheritdoc/>
-        public ServiceMessageContext MessageContext
-        {
-            get { return m_quotas.MessageContext; }
-        }
+        public EndpointConfiguration EndpointConfiguration => m_settings.Configuration;
 
         /// <inheritdoc/>
-        public ChannelToken CurrentToken
-        {
-            get { return null; }
-        }
+        public ServiceMessageContext MessageContext => m_quotas.MessageContext;
+
+        /// <inheritdoc/>
+        public ChannelToken CurrentToken => null;
 
         /// <inheritdoc/>
         public int OperationTimeout
@@ -114,8 +120,7 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         handler.ServerCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) =>
-                            {
+                            (httpRequestMessage, cert, chain, policyErrors) => {
                                 try
                                 {
                                     m_quotas.CertificateValidator?.Validate(cert);
@@ -187,22 +192,21 @@ namespace Opc.Ua.Bindings
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, null);
-                Task.Run(async () =>
-               {
-                   try
-                   {
-                       response = await m_client.PostAsync(m_url, content);
-                       response.EnsureSuccessStatusCode();
-                   }
-                   catch (Exception ex)
-                   {
-                       Utils.Trace("Exception sending HTTPS request: " + ex.Message);
-                       result.Exception = ex;
-                       response = null;
-                   }
-                   result.Response = response;
-                   result.OperationCompleted();
-               });
+                Task.Run(async () => {
+                    try
+                    {
+                        response = await m_client.PostAsync(m_url, content);
+                        response.EnsureSuccessStatusCode();
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                        result.Exception = ex;
+                        response = null;
+                    }
+                    result.Response = response;
+                    result.OperationCompleted();
+                });
 
                 return result;
             }
@@ -345,4 +349,4 @@ namespace Opc.Ua.Bindings
         private HttpClient m_client;
     }
 }
-#endif
+

@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
 
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_serverInternal"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_registrationTimer"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_configurationWatcher")]
         protected override void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 // halt any outstanding timer.
@@ -68,14 +68,14 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(m_registrationTimer);
                     m_registrationTimer = null;
                 }
-                
+
                 // close the watcher.
                 if (m_configurationWatcher != null)
                 {
                     Utils.SilentDispose(m_configurationWatcher);
                     m_configurationWatcher = null;
                 }
-                
+
                 // close the server.
                 if (m_serverInternal != null)
                 {
@@ -101,16 +101,16 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader FindServers(
-            RequestHeader                        requestHeader,
-            string                               endpointUrl,
-            StringCollection                     localeIds,
-            StringCollection                     serverUris,
+            RequestHeader requestHeader,
+            string endpointUrl,
+            StringCollection localeIds,
+            StringCollection serverUris,
             out ApplicationDescriptionCollection servers)
         {
             servers = new ApplicationDescriptionCollection();
-            
+
             ValidateRequest(requestHeader);
-            
+
             lock (m_lock)
             {
                 // parse the url provided by the client.
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server
                 }
 
                 // build list of unique servers.
-                Dictionary<string,ApplicationDescription> uniqueServers = new Dictionary<string,ApplicationDescription>();
+                Dictionary<string, ApplicationDescription> uniqueServers = new Dictionary<string, ApplicationDescription>();
 
                 foreach (EndpointDescription description in GetEndpoints())
                 {
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
                     servers.Add(application);
                 }
             }
-                            
+
             return CreateResponse(requestHeader, StatusCodes.Good);
         }
 
@@ -189,14 +189,14 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader GetEndpoints(
-            RequestHeader                     requestHeader,
-            string                            endpointUrl,
-            StringCollection                  localeIds,
-            StringCollection                  profileUris,
+            RequestHeader requestHeader,
+            string endpointUrl,
+            StringCollection localeIds,
+            StringCollection profileUris,
             out EndpointDescriptionCollection endpoints)
-        {   
+        {
             endpoints = null;
-            
+
             ValidateRequest(requestHeader);
 
             lock (m_lock)
@@ -286,25 +286,25 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader CreateSession(
-            RequestHeader                           requestHeader,
-            ApplicationDescription                  clientDescription,
-            string                                  serverUri,
-            string                                  endpointUrl,
-            string                                  sessionName,
-            byte[]                                  clientNonce,
-            byte[]                                  clientCertificate,
-            double                                  requestedSessionTimeout,
-            uint                                    maxResponseMessageSize,
-            out NodeId                              sessionId,
-            out NodeId                              authenticationToken,
-            out double                              revisedSessionTimeout,
-            out byte[]                              serverNonce,
-            out byte[]                              serverCertificate,
-            out EndpointDescriptionCollection       serverEndpoints,
+            RequestHeader requestHeader,
+            ApplicationDescription clientDescription,
+            string serverUri,
+            string endpointUrl,
+            string sessionName,
+            byte[] clientNonce,
+            byte[] clientCertificate,
+            double requestedSessionTimeout,
+            uint maxResponseMessageSize,
+            out NodeId sessionId,
+            out NodeId authenticationToken,
+            out double revisedSessionTimeout,
+            out byte[] serverNonce,
+            out byte[] serverCertificate,
+            out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
-            out SignatureData                       serverSignature,
-            out uint                                maxRequestMessageSize)
-        {       
+            out SignatureData serverSignature,
+            out uint maxRequestMessageSize)
+        {
             sessionId = 0;
             revisedSessionTimeout = 0;
             serverNonce = null;
@@ -314,7 +314,7 @@ namespace Opc.Ua.Server
             maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSession);
-        
+
             try
             {
                 // check the server uri.
@@ -466,7 +466,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, new StringCollection(), e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -489,31 +489,31 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader ActivateSession(
-            RequestHeader                       requestHeader,
-            SignatureData                       clientSignature,
+            RequestHeader requestHeader,
+            SignatureData clientSignature,
             SignedSoftwareCertificateCollection clientSoftwareCertificates,
-            StringCollection                    localeIds,
-            ExtensionObject                     userIdentityToken,
-            SignatureData                       userTokenSignature,
-            out byte[]                          serverNonce,
-            out StatusCodeCollection            results,
-            out DiagnosticInfoCollection        diagnosticInfos)
-        {               
+            StringCollection localeIds,
+            ExtensionObject userIdentityToken,
+            SignatureData userTokenSignature,
+            out byte[] serverNonce,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
             serverNonce = null;
             results = null;
             diagnosticInfos = null;
-     
+
             OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
-            
+
             try
             {
                 // validate client's software certificates.
                 List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
-                
+
                 if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     bool diagnosticsExist = false;
-                            
+
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
                         diagnosticInfos = new DiagnosticInfoCollection();
@@ -534,7 +534,7 @@ namespace Opc.Ua.Server
                         if (ServiceResult.IsBad(result))
                         {
                             results.Add(result.Code);
-                            
+
                             // add diagnostics if requested.
                             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                             {
@@ -547,7 +547,7 @@ namespace Opc.Ua.Server
                         {
                             softwareCertificates.Add(softwareCertificate);
                             results.Add(StatusCodes.Good);
-                            
+
                             // add diagnostics if requested.
                             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                             {
@@ -561,10 +561,10 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Clear();
                     }
                 }
-                            
+
                 // check if certificates meet the server's requirements.
                 ValidateSoftwareCertificates(softwareCertificates);
-                
+
                 // activate the session.
                 bool identityChanged = ServerInternal.SessionManager.ActivateSession(
                     context,
@@ -606,7 +606,7 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -704,11 +704,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -722,16 +722,16 @@ namespace Opc.Ua.Server
         /// </returns>
         public override ResponseHeader Cancel(
             RequestHeader requestHeader,
-            uint          requestHandle,
-            out uint      cancelCount)
+            uint requestHandle,
+            out uint cancelCount)
         {
             cancelCount = 0;
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.Cancel);
-            
+
             try
             {
-                m_serverInternal.RequestManager.CancelRequests(requestHandle, out cancelCount);                
+                m_serverInternal.RequestManager.CancelRequests(requestHandle, out cancelCount);
                 return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
@@ -747,11 +747,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -767,11 +767,11 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Browse(
-            RequestHeader                requestHeader,
-            ViewDescription              view,
-            uint                         requestedMaxReferencesPerNode,
-            BrowseDescriptionCollection  nodesToBrowse,
-            out BrowseResultCollection   results,
+            RequestHeader requestHeader,
+            ViewDescription view,
+            uint requestedMaxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             results = null;
@@ -809,11 +809,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }   
+            }
         }
 
         /// <summary>
@@ -828,17 +828,17 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader BrowseNext(
-            RequestHeader                requestHeader,
-            bool                         releaseContinuationPoints,
-            ByteStringCollection         continuationPoints,
-            out BrowseResultCollection   results,
+            RequestHeader requestHeader,
+            bool releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
-        {   
+        {
             results = null;
             diagnosticInfos = null;
-            
+
             OperationContext context = ValidateRequest(requestHeader, RequestType.BrowseNext);
-            
+
             try
             {
                 if (continuationPoints == null || continuationPoints.Count == 0)
@@ -853,7 +853,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);    
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -868,11 +868,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }   
+            }
         }
 
         /// <summary>
@@ -885,8 +885,8 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader RegisterNodes(
-            RequestHeader requestHeader, 
-            NodeIdCollection nodesToRegister, 
+            RequestHeader requestHeader,
+            NodeIdCollection nodesToRegister,
             out NodeIdCollection registeredNodeIds)
         {
             registeredNodeIds = null;
@@ -924,7 +924,7 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -969,7 +969,7 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -983,10 +983,10 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader TranslateBrowsePathsToNodeIds(
-            RequestHeader                  requestHeader, 
-            BrowsePathCollection           browsePaths, 
-            out BrowsePathResultCollection results, 
-            out DiagnosticInfoCollection   diagnosticInfos)
+            RequestHeader requestHeader,
+            BrowsePathCollection browsePaths,
+            out BrowsePathResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             results = null;
             diagnosticInfos = null;
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);  
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1021,11 +1021,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            } 
+            }
         }
 
         /// <summary>
@@ -1041,11 +1041,11 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Read(
-            RequestHeader                requestHeader, 
-            double                       maxAge, 
-            TimestampsToReturn           timestampsToReturn, 
-            ReadValueIdCollection        nodesToRead, 
-            out DataValueCollection      results, 
+            RequestHeader requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            out DataValueCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
@@ -1065,7 +1065,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);  
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1080,11 +1080,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            } 
+            }
         }
 
         /// <summary>
@@ -1101,20 +1101,20 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader HistoryRead(
-            RequestHeader                   requestHeader, 
-            ExtensionObject                 historyReadDetails, 
-            TimestampsToReturn              timestampsToReturn, 
-            bool                            releaseContinuationPoints, 
-            HistoryReadValueIdCollection    nodesToRead, 
-            out HistoryReadResultCollection results, 
-            out DiagnosticInfoCollection    diagnosticInfos)
+            RequestHeader requestHeader,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
+            out HistoryReadResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
-            
+
             try
             {
                 if (nodesToRead == null || nodesToRead.Count == 0)
-                {            
+                {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
                 }
 
@@ -1125,9 +1125,9 @@ namespace Opc.Ua.Server
                     releaseContinuationPoints,
                     nodesToRead,
                     out results,
-                    out diagnosticInfos);            
+                    out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);   
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1142,11 +1142,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            } 
+            }
         }
 
         /// <summary>
@@ -1160,9 +1160,9 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Write(
-            RequestHeader                requestHeader, 
-            WriteValueCollection         nodesToWrite, 
-            out StatusCodeCollection     results, 
+            RequestHeader requestHeader,
+            WriteValueCollection nodesToWrite,
+            out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
@@ -1195,7 +1195,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -1213,17 +1213,17 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader HistoryUpdate(
-            RequestHeader                     requestHeader,
-            ExtensionObjectCollection         historyUpdateDetails,
+            RequestHeader requestHeader,
+            ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection      diagnosticInfos)
-        {   
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
             OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
-            
+
             try
             {
                 if (historyUpdateDetails == null || historyUpdateDetails.Count == 0)
-                {            
+                {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
                 }
 
@@ -1231,9 +1231,9 @@ namespace Opc.Ua.Server
                     context,
                     historyUpdateDetails,
                     out results,
-                    out diagnosticInfos);            
+                    out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);    
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1248,7 +1248,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -1274,16 +1274,16 @@ namespace Opc.Ua.Server
         /// </returns>
         public override ResponseHeader CreateSubscription(
             RequestHeader requestHeader,
-            double        requestedPublishingInterval,
-            uint          requestedLifetimeCount,
-            uint          requestedMaxKeepAliveCount,
-            uint          maxNotificationsPerPublish,
-            bool          publishingEnabled,
-            byte          priority,
-            out uint      subscriptionId,
-            out double    revisedPublishingInterval,
-            out uint      revisedLifetimeCount,
-            out uint      revisedMaxKeepAliveCount)
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            bool publishingEnabled,
+            byte priority,
+            out uint subscriptionId,
+            out double revisedPublishingInterval,
+            out uint revisedLifetimeCount,
+            out uint revisedMaxKeepAliveCount)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSubscription);
 
@@ -1300,9 +1300,9 @@ namespace Opc.Ua.Server
                     out subscriptionId,
                     out revisedPublishingInterval,
                     out revisedLifetimeCount,
-                    out revisedMaxKeepAliveCount);    
+                    out revisedMaxKeepAliveCount);
 
-                return CreateResponse(requestHeader, context.StringTable);   
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1317,11 +1317,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }         
+            }
         }
 
         /// <summary>
@@ -1335,9 +1335,9 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader DeleteSubscriptions(
-            RequestHeader                requestHeader, 
-            UInt32Collection             subscriptionIds, 
-            out StatusCodeCollection     results, 
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.DeleteSubscriptions);
@@ -1347,15 +1347,15 @@ namespace Opc.Ua.Server
                 if (subscriptionIds == null || subscriptionIds.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
 
                 ServerInternal.SubscriptionManager.DeleteSubscriptions(
                     context,
                     subscriptionIds,
                     out results,
-                    out diagnosticInfos);    
+                    out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);  
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1370,11 +1370,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            } 
+            }
         }
 
         /// <summary>
@@ -1392,14 +1392,14 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object 
         /// </returns>
         public override ResponseHeader Publish(
-            RequestHeader                         requestHeader, 
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements, 
-            out uint                              subscriptionId, 
-            out UInt32Collection                  availableSequenceNumbers, 
-            out bool                              moreNotifications, 
-            out NotificationMessage               notificationMessage, 
-            out StatusCodeCollection              results, 
-            out DiagnosticInfoCollection          diagnosticInfos)
+            RequestHeader requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            out uint subscriptionId,
+            out UInt32Collection availableSequenceNumbers,
+            out bool moreNotifications,
+            out NotificationMessage notificationMessage,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Publish);
 
@@ -1415,9 +1415,9 @@ namespace Opc.Ua.Server
                         requestHeader.Timestamp);
                 }
                 */
-                
+
                 Utils.Trace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
-                
+
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
                     subscriptionAcknowledgements,
@@ -1440,7 +1440,7 @@ namespace Opc.Ua.Server
                 }
                 */
 
-                return CreateResponse(requestHeader, context.StringTable);      
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1455,7 +1455,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -1474,13 +1474,13 @@ namespace Opc.Ua.Server
             try
             {
                 AsyncPublishOperation operation = new AsyncPublishOperation(context, request, this);
-                
-                 uint subscriptionId = 0;
-                 UInt32Collection availableSequenceNumbers = null;
-                 bool moreNotifications = false;
-                 NotificationMessage notificationMessage = null;
-                 StatusCodeCollection results = null;
-                 DiagnosticInfoCollection diagnosticInfos = null;
+
+                uint subscriptionId = 0;
+                UInt32Collection availableSequenceNumbers = null;
+                bool moreNotifications = false;
+                NotificationMessage notificationMessage = null;
+                StatusCodeCollection results = null;
+                DiagnosticInfoCollection diagnosticInfos = null;
 
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
@@ -1574,9 +1574,9 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Republish(
-            RequestHeader           requestHeader,
-            uint                    subscriptionId,
-            uint                    retransmitSequenceNumber,
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            uint retransmitSequenceNumber,
             out NotificationMessage notificationMessage)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Republish);
@@ -1586,9 +1586,9 @@ namespace Opc.Ua.Server
                 notificationMessage = ServerInternal.SubscriptionManager.Republish(
                     context,
                     subscriptionId,
-                    retransmitSequenceNumber);    
+                    retransmitSequenceNumber);
 
-                return CreateResponse(requestHeader, context.StringTable);  
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1603,11 +1603,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }   
+            }
         }
 
         /// <summary>
@@ -1628,18 +1628,18 @@ namespace Opc.Ua.Server
         /// </returns>
         public override ResponseHeader ModifySubscription(
             RequestHeader requestHeader,
-            uint          subscriptionId,
-            double        requestedPublishingInterval,
-            uint          requestedLifetimeCount,
-            uint          requestedMaxKeepAliveCount,
-            uint          maxNotificationsPerPublish,
-            byte          priority,
-            out double    revisedPublishingInterval,
-            out uint      revisedLifetimeCount,
-            out uint      revisedMaxKeepAliveCount)
+            uint subscriptionId,
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            byte priority,
+            out double revisedPublishingInterval,
+            out uint revisedLifetimeCount,
+            out uint revisedMaxKeepAliveCount)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.ModifySubscription);
-            
+
             try
             {
                 ServerInternal.SubscriptionManager.ModifySubscription(
@@ -1654,7 +1654,7 @@ namespace Opc.Ua.Server
                     out revisedLifetimeCount,
                     out revisedMaxKeepAliveCount);
 
-                return CreateResponse(requestHeader, context.StringTable);     
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1669,11 +1669,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }         
+            }
         }
 
         /// <summary>
@@ -1688,20 +1688,20 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object 
         /// </returns>
         public override ResponseHeader SetPublishingMode(
-            RequestHeader                requestHeader, 
-            bool                         publishingEnabled, 
-            UInt32Collection             subscriptionIds, 
-            out StatusCodeCollection     results, 
+            RequestHeader requestHeader,
+            bool publishingEnabled,
+            UInt32Collection subscriptionIds,
+            out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.SetPublishingMode);
-            
+
             try
             {
                 if (subscriptionIds == null || subscriptionIds.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
 
                 ServerInternal.SubscriptionManager.SetPublishingMode(
                     context,
@@ -1710,7 +1710,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);  
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1725,11 +1725,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }            
+            }
         }
 
         /// <summary>
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -1818,12 +1818,12 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader CreateMonitoredItems(
-            RequestHeader                           requestHeader, 
-            uint                                    subscriptionId, 
-            TimestampsToReturn                      timestampsToReturn,
-            MonitoredItemCreateRequestCollection    itemsToCreate, 
-            out MonitoredItemCreateResultCollection results, 
-            out DiagnosticInfoCollection            diagnosticInfos)
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemCreateRequestCollection itemsToCreate,
+            out MonitoredItemCreateResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateMonitoredItems);
 
@@ -1832,7 +1832,7 @@ namespace Opc.Ua.Server
                 if (itemsToCreate == null || itemsToCreate.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
 
                 ServerInternal.SubscriptionManager.CreateMonitoredItems(
                     context,
@@ -1842,7 +1842,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);     
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1857,11 +1857,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }  
+            }
         }
 
         /// <summary>
@@ -1877,12 +1877,12 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader ModifyMonitoredItems(
-            RequestHeader                           requestHeader, 
-            uint                                    subscriptionId, 
-            TimestampsToReturn                      timestampsToReturn,
-            MonitoredItemModifyRequestCollection    itemsToModify, 
-            out MonitoredItemModifyResultCollection results, 
-            out DiagnosticInfoCollection            diagnosticInfos)
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemModifyRequestCollection itemsToModify,
+            out MonitoredItemModifyResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.ModifyMonitoredItems);
 
@@ -1891,7 +1891,7 @@ namespace Opc.Ua.Server
                 if (itemsToModify == null || itemsToModify.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
 
                 ServerInternal.SubscriptionManager.ModifyMonitoredItems(
                     context,
@@ -1901,7 +1901,7 @@ namespace Opc.Ua.Server
                     out results,
                     out diagnosticInfos);
 
-                return CreateResponse(requestHeader, context.StringTable);   
+                return CreateResponse(requestHeader, context.StringTable);
             }
             catch (ServiceResultException e)
             {
@@ -1916,11 +1916,11 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
-            }    
+            }
         }
 
         /// <summary>
@@ -1935,20 +1935,20 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader DeleteMonitoredItems(
-            RequestHeader                requestHeader, 
-            uint                         subscriptionId, 
-            UInt32Collection             monitoredItemIds, 
-            out StatusCodeCollection     results, 
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.DeleteMonitoredItems);
-            
+
             try
             {
                 if (monitoredItemIds == null || monitoredItemIds.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
 
                 ServerInternal.SubscriptionManager.DeleteMonitoredItems(
                     context,
@@ -1972,7 +1972,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -1992,21 +1992,21 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader SetMonitoringMode(
-            RequestHeader                requestHeader,
-            uint                         subscriptionId, 
-            MonitoringMode               monitoringMode,
-            UInt32Collection             monitoredItemIds,
-            out StatusCodeCollection     results, 
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            MonitoringMode monitoringMode,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.SetMonitoringMode);
-                
+
             try
             {
                 if (monitoredItemIds == null || monitoredItemIds.Count == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
-                }         
+                }
 
                 ServerInternal.SubscriptionManager.SetMonitoringMode(
                     context,
@@ -2031,7 +2031,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
@@ -2049,13 +2049,13 @@ namespace Opc.Ua.Server
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
         public override ResponseHeader Call(
-            RequestHeader                  requestHeader,
-            CallMethodRequestCollection    methodsToCall,
+            RequestHeader requestHeader,
+            CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection   diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
-                
+
             try
             {
                 if (methodsToCall == null || methodsToCall.Count == 0)
@@ -2100,15 +2100,15 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(context, e);
-            }  
+            }
             finally
             {
                 OnRequestComplete(context);
             }
         }
-#endregion
+        #endregion
 
-#region Public Methods used by the Host Process
+        #region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2121,13 +2121,13 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     if (m_serverInternal == null)
-                    {                    
+                    {
                         throw new ServiceResultException(StatusCodes.BadServerHalted);
                     }
 
                     return m_serverInternal;
                 }
-            }            
+            }
         }
 
         /// <summary>
@@ -2155,7 +2155,7 @@ namespace Opc.Ua.Server
         {
             ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ? base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false);
             CertificateValidationEventHandler registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
-            configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;            
+            configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
 
             try
             {
@@ -2259,8 +2259,8 @@ namespace Opc.Ua.Server
                 {
                     configuration.CertificateValidator.CertificateValidation -= registrationCertificateValidator;
                 }
-            }            
-            
+            }
+
             return false;
         }
 
@@ -2298,7 +2298,7 @@ namespace Opc.Ua.Server
             try
             {
                 lock (m_registrationLock)
-                {  
+                {
                     // halt any outstanding timer.
                     if (m_registrationTimer != null)
                     {
@@ -2311,13 +2311,13 @@ namespace Opc.Ua.Server
                 {
                     // schedule next registration.                        
                     lock (m_registrationLock)
-                    {  
+                    {
                         if (m_maxRegistrationInterval > 0)
                         {
                             m_registrationTimer = new Timer(
-                                OnRegisterServer, 
-                                this, 
-                                m_maxRegistrationInterval, 
+                                OnRegisterServer,
+                                this,
+                                m_maxRegistrationInterval,
                                 Timeout.Infinite);
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
@@ -2328,7 +2328,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     lock (m_registrationLock)
-                    {  
+                    {
                         if (m_registrationTimer == null)
                         {
                             // calculate next registration attempt.
@@ -2340,7 +2340,7 @@ namespace Opc.Ua.Server
                             }
 
                             Utils.Trace("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
-                                      
+
                             // create timer.        
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_lastRegistrationInterval, Timeout.Infinite);
                         }
@@ -2348,13 +2348,13 @@ namespace Opc.Ua.Server
                 }
             }
             catch (Exception e)
-            {                   
+            {
                 Utils.Trace(e, "Unexpected exception handling registration timer.");
             }
         }
-#endregion
+        #endregion
 
-#region Protected Members used for Request Processing
+        #region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2371,12 +2371,12 @@ namespace Opc.Ua.Server
                 ServerInternalData serverInternal = m_serverInternal;
 
                 if (serverInternal == null)
-                {                    
+                {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
                 return serverInternal;
-            }            
+            }
         }
 
         /// <summary>
@@ -2392,7 +2392,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(error);
             }
-            
+
             // check server state.
             ServerInternalData serverInternal = m_serverInternal;
 
@@ -2418,7 +2418,7 @@ namespace Opc.Ua.Server
                 }
 
                 if (m_serverInternal == null)
-                {                    
+                {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
@@ -2517,7 +2517,7 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
-            
+
             // check if inner result required.
             ServiceResult innerResult = null;
 
@@ -2574,16 +2574,16 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (m_serverInternal == null)
-                {                    
+                {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
-           
+
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
-        }        
-#endregion
+        }
+        #endregion
 
-#region Protected Members used for Initialization
+        #region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -2649,7 +2649,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 base.OnServerStarting(configuration);
-                           
+
                 // save minimum nonce length.
                 m_minNonceLength = configuration.SecurityConfiguration.NonceLength;
 
@@ -2657,7 +2657,7 @@ namespace Opc.Ua.Server
                 m_useRegisterServer2 = true;
             }
         }
-        
+
         /// <summary>
         /// Creates the endpoints and creates the hosts.
         /// </summary>
@@ -2668,8 +2668,8 @@ namespace Opc.Ua.Server
         /// Returns IList of a host for a UA service.
         /// </returns>
         protected override IList<Task> InitializeServiceHosts(
-            ApplicationConfiguration          configuration, 
-            out ApplicationDescription        serverDescription,
+            ApplicationConfiguration configuration,
+            out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
             serverDescription = null;
@@ -2679,17 +2679,17 @@ namespace Opc.Ua.Server
 
             // ensure at least one security policy exists.
             if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
-            {                   
+            {
                 configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
             }
-            
+
             // ensure at least one user token policy exists.
             if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
-            {                   
+            {
                 UserTokenPolicy userTokenPolicy = new UserTokenPolicy();
-                
+
                 userTokenPolicy.TokenType = UserTokenType.Anonymous;
-                userTokenPolicy.PolicyId  = userTokenPolicy.TokenType.ToString();
+                userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
                 configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
             }
@@ -2708,6 +2708,7 @@ namespace Opc.Ua.Server
 
             // create UA TCP host.
             endpointsForHost = CreateUaTcpServiceHost(
+                this,
                 hosts,
                 configuration,
                 configuration.ServerConfiguration.BaseAddresses,
@@ -2717,8 +2718,8 @@ namespace Opc.Ua.Server
             endpoints.InsertRange(0, endpointsForHost);
 
             // create HTTPS host.
-#if !NO_HTTPS
             endpointsForHost = CreateHttpsServiceHost(
+                this,
                 hosts,
                 configuration,
                 configuration.ServerConfiguration.BaseAddresses,
@@ -2726,7 +2727,7 @@ namespace Opc.Ua.Server
                 configuration.ServerConfiguration.SecurityPolicies);
 
             endpoints.AddRange(endpointsForHost);
-#endif
+
             return new List<Task>(hosts.Values);
         }
 
@@ -2753,19 +2754,19 @@ namespace Opc.Ua.Server
         protected override void StartApplication(ApplicationConfiguration configuration)
         {
             base.StartApplication(configuration);
-                                        
+
             lock (m_lock)
             {
                 try
                 {
                     // create the datastore for the instance.
                     m_serverInternal = new ServerInternalData(
-                        ServerProperties, 
-                        configuration, 
+                        ServerProperties,
+                        configuration,
                         MessageContext,
                         new CertificateValidator(),
                         InstanceCertificate);
-                                        
+
                     // create the manager responsible for providing localized string resources.                    
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);
 
@@ -2774,20 +2775,20 @@ namespace Opc.Ua.Server
 
                     // create the master node manager.
                     MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
-                    
+
                     // add the node manager to the datastore. 
                     m_serverInternal.SetNodeManager(masterNodeManager);
 
                     // put the node manager into a state that allows it to be used by other objects.
                     masterNodeManager.Startup();
-                    
+
                     // create the manager responsible for handling events.
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                     // creates the server object. 
                     m_serverInternal.CreateServerObject(
                         eventManager,
-                        resourceManager, 
+                        resourceManager,
                         requestManager);
 
                     // do any additional processing now that the node manager is up and running.
@@ -2795,20 +2796,20 @@ namespace Opc.Ua.Server
 
                     // create the manager responsible for aggregates.
                     m_serverInternal.AggregateManager = CreateAggregateManager(m_serverInternal, configuration);
-                    
+
                     // start the session manager.
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
-                    
+
                     // start the subscription manager.
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
-                                     
+
                     // add the session manager to the datastore. 
                     m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
-                    
+
                     ServerError = null;
-                    
+
                     // setup registration information.
                     lock (m_registrationLock)
                     {
@@ -2840,7 +2841,7 @@ namespace Opc.Ua.Server
 
                             m_registrationInfo.DiscoveryUrls.Add(uri.ToString());
                         }
-                        
+
                         // build list of registration endpoints.
                         m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
 
@@ -2858,7 +2859,7 @@ namespace Opc.Ua.Server
 
                         m_registrationEndpoints.Add(endpoint);
 
-                        m_minRegistrationInterval  = 1000;
+                        m_minRegistrationInterval = 1000;
                         m_lastRegistrationInterval = m_minRegistrationInterval;
 
                         // start registration timer.
@@ -2878,8 +2879,8 @@ namespace Opc.Ua.Server
                     SetServerState(ServerState.Running);
 
                     // all initialization is complete.
-                    OnServerStarted(m_serverInternal); 
-                    
+                    OnServerStarted(m_serverInternal);
+
                     // monitor the configuration file.
                     if (!String.IsNullOrEmpty(configuration.SourceFilePath))
                     {
@@ -2939,7 +2940,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                ServerError = new ServiceResult(e);   
+                ServerError = new ServiceResult(e);
             }
             finally
             {
@@ -3061,7 +3062,7 @@ namespace Opc.Ua.Server
 
             return manager;
         }
-        
+
         /// <summary>
         /// Creates the resource manager for the server.
         /// </summary>

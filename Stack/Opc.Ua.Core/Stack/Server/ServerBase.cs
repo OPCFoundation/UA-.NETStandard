@@ -701,7 +701,8 @@ namespace Opc.Ua
         /// <summary>
         /// Create a new service host for UA TCP.
         /// </summary>
-        protected List<EndpointDescription> CreateUaTcpServiceHost(
+        protected static List<EndpointDescription> CreateUaTcpServiceHost(
+            ServerBase serverBase,
             IDictionary<string, Task> hosts,
             ApplicationConfiguration configuration,
             IList<string> baseAddresses,
@@ -757,25 +758,25 @@ namespace Opc.Ua
                     description.SecurityMode = policy.SecurityMode;
                     description.SecurityPolicyUri = policy.SecurityPolicyUri;
                     description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
-                    description.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
+                    description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                     description.TransportProfileUri = Profiles.UaTcpTransport;
 
                     bool requireEncryption = RequireEncryption(description);
 
                     if (requireEncryption)
                     {
-                        description.ServerCertificate = InstanceCertificate.RawData;
+                        description.ServerCertificate = serverBase.InstanceCertificate.RawData;
 
                         // check if complete chain should be sent.
                         if (configuration.SecurityConfiguration.SendCertificateChain &&
-                            InstanceCertificateChain != null &&
-                            InstanceCertificateChain.Count > 0)
+                            serverBase.InstanceCertificateChain != null &&
+                            serverBase.InstanceCertificateChain.Count > 0)
                         {
                             List<byte> serverCertificateChain = new List<byte>();
 
-                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            for (int i = 0; i < serverBase.InstanceCertificateChain.Count; i++)
                             {
-                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                                serverCertificateChain.AddRange(serverBase.InstanceCertificateChain[i].RawData);
                             }
 
                             description.ServerCertificate = serverCertificateChain.ToArray();
@@ -785,49 +786,20 @@ namespace Opc.Ua
                     endpoints.Add(description);
                 }
 
-                // create the UA-TCP stack listener.
-                try
-                {
-                    TransportListenerSettings settings = new TransportListenerSettings();
-
-                    settings.Descriptions = endpoints;
-                    settings.Configuration = endpointConfiguration;
-                    settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
-                    settings.NamespaceUris = this.MessageContext.NamespaceUris;
-                    settings.Factory = this.MessageContext.Factory;
-                    settings.ServerCertificate = this.InstanceCertificate;
-
-                    if (configuration.SecurityConfiguration.SendCertificateChain)
-                    {
-                        settings.ServerCertificateChain = this.InstanceCertificateChain;
-                    }
-
-                    ITransportListener listener = new Opc.Ua.Bindings.TcpListener();
-
-                    listener.Open(
-                       uri.Uri,
-                       settings,
-                       GetEndpointInstance(this));
-
-                    TransportListeners.Add(listener);
-
-                    listener.ConnectionStatusChanged += OnConnectionStatusChanged;
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Could not load UA-TCP Stack Listener.");
-                    throw;
-                }
+                ITransportListener listener = TransportBindings.GetTransportListener(Utils.UriSchemeOpcTcp);
+                serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                    configuration.CertificateValidator.GetChannelValidator()
+                    );
             }
 
             return endpoints;
         }
 
-#if !NO_HTTPS
         /// <summary>
         /// Create a new service host for UA HTTPS.
         /// </summary>
-        protected List<EndpointDescription> CreateHttpsServiceHost(
+        protected static List<EndpointDescription> CreateHttpsServiceHost(
+            ServerBase serverBase,
             IDictionary<string, Task> hosts,
             ApplicationConfiguration configuration,
             IList<string> baseAddresses,
@@ -903,18 +875,20 @@ namespace Opc.Ua
                     description.EndpointUrl = uri.ToString();
                     description.Server = serverDescription;
 
-                    if (InstanceCertificate != null)
+                    if (serverBase.InstanceCertificate != null)
                     {
-                        description.ServerCertificate = InstanceCertificate.RawData;
-
+                        description.ServerCertificate = serverBase.InstanceCertificate.RawData;
+                        var instanceCertificateChain = serverBase.InstanceCertificateChain;
                         // check if complete chain should be sent.
-                        if (configuration.SecurityConfiguration.SendCertificateChain && InstanceCertificateChain != null && InstanceCertificateChain.Count > 0)
+                        if (configuration.SecurityConfiguration.SendCertificateChain &&
+                            instanceCertificateChain != null &&
+                            instanceCertificateChain.Count > 0)
                         {
                             List<byte> serverCertificateChain = new List<byte>();
 
-                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
+                            for (int i = 0; i < instanceCertificateChain.Count; i++)
                             {
-                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
+                                serverCertificateChain.AddRange(instanceCertificateChain[i].RawData);
                             }
 
                             description.ServerCertificate = serverCertificateChain.ToArray();
@@ -924,49 +898,68 @@ namespace Opc.Ua
                     description.SecurityMode = bestPolicy.SecurityMode;
                     description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
                     description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
-                    description.UserIdentityTokens = GetUserTokenPolicies(configuration, description);
+                    description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                     description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
                     endpoints.Add(description);
-                }
 
-                // create the stack listener.
-                try
-                {
-                    TransportListenerSettings settings = new TransportListenerSettings();
-
-                    settings.Descriptions = endpoints;
-                    settings.Configuration = endpointConfiguration;
-                    settings.ServerCertificate = this.InstanceCertificate;
-                    settings.CertificateValidator = configuration.CertificateValidator.GetChannelValidator();
-                    settings.NamespaceUris = this.MessageContext.NamespaceUris;
-                    settings.Factory = this.MessageContext.Factory;
-
-                    ITransportListener listener = new Opc.Ua.Bindings.UaHttpsChannelListener();
-
-                    listener.Open(
-                       uri.Uri,
-                       settings,
-                       GetEndpointInstance(this));
-
-                    TransportListeners.Add(listener);
-
-                    listener.ConnectionStatusChanged += OnConnectionStatusChanged;
-                }
-                catch (Exception e)
-                {
-                    string message = "Could not load HTTPS Stack Listener.";
-                    if (e.InnerException != null)
-                    {
-                        message += (" " + e.InnerException.Message);
-                    }
-                    Utils.Trace(e, message);
+                    ITransportListener listener = TransportBindings.GetTransportListener(Utils.UriSchemeHttps);
+                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                        configuration.CertificateValidator.GetChannelValidator()
+                        );
                 }
             }
 
             return endpoints;
         }
-#endif
+
+        /// <summary>
+        /// Create the transport listener for the service host endpoint.
+        /// </summary>
+        /// <param name="endpointUri">The endpoint Uri.</param>
+        /// <param name="endpoints">The description of the endpoints.</param>
+        /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
+        /// <param name="listener">The transport listener.</param>
+        /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        protected virtual void CreateServiceHostEndpoint(
+            Uri endpointUri,
+            EndpointDescriptionCollection endpoints,
+            EndpointConfiguration endpointConfiguration,
+            ITransportListener listener,
+            ICertificateValidator certificateValidator
+            )
+        {
+            // create the stack listener.
+            try
+            {
+                TransportListenerSettings settings = new TransportListenerSettings();
+
+                settings.Descriptions = endpoints;
+                settings.Configuration = endpointConfiguration;
+                settings.ServerCertificate = InstanceCertificate;
+                settings.CertificateValidator = certificateValidator;
+                settings.NamespaceUris = MessageContext.NamespaceUris;
+                settings.Factory = MessageContext.Factory;
+
+                listener.Open(
+                   endpointUri,
+                   settings,
+                   GetEndpointInstance(this));
+
+                TransportListeners.Add(listener);
+
+                listener.ConnectionStatusChanged += OnConnectionStatusChanged;
+            }
+            catch (Exception e)
+            {
+                string message = $"Could not load {endpointUri.Scheme} Stack Listener.";
+                if (e.InnerException != null)
+                {
+                    message += (" " + e.InnerException.Message);
+                }
+                Utils.Trace(e, message);
+            }
+        }
 
         /// <summary>
         /// Returns the UserTokenPolicies supported by the server.

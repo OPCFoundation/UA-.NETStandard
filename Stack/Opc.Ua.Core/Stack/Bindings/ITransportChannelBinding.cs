@@ -10,16 +10,24 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// The <b>Opc.Ua.Bindings</b> namespace contains classes that implement the bindings for the
-    /// mappings described in Part 6 of the UA specification. It also includes an implementation for
-    /// the UA TCP protocol.
+    /// This is an interface to a channel binding.
     /// </summary>
-    ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class NamespaceDoc
+    public interface ITransportChannelBinding
     {
+        /// <summary>
+        /// The protocol supported by the channel.
+        /// </summary>
+        string UriScheme { get; }
+
+        /// <summary>
+        /// The method creates a new transport channel
+        /// </summary>
+        /// <returns> the transport channel</returns>
+        ITransportChannel Create();
     }
+
 }

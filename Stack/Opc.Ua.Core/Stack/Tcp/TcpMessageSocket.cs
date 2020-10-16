@@ -37,8 +37,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Creates a new TcpTransportChannel with ITransportChannel interface.
     /// </summary>
-    public class TcpTransportChannelFactory : ITransportChannelFactory
+    public class TcpTransportChannelFactory : ITransportChannelBinding
     {
+        /// <summary>
+        /// The protocol supported by the channel.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeOpcTcp;
+
         /// <summary>
         /// The method creates a new instance of a TCP transport channel
         /// </summary>
@@ -310,7 +315,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <value>The socket handle.</value>
         public int Handle => m_socket != null ? m_socket.GetHashCode() : -1;
-
 
         /// <summary>
         /// Gets the transport channel features implemented by this message socket.

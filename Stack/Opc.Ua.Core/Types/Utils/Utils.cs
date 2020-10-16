@@ -68,11 +68,6 @@ namespace Opc.Ua
         };
 
         /// <summary>
-        /// The class that provides the default implementation for the UA TCP protocol.
-        /// </summary>
-        public const string UaTcpBindingDefault = "Opc.Ua.Bindings.UaTcpBinding";
-
-        /// <summary>
         /// The default certificate store's type.
         /// </summary>
         public const string DefaultStoreType = CertificateStoreType.Directory;
@@ -86,7 +81,6 @@ namespace Opc.Ua
         /// The default LocalFolder.
         /// </summary>
         public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
-
         #endregion
 
         #region Trace Support
@@ -854,7 +848,6 @@ namespace Opc.Ua
 
         #region String, Object and Data Convienence Functions
         private const int MAX_MESSAGE_LENGTH = 1024;
-
         private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
         private const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
 

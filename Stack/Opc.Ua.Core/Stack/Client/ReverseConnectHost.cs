@@ -32,7 +32,7 @@ namespace Opc.Ua
         {
             if (url == null) throw new ArgumentNullException(nameof(url));
 
-            var listener = TransportListenerBindings.GetTransportListener(url.Scheme);
+            var listener = TransportBindings.GetTransportListener(url.Scheme);
 
             if (listener == null) throw new ArgumentException(nameof(url), "No suitable listener found.");
 

@@ -21,8 +21,6 @@
  * http://opcfoundation.org/License/RCL/1.00/
  * ======================================================================*/
 
-#if !NO_HTTPS
-
 using System;
 using System.IO;
 using System.Net;
@@ -38,7 +36,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Implements the startup of the Https listener.
+    /// Implements the kestrel startup of the Https listener.
     /// </summary>
     public class Startup
     {
@@ -72,7 +70,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
-    public partial class UaHttpsChannelListener : ITransportListener
+    public class UaHttpsChannelListener : ITransportListener
     {
         #region Constructors
         /// <summary>
@@ -381,5 +379,3 @@ namespace Opc.Ua.Bindings
         #endregion
     }
 }
-
-#endif
