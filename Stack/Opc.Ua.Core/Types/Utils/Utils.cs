@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -950,17 +950,28 @@ namespace Opc.Ua
             return (int)timeSpan.TotalMilliseconds;
         }
 
-        public static async Task<IPAddress[]> GetHostAddresses(string remoteHostName)
+        /// <inheritdoc cref="Dns.GetHostAddressesAsync"/>
+        public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress)
         {
-            IPAddress[] addresses = await Dns.GetHostAddressesAsync(remoteHostName);
-            return addresses;
+            return Dns.GetHostAddressesAsync(hostNameOrAddress);
         }
 
+        /// <inheritdoc cref="Dns.GetHostAddresses"/>
+        public static IPAddress[] GetHostAddresses(string hostNameOrAddress)
+        {
+            return Dns.GetHostAddresses(hostNameOrAddress);
+        }
+
+        /// <inheritdoc cref="Dns.GetHostName"/>
+        /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
             return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
         }
 
+        /// <summary>
+        /// Get the FQDN of the local computer.
+        /// </summary>
         public static string GetFullQualifiedDomainName()
         {
             string domainName = null;
@@ -2660,9 +2671,12 @@ namespace Opc.Ua
             return result == 0;
         }
 
+        /// <summary>
+        /// Cryptographic Nonce helper functions. 
+        /// </summary>
         public static class Nonce
         {
-            static RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
+            static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
 
             /// <summary>
             /// Generates a Nonce for cryptographic functions.

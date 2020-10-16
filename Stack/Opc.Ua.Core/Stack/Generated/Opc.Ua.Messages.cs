@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -49,7 +49,7 @@ namespace Opc.Ua
     /// The message contract for the FindServers service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class FindServersMessage : IServiceMessage
     {
@@ -101,7 +101,7 @@ namespace Opc.Ua
     /// The message contract for the FindServers service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class FindServersResponseMessage
     {
@@ -156,7 +156,7 @@ namespace Opc.Ua
     /// The message contract for the FindServersOnNetwork service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class FindServersOnNetworkMessage : IServiceMessage
     {
@@ -208,7 +208,7 @@ namespace Opc.Ua
     /// The message contract for the FindServersOnNetwork service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class FindServersOnNetworkResponseMessage
     {
@@ -263,7 +263,7 @@ namespace Opc.Ua
     /// The message contract for the GetEndpoints service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class GetEndpointsMessage : IServiceMessage
     {
@@ -315,7 +315,7 @@ namespace Opc.Ua
     /// The message contract for the GetEndpoints service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class GetEndpointsResponseMessage
     {
@@ -370,7 +370,7 @@ namespace Opc.Ua
     /// The message contract for the RegisterServer service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RegisterServerMessage : IServiceMessage
     {
@@ -422,7 +422,7 @@ namespace Opc.Ua
     /// The message contract for the RegisterServer service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RegisterServerResponseMessage
     {
@@ -477,7 +477,7 @@ namespace Opc.Ua
     /// The message contract for the RegisterServer2 service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RegisterServer2Message : IServiceMessage
     {
@@ -529,7 +529,7 @@ namespace Opc.Ua
     /// The message contract for the RegisterServer2 service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RegisterServer2ResponseMessage
     {
@@ -584,7 +584,7 @@ namespace Opc.Ua
     /// The message contract for the OpenSecureChannel service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class OpenSecureChannelMessage : IServiceMessage
     {
@@ -636,7 +636,7 @@ namespace Opc.Ua
     /// The message contract for the OpenSecureChannel service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class OpenSecureChannelResponseMessage
     {
@@ -691,7 +691,7 @@ namespace Opc.Ua
     /// The message contract for the CloseSecureChannel service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CloseSecureChannelMessage : IServiceMessage
     {
@@ -743,7 +743,7 @@ namespace Opc.Ua
     /// The message contract for the CloseSecureChannel service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CloseSecureChannelResponseMessage
     {
@@ -798,7 +798,7 @@ namespace Opc.Ua
     /// The message contract for the CreateSession service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CreateSessionMessage : IServiceMessage
     {
@@ -850,7 +850,7 @@ namespace Opc.Ua
     /// The message contract for the CreateSession service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CreateSessionResponseMessage
     {
@@ -905,7 +905,7 @@ namespace Opc.Ua
     /// The message contract for the ActivateSession service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ActivateSessionMessage : IServiceMessage
     {
@@ -957,7 +957,7 @@ namespace Opc.Ua
     /// The message contract for the ActivateSession service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ActivateSessionResponseMessage
     {
@@ -1012,7 +1012,7 @@ namespace Opc.Ua
     /// The message contract for the CloseSession service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CloseSessionMessage : IServiceMessage
     {
@@ -1064,7 +1064,7 @@ namespace Opc.Ua
     /// The message contract for the CloseSession service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CloseSessionResponseMessage
     {
@@ -1119,7 +1119,7 @@ namespace Opc.Ua
     /// The message contract for the Cancel service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CancelMessage : IServiceMessage
     {
@@ -1171,7 +1171,7 @@ namespace Opc.Ua
     /// The message contract for the Cancel service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CancelResponseMessage
     {
@@ -1226,7 +1226,7 @@ namespace Opc.Ua
     /// The message contract for the AddNodes service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class AddNodesMessage : IServiceMessage
     {
@@ -1278,7 +1278,7 @@ namespace Opc.Ua
     /// The message contract for the AddNodes service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class AddNodesResponseMessage
     {
@@ -1333,7 +1333,7 @@ namespace Opc.Ua
     /// The message contract for the AddReferences service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class AddReferencesMessage : IServiceMessage
     {
@@ -1385,7 +1385,7 @@ namespace Opc.Ua
     /// The message contract for the AddReferences service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class AddReferencesResponseMessage
     {
@@ -1440,7 +1440,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteNodes service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteNodesMessage : IServiceMessage
     {
@@ -1492,7 +1492,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteNodes service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteNodesResponseMessage
     {
@@ -1547,7 +1547,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteReferences service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteReferencesMessage : IServiceMessage
     {
@@ -1599,7 +1599,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteReferences service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteReferencesResponseMessage
     {
@@ -1654,7 +1654,7 @@ namespace Opc.Ua
     /// The message contract for the Browse service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class BrowseMessage : IServiceMessage
     {
@@ -1706,7 +1706,7 @@ namespace Opc.Ua
     /// The message contract for the Browse service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class BrowseResponseMessage
     {
@@ -1761,7 +1761,7 @@ namespace Opc.Ua
     /// The message contract for the BrowseNext service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class BrowseNextMessage : IServiceMessage
     {
@@ -1813,7 +1813,7 @@ namespace Opc.Ua
     /// The message contract for the BrowseNext service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class BrowseNextResponseMessage
     {
@@ -1868,7 +1868,7 @@ namespace Opc.Ua
     /// The message contract for the TranslateBrowsePathsToNodeIds service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class TranslateBrowsePathsToNodeIdsMessage : IServiceMessage
     {
@@ -1920,7 +1920,7 @@ namespace Opc.Ua
     /// The message contract for the TranslateBrowsePathsToNodeIds service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class TranslateBrowsePathsToNodeIdsResponseMessage
     {
@@ -1975,7 +1975,7 @@ namespace Opc.Ua
     /// The message contract for the RegisterNodes service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RegisterNodesMessage : IServiceMessage
     {
@@ -2027,7 +2027,7 @@ namespace Opc.Ua
     /// The message contract for the RegisterNodes service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RegisterNodesResponseMessage
     {
@@ -2082,7 +2082,7 @@ namespace Opc.Ua
     /// The message contract for the UnregisterNodes service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class UnregisterNodesMessage : IServiceMessage
     {
@@ -2134,7 +2134,7 @@ namespace Opc.Ua
     /// The message contract for the UnregisterNodes service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class UnregisterNodesResponseMessage
     {
@@ -2189,7 +2189,7 @@ namespace Opc.Ua
     /// The message contract for the QueryFirst service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class QueryFirstMessage : IServiceMessage
     {
@@ -2241,7 +2241,7 @@ namespace Opc.Ua
     /// The message contract for the QueryFirst service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class QueryFirstResponseMessage
     {
@@ -2296,7 +2296,7 @@ namespace Opc.Ua
     /// The message contract for the QueryNext service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class QueryNextMessage : IServiceMessage
     {
@@ -2348,7 +2348,7 @@ namespace Opc.Ua
     /// The message contract for the QueryNext service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class QueryNextResponseMessage
     {
@@ -2403,7 +2403,7 @@ namespace Opc.Ua
     /// The message contract for the Read service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ReadMessage : IServiceMessage
     {
@@ -2455,7 +2455,7 @@ namespace Opc.Ua
     /// The message contract for the Read service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ReadResponseMessage
     {
@@ -2510,7 +2510,7 @@ namespace Opc.Ua
     /// The message contract for the HistoryRead service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class HistoryReadMessage : IServiceMessage
     {
@@ -2562,7 +2562,7 @@ namespace Opc.Ua
     /// The message contract for the HistoryRead service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class HistoryReadResponseMessage
     {
@@ -2617,7 +2617,7 @@ namespace Opc.Ua
     /// The message contract for the Write service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class WriteMessage : IServiceMessage
     {
@@ -2669,7 +2669,7 @@ namespace Opc.Ua
     /// The message contract for the Write service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class WriteResponseMessage
     {
@@ -2724,7 +2724,7 @@ namespace Opc.Ua
     /// The message contract for the HistoryUpdate service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class HistoryUpdateMessage : IServiceMessage
     {
@@ -2776,7 +2776,7 @@ namespace Opc.Ua
     /// The message contract for the HistoryUpdate service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class HistoryUpdateResponseMessage
     {
@@ -2831,7 +2831,7 @@ namespace Opc.Ua
     /// The message contract for the Call service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CallMessage : IServiceMessage
     {
@@ -2883,7 +2883,7 @@ namespace Opc.Ua
     /// The message contract for the Call service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CallResponseMessage
     {
@@ -2938,7 +2938,7 @@ namespace Opc.Ua
     /// The message contract for the CreateMonitoredItems service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CreateMonitoredItemsMessage : IServiceMessage
     {
@@ -2990,7 +2990,7 @@ namespace Opc.Ua
     /// The message contract for the CreateMonitoredItems service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CreateMonitoredItemsResponseMessage
     {
@@ -3045,7 +3045,7 @@ namespace Opc.Ua
     /// The message contract for the ModifyMonitoredItems service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ModifyMonitoredItemsMessage : IServiceMessage
     {
@@ -3097,7 +3097,7 @@ namespace Opc.Ua
     /// The message contract for the ModifyMonitoredItems service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ModifyMonitoredItemsResponseMessage
     {
@@ -3152,7 +3152,7 @@ namespace Opc.Ua
     /// The message contract for the SetMonitoringMode service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class SetMonitoringModeMessage : IServiceMessage
     {
@@ -3204,7 +3204,7 @@ namespace Opc.Ua
     /// The message contract for the SetMonitoringMode service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class SetMonitoringModeResponseMessage
     {
@@ -3259,7 +3259,7 @@ namespace Opc.Ua
     /// The message contract for the SetTriggering service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class SetTriggeringMessage : IServiceMessage
     {
@@ -3311,7 +3311,7 @@ namespace Opc.Ua
     /// The message contract for the SetTriggering service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class SetTriggeringResponseMessage
     {
@@ -3366,7 +3366,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteMonitoredItems service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteMonitoredItemsMessage : IServiceMessage
     {
@@ -3418,7 +3418,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteMonitoredItems service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteMonitoredItemsResponseMessage
     {
@@ -3473,7 +3473,7 @@ namespace Opc.Ua
     /// The message contract for the CreateSubscription service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CreateSubscriptionMessage : IServiceMessage
     {
@@ -3525,7 +3525,7 @@ namespace Opc.Ua
     /// The message contract for the CreateSubscription service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class CreateSubscriptionResponseMessage
     {
@@ -3580,7 +3580,7 @@ namespace Opc.Ua
     /// The message contract for the ModifySubscription service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ModifySubscriptionMessage : IServiceMessage
     {
@@ -3632,7 +3632,7 @@ namespace Opc.Ua
     /// The message contract for the ModifySubscription service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class ModifySubscriptionResponseMessage
     {
@@ -3687,7 +3687,7 @@ namespace Opc.Ua
     /// The message contract for the SetPublishingMode service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class SetPublishingModeMessage : IServiceMessage
     {
@@ -3739,7 +3739,7 @@ namespace Opc.Ua
     /// The message contract for the SetPublishingMode service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class SetPublishingModeResponseMessage
     {
@@ -3794,7 +3794,7 @@ namespace Opc.Ua
     /// The message contract for the Publish service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class PublishMessage : IServiceMessage
     {
@@ -3846,7 +3846,7 @@ namespace Opc.Ua
     /// The message contract for the Publish service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class PublishResponseMessage
     {
@@ -3901,7 +3901,7 @@ namespace Opc.Ua
     /// The message contract for the Republish service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RepublishMessage : IServiceMessage
     {
@@ -3953,7 +3953,7 @@ namespace Opc.Ua
     /// The message contract for the Republish service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class RepublishResponseMessage
     {
@@ -4008,7 +4008,7 @@ namespace Opc.Ua
     /// The message contract for the TransferSubscriptions service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class TransferSubscriptionsMessage : IServiceMessage
     {
@@ -4060,7 +4060,7 @@ namespace Opc.Ua
     /// The message contract for the TransferSubscriptions service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class TransferSubscriptionsResponseMessage
     {
@@ -4115,7 +4115,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteSubscriptions service.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteSubscriptionsMessage : IServiceMessage
     {
@@ -4167,7 +4167,7 @@ namespace Opc.Ua
     /// The message contract for the DeleteSubscriptions service response.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     [MessageContract(IsWrapped=false)]
     public class DeleteSubscriptionsResponseMessage
     {

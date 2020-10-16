@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -40,10 +40,22 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class ComplexTypePropertyAttribute
     {
+        /// <inheritdoc cref="System.Reflection.PropertyInfo"/>
         public readonly PropertyInfo PropertyInfo;
+
+        /// <summary>
+        /// The structure field attributes of the complex type.
+        /// </summary>
         public readonly StructureFieldAttribute FieldAttribute;
+
+        /// <summary>
+        /// The data attributes of the complex type.
+        /// </summary>
         public readonly DataMemberAttribute DataAttribute;
 
+        /// <summary>
+        /// Create the attributes for the complex type.
+        /// </summary>
         public ComplexTypePropertyAttribute(
             PropertyInfo propertyInfo,
             StructureFieldAttribute fieldAttribute,
@@ -56,7 +68,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// PropertyInfo
+        /// Get the name of the complex type.
         /// </summary>
         public string Name => PropertyInfo.Name;
 
@@ -76,24 +88,20 @@ namespace Opc.Ua.Client.ComplexTypes
             PropertyInfo.SetValue(o, v);
         }
 
-        /// <summary>
-        /// Type of property.
-        /// </summary>
+        /// <inheritdoc cref="PropertyInfo.PropertyType"/>
         public Type PropertyType => PropertyInfo.PropertyType;
 
-        /// <summary>
-        /// StructureFieldAttribute
-        /// </summary>
+        /// <inheritdoc cref="StructureFieldAttribute.IsOptional"/>
         public bool IsOptional => FieldAttribute.IsOptional;
+
+        /// <inheritdoc cref="StructureFieldAttribute.ValueRank"/>
         public int ValueRank => FieldAttribute.ValueRank;
 
-        /// <summary>
-        /// DataMemberAttribute
-        /// </summary>
+        /// <inheritdoc cref="DataMemberAttribute.Order"/>
         public int Order => DataAttribute.Order;
 
         /// <summary>
-        /// Optional field mask of the property.
+        /// Optional mask for the field in the property.
         /// </summary>
         public UInt32 OptionalFieldMask;
     }

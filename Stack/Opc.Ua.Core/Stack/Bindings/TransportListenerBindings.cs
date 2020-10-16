@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -33,8 +33,15 @@ namespace Opc.Ua.Bindings
         }
 
         #region Public Properties
+        /// <summary>
+        /// Dictionary of transported listeners.
+        /// </summary>
         public static Dictionary<string, Type> TransportListeners { get; private set; }
 
+        /// <summary>
+        /// Get a transport listener for a uri scheme.
+        /// </summary>
+        /// <param name="uriScheme">The uri scheme.</param>
         public static ITransportListener GetTransportListener(string uriScheme)
         {
             Type listenerType;

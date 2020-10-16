@@ -31,6 +31,11 @@ jobs:
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.4.x'
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
     displayName: Release Restore
     inputs:

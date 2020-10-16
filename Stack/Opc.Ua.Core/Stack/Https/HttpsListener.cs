@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Reciprocal Community License ("RCL") Version 1.00
  * 
@@ -23,25 +23,34 @@
 
 #if !NO_HTTPS
 
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
 using System;
-using System.IdentityModel.Selectors;
 using System.IO;
 using System.Net;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 
 
 namespace Opc.Ua.Bindings
 {
+    /// <summary>
+    /// Implements the startup of the Https listener.
+    /// </summary>
     public class Startup
     {
+        /// <summary>
+        /// Get the Https listener.
+        /// </summary>
         public static UaHttpsChannelListener Listener { get; set; }
 
+        /// <summary>
+        /// Configure the request pipeline for the listener.
+        /// </summary>
+        /// <param name="appBuilder">The application builder.</param>
         public void Configure(IApplicationBuilder appBuilder)
         {
             appBuilder.Run(async context => {
@@ -180,7 +189,7 @@ namespace Opc.Ua.Bindings
         {
             // suppress warnings
             ConnectionWaiting = null;
-            ConnectionWaiting?.Invoke(null,null);
+            ConnectionWaiting?.Invoke(null, null);
             ConnectionStatusChanged = null;
             ConnectionStatusChanged?.Invoke(null, null);
             throw new NotImplementedException();

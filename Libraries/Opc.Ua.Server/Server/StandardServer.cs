@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -2269,11 +2269,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private void RegistrationValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName()).Result;
+            System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
             foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
             {
-                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain).Result;
+                System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
 
                 foreach (System.Net.IPAddress actualAddress in actualAddresses)
                 {
@@ -2662,11 +2662,10 @@ namespace Opc.Ua.Server
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
-        /// <param name="bindingFactory">The binding factory.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="endpoints">The endpoints.</param>
         /// <returns>
-        /// Returns IList of a host for a UA service which type is <seealso cref="ServiceHost"/>.
+        /// Returns IList of a host for a UA service.
         /// </returns>
         protected override IList<Task> InitializeServiceHosts(
             ApplicationConfiguration          configuration, 
@@ -3143,11 +3142,10 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        protected object m_lock = new object();
+        protected readonly object m_lock = new object();
+        private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
-
-        private object m_registrationLock = new object();
         private ConfiguredEndpointCollection m_registrationEndpoints;
         private RegisteredServer m_registrationInfo;
         private Timer m_registrationTimer;

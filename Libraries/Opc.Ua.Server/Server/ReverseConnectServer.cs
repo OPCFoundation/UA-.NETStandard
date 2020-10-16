@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -40,18 +40,45 @@ namespace Opc.Ua.Server
     /// </summary>
     public enum ReverseConnectState
     {
-        Closed,
-        Connecting,
-        Connected,
-        Rejected,
-        Errored
+        /// <summary>
+        /// The connection is closed.
+        /// </summary>
+        Closed = 0,
+
+        /// <summary>
+        /// The server is connecting.
+        /// </summary>
+        Connecting = 1,
+
+        /// <summary>
+        /// The server is connected with a client.
+        /// </summary>
+        Connected = 2,
+
+        /// <summary>
+        /// The client rejected the connection with the server.
+        /// </summary>
+        Rejected = 3,
+
+        /// <summary>
+        /// An error occurred connecting with the client.
+        /// </summary>
+        Errored = 4
     }
 
     /// <summary>
-    /// Describes the properties of a reverse connection.
+    /// Describes the properties of a server reverse connection.
     /// </summary>
     public class ReverseConnectProperty
     {
+        /// <summary>
+        /// Initialize a reverse connect server property.
+        /// </summary>
+        /// <param name="clientUrl">The Url of the reverse connect client.</param>
+        /// <param name="timeout">The timeout to use for a reverse connect attempt.</param>
+        /// <param name="maxSessionCount">The maximum number of sessions allowed to the client.</param>
+        /// <param name="configEntry">If this is an application configuration entry.</param>
+        /// <param name="enabled">If the connection is enabled.</param>
         public ReverseConnectProperty(
             Uri clientUrl,
             int timeout,
@@ -66,13 +93,44 @@ namespace Opc.Ua.Server
             Enabled = enabled;
         }
 
+        /// <summary>
+        /// The Url of the reverse connect client.
+        /// </summary>
         public readonly Uri ClientUrl;
+
+        /// <summary>
+        /// The timeout to use for a reverse connect attempt.
+        /// </summary>
         public readonly int Timeout;
+
+        /// <summary>
+        /// If this is an application configuration entry.
+        /// </summary>
         public readonly bool ConfigEntry;
+
+        /// <summary>
+        /// The service result of the last connection attempt.
+        /// </summary>
         public ServiceResult ServiceResult;
+
+        /// <summary>
+        /// The last state of the reverse connection.
+        /// </summary>
         public ReverseConnectState LastState = ReverseConnectState.Closed;
+
+        /// <summary>
+        /// The maximum number of sessions allowed to the client.
+        /// </summary>
         public int MaxSessionCount;
+
+        /// <summary>
+        /// If the connection is enabled.
+        /// </summary>
         public bool Enabled;
+
+        /// <summary>
+        /// The time when the connection was rejected.
+        /// </summary>
         public DateTime RejectTime;
     }
 
@@ -81,10 +139,24 @@ namespace Opc.Ua.Server
     /// </summary>
     public class ReverseConnectServer : StandardServer
     {
+        /// <summary>
+        /// The default reverse connect interval.
+        /// </summary>
         public static int DefaultReverseConnectInterval => 15000;
+
+        /// <summary>
+        /// The default reverse connect timeout.
+        /// </summary>
         public static int DefaultReverseConnectTimeout => 30000;
+
+        /// <summary>
+        /// The default timeout after a rejected connection attempt.
+        /// </summary>
         public static int DefaultReverseConnectRejectTimeout => 60000;
 
+        /// <summary>
+        /// Creates a reverse connect server based on a StandardServer.
+        /// </summary>
         public ReverseConnectServer()
         {
             m_connectInterval = DefaultReverseConnectInterval;
@@ -94,11 +166,7 @@ namespace Opc.Ua.Server
         }
 
         #region StandardServer overrides
-
-        /// <summary>
-        /// Called after the server has been started.
-        /// </summary>
-        /// <param name="server">The server.</param>
+        /// <inheritdoc/>
         protected override void OnServerStarted(IServerInternal server)
         {
             base.OnServerStarted(server);

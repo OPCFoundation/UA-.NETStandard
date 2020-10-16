@@ -1,5 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -42,6 +42,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string Locale { get; set; }
         public string Text { get; set; }
     }
+
     [Serializable]
     class Application
     {
@@ -60,6 +61,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public Dictionary<string, byte[]> Certificate { get; }
         public Dictionary<string, Guid> TrustListId { get; }
     }
+
     [Serializable]
     class CertificateRequest
     {
@@ -76,6 +78,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string AuthorityId { get; set; }
         public byte[] Certificate { get; set; }
     }
+
     [Serializable]
     class CertificateStore
     {
@@ -87,12 +90,14 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string AuthorityId { get; set; }
         public Guid TrustListId { get; private set; }
     }
+
     [Serializable]
     class ServerEndpoint
     {
         public Guid ApplicationId { get; set; }
         public string DiscoveryUrl { get; set; }
     }
+
     [Serializable]
     public class LinqApplicationsDatabase : ApplicationsDatabaseBase, ICertificateRequest
     {
@@ -751,6 +756,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             return false;
         }
         #endregion
+
         #region ICertificateRequest
         public NodeId StartSigningRequest(
             NodeId applicationId,
@@ -1023,11 +1029,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
         #endregion
+
         #region Public Members
         public virtual void Save()
         {
         }
         #endregion
+
         #region Private Members
         private void SaveChanges()
         {
@@ -1051,6 +1059,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
         #endregion
+
         #region Internal Members
         [OnDeserialized]
         internal void OnDeserializedMethod(StreamingContext context)
@@ -1059,6 +1068,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             queryCounterResetTime = DateTime.UtcNow;
         }
         #endregion
+
         #region Internal Fields
         [NonSerialized]
         internal object Lock = new object();
