@@ -1234,7 +1234,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                PushStructure(null);
+                PushStructure(fieldName);
                 encodeable.Encode(this);
                 PopStructure();
                 return;
