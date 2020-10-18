@@ -36,7 +36,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Creates a new TcpTransportListener with ITransportListener interface.
+    /// Creates a new <see cref="HttpsTransportListener"/> with <see cref="ITransportListener"/> interface.
     /// </summary>
     public class HttpsTransportListenerFactory : ITransportListenerBinding
     {
@@ -46,7 +46,7 @@ namespace Opc.Ua.Bindings
         public string UriScheme => Utils.UriSchemeHttps;
 
         /// <summary>
-        /// The method creates a new instance of a Https transport listener.
+        /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
         /// </summary>
         /// <returns>The transport listener.</returns>
         public ITransportListener Create()

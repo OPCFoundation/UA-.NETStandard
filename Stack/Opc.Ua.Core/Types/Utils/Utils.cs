@@ -25,7 +25,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
-
+using System.Collections.ObjectModel;
 
 namespace Opc.Ua
 {
@@ -51,9 +51,19 @@ namespace Opc.Ua
         public const string UriSchemeOpcTcp = "opc.tcp";
 
         /// <summary>
+        /// The URI scheme for the UA TCP protocol over Secure WebSockets. 
+        /// </summary>
+        public const string UriSchemeOpcWss = "opc.wss";
+
+        /// <summary>
         /// The default port for the UA TCP protocol.
         /// </summary>
         public const int UaTcpDefaultPort = 4840;
+
+        /// <summary>
+        /// The default port for the UA TCP protocol over WebSockets.
+        /// </summary>
+        public const int UaWebSocketsDefaultPort = 4843;
 
         /// <summary>
         /// The urls of the discovery servers on a node.
@@ -81,6 +91,24 @@ namespace Opc.Ua
         /// The default LocalFolder.
         /// </summary>
         public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
+
+        /// <summary>
+        /// The full name of the Opc.Ua.Core assembly.
+        /// </summary>
+        public static readonly string DefaultOpcUaCoreAssemblyFullName = typeof(Utils).Assembly.GetName().FullName;
+
+        /// <summary>
+        /// The name of the Opc.Ua.Core assembly.
+        /// </summary>
+        public static readonly string DefaultOpcUaCoreAssemblyName = typeof(Utils).Assembly.GetName().Name;
+
+        /// <summary>
+        /// List of known default bindings hosted in other assemblies.
+        /// </summary>
+        public static ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>() {
+                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
+            });
         #endregion
 
         #region Trace Support
