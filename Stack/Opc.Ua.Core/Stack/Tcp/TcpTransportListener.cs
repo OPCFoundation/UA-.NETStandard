@@ -20,9 +20,29 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Manages the connections for a UA TCP server.
+    /// Creates a new TcpTransportListener with ITransportListener interface.
     /// </summary>
-    public class TcpListener : ITransportListener, ITcpChannelListener
+    public class TcpTransportListenerFactory : ITransportListenerBinding
+    {
+        /// <summary>
+        /// The protocol supported by the listener.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeOpcTcp;
+
+        /// <summary>
+        /// The method creates a new instance of a TCP transport listener.
+        /// </summary>
+        /// <returns>The transport listener.</returns>
+        public ITransportListener Create()
+        {
+            return new TcpTransportListener();
+        }
+    }
+
+    /// <summary>
+    /// Manages the transport for a UA TCP server.
+    /// </summary>
+    public class TcpTransportListener : ITransportListener, ITcpChannelListener
     {
         #region IDisposable Members
         /// <summary>

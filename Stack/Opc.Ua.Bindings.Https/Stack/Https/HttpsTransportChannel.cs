@@ -24,7 +24,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Creates a new HttpsTransportChannel with ITransportChannel interface.
     /// </summary>
-    public class HttpsTransportChannelFactory : ITransportChannelBinding
+    public class UaHttpsTransportChannelFactory : ITransportChannelBinding
     {
         /// <summary>
         /// The protocol supported by the channel.

@@ -36,6 +36,26 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
+    /// Creates a new TcpTransportListener with ITransportListener interface.
+    /// </summary>
+    public class HttpsTransportListenerFactory : ITransportListenerBinding
+    {
+        /// <summary>
+        /// The protocol supported by the listener.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeHttps;
+
+        /// <summary>
+        /// The method creates a new instance of a Https transport listener.
+        /// </summary>
+        /// <returns>The transport listener.</returns>
+        public ITransportListener Create()
+        {
+            return new HttpsTransportListener();
+        }
+    }
+
+    /// <summary>
     /// Implements the kestrel startup of the Https listener.
     /// </summary>
     public class Startup
@@ -43,7 +63,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Get the Https listener.
         /// </summary>
-        public static UaHttpsChannelListener Listener { get; set; }
+        public static HttpsTransportListener Listener { get; set; }
 
         /// <summary>
         /// Configure the request pipeline for the listener.
@@ -70,13 +90,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
-    public class UaHttpsChannelListener : ITransportListener
+    public class HttpsTransportListener : ITransportListener
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="UaHttpsChannelListener"/> class.
+        /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
-        public UaHttpsChannelListener()
+        public HttpsTransportListener()
         {
         }
         #endregion

@@ -745,51 +745,59 @@ namespace Opc.Ua
                     uri.Host = computerName;
                 }
 
-                uris.Add(uri.Uri);
 
-                foreach (ServerSecurityPolicy policy in securityPolicies)
+                ITransportListener listener = TransportBindings.Listeners.GetListener(Utils.UriSchemeOpcTcp);
+                if (listener != null)
                 {
-                    // create the endpoint description.
-                    EndpointDescription description = new EndpointDescription();
+                    uris.Add(uri.Uri);
 
-                    description.EndpointUrl = uri.ToString();
-                    description.Server = serverDescription;
-
-                    description.SecurityMode = policy.SecurityMode;
-                    description.SecurityPolicyUri = policy.SecurityPolicyUri;
-                    description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
-                    description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
-                    description.TransportProfileUri = Profiles.UaTcpTransport;
-
-                    bool requireEncryption = RequireEncryption(description);
-
-                    if (requireEncryption)
+                    foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
-                        description.ServerCertificate = serverBase.InstanceCertificate.RawData;
+                        // create the endpoint description.
+                        EndpointDescription description = new EndpointDescription();
 
-                        // check if complete chain should be sent.
-                        if (configuration.SecurityConfiguration.SendCertificateChain &&
-                            serverBase.InstanceCertificateChain != null &&
-                            serverBase.InstanceCertificateChain.Count > 0)
+                        description.EndpointUrl = uri.ToString();
+                        description.Server = serverDescription;
+
+                        description.SecurityMode = policy.SecurityMode;
+                        description.SecurityPolicyUri = policy.SecurityPolicyUri;
+                        description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri);
+                        description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
+                        description.TransportProfileUri = Profiles.UaTcpTransport;
+
+                        bool requireEncryption = RequireEncryption(description);
+
+                        if (requireEncryption)
                         {
-                            List<byte> serverCertificateChain = new List<byte>();
+                            description.ServerCertificate = serverBase.InstanceCertificate.RawData;
 
-                            for (int i = 0; i < serverBase.InstanceCertificateChain.Count; i++)
+                            // check if complete chain should be sent.
+                            if (configuration.SecurityConfiguration.SendCertificateChain &&
+                                serverBase.InstanceCertificateChain != null &&
+                                serverBase.InstanceCertificateChain.Count > 0)
                             {
-                                serverCertificateChain.AddRange(serverBase.InstanceCertificateChain[i].RawData);
-                            }
+                                List<byte> serverCertificateChain = new List<byte>();
 
-                            description.ServerCertificate = serverCertificateChain.ToArray();
+                                for (int i = 0; i < serverBase.InstanceCertificateChain.Count; i++)
+                                {
+                                    serverCertificateChain.AddRange(serverBase.InstanceCertificateChain[i].RawData);
+                                }
+
+                                description.ServerCertificate = serverCertificateChain.ToArray();
+                            }
                         }
+
+                        endpoints.Add(description);
                     }
 
-                    endpoints.Add(description);
+                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                        configuration.CertificateValidator.GetChannelValidator()
+                        );
                 }
-
-                ITransportListener listener = TransportBindings.GetTransportListener(Utils.UriSchemeOpcTcp);
-                serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
-                    configuration.CertificateValidator.GetChannelValidator()
-                    );
+                else
+                {
+                    Utils.Trace(Utils.TraceMasks.Error, "Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                }
             }
 
             return endpoints;
@@ -901,12 +909,17 @@ namespace Opc.Ua
                     description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                     description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
-                    endpoints.Add(description);
-
-                    ITransportListener listener = TransportBindings.GetTransportListener(Utils.UriSchemeHttps);
-                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
-                        configuration.CertificateValidator.GetChannelValidator()
-                        );
+                    ITransportListener listener = TransportBindings.Listeners.GetListener(Utils.UriSchemeHttps);
+                    if (listener != null)
+                    {
+                        endpoints.Add(description);
+                        serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                            configuration.CertificateValidator.GetChannelValidator());
+                    }
+                    else
+                    {
+                        Utils.Trace(Utils.TraceMasks.Error, "Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                    }
                 }
             }
 

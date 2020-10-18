@@ -32,9 +32,13 @@ namespace Opc.Ua
         {
             if (url == null) throw new ArgumentNullException(nameof(url));
 
-            var listener = TransportBindings.GetTransportListener(url.Scheme);
-
-            if (listener == null) throw new ArgumentException(nameof(url), "No suitable listener found.");
+            var listener = TransportBindings.Listeners.GetListener(url.Scheme);
+            if (listener == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadProtocolVersionUnsupported,
+                    "Unsupported transport profile for scheme {0}\r\n", url.Scheme);
+            }
 
             m_listener = listener;
             Url = url;

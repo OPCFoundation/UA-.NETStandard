@@ -55,7 +55,7 @@ namespace Opc.Ua
 		public EncodeableFactory(bool shared)
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
-            AddEncodeableTypes("Opc.Ua.Core");
+            AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 
             #if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
