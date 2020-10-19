@@ -33,6 +33,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Server
 {
@@ -2706,27 +2707,24 @@ namespace Opc.Ua.Server
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 
-            // create UA TCP host.
-            endpointsForHost = CreateUaTcpServiceHost(
-                this,
-                hosts,
-                configuration,
-                configuration.ServerConfiguration.BaseAddresses,
-                serverDescription,
-                configuration.ServerConfiguration.SecurityPolicies);
-
-            endpoints.InsertRange(0, endpointsForHost);
-
-            // create HTTPS host.
-            endpointsForHost = CreateHttpsServiceHost(
-                this,
-                hosts,
-                configuration,
-                configuration.ServerConfiguration.BaseAddresses,
-                serverDescription,
-                configuration.ServerConfiguration.SecurityPolicies);
-
-            endpoints.AddRange(endpointsForHost);
+            foreach (var scheme in Utils.DefaultUriSchemes)
+            {
+                var binding = TransportBindings.Listeners.GetBinding(scheme);
+                if (binding != null)
+                {
+                    endpointsForHost = binding.CreateServiceHost(
+                        this,
+                        hosts,
+                        configuration,
+                        configuration.ServerConfiguration.BaseAddresses,
+                        serverDescription,
+                        configuration.ServerConfiguration.SecurityPolicies,
+                        InstanceCertificate,
+                        InstanceCertificateChain
+                        );
+                    endpoints.AddRange(endpointsForHost);
+                }
+            }
 
             return new List<Task>(hosts.Values);
         }

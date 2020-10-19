@@ -56,6 +56,15 @@ namespace Opc.Ua
         public const string UriSchemeOpcWss = "opc.wss";
 
         /// <summary>
+        /// The URI schemes which are supported in the core server. 
+        /// </summary>
+        public static readonly string[] DefaultUriSchemes = new string []
+        {
+            Utils.UriSchemeOpcTcp,
+            Utils.UriSchemeHttps
+        };
+
+        /// <summary>
         /// The default port for the UA TCP protocol.
         /// </summary>
         public const int UaTcpDefaultPort = 4840;

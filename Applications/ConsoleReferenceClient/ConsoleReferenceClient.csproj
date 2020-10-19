@@ -11,6 +11,10 @@
     <RootNamespace>Quickstarts.ConsoleReferenceClient</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />

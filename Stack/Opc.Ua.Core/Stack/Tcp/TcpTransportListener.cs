@@ -22,18 +22,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Creates a new TcpTransportListener with ITransportListener interface.
     /// </summary>
-    public class TcpTransportListenerFactory : ITransportListenerBinding
+    public class TcpTransportListenerFactory : TcpServiceHost
     {
-        /// <summary>
-        /// The protocol supported by the listener.
-        /// </summary>
-        public string UriScheme => Utils.UriSchemeOpcTcp;
+        /// <inheritdoc/>
+        public override string UriScheme => Utils.UriSchemeOpcTcp;
 
-        /// <summary>
-        /// The method creates a new instance of a TCP transport listener.
-        /// </summary>
-        /// <returns>The transport listener.</returns>
-        public ITransportListener Create()
+        /// <inheritdoc/>
+        public override ITransportListener Create()
         {
             return new TcpTransportListener();
         }

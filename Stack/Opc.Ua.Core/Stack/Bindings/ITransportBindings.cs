@@ -13,6 +13,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -82,6 +84,27 @@ namespace Opc.Ua.Bindings
     public interface ITransportListenerBinding :
         ITransportBindingFactory<ITransportListener>
     {
+        /// <summary>
+        /// Create the service host for a server using <see cref="ServerBase"/>
+        /// </summary>
+        /// <param name="serverBase"></param>
+        /// <param name="hosts"></param>
+        /// <param name="configuration"></param>
+        /// <param name="baseAddresses"></param>
+        /// <param name="serverDescription"></param>
+        /// <param name="securityPolicies"></param>
+        /// <param name="instanceCertificate"></param>
+        /// <param name="instanceCertificateChain"></param>
+        List<EndpointDescription> CreateServiceHost(
+            ServerBase serverBase,
+            IDictionary<string, Task> hosts,  // TODO fix tasks. why only tasks?
+            ApplicationConfiguration configuration,
+            IList<string> baseAddresses,
+            ApplicationDescription serverDescription,
+            List<ServerSecurityPolicy> securityPolicies,
+            X509Certificate2 instanceCertificate,
+            X509Certificate2Collection instanceCertificateChain
+            );
     }
 
     /// <summary>
