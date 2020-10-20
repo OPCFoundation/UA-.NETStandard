@@ -30,6 +30,7 @@ namespace Opc.Ua
         /// </summary>
         public ApplicationConfiguration()
         {
+            m_certificateValidator = new CertificateValidator();
             Initialize();
         }
 
@@ -44,7 +45,6 @@ namespace Opc.Ua
             m_transportConfigurations = new TransportConfigurationCollection();
             m_disableHiResClock = true;
             m_properties = new Dictionary<string, object>();
-            m_certificateValidator = new CertificateValidator();
         }
 
         /// <summary>
@@ -251,7 +251,7 @@ namespace Opc.Ua
         private string m_sourceFilePath;
 
         private ServiceMessageContext m_messageContext;
-        private CertificateValidator m_certificateValidator;
+        private readonly CertificateValidator m_certificateValidator;
         private Dictionary<string, object> m_properties;
         #endregion
     }
