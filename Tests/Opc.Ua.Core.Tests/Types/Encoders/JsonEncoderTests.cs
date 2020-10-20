@@ -347,7 +347,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Test_WriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
-            var formattedExpected = PrettifyAndValidateJson(expected);
+            _ = PrettifyAndValidateJson(expected);
 
             using (var encodeable = new FooBarEncodeable())
             {
@@ -361,7 +361,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                var formattedEncoded = PrettifyAndValidateJson(encoded);
+                _= PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
@@ -375,7 +375,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
             TestContext.Out.WriteLine("Expected:");
-            var formattedExpected = PrettifyAndValidateJson(expected);
+            _ = PrettifyAndValidateJson(expected);
 
             using (var encodeable = new FooBarEncodeable())
             {
@@ -389,7 +389,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                var formattedEncoded = PrettifyAndValidateJson(encoded);
+                _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
@@ -439,8 +439,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
-            var formattedExpected = PrettifyAndValidateJson(expected);
-            TestContext.Out.WriteLine(formattedExpected);
+            _= PrettifyAndValidateJson(expected);
+            
 
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
             try
@@ -476,8 +476,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
 
             TestContext.Out.WriteLine("Expected:");
-            var formattedExpected = PrettifyAndValidateJson(expected);
-            TestContext.Out.WriteLine(formattedExpected);
+            _= PrettifyAndValidateJson(expected);
 
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
             try
@@ -494,7 +493,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                var formattedEncoded = PrettifyAndValidateJson(encoded);
+                _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
@@ -576,7 +575,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 if (!noExpectedValidation)
                 {
                     TestContext.Out.WriteLine("Expected:");
-                    var formattedExpected = PrettifyAndValidateJson(expected);
+                    _ = PrettifyAndValidateJson(expected);
                 }
 
                 var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
@@ -591,7 +590,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                var formattedEncoded = PrettifyAndValidateJson(encoded);
+                _= PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
