@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.IdentityModel.Selectors;
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>

@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.IdentityModel.Selectors;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua

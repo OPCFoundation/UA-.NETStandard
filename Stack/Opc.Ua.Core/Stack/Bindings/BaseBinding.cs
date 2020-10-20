@@ -10,14 +10,12 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.ServiceModel.Channels;
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
     /// The binding for the UA native stack
     /// </summary>
-    public abstract class BaseBinding : Binding
+    public abstract class BaseBinding 
     {
         #region Constructors
         /// <summary>

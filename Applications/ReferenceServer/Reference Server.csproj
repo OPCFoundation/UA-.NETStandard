@@ -67,6 +67,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IdentityModel" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
@@ -134,6 +135,10 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj">
+      <Project>{92d98d3d-2a7d-4f4b-8c72-1a98908d0221}</Project>
+      <Name>Opc.Ua.Bindings.Https</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
       <Project>{4569aaa2-710b-4e8b-a4c6-f917777814da}</Project>
       <Name>Opc.Ua.Core</Name>

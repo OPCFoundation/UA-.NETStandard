@@ -26,6 +26,7 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <Reference Include="System.Reflection" />
+    <Reference Include="System.Numerics" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.0'">
