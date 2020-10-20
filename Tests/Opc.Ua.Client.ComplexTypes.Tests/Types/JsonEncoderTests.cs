@@ -271,7 +271,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             IEncoder encoder = CreateEncoder(
                 EncodingType.Json, EncoderContext, encoderStream,
                 typeof(ExtensionObject), useReversibleEncoding, topLevelIsArray);
-            Encode(encoder, BuiltInType.ExtensionObject, builtInType.ToString(), data);
+            Encode(encoder, BuiltInType.ExtensionObject, useReversibleEncoding ? builtInType.ToString() : null, data);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();
             TestContext.Out.WriteLine("Result:");
