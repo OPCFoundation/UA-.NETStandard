@@ -56,27 +56,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Constants used by test data set.
         /// </summary>
         const ushort kDemoServerIndex = 3;
-    const string kDemoServer = "http://www.opcfoundation.org/DemoServer/";
-    const string kDemoServer2 = "http://www.opcfoundation.org/DemoServer2/";
-    const ushort kServerUriIndex = 2;
-    const string kServerUri = "opc.tcp://localhost:55555";
-    const string kNodeIdString = "theNode";
-    const string kQualifiedName = "theName";
-    const string kLocalizedText = "theText";
-    const string kLocale = "en-us";
-    const int kNodeIdInt = 2345;
-    const Int64 kInt64Value = -123456789123456;
-    const UInt64 kUInt64Value = 123456789123456;
-    static Guid s_nodeIdGuid = new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D");
-    static byte[] s_byteString = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    static string s_byteString64 = Convert.ToBase64String((byte[])s_byteString);
+        const string kDemoServer = "http://www.opcfoundation.org/DemoServer/";
+        const string kDemoServer2 = "http://www.opcfoundation.org/DemoServer2/";
+        const ushort kServerUriIndex = 2;
+        const string kServerUri = "opc.tcp://localhost:55555";
+        const string kNodeIdString = "theNode";
+        const string kQualifiedName = "theName";
+        const string kLocalizedText = "theText";
+        const string kLocale = "en-us";
+        const int kNodeIdInt = 2345;
+        const Int64 kInt64Value = -123456789123456;
+        const UInt64 kUInt64Value = 123456789123456;
+        static Guid s_nodeIdGuid = new Guid("AABA0CFA-674F-40C7-B7FA-339D8EECB61D");
+        static byte[] s_byteString = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        static string s_byteString64 = Convert.ToBase64String((byte[])s_byteString);
 
-    /// <summary>
-    /// An array of spec compliant Json encoding test data sets which
-    /// shall be followed by the JSON encoder accordingly.
-    /// </summary>
-    [DatapointSource]
-    public JsonValidationData[] Data = new JsonValidationDataCollection() {
+        /// <summary>
+        /// An array of spec compliant Json encoding test data sets which
+        /// shall be followed by the JSON encoder accordingly.
+        /// </summary>
+        [DatapointSource]
+        public JsonValidationData[] Data = new JsonValidationDataCollection() {
             {   BuiltInType.Boolean, true,"true", null },
             {   BuiltInType.Boolean, false, null, null },
             {   BuiltInType.Boolean, false, "false", null, true },
@@ -281,231 +281,330 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.ExtensionObject, TestEncodeable, "{\"Body\":{\"Foo\":\"bar_999\"}}", "{\"Foo\":\"bar_999\"}"}
 
         }.ToArray();
-    #endregion
+        #endregion
 
-    #region Setup
-    [OneTimeSetUp]
-    protected new void OneTimeSetUp()
-    {
-        ushort demoServerIndex = NameSpaceUris.GetIndexOrAppend(kDemoServer);
-        Assume.That(demoServerIndex == kDemoServerIndex, $"Server Index: {demoServerIndex} != {kDemoServerIndex}");
-    }
-
-    [OneTimeTearDown]
-    protected new void OneTimeTearDown()
-    {
-    }
-
-
-    [SetUp]
-    protected new void SetUp()
-    {
-    }
-
-    [TearDown]
-    protected new void TearDown()
-    {
-    }
-    #endregion
-
-    #region Test Methods
-    /// <summary>
-    /// Verify reversible Json encoding.
-    /// </summary>
-    [Theory]
-    public void JsonEncodeRev(JsonValidationData jsonValidationData)
-    {
-        EncodeJsonVerifyResult(
-            jsonValidationData.BuiltInType,
-            jsonValidationData.Instance,
-            true,
-            jsonValidationData.ExpectedReversible,
-            false,
-            jsonValidationData.IncludeDefaultValue);
-    }
-
-    /// <summary>
-    /// Verify non reversible Json encoding.
-    /// </summary>
-    [Theory]
-    public void JsonEncodeNonRev(JsonValidationData jsonValidationData)
-    {
-        EncodeJsonVerifyResult(
-            jsonValidationData.BuiltInType,
-            jsonValidationData.Instance,
-            false,
-            jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
-            false,
-            jsonValidationData.IncludeDefaultValue);
-    }
-
-    [TestCase(false, "{\"Foo\":\"bar_1\"}")]  //within a object JSON don't allow another object without filename
-    [TestCase(true, "[{\"Foo\":\"bar_1\"}]")]
-    public void Test_WriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
-    {
-        using (var encodeable = new FooBarEncodeable())
+        #region Setup
+        [OneTimeSetUp]
+        protected new void OneTimeSetUp()
         {
-            var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
-
-            encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-
-            var encoded = encoder.CloseAndReturnText();
-
-            Assert.That(encoded, Is.EqualTo(expected));
+            ushort demoServerIndex = NameSpaceUris.GetIndexOrAppend(kDemoServer);
+            Assume.That(demoServerIndex == kDemoServerIndex, $"Server Index: {demoServerIndex} != {kDemoServerIndex}");
         }
-    }
 
-    [Test]
-    public void Test_WriteSingleEncodeableWithName()
-    {
-        using (var encodeable = new FooBarEncodeable())
+        [OneTimeTearDown]
+        protected new void OneTimeTearDown()
         {
-            var encoder = new JsonEncoder(Context, true, null, false);
-
-            encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
-
-            var encoded = encoder.CloseAndReturnText();
-
-            Assert.That(encoded, Is.EqualTo("{\"bar_1\":{\"Foo\":\"bar_1\"}}"));
         }
-    }
 
-    [Test]
-    public void Test_WriteSingleEncodeableWithNameAndArrayAsTopLevel_Expect_Exception()
-    {
-        using (var encodeable = new FooBarEncodeable())
+
+        [SetUp]
+        protected new void SetUp()
         {
-            var encoder = new JsonEncoder(Context, true, null, true);
-
-            Assert.Throws<ServiceResultException>(() => encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
         }
-    }
 
-    [TestCase(false, "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}")] //it is not valid to have a JSON object within another object without fieldname
-    [TestCase(true, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
-    public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
-    {
-        var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
-        try
+        [TearDown]
+        protected new void TearDown()
         {
-            var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
+        }
+        #endregion
 
-            foreach (var encodeable in encodeables)
+        #region Test Methods
+        /// <summary>
+        /// Verify reversible Json encoding.
+        /// </summary>
+        [Theory]
+        public void JsonEncodeRev(JsonValidationData jsonValidationData)
+        {
+            EncodeJsonVerifyResult(
+                jsonValidationData.BuiltInType,
+                jsonValidationData.Instance,
+                true,
+                jsonValidationData.ExpectedReversible,
+                false,
+                jsonValidationData.IncludeDefaultValue);
+        }
+
+        /// <summary>
+        /// Verify non reversible Json encoding.
+        /// </summary>
+        [Theory]
+        public void JsonEncodeNonRev(JsonValidationData jsonValidationData)
+        {
+            EncodeJsonVerifyResult(
+                jsonValidationData.BuiltInType,
+                jsonValidationData.Instance,
+                false,
+                jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
+                false,
+                jsonValidationData.IncludeDefaultValue);
+        }
+
+        /// <summary>
+        /// Within a object JSON don't allow another object without fieldname.
+        /// </summary>
+        [TestCase(false, "{\"Foo\":\"bar_1\"}")]
+        [TestCase(true, "[{\"Foo\":\"bar_1\"}]")]
+        public void Test_WriteSingleEncodeableWithoutName(bool topLevelIsArray, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            var formattedExpected = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable())
             {
+                var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
+
                 encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+
+                var encoded = encoder.CloseAndReturnText();
+
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                var formattedEncoded = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
             }
-
-            var encoded = encoder.CloseAndReturnText();
-
-            Assert.That(encoded, Is.EqualTo(expected));
         }
-        finally
-        {
-            encodeables.ForEach(e => e.Dispose());
-        }
-    }
 
-    [Test]
-    public void Test_WriteMultipleEncodeablesWithFieldNames()
-    {
-        var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
-        try
+        /// <summary>
+        /// A single encodeable in an array cannot have a fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteSingleEncodeableWithName()
         {
-            var encoder = new JsonEncoder(Context, true, null, false);
+            var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"}}";
+            TestContext.Out.WriteLine("Expected:");
+            var formattedExpected = PrettifyAndValidateJson(expected);
 
-            foreach (var encodeable in encodeables)
+            using (var encodeable = new FooBarEncodeable())
             {
+                var encoder = new JsonEncoder(Context, true, null, false);
+
                 encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+
+                var encoded = encoder.CloseAndReturnText();
+
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                var formattedEncoded = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
             }
-
-            var encoded = encoder.CloseAndReturnText();
-
-            Assert.That(encoded, Is.EqualTo("{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}"));
         }
-        finally
+
+        /// <summary>
+        /// A single encodeable in an array cannot have a fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteSingleEncodeableWithNameAndArrayAsTopLevel_Expect_Exception()
         {
-            encodeables.ForEach(e => e.Dispose());
+            using (var encodeable = new FooBarEncodeable())
+            {
+                var encoder = new JsonEncoder(Context, true, null, true);
+
+                Assert.Throws<ServiceResultException>(() => encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
+            }
         }
-    }
 
-    [Test]
-    public void Test_WriteEncodeableArrayWithFieldName()
-    {
-        var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
-
-        RunWriteEncodeableArrayTest(
-            "array",
-            encodeables,
-            "{\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]}",
-            false);
-    }
-
-    [TestCase(false, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")] //it is not valid to have a JSON array within an object without fieldname
-    [TestCase(true, "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]")]
-    public void Test_WriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
-    {
-        var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
-
-        RunWriteEncodeableArrayTest(
-            null,
-            encodeables,
-            expected,
-            topLevelIsArray);
-    }
-
-    [Test]
-    public void Test_WriteEncodeableArrayWithFieldNameAndArrayAsTopLevel_Expect_Exception()
-    {
-        var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
-
-        Assert.Throws<ServiceResultException>(() => RunWriteEncodeableArrayTest(
-            "array",
-            encodeables,
-            "[\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
-            true));
-    }
-
-    [Test]
-    public void Test_WriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
-    {
-        var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
-
-        RunWriteEncodeableArrayTest(
-            null,
-            encodeables,
-            "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
-            true);
-    }
-
-    #endregion
-
-    #region Private Methods
-
-    private void RunWriteEncodeableArrayTest(string fieldName, List<FooBarEncodeable> encodeables, string expected, bool topLevelIsArray)
-    {
-        try
+        /// <summary>
+        /// A single encodeable in an array cannot have a fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteMultipleEncodeableWithoutName_Expect_Exception()
         {
-            var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
+            // invalid JSON
+            // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
+            // "{{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}}"
+            using (var encodeable = new FooBarEncodeable())
+            {
+                var encoder = new JsonEncoder(Context, true, null, false);
 
-            encoder.WriteEncodeableArray(
-                fieldName,
-                encodeables.Cast<IEncodeable>().ToList(),
-                typeof(FooBarEncodeable));
+                Assert.Throws<ServiceResultException>(() => {
+                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
 
-            var encoded = encoder.CloseAndReturnText();
-
-            Assert.That(encoded, Is.EqualTo(expected));
+                }
+                );
+            }
         }
-        finally
+
+        /// <summary>
+        /// It is not valid to have a JSON object within another object without fieldname
+        /// </summary>
+        [TestCase(true, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
+        public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
         {
-            encodeables.ForEach(e => e.Dispose());
+            TestContext.Out.WriteLine("Expected:");
+            var formattedExpected = PrettifyAndValidateJson(expected);
+            TestContext.Out.WriteLine(formattedExpected);
+
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+            try
+            {
+                var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
+
+                foreach (var encodeable in encodeables)
+                {
+                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                }
+
+                var encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                var formattedEncoded = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
+            }
+            finally
+            {
+                encodeables.ForEach(e => e.Dispose());
+            }
         }
+
+        /// <summary>
+        /// Write multiple encodeables with fieldnames.
+        /// </summary>
+        [Test]
+        public void Test_WriteMultipleEncodeablesWithFieldNames()
+        {
+            var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
+
+            TestContext.Out.WriteLine("Expected:");
+            var formattedExpected = PrettifyAndValidateJson(expected);
+            TestContext.Out.WriteLine(formattedExpected);
+
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+            try
+            {
+                var encoder = new JsonEncoder(Context, true, null, false);
+
+                foreach (var encodeable in encodeables)
+                {
+                    encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+                }
+
+                var encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                var formattedEncoded = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
+            }
+            finally
+            {
+                encodeables.ForEach(e => e.Dispose());
+            }
+        }
+
+        /// <summary>
+        /// Write encodeable array with fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteEncodeableArrayWithFieldName()
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            RunWriteEncodeableArrayTest(
+                "array",
+                encodeables,
+                "{\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]}",
+                false);
+        }
+
+        /// <summary>
+        /// It is not valid to have a JSON array within an object without fieldname.
+        /// </summary>
+        [TestCase(false, "[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]")]
+        [TestCase(true, "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]")]
+        public void Test_WriteEncodeableArrayWithoutFieldName(bool topLevelIsArray, string expected)
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            RunWriteEncodeableArrayTest(
+                null,
+                encodeables,
+                expected,
+                topLevelIsArray);
+        }
+
+        /// <summary>
+        /// Write encodeable top level array with fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteEncodeableArrayWithFieldNameAndArrayAsTopLevel_Expect_Exception()
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            Assert.Throws<ServiceResultException>(() => RunWriteEncodeableArrayTest(
+                "array",
+                encodeables,
+                "[\"array\":[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
+                true,
+                true));
+        }
+
+        /// <summary>
+        /// Write encodeable top level array without fieldname.
+        /// </summary>
+        [Test]
+        public void Test_WriteEncodeableArrayWithoutFieldNameAndArrayAsTopLevel()
+        {
+            var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
+
+            RunWriteEncodeableArrayTest(
+                null,
+                encodeables,
+                "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
+                true);
+        }
+        #endregion
+
+        #region Private Methods
+
+        private void RunWriteEncodeableArrayTest(string fieldName, List<FooBarEncodeable> encodeables, string expected, bool topLevelIsArray, bool noExpectedValidation = false)
+        {
+            try
+            {
+                if (!noExpectedValidation)
+                {
+                    TestContext.Out.WriteLine("Expected:");
+                    var formattedExpected = PrettifyAndValidateJson(expected);
+                }
+
+                var encoder = new JsonEncoder(Context, true, null, topLevelIsArray);
+
+                encoder.WriteEncodeableArray(
+                    fieldName,
+                    encodeables.Cast<IEncodeable>().ToList(),
+                    typeof(FooBarEncodeable));
+
+                var encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                var formattedEncoded = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
+            }
+            finally
+            {
+                encodeables.ForEach(e => e.Dispose());
+            }
+        }
+
+        #endregion
+
+        #region Private Fields
+        #endregion
     }
-
-    #endregion
-
-    #region Private Fields
-    #endregion
-}
 
 }
