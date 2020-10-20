@@ -39,7 +39,7 @@ namespace Opc.Ua.Bindings
         /// The bindings for the transport channels.
         /// </summary>
         public class TransportChannelBindings :
-            TransportBindingsBase<ITransportChannelBinding>
+            TransportBindingsBase<ITransportChannelFactory>
         {
             /// <summary>
             /// Initialize the transport listener.
@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
         /// The bindings for the transport listeners.
         /// </summary>
         public class TransportListenerBindings :
-            TransportBindingsBase<ITransportListenerBinding>
+            TransportBindingsBase<ITransportListenerFactory>
         {
             /// <summary>
             /// Initialize the transport listener.

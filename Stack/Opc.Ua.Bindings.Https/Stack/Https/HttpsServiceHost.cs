@@ -33,7 +33,7 @@ namespace Opc.Ua.Bindings
     /// Creates a new <see cref="HttpsTransportListener"/> with
     /// <see cref="ITransportListener"/> interface.
     /// </summary>
-    public abstract class HttpsServiceHost : ITransportListenerBinding
+    public abstract class HttpsServiceHost : ITransportListenerFactory
     {
         /// <summary>
         /// The protocol supported by the listener.

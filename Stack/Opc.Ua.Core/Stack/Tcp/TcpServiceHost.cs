@@ -22,9 +22,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     /// <remarks>
     /// This class can be used by a transport which
-    /// implements the <see cref="ITransportListenerBinding"/>
+    /// implements the <see cref="ITransportListenerFactory"/>
     /// </remarks>
-    public abstract class TcpServiceHost : ITransportListenerBinding
+    public abstract class TcpServiceHost : ITransportListenerFactory
     {
         /// <inheritdoc/>
         public abstract string UriScheme { get; }
@@ -32,6 +32,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public abstract ITransportListener Create();
 
+        /// <inheritdoc/>
         /// <summary>
         /// Create a new service host for UA TCP.
         /// </summary>

@@ -81,23 +81,23 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// This is the transport listener factory interface for a binding (server).
     /// </summary>
-    public interface ITransportListenerBinding :
+    public interface ITransportListenerFactory :
         ITransportBindingFactory<ITransportListener>
     {
         /// <summary>
         /// Create the service host for a server using <see cref="ServerBase"/>
         /// </summary>
-        /// <param name="serverBase"></param>
-        /// <param name="hosts"></param>
-        /// <param name="configuration"></param>
-        /// <param name="baseAddresses"></param>
-        /// <param name="serverDescription"></param>
-        /// <param name="securityPolicies"></param>
-        /// <param name="instanceCertificate"></param>
-        /// <param name="instanceCertificateChain"></param>
+        /// <param name="serverBase">The server base.</param>
+        /// <param name="hosts">The service hosts are added to this list.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="baseAddresses">The base addreses for the service host.</param>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="securityPolicies">The list of supported security policies.</param>
+        /// <param name="instanceCertificate">The server certificate.</param>
+        /// <param name="instanceCertificateChain">The cert cahin of the server certificate.</param>
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
-            IDictionary<string, Task> hosts,  // TODO fix tasks. why only tasks?
+            IDictionary<string, Task> hosts,
             ApplicationConfiguration configuration,
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// This is the transport channel factory interface for a binding (client).
     /// </summary>
-    public interface ITransportChannelBinding :
+    public interface ITransportChannelFactory :
         ITransportBindingFactory<ITransportChannel>
     {
     }

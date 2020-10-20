@@ -37,7 +37,7 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Creates a new TcpTransportChannel with ITransportChannel interface.
     /// </summary>
-    public class TcpTransportChannelFactory : ITransportChannelBinding
+    public class TcpTransportChannelFactory : ITransportChannelFactory
     {
         /// <summary>
         /// The protocol supported by the channel.
