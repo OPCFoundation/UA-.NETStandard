@@ -14,7 +14,7 @@
     <tags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</tags>
     <dependencies>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Debug" version="$version$"/>
-      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Bindings.Https" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Bindings.Https.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Server.Debug" version="$version$"/>
