@@ -457,7 +457,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                var formattedEncoded = PrettifyAndValidateJson(encoded);
+                _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
