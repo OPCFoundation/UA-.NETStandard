@@ -16,6 +16,10 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Model\Opc.Ua.Gds.PredefinedNodes.uanodes" />

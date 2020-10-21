@@ -57,7 +57,7 @@ namespace Opc.Ua
             {
                 string[] uris = new string[ServerUris.Count - 1];
 
-                for (int ii = 1; ii < NamespaceUris.Count; ii++)
+                for (int ii = 1; ii < ServerUris.Count; ii++)
                 {
                     uris[ii - 1] = ServerUris.GetString((uint)ii);
                 }
