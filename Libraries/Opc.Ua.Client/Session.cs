@@ -316,7 +316,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Validates the server nonce and security parameters of user identity.
         /// </summary>
-        private void ValidateServerNonce(IUserIdentity identity, byte[] serverNonce, string securityPolicyUri, byte[] previousServerNonce)
+        private void ValidateServerNonce(
+            IUserIdentity identity,
+            byte[] serverNonce,
+            string securityPolicyUri,
+            byte[] previousServerNonce,
+            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
         {
             // skip validation if server nonce is not used for encryption.
             if (String.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
@@ -329,19 +334,28 @@ namespace Opc.Ua.Client
                 // the server nonce should be validated if the token includes a secret.
                 if (!Utils.Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "The server nonce has not the correct length or is not random enough.");
+                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
+                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                    {
+                        Utils.Trace((int)TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error was suppressed.");
+                    }
+                    else
+                    {
+                        throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "The server nonce has not the correct length or is not random enough.");
+                    }
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
                 if (previousServerNonce != null && Utils.CompareNonce(serverNonce, previousServerNonce))
                 {
-                    if (!m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
+                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is equal with previously returned nonce.");
+                        Utils.Trace((int)TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error was suppressed.");
                     }
                     else
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error was suppressed.");
+                        throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is equal with previously returned nonce.");
                     }
                 }
             }
@@ -1185,7 +1199,12 @@ namespace Opc.Ua.Client
                 }
 
                 // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(m_identity, m_serverNonce, securityPolicyUri, m_previousServerNonce);
+                ValidateServerNonce(
+                    m_identity,
+                    m_serverNonce,
+                    securityPolicyUri,
+                    m_previousServerNonce,
+                    m_endpoint.Description.SecurityMode);
 
                 // sign data with user token.
                 UserIdentityToken identityToken = m_identity.GetIdentityToken();
@@ -2722,7 +2741,12 @@ namespace Opc.Ua.Client
                 }
 
                 // validate server nonce and security parameters for user identity.
-                ValidateServerNonce(identity, serverNonce, securityPolicyUri, previousServerNonce);
+                ValidateServerNonce(
+                    identity,
+                    serverNonce,
+                    securityPolicyUri,
+                    previousServerNonce,
+                    m_endpoint.Description.SecurityMode);
 
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, securityPolicyUri);
@@ -2886,7 +2910,12 @@ namespace Opc.Ua.Client
             }
 
             // validate server nonce and security parameters for user identity.
-            ValidateServerNonce(identity, serverNonce, securityPolicyUri, m_previousServerNonce);
+            ValidateServerNonce(
+                identity,
+                serverNonce,
+                securityPolicyUri,
+                m_previousServerNonce,
+                m_endpoint.Description.SecurityMode);
 
             // sign data with user token.
             identityToken = identity.GetIdentityToken();
