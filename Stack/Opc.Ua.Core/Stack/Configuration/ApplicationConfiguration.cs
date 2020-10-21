@@ -100,9 +100,13 @@ namespace Opc.Ua
         public string SourceFilePath => m_sourceFilePath; 
 
         /// <summary>
-        /// Gets the certificate validator which is configured to use.
+        /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
-        public CertificateValidator CertificateValidator => m_certificateValidator;
+        public CertificateValidator CertificateValidator
+        {
+            get { return m_certificateValidator; }
+            set { m_certificateValidator = value; }
+        }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
