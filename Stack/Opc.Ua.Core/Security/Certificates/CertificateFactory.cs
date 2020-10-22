@@ -1456,4 +1456,4 @@ namespace Opc.Ua
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
     }
 }
-
+#endif
