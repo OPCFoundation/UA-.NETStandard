@@ -1005,7 +1005,9 @@ namespace Opc.Ua
         /// Gets or sets a value indicating whether the server nonce validation errors should be suppressed.
         /// </summary>
         /// <remarks>
+        /// Allows client interoperability with legacy servers which do not comply with the specification for nonce usage.
         /// If set to true the server nonce validation errors are suppressed.
+        /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public bool SuppressNonceValidationErrors
