@@ -38,6 +38,62 @@ using Org.BouncyCastle.X509.Extension;
 
 namespace Opc.Ua
 {
+    internal static class SignatureBuilder
+    {
+        /// <summary>
+        /// Adds a signature to encoded data in ASN format.
+        /// </summary>
+        /// <param name="encodedData">ASN encoded data.</param>
+        /// <param name="signature">signature of the encoded data.</param>
+        /// <param name="hashAlgorithmName"></param>
+        /// <returns>X509 ASN format of EncodedData+SignatureOID+Signature bytes.</returns>
+        public static byte[] AddSignature(byte[] encodedData, byte[] signature, HashAlgorithmName hashAlgorithmName)
+        {
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+
+            var tag = Asn1Tag.Sequence;
+            writer.PushSequence(tag);
+
+            // write Tbs encoded data
+            writer.WriteEncodedValue(encodedData);
+
+            // Signature Algorithm Identifier
+            writer.PushSequence();
+            string signatureAlgorithm = CrlBuilder.GetRSAOid(hashAlgorithmName);
+            writer.WriteObjectIdentifier(signatureAlgorithm);
+            writer.WriteNull();
+            writer.PopSequence();
+
+            // Add signature
+            writer.WriteBitString(signature);
+
+            writer.PopSequence(tag);
+
+            return writer.Encode();
+        }
+
+        static byte[] EncodeECDSASignatureToASNFormat(byte[] signature)
+        {
+            /*
+             * Encode from ieee signature format to ASN1 DER encoded signature format for ecdsa certificates.
+             * ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
+             * https://www.ietf.org/rfc/rfc5480.txt
+             */
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            var tag = Asn1Tag.Sequence;
+            writer.PushSequence(tag);
+
+            int segmentLength = signature.Length / 2;
+            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, 0, segmentLength));
+            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, segmentLength, segmentLength));
+
+            writer.PopSequence(tag);
+
+            return writer.Encode();
+        }
+    }
+
+
     /// <summary>
     /// Secure .Net Core Random Number generator wrapper for Bounce Castle.
     /// Creates an instance of RNGCryptoServiceProvider or an OpenSSL based version on other OS.
@@ -130,11 +186,6 @@ namespace Opc.Ua
         }
     }
 
-    public interface ICertificateFactory
-    {
-
-    }
-
     /// <summary>
     /// Creates certificates.
     /// </summary>
@@ -220,7 +271,7 @@ namespace Opc.Ua
                 }
 
                 // save the key container so it can be deleted later.
-                m_temporaryKeyContainers.Add(certificate);
+               // m_temporaryKeyContainers.Add(certificate);
             }
 
             return certificate;
@@ -318,6 +369,17 @@ namespace Opc.Ua
             }
             var request = new CertificateRequest(subjectDN, rsaPublicKey, GetRSAHashAlgorithmName(hashSizeInBits), RSASignaturePadding.Pkcs1);
 
+            BasicConstraints basicConstraints = new BasicConstraints(isCA);
+            if (isCA && pathLengthConstraint >= 0)
+            {
+                basicConstraints = new BasicConstraints(pathLengthConstraint);
+            }
+            else if (!isCA && issuerCAKeyCert == null)
+            {   // self-signed
+                basicConstraints = new BasicConstraints(0);
+            }
+
+
             // Basic constraints
             if (!isCA && issuerCAKeyCert == null)
             {
@@ -325,11 +387,16 @@ namespace Opc.Ua
                 request.CertificateExtensions.Add(
                     new X509BasicConstraintsExtension(true, true, 0, true));
             }
+            else if (isCA && pathLengthConstraint >= 0)
+            {
+                // CA with constraints
+                request.CertificateExtensions.Add(
+                    new X509BasicConstraintsExtension(true, true, pathLengthConstraint, true));
+            }
             else
             {
-                // other
                 request.CertificateExtensions.Add(
-                    new X509BasicConstraintsExtension(isCA, pathLengthConstraint >= 0, pathLengthConstraint, true));
+                    new X509BasicConstraintsExtension(isCA, false, 0, true));
             }
 
             // Subject Key Identifier
@@ -652,68 +719,47 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
             }
 
-            using (var cfrg = new CertificateFactoryRandomGenerator())
+            System.Numerics.BigInteger crlSerialNumber;
+            IList<string> serialNumbers = new List<string>();
+
+            // merge all existing revocation list
+            if (issuerCrls != null)
             {
-                // cert generators
-                SecureRandom random = new SecureRandom(cfrg);
-                BigInteger crlSerialNumber = BigInteger.Zero;
-
-                Org.BouncyCastle.X509.X509Certificate bcCertCA = new X509CertificateParser().ReadCertificate(issuerCertificate.RawData);
-                AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(issuerCertificate);
-
-                ISignatureFactory signatureFactory =
-                        new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
-
-                X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
-                crlGen.SetIssuerDN(bcCertCA.SubjectDN);
-                crlGen.SetThisUpdate(thisUpdate);
-                crlGen.SetNextUpdate(nextUpdate);
-
-                // merge all existing revocation list
-                if (issuerCrls != null)
+                X509CrlParser parser = new X509CrlParser();
+                foreach (X509CRL issuerCrl in issuerCrls)
                 {
-                    X509CrlParser parser = new X509CrlParser();
-                    foreach (X509CRL issuerCrl in issuerCrls)
-                    {
 
-                        X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
-                        crlGen.AddCrl(crl);
-                        var crlVersion = GetCrlNumber(crl);
-                        if (crlVersion.IntValue > crlSerialNumber.IntValue)
-                        {
-                            crlSerialNumber = crlVersion;
-                        }
+                    X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
+                    // TODO: add serialnumbers
+                    var crlVersion = new System.Numerics.BigInteger(GetCrlNumber(crl).ToByteArrayUnsigned());
+                    if (crlVersion > crlSerialNumber)
+                    {
+                        crlSerialNumber = crlVersion;
                     }
                 }
+            }
 
-                DateTime now = DateTime.UtcNow;
-                if (revokedCertificates == null || revokedCertificates.Count == 0)
+            // add existing serial numbers
+            if (revokedCertificates != null)
+            {
+                foreach (var cert in revokedCertificates)
                 {
-                    // add a dummy revoked cert
-                    crlGen.AddCrlEntry(BigInteger.One, now, CrlReason.Unspecified);
+                    serialNumbers.Add(cert.SerialNumber);
                 }
-                else
-                {
-                    // add the revoked cert
-                    foreach (var revokedCertificate in revokedCertificates)
-                    {
-                        crlGen.AddCrlEntry(GetSerialNumber(revokedCertificate), now, CrlReason.PrivilegeWithdrawn);
-                    }
-                }
+            }
 
-                crlGen.AddExtension(X509Extensions.AuthorityKeyIdentifier,
-                                    false,
-                                    new AuthorityKeyIdentifierStructure(bcCertCA));
-
-                // set new serial number
-                crlSerialNumber = crlSerialNumber.Add(BigInteger.One);
-                crlGen.AddExtension(X509Extensions.CrlNumber,
-                                    false,
-                                    new CrlNumber(crlSerialNumber));
-
-                // generate updated CRL
-                X509Crl updatedCrl = crlGen.Generate(signatureFactory);
-                return new X509CRL(updatedCrl.GetEncoded());
+            var hashAlgorithmName = HashAlgorithmName.SHA256;
+            CrlBuilder cRLBuilder = new CrlBuilder(issuerCertificate.SubjectName, serialNumbers.ToArray(), hashAlgorithmName);
+            cRLBuilder.NextUpdate = nextUpdate;
+            cRLBuilder.CrlExtensions.Add(BuildAuthorityKeyIdentifier(issuerCertificate));
+            cRLBuilder.CrlExtensions.Add(BuildCRLNumber(123));
+            byte[] crlRawData = cRLBuilder.GetEncoded();
+            using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
+            {
+                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                byte[] signature = generator.SignData(crlRawData, hashAlgorithmName);
+                byte[] crlWithSignature = SignatureBuilder.AddSignature(crlRawData, signature, hashAlgorithmName);
+                return new X509CRL(crlWithSignature);
             }
         }
 
@@ -978,6 +1024,10 @@ namespace Opc.Ua
             {
                 // verify the public and private key match
                 rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+#if NETSTANDARD2_1
+                // on .NET Core 3 
+                rsaPrivateKey.ExportParameters(true);
+#endif
                 rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
                 X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                 if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
@@ -997,6 +1047,7 @@ namespace Opc.Ua
             {
                 if (throwOnError)
                 {
+                    throwOnError = false;
                     throw;
                 }
             }
@@ -1221,6 +1272,17 @@ namespace Opc.Ua
 
             return sanBuilder.Build();
         }
+
+        /// <summary>
+        /// Build the CRL number.
+        /// </summary>
+        private static System.Security.Cryptography.X509Certificates.X509Extension BuildCRLNumber(System.Numerics.BigInteger crlNumber)
+        {
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            writer.WriteInteger(crlNumber);
+            return new System.Security.Cryptography.X509Certificates.X509Extension("2.5.29.20", writer.Encode(), false);
+        }
+
 
         /// <summary>
         /// Build the X509 Authority Key extension.
@@ -1478,7 +1540,7 @@ namespace Opc.Ua
         /// <summary>
         /// Read the Crl number from a X509Crl.
         /// </summary>
-        private static BigInteger GetCrlNumber(X509Crl crl)
+        public static BigInteger GetCrlNumber(X509Crl crl)
         {
             BigInteger crlNumber = BigInteger.One;
             try
@@ -1684,7 +1746,7 @@ namespace Opc.Ua
         #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
-        private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
+        //private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
     }
 }
 #endif

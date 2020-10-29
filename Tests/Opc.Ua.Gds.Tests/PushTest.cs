@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
 
@@ -256,6 +257,9 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(402)]
         public void CreateSigningRequestRsaMinNullParms()
         {
+#if NETSTANDARD2_1
+            Assert.Ignore("SHA1 not supported on .NET Standard 2.1.");
+#endif
             ConnectPushClient(true);
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType, null, false, null); }, Throws.Exception);
         }

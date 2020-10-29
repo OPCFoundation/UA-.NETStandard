@@ -10,7 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if !NETSTANDARD2_1
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -36,8 +36,11 @@ using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.X509;
 using Org.BouncyCastle.X509.Extension;
 
-
+#if !NETSTANDARD2_1
 namespace Opc.Ua
+#else
+namespace Opc.Ua.Legacy
+#endif
 {
     /// <summary>
     /// Secure .Net Core Random Number generator wrapper for Bounce Castle.
@@ -136,7 +139,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-        #region Public Constants
+#region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -155,9 +158,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -1016,9 +1019,9 @@ namespace Opc.Ua
                 RsaUtils.RSADispose(rsaPublicKey);
             }
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1449,11 +1452,11 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static object m_certificatesLock = new object();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
     }
 }
-#endif
+

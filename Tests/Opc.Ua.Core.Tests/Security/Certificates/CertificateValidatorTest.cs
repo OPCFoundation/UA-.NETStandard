@@ -249,6 +249,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await m_issuerStore.Add(cert);
                 }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, m_issuerStore.Enumerate().Result.Count);
                 var certValidator = InitValidatorWithStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
@@ -262,6 +263,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     await m_trustedStore.Add(cert);
                 }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, m_trustedStore.Enumerate().Result.Count);
                 certValidator = InitValidatorWithStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {

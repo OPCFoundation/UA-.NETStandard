@@ -34,6 +34,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using NUnit.Framework;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -45,6 +46,41 @@ namespace Opc.Ua.Gds.Tests
     public class ClientTest
     {
         #region Test Setup
+        public class ConnectionProfile : IFormattable
+        {
+            public ConnectionProfile(string securityProfileUri, MessageSecurityMode messageSecurityMode)
+            {
+                SecurityProfileUri = securityProfileUri;
+                MessageSecurityMode = messageSecurityMode;
+            }
+
+            public string SecurityProfileUri { get; set; }
+            public MessageSecurityMode MessageSecurityMode { get; set; }
+
+            public string ToString(string format, IFormatProvider formatProvider)
+            {
+                return $"{SecurityProfileUri.Split('#').Last()}:{MessageSecurityMode}";
+            }
+
+        }
+
+
+        [DatapointSource]
+        public static ConnectionProfile[] ConnectionProfileArray = new ConnectionProfile[] {
+            new ConnectionProfile( SecurityPolicies.None, MessageSecurityMode.None),
+            new ConnectionProfile( SecurityPolicies.Basic128Rsa15, MessageSecurityMode.Sign),
+            new ConnectionProfile( SecurityPolicies.Basic256, MessageSecurityMode.Sign),
+            new ConnectionProfile( SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign),
+            new ConnectionProfile( SecurityPolicies.Aes128_Sha256_RsaOaep, MessageSecurityMode.Sign),
+            new ConnectionProfile( SecurityPolicies.Aes256_Sha256_RsaPss, MessageSecurityMode.Sign),
+            new ConnectionProfile( SecurityPolicies.Basic128Rsa15, MessageSecurityMode.SignAndEncrypt),
+            new ConnectionProfile( SecurityPolicies.Basic256, MessageSecurityMode.SignAndEncrypt),
+            new ConnectionProfile( SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt),
+            new ConnectionProfile( SecurityPolicies.Aes128_Sha256_RsaOaep, MessageSecurityMode.SignAndEncrypt),
+            new ConnectionProfile( SecurityPolicies.Aes256_Sha256_RsaPss, MessageSecurityMode.SignAndEncrypt),
+        };
+
+
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
@@ -89,11 +125,23 @@ namespace Opc.Ua.Gds.Tests
             DisconnectGDS();
         }
         #endregion
+
         #region Test Methods
+        /// <summary>
+        /// Connect to the GDS server using all available security profiles.
+        /// </summary>
+        [Theory, Order(10)]
+        public void ConnectToServer(ConnectionProfile connectionProfile)
+        {
+            ConnectGDS(false, connectionProfile.SecurityProfileUri, connectionProfile.MessageSecurityMode);
+            Thread.Sleep(1000);
+            DisconnectGDS();
+        }
+
         /// <summary>
         /// Clean the app database from application Uri used during test.
         /// </summary>
-        [Test, Order(10)]
+        [Test, Order(99)]
         public void CleanGoodApplications()
         {
             ConnectGDS(true);
@@ -996,6 +1044,47 @@ namespace Opc.Ua.Gds.Tests
         private void DisconnectGDS()
         {
             _gdsClient.GDSClient.Disconnect();
+        }
+
+        private static Uri GetDiscoveryUrl(string discoveryUrl)
+        {
+            // needs to add the '/discovery' back onto non-UA TCP URLs.
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
+            {
+                if (!discoveryUrl.EndsWith("/discovery"))
+                {
+                    discoveryUrl += "/discovery";
+                }
+            }
+
+            // parse the selected URL.
+            return new Uri(discoveryUrl);
+        }
+
+        private void ConnectGDS(bool admin, string securityProfileUri, MessageSecurityMode securityMode)
+        {
+            var url = GetDiscoveryUrl(_gdsClient.GDSClient.EndpointUrl);
+
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            // Connect to the server's discovery endpoint and find the available configuration.
+            EndpointDescriptionCollection endpoints;
+            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
+            {
+                endpoints = client.GetEndpoints(null);
+            }
+            var endpointDescription = endpoints.Where(profile => (
+                profile.SecurityPolicyUri == securityProfileUri &&
+                profile.SecurityMode == securityMode)).FirstOrDefault();
+            if (endpointDescription == null)
+            {
+                Assert.Ignore($"The security profile {securityProfileUri}, {securityMode} is not supported by the GDS server.");
+            }
+            endpointConfiguration = EndpointConfiguration.Create(_gdsClient.Config);
+            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+            _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
+            _gdsClient.GDSClient.Connect(endpoint).Wait();
         }
 
         private void AssertIgnoreTestWithoutGoodRegistration()

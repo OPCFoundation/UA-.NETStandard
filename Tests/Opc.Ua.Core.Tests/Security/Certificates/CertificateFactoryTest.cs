@@ -29,9 +29,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
+using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -78,7 +80,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [DatapointSource]
+#if NETCOREAPP3_1
+        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { /*{ 1024, 160 },*/ { 2048, 256 }, { 3072, 384 }, { 4096, 512 } }.ToArray();
+#else
         public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, 160 }, { 2048, 256 }, { 3072, 384 }, { 4096, 512 } }.ToArray();
+#endif
         #endregion
 
         #region Test Setup
@@ -152,6 +158,81 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateFactory.VerifySelfSigned(cert);
             CertificateFactory.VerifyRSAKeyPair(cert, cert);
         }
+
+#if NETCOREAPP3_1
+        /// <summary>
+        /// Verify CRL for CA signed app certs.
+        /// </summary>
+        [Test]
+        public void VerifyCrlCerts(
+            )
+        {
+            KeyHashPair keyHashPair = new KeyHashPair(2048, 256);
+            var subject = "CN=CA Test Cert";
+            int pathLengthConstraint = 1;
+            var issuerCertificate = CertificateFactory.CreateCertificate(
+                null, null, null,
+                null, null, subject,
+                null, keyHashPair.KeySize,
+                DateTime.UtcNow, 25 * 12,
+                keyHashPair.HashSize,
+                isCA: true,
+                pathLengthConstraint: pathLengthConstraint);
+
+            X509Certificate2Collection revokedCerts = new X509Certificate2Collection();
+            for (int i = 0; i < 10; i++)
+            {
+                var cert = CertificateFactory.CreateCertificate(
+                    null, null, null,
+                    null, null, $"CN=Test Cert {i}",
+                    null, keyHashPair.KeySize,
+                    DateTime.UtcNow, 2 * 12,
+                    keyHashPair.HashSize,
+                    isCA: false,
+                    issuerCAKeyCert: issuerCertificate,
+                    pathLengthConstraint: pathLengthConstraint);
+                revokedCerts.Add(cert);
+            }
+
+            Assert.NotNull(issuerCertificate);
+            Assert.NotNull(issuerCertificate.RawData);
+            Assert.True(issuerCertificate.HasPrivateKey);
+            using (var rsa = issuerCertificate.GetRSAPrivateKey())
+            {
+                Assert.NotNull(rsa);
+            }
+
+            var plainCert = new X509Certificate2(issuerCertificate.RawData);
+            Assert.NotNull(plainCert);
+
+            VerifyCACert(plainCert, subject, pathLengthConstraint);
+            CertificateFactory.VerifySelfSigned(issuerCertificate);
+            CertificateFactory.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
+
+            var crlLegacy = Opc.Ua.Legacy.CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
+            Assert.NotNull(crlLegacy);
+            File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
+            crlLegacy.VerifySignature(issuerCertificate, true);
+
+            var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
+            File.WriteAllBytes("D:\\test2.crl", crl.RawData);
+            Assert.NotNull(crl);
+
+            X509CrlParser parser = new X509CrlParser();
+            X509Crl crlbcLegacy = parser.ReadCrl(crlLegacy.RawData);
+            var crlVersionLegacy = CertificateFactory.GetCrlNumber(crlbcLegacy);
+            X509Crl crlbc2 = parser.ReadCrl(crl.RawData);
+            var crlVersion = CertificateFactory.GetCrlNumber(crlbc2);
+
+            crl.VerifySignature(issuerCertificate, true);
+            foreach (var cert in revokedCerts)
+            {
+                Assert.True(crl.IsRevoked(cert));
+            }
+
+        }
+#endif
+
         #endregion
 
         #region Private Methods
