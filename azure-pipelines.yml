@@ -49,6 +49,13 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
+      framework: 'netcoreapp3.1'
+      poolImage: 'ubuntu-18.04'
+      jobnamesuffix: 'netcore31'
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      framework: 'netcoreapp2.1'
       poolImage: 'ubuntu-18.04'
   - template: .azurepipelines/test.yml
     parameters:
