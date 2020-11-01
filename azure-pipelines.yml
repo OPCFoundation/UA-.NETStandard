@@ -55,18 +55,6 @@ stages:
     parameters:
       configuration: Release
       poolImage: 'ubuntu-18.04'
-  - template: .azurepipelines/testcc.yml
-    parameters:
-      configuration: Release
-      framework: 'netcoreapp3.1'
-      poolImage: 'ubuntu-18.04'
-      jobnamesuffix: 'netcore31'
-  - template: .azurepipelines/testcc.yml
-    parameters:
-      configuration: Release
-      framework: 'net462'
-      poolImage: 'windows-2019'
-      jobnamesuffix: 'net462'
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
