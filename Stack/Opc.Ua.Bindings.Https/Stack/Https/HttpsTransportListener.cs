@@ -21,8 +21,6 @@
  * http://opcfoundation.org/License/RCL/1.00/
  * ======================================================================*/
 
-#if !NO_HTTPS
-
 using System;
 using System.IO;
 using System.Net;
@@ -38,14 +36,35 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Implements the startup of the Https listener.
+    /// Creates a new <see cref="HttpsTransportListener"/> with
+    /// <see cref="ITransportListener"/> interface.
+    /// </summary>
+    public class HttpsTransportListenerFactory : HttpsServiceHost
+    {
+        /// <summary>
+        /// The protocol supported by the listener.
+        /// </summary>
+        public override string UriScheme => Utils.UriSchemeHttps;
+
+        /// <summary>
+        /// The method creates a new instance of a <see cref="HttpsTransportListener"/>.
+        /// </summary>
+        /// <returns>The transport listener.</returns>
+        public override ITransportListener Create()
+        {
+            return new HttpsTransportListener();
+        }
+    }
+
+    /// <summary>
+    /// Implements the kestrel startup of the Https listener.
     /// </summary>
     public class Startup
     {
         /// <summary>
         /// Get the Https listener.
         /// </summary>
-        public static UaHttpsChannelListener Listener { get; set; }
+        public static HttpsTransportListener Listener { get; set; }
 
         /// <summary>
         /// Configure the request pipeline for the listener.
@@ -72,13 +91,13 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
-    public partial class UaHttpsChannelListener : ITransportListener
+    public class HttpsTransportListener : ITransportListener
     {
         #region Constructors
         /// <summary>
-        /// Initializes a new instance of the <see cref="UaHttpsChannelListener"/> class.
+        /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
-        public UaHttpsChannelListener()
+        public HttpsTransportListener()
         {
         }
         #endregion
@@ -381,5 +400,3 @@ namespace Opc.Ua.Bindings
         #endregion
     }
 }
-
-#endif

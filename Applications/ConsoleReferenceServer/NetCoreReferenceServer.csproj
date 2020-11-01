@@ -6,7 +6,6 @@
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleReferenceServer</PackageId>
     <Company>OPC Foundation</Company>
-    <Product>OPC UA SDK</Product>
     <Description>.NET Core Reference Server</Description>
     <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
@@ -17,6 +16,10 @@
 
   <ItemGroup>
     <Compile Include="..\ReferenceServer\ReferenceNodeManager.cs;..\ReferenceServer\ReferenceServer.cs;..\ReferenceServer\ReferenceServerConfiguration.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,10 +36,6 @@
     <None Update="Quickstarts.ReferenceServer.Config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Properties\" />
   </ItemGroup>
 
 </Project>

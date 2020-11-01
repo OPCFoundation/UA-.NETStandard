@@ -20,7 +20,7 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
-    /// Writes objects to a XML stream.
+    /// Writes objects to a JSON stream.
     /// </summary>
     public class JsonEncoder : IEncoder, IDisposable
     {
@@ -35,6 +35,7 @@ namespace Opc.Ua
         private uint m_nestingLevel;
         private bool m_topLevelIsArray;
         private bool m_levelOneSkipped;
+        private bool m_dontWriteClosing;
         #endregion
 
         #region Constructors
@@ -208,7 +209,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Completes writing and returns the XML text.
+        /// Completes writing and returns the JSON text.
         /// </summary>
         public string CloseAndReturnText()
         {
@@ -225,14 +226,18 @@ namespace Opc.Ua
         /// </summary>
         public int Close()
         {
-            if (m_topLevelIsArray)
+            if (!m_dontWriteClosing)
             {
-                m_writer.Write("]");
+                if (m_topLevelIsArray)
+                {
+                    m_writer.Write("]");
+                }
+                else
+                {
+                    m_writer.Write("}");
+                }
             }
-            else
-            {
-                m_writer.Write("}");
-            }
+
             m_writer.Flush();
             int length = (int)m_writer.BaseStream.Position;
             m_writer.Dispose();
@@ -1229,7 +1234,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                PushStructure(null);
+                PushStructure(fieldName);
                 encodeable.Encode(this);
                 PopStructure();
                 return;
@@ -1291,11 +1296,33 @@ namespace Opc.Ua
                     m_context.MaxEncodingNestingLevels);
             }
 
-
             if (value == null)
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
+            }
+
+            if (m_nestingLevel == 0 && (m_commaRequired || m_topLevelIsArray))
+            {
+                if (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "With Array as top level, encodeables with fieldname will create invalid json");
+                }
+            }
+
+            if (m_nestingLevel == 0 && !m_commaRequired)
+            {
+                if (string.IsNullOrWhiteSpace(fieldName) && !m_topLevelIsArray)
+                {
+                    m_writer.Flush();
+                    if (m_writer.BaseStream.Length == 1) //Opening "{"
+                    {
+                        m_writer.BaseStream.Seek(0, SeekOrigin.Begin);
+                    }
+                    m_dontWriteClosing = true;
+                }
             }
 
             m_nestingLevel++;
@@ -1307,6 +1334,7 @@ namespace Opc.Ua
             PopStructure();
 
             m_nestingLevel--;
+            
         }
 
         /// <summary>
@@ -2077,20 +2105,50 @@ namespace Opc.Ua
                 return;
             }
 
-            PushArray(fieldName);
-
-            // check the length.
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (string.IsNullOrWhiteSpace(fieldName) && m_nestingLevel == 0 && !m_topLevelIsArray)
             {
-                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-            }
+                m_writer.Flush();
+                if (m_writer.BaseStream.Length == 1) //Opening "{"
+                {
+                    m_writer.BaseStream.Seek(0, SeekOrigin.Begin);
+                }
 
-            for (int ii = 0; ii < values.Count; ii++)
+                m_nestingLevel++;
+                PushArray(fieldName);
+
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteEncodeable(null, values[ii], systemType);
+                }
+
+                PopArray();
+                m_dontWriteClosing = true;
+                m_nestingLevel--;
+
+            }
+            else if (!string.IsNullOrWhiteSpace(fieldName) && m_nestingLevel == 0 && m_topLevelIsArray)
             {
-                WriteEncodeable(null, values[ii], systemType);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "With Array as top level, encodeables array with filename will create invalid json");
             }
+            else
+            {
+                PushArray(fieldName);
 
-            PopArray();
+                // check the length.
+                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteEncodeable(null, values[ii], systemType);
+                }
+
+                PopArray();
+            }
         }
 
         /// <summary>

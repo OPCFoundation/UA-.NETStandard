@@ -25,7 +25,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
-
+using System.Collections.ObjectModel;
 
 namespace Opc.Ua
 {
@@ -51,9 +51,28 @@ namespace Opc.Ua
         public const string UriSchemeOpcTcp = "opc.tcp";
 
         /// <summary>
+        /// The URI scheme for the UA TCP protocol over Secure WebSockets. 
+        /// </summary>
+        public const string UriSchemeOpcWss = "opc.wss";
+
+        /// <summary>
+        /// The URI schemes which are supported in the core server. 
+        /// </summary>
+        public static readonly string[] DefaultUriSchemes = new string []
+        {
+            Utils.UriSchemeOpcTcp,
+            Utils.UriSchemeHttps
+        };
+
+        /// <summary>
         /// The default port for the UA TCP protocol.
         /// </summary>
         public const int UaTcpDefaultPort = 4840;
+
+        /// <summary>
+        /// The default port for the UA TCP protocol over WebSockets.
+        /// </summary>
+        public const int UaWebSocketsDefaultPort = 4843;
 
         /// <summary>
         /// The urls of the discovery servers on a node.
@@ -66,11 +85,6 @@ namespace Opc.Ua
             "http://{0}:52601/UADiscovery",
             "http://{0}/UADiscovery/Default.svc"
         };
-
-        /// <summary>
-        /// The class that provides the default implementation for the UA TCP protocol.
-        /// </summary>
-        public const string UaTcpBindingDefault = "Opc.Ua.Bindings.UaTcpBinding";
 
         /// <summary>
         /// The default certificate store's type.
@@ -87,6 +101,23 @@ namespace Opc.Ua
         /// </summary>
         public static string DefaultLocalFolder = Directory.GetCurrentDirectory();
 
+        /// <summary>
+        /// The full name of the Opc.Ua.Core assembly.
+        /// </summary>
+        public static readonly string DefaultOpcUaCoreAssemblyFullName = typeof(Utils).Assembly.GetName().FullName;
+
+        /// <summary>
+        /// The name of the Opc.Ua.Core assembly.
+        /// </summary>
+        public static readonly string DefaultOpcUaCoreAssemblyName = typeof(Utils).Assembly.GetName().Name;
+
+        /// <summary>
+        /// List of known default bindings hosted in other assemblies.
+        /// </summary>
+        public static ReadOnlyDictionary<string, string> DefaultBindings = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>() {
+                { Utils.UriSchemeHttps, "Opc.Ua.Bindings.Https"}
+            });
         #endregion
 
         #region Trace Support
@@ -854,7 +885,6 @@ namespace Opc.Ua
 
         #region String, Object and Data Convienence Functions
         private const int MAX_MESSAGE_LENGTH = 1024;
-
         private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
         private const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
 
