@@ -6,8 +6,9 @@ parameters:
   framework: 'netcoreapp2.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
+  jobnamesuffix: 'netcore21'
 jobs:
-- job: testcc
+- job: testcc${{ parameters.jobnamesuffix }}
   displayName: Run Code Coverage for ${{ parameters.agent }} (${{ parameters.framework }})
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true

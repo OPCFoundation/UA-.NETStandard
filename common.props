@@ -14,7 +14,7 @@
     <!--TODO <TreatWarningsAsErrors>true</TreatWarningsAsErrors>-->
     <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
-  
+
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
@@ -25,7 +25,7 @@
     <PackageTags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</PackageTags>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+  <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(SignAssembly)' == 'true'">
     <None Include="$(MSBuildThisFileDirectory)/Licenses/OPC Foundation REDISTRIBUTABLES Agreement of Use.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
     <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
   </ItemGroup>
@@ -33,11 +33,11 @@
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
-
+  
   <PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-  </PropertyGroup>  
-  
+  </PropertyGroup>
+
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

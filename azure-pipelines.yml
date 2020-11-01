@@ -46,15 +46,15 @@ stages:
     parameters:
       configuration: Release
       agents: '@{ windows = "windows-2019"; mac = "macOS-10.15" }'
-  - template: .azurepipelines/testcc.yml
-    parameters:
-      configuration: Release
-      poolImage: 'ubuntu-18.04'
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      poolImage: 'ubuntu-18.04'
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
