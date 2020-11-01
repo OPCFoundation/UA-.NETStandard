@@ -2,4 +2,6 @@
   <Import Project="targets.props" />
   <Import Project="common.props" />
   <Import Project="version.props" />
+  <!-- Deterministic build code coverage workaround -->
+  <Import Condition="'$(TF_BUILD)' == 'true' AND '$(CollectCoverage)' == 'true'" Project="Deterministic.Build.props" />
 </Project>
