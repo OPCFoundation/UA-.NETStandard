@@ -39,9 +39,11 @@ jobs:
       projects: '**/*.Tests.csproj'
       arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
-      bash <(curl -s https://codecov.io/bash)
+      bash <(curl -s https://codecov.io/bash) -v
 
     continueOnError: true
+    env:
+      CODECOV_TOKEN: $(CODECOV_TOKEN)
     displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     inputs:
