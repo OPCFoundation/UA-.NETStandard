@@ -142,11 +142,34 @@ namespace Opc.Ua
                 }
             }
 
-            var baseUrls = baseAddresses.Where(a => !String.IsNullOrEmpty(a)).Select(a => Utils.ParseUri(a));
-            var dnsNames = baseUrls.Where(u => u.HostNameType == UriHostNameType.Dns).Select(u => Utils.ReplaceLocalhost(u.DnsSafeHost));
-            var ipAddresses = baseUrls.Where(u => u.HostNameType != UriHostNameType.Dns).Select(u => Utils.NormalizedIPAddress(u.DnsSafeHost));
-            var allDistinctDomainNames = dnsNames.Concat(ipAddresses).Distinct();
-            return allDistinctDomainNames.ToList();
+            var domainNames = new List<string>();
+            for (int ii = 0; ii < baseAddresses.Count; ii++)
+            {
+                Uri url = Utils.ParseUri(baseAddresses[ii]);
+
+                if (url == null)
+                {
+                    continue;
+                }
+
+                string domainName = url.DnsSafeHost;
+
+                if (url.HostNameType == UriHostNameType.Dns)
+                {
+                    domainName = Utils.ReplaceLocalhost(domainName);
+                }
+                else // IPv4/IPv6 address
+                {
+                    domainName = Utils.NormalizedIPAddress(domainName);
+                }
+
+                if (!Utils.FindStringIgnoreCase(domainNames, domainName))
+                {
+                    domainNames.Add(domainName);
+                }
+            }
+
+            return domainNames;
         }
 
         /// <summary>
