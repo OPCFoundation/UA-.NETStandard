@@ -244,7 +244,7 @@ namespace Quickstarts.ReferenceClient
                         nodeToBrowse.BrowseDirection = BrowseDirection.Forward;
                         nodeToBrowse.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences;
                         nodeToBrowse.IncludeSubtypes = true;
-                        nodeToBrowse.NodeClassMask = (uint)(NodeClass.Variable);
+                        //nodeToBrowse.NodeClassMask = (uint)(NodeClass.Object);
                         nodeToBrowse.ResultMask = (uint)(BrowseResultMask.All);
 
                         ReferenceDescriptionCollection references = ClientUtils.Browse(m_session, nodeToBrowse, false);

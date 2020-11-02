@@ -1421,10 +1421,16 @@ namespace Quickstarts.ReferenceServer
                     myCompanyInstructions.Value = "A place for the vendor to describe their address-space.";
                     variables.Add(myCompanyInstructions);
 
-                    BaseDataVariableState myCompanyEmployeeCount = CreateVariable(myCompanyFolder, "/Kreonta/EmployeeCount", "EmployeeCount", BuiltInType.Int32, ValueRanks.Scalar);
-                    myCompanyEmployeeCount.Value = "5";
+                    BaseDataVariableState myCompanyEmployeeCount = CreateVariable(myCompanyFolder, myCompany + "EmployeeCount", "EmployeeCount", BuiltInType.Int32, ValueRanks.Scalar);
+                    myCompanyEmployeeCount.Value = 5;
                     myCompanyEmployeeCount.OnSimpleWriteValue = new NodeValueSimpleEventHandler(OnWriteMyCompanyEmployeeCount);
-                    variables.Add(myCompanyEmployeeCount);
+
+                    const string myCompanyMachine = myCompany + "LEN-009";
+                    FolderState myCompanyMachineFolder = CreateFolder(myCompanyFolder, myCompanyMachine, "LEN-009");
+
+                    BaseDataVariableState myCompanyMachineSpeed = CreateDynamicVariable(myCompanyMachineFolder, myCompanyMachine + "_MachineSpeed", "MachineSpeed", BuiltInType.UInt16, ValueRanks.Scalar);
+                    myCompanyMachineSpeed.Value = 600;
+                    variables.Add(myCompanyMachineSpeed);
                     #endregion
                 }
                 catch (Exception e)

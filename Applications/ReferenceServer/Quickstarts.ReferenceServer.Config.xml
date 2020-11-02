@@ -38,7 +38,7 @@
 
     <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
     for easy debugging purposes ONLY and turned off for production deployments! -->
-    <AutoAcceptUntrustedCertificates>true</AutoAcceptUntrustedCertificates>
+    <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
 
     <!-- WARNING: SHA1 signed certficates are by default rejected and should be phased out. 
     The setting below to allow them is only required for UACTT (1.02.336.244) which uses SHA-1 signed certs. -->
@@ -272,7 +272,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- TraceMasks>519</TraceMasks -->
+    <!--TraceMasks>519</TraceMasks -->
   </TraceConfiguration>
   
 </ApplicationConfiguration>

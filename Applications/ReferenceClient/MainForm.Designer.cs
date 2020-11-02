@@ -70,12 +70,12 @@ namespace Quickstarts.ReferenceClient
             this.subscribeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.HelpMI = new System.Windows.Forms.ToolStripMenuItem();
             this.Help_ContentsMI = new System.Windows.Forms.ToolStripMenuItem();
+            this.cRUDToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.writeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.StatusBar = new System.Windows.Forms.StatusStrip();
             this.ConnectServerCTRL = new Opc.Ua.Client.Controls.ConnectServerCtrl();
             this.BrowseCTRL = new Opc.Ua.Client.Controls.BrowseNodeCtrl();
             this.clientHeaderBranding1 = new Opc.Ua.Client.Controls.HeaderBranding();
-            this.cRUDToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.writeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.MenuBar.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -89,7 +89,7 @@ namespace Quickstarts.ReferenceClient
             this.cRUDToolStripMenuItem});
             this.MenuBar.Location = new System.Drawing.Point(0, 0);
             this.MenuBar.Name = "MenuBar";
-            this.MenuBar.Size = new System.Drawing.Size(1179, 28);
+            this.MenuBar.Size = new System.Drawing.Size(1179, 30);
             this.MenuBar.TabIndex = 1;
             this.MenuBar.Text = "menuStrip1";
             // 
@@ -98,7 +98,7 @@ namespace Quickstarts.ReferenceClient
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.exitToolStripMenuItem});
             this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 24);
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(46, 26);
             this.fileToolStripMenuItem.Text = "&File";
             // 
             // exitToolStripMenuItem
@@ -116,34 +116,34 @@ namespace Quickstarts.ReferenceClient
             this.Server_DisconnectMI,
             this.subscribeToolStripMenuItem});
             this.ServerMI.Name = "ServerMI";
-            this.ServerMI.Size = new System.Drawing.Size(64, 24);
+            this.ServerMI.Size = new System.Drawing.Size(64, 26);
             this.ServerMI.Text = "Server";
             // 
             // Server_DiscoverMI
             // 
             this.Server_DiscoverMI.Name = "Server_DiscoverMI";
-            this.Server_DiscoverMI.Size = new System.Drawing.Size(224, 26);
+            this.Server_DiscoverMI.Size = new System.Drawing.Size(165, 26);
             this.Server_DiscoverMI.Text = "Discover...";
             this.Server_DiscoverMI.Click += new System.EventHandler(this.Server_DiscoverMI_Click);
             // 
             // Server_ConnectMI
             // 
             this.Server_ConnectMI.Name = "Server_ConnectMI";
-            this.Server_ConnectMI.Size = new System.Drawing.Size(224, 26);
+            this.Server_ConnectMI.Size = new System.Drawing.Size(165, 26);
             this.Server_ConnectMI.Text = "Connect";
             this.Server_ConnectMI.Click += new System.EventHandler(this.Server_ConnectMI_Click);
             // 
             // Server_DisconnectMI
             // 
             this.Server_DisconnectMI.Name = "Server_DisconnectMI";
-            this.Server_DisconnectMI.Size = new System.Drawing.Size(224, 26);
+            this.Server_DisconnectMI.Size = new System.Drawing.Size(165, 26);
             this.Server_DisconnectMI.Text = "Disconnect";
             this.Server_DisconnectMI.Click += new System.EventHandler(this.Server_DisconnectMI_Click);
             // 
             // subscribeToolStripMenuItem
             // 
             this.subscribeToolStripMenuItem.Name = "subscribeToolStripMenuItem";
-            this.subscribeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.subscribeToolStripMenuItem.Size = new System.Drawing.Size(165, 26);
             this.subscribeToolStripMenuItem.Text = "Subscribe";
             this.subscribeToolStripMenuItem.Click += new System.EventHandler(this.subscribeToolStripMenuItem_Click);
             // 
@@ -152,7 +152,7 @@ namespace Quickstarts.ReferenceClient
             this.HelpMI.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.Help_ContentsMI});
             this.HelpMI.Name = "HelpMI";
-            this.HelpMI.Size = new System.Drawing.Size(55, 24);
+            this.HelpMI.Size = new System.Drawing.Size(55, 26);
             this.HelpMI.Text = "Help";
             // 
             // Help_ContentsMI
@@ -161,6 +161,21 @@ namespace Quickstarts.ReferenceClient
             this.Help_ContentsMI.Size = new System.Drawing.Size(150, 26);
             this.Help_ContentsMI.Text = "Contents";
             this.Help_ContentsMI.Click += new System.EventHandler(this.Help_ContentsMI_Click);
+            // 
+            // cRUDToolStripMenuItem
+            // 
+            this.cRUDToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.writeToolStripMenuItem});
+            this.cRUDToolStripMenuItem.Name = "cRUDToolStripMenuItem";
+            this.cRUDToolStripMenuItem.Size = new System.Drawing.Size(62, 26);
+            this.cRUDToolStripMenuItem.Text = "CRUD";
+            // 
+            // writeToolStripMenuItem
+            // 
+            this.writeToolStripMenuItem.Name = "writeToolStripMenuItem";
+            this.writeToolStripMenuItem.Size = new System.Drawing.Size(128, 26);
+            this.writeToolStripMenuItem.Text = "Write";
+            this.writeToolStripMenuItem.Click += new System.EventHandler(this.writeToolStripMenuItem_Click);
             // 
             // StatusBar
             // 
@@ -177,7 +192,7 @@ namespace Quickstarts.ReferenceClient
             this.ConnectServerCTRL.DisableDomainCheck = false;
             this.ConnectServerCTRL.DiscoverTimeout = 15000;
             this.ConnectServerCTRL.Dock = System.Windows.Forms.DockStyle.Top;
-            this.ConnectServerCTRL.Location = new System.Drawing.Point(0, 120);
+            this.ConnectServerCTRL.Location = new System.Drawing.Point(0, 122);
             this.ConnectServerCTRL.Margin = new System.Windows.Forms.Padding(5);
             this.ConnectServerCTRL.MaximumSize = new System.Drawing.Size(2731, 28);
             this.ConnectServerCTRL.MinimumSize = new System.Drawing.Size(667, 28);
@@ -200,10 +215,10 @@ namespace Quickstarts.ReferenceClient
             // 
             this.BrowseCTRL.AttributesListCollapsed = false;
             this.BrowseCTRL.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.BrowseCTRL.Location = new System.Drawing.Point(0, 148);
+            this.BrowseCTRL.Location = new System.Drawing.Point(0, 150);
             this.BrowseCTRL.Margin = new System.Windows.Forms.Padding(5);
             this.BrowseCTRL.Name = "BrowseCTRL";
-            this.BrowseCTRL.Size = new System.Drawing.Size(1179, 502);
+            this.BrowseCTRL.Size = new System.Drawing.Size(1179, 500);
             this.BrowseCTRL.SplitterDistance = 387;
             this.BrowseCTRL.TabIndex = 5;
             this.BrowseCTRL.View = null;
@@ -213,7 +228,7 @@ namespace Quickstarts.ReferenceClient
             this.clientHeaderBranding1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.clientHeaderBranding1.BackColor = System.Drawing.Color.White;
             this.clientHeaderBranding1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.clientHeaderBranding1.Location = new System.Drawing.Point(0, 28);
+            this.clientHeaderBranding1.Location = new System.Drawing.Point(0, 30);
             this.clientHeaderBranding1.Margin = new System.Windows.Forms.Padding(4);
             this.clientHeaderBranding1.MaximumSize = new System.Drawing.Size(0, 92);
             this.clientHeaderBranding1.MinimumSize = new System.Drawing.Size(667, 92);
@@ -221,21 +236,6 @@ namespace Quickstarts.ReferenceClient
             this.clientHeaderBranding1.Padding = new System.Windows.Forms.Padding(4);
             this.clientHeaderBranding1.Size = new System.Drawing.Size(1179, 92);
             this.clientHeaderBranding1.TabIndex = 7;
-            // 
-            // cRUDToolStripMenuItem
-            // 
-            this.cRUDToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.writeToolStripMenuItem});
-            this.cRUDToolStripMenuItem.Name = "cRUDToolStripMenuItem";
-            this.cRUDToolStripMenuItem.Size = new System.Drawing.Size(62, 24);
-            this.cRUDToolStripMenuItem.Text = "CRUD";
-            // 
-            // writeToolStripMenuItem
-            // 
-            this.writeToolStripMenuItem.Name = "writeToolStripMenuItem";
-            this.writeToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
-            this.writeToolStripMenuItem.Text = "Write";
-            this.writeToolStripMenuItem.Click += new System.EventHandler(this.writeToolStripMenuItem_Click);
             // 
             // MainForm
             // 

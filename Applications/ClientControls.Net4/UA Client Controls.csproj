@@ -641,6 +641,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Browse\AttributeListCtrl.resx">
+      <DependentUpon>AttributeListCtrl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Browse\BrowseTreeCtrl.resx">
       <DependentUpon>BrowseTreeCtrl.cs</DependentUpon>
       <SubType>Designer</SubType>

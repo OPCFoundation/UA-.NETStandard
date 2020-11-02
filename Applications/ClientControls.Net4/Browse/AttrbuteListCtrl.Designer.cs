@@ -57,7 +57,18 @@ namespace Opc.Ua.Client.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
+            this.SuspendLayout();
+            // 
+            // ItemsLV
+            // 
+            this.ItemsLV.Size = new System.Drawing.Size(721, 507);
+            // 
+            // AttributeListCtrl
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.Name = "AttributeListCtrl";
+            this.ResumeLayout(false);
+
         }
 
         #endregion
