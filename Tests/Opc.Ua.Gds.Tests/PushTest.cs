@@ -206,7 +206,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
             Assert.Greater(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
-            Assert.That(() => { _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, false); }, Throws.Exception);
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, false); });
+            Assert.AreEqual(StatusCodes.BadInvalidArgument, serviceResultException.StatusCode, serviceResultException.Message);
             TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
             _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, true);

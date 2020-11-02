@@ -86,7 +86,11 @@ namespace Opc.Ua
 
         public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
         {
-            if (hashAlgorithm == HashAlgorithmName.SHA256)
+            if (hashAlgorithm == HashAlgorithmName.SHA1)
+            {
+                return OidConstants.RsaPkcs1Sha1;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA256)
             {
                 return OidConstants.RsaPkcs1Sha256;
             }

@@ -12,7 +12,6 @@
 
 #if NETSTANDARD2_1
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
@@ -26,7 +25,6 @@ using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Math;
@@ -93,7 +91,6 @@ namespace Opc.Ua
         }
     }
 
-
     /// <summary>
     /// Secure .Net Core Random Number generator wrapper for Bounce Castle.
     /// Creates an instance of RNGCryptoServiceProvider or an OpenSSL based version on other OS.
@@ -146,43 +143,6 @@ namespace Opc.Ua
             byte[] temp = new byte[len];
             m_prg.GetBytes(temp);
             Array.Copy(temp, 0, bytes, start, len);
-        }
-    }
-
-    /// <summary>
-    /// Always use this converter class to create a X509Name object 
-    /// from X509Certificate subject.
-    /// </summary>
-    /// <remarks>
-    /// Handles subtle differences in the string representation
-    /// of the .NET and the Bouncy Castle implementation.
-    /// </remarks>
-    public class CertificateFactoryX509Name : X509Name
-    {
-
-        /// <summary>
-        /// Create the X509Name from a distinguished name.
-        /// </summary>
-        /// <param name="distinguishedName">The distinguished name.</param>
-        public CertificateFactoryX509Name(string distinguishedName) :
-            base(true, ConvertToX509Name(distinguishedName))
-        {
-        }
-
-        /// <summary>
-        /// Create the X509Name from a distinguished name.
-        /// </summary>
-        /// <param name="reverse">Reverse the order of the names.</param>
-        /// <param name="distinguishedName">The distinguished name.</param>
-        public CertificateFactoryX509Name(bool reverse, string distinguishedName) :
-            base(reverse, ConvertToX509Name(distinguishedName))
-        {
-        }
-
-        private static string ConvertToX509Name(string distinguishedName)
-        {
-            // convert from X509Certificate to bouncy castle DN entries
-            return distinguishedName.Replace("S=", "ST=");
         }
     }
 
@@ -271,7 +231,7 @@ namespace Opc.Ua
                 }
 
                 // save the key container so it can be deleted later.
-               // m_temporaryKeyContainers.Add(certificate);
+                // m_temporaryKeyContainers.Add(certificate);
             }
 
             return certificate;
@@ -772,80 +732,54 @@ namespace Opc.Ua
             IList<String> domainNames = null
             )
         {
-            using (var cfrg = new CertificateFactoryRandomGenerator())
+            if (!certificate.HasPrivateKey)
             {
-                SecureRandom random = new SecureRandom(cfrg);
+                throw new NotSupportedException("Need a certificate with a private key.");
+            }
 
-                // try to get signing/private key from certificate passed in
-                AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(certificate);
-                RsaKeyParameters publicKey = GetPublicKeyParameter(certificate);
+            RSA rsaPublicKey = certificate.GetRSAPublicKey();
+            var request = new CertificateRequest(certificate.SubjectName, rsaPublicKey,
+                GetRSAHashAlgorithmName(certificate.SignatureAlgorithm), RSASignaturePadding.Pkcs1);
 
-                ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
-
-                Asn1Set attributes = null;
-                X509SubjectAltNameExtension alternateName = null;
-                foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in certificate.Extensions)
+            X509SubjectAltNameExtension alternateName = null;
+            foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in certificate.Extensions)
+            {
+                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
                 {
-                    if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
+                    break;
+                }
+            }
+
+            domainNames = domainNames ?? new List<String>();
+            if (alternateName != null)
+            {
+                foreach (var name in alternateName.DomainNames)
+                {
+                    if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     {
-                        alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
-                        break;
+                        domainNames.Add(name);
                     }
                 }
-
-                domainNames = domainNames ?? new List<String>();
-                if (alternateName != null)
+                foreach (var ipAddress in alternateName.IPAddresses)
                 {
-                    foreach (var name in alternateName.DomainNames)
+                    if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            domainNames.Add(name);
-                        }
-                    }
-                    foreach (var ipAddress in alternateName.IPAddresses)
-                    {
-                        if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            domainNames.Add(ipAddress);
-                        }
+                        domainNames.Add(ipAddress);
                     }
                 }
+            }
 
-                // build CSR extensions
-                List<GeneralName> generalNames = new List<GeneralName>();
+            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
 
-                string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
-                if (applicationUri != null)
-                {
-                    generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
-                }
+            // Subject Alternative Name
+            var subjectAltName = BuildSubjectAlternativeName(applicationUri, domainNames);
+            request.CertificateExtensions.Add(new System.Security.Cryptography.X509Certificates.X509Extension(subjectAltName, false));
 
-                if (domainNames.Count > 0)
-                {
-                    generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
-                }
-
-                if (generalNames.Count > 0)
-                {
-                    IList oids = new ArrayList();
-                    IList values = new ArrayList();
-                    oids.Add(X509Extensions.SubjectAlternativeName);
-                    values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
-                        new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
-                    AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                        new DerSet(new X509Extensions(oids, values)));
-                    attributes = new DerSet(attribute);
-                }
-
-                Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(
-                    signatureFactory,
-                    new CertificateFactoryX509Name(false, certificate.Subject),
-                    publicKey,
-                    attributes);
-
-                return pkcs10CertificationRequest.GetEncoded();
+            using (RSA rsa = certificate.GetRSAPrivateKey())
+            {
+                var x509SignatureGenerator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                return request.CreateSigningRequest(x509SignatureGenerator);
             }
         }
 
@@ -1080,9 +1014,9 @@ namespace Opc.Ua
                 RsaUtils.RSADispose(rsaPublicKey);
             }
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1231,6 +1165,22 @@ namespace Opc.Ua
             {
                 return HashAlgorithmName.SHA512;
             }
+        }
+
+        private static HashAlgorithmName GetRSAHashAlgorithmName(Oid signatureAlgorithm)
+        {
+            switch (signatureAlgorithm.Value)
+            {
+                case OidConstants.RsaPkcs1Sha1:
+                    return HashAlgorithmName.SHA1;
+                case OidConstants.RsaPkcs1Sha256:
+                    return HashAlgorithmName.SHA256;
+                case OidConstants.RsaPkcs1Sha384:
+                    return HashAlgorithmName.SHA384;
+                case OidConstants.RsaPkcs1Sha512:
+                    return HashAlgorithmName.SHA512;
+            }
+            throw new NotSupportedException($"Signature algorithm {signatureAlgorithm.FriendlyName} is not supported.");
         }
 
         /// <summary>
@@ -1449,56 +1399,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// helper to get the Bouncy Castle hash algorithm name by hash size in bits.
-        /// </summary>
-        /// <param name="hashSizeInBits"></param>
-        private static string GetRSAHashAlgorithm(uint hashSizeInBits)
-        {
-            if (hashSizeInBits <= 160)
-            {
-                return "SHA1WITHRSA";
-            }
-
-            if (hashSizeInBits <= 224)
-            {
-                return "SHA224WITHRSA";
-            }
-            else if (hashSizeInBits <= 256)
-            {
-                return "SHA256WITHRSA";
-            }
-            else if (hashSizeInBits <= 384)
-            {
-                return "SHA384WITHRSA";
-            }
-            else
-            {
-                return "SHA512WITHRSA";
-            }
-        }
-
-        /// <summary>
-        /// Get public key parameters from a X509Certificate2
-        /// </summary>
-        private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
-        {
-            RSA rsa = null;
-            try
-            {
-                rsa = certificate.GetRSAPublicKey();
-                RSAParameters rsaParams = rsa.ExportParameters(false);
-                return new RsaKeyParameters(
-                    false,
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent));
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
-        }
-
-        /// <summary>
         /// Get private key parameters from a X509Certificate2.
         /// The private key must be exportable.
         /// </summary>
@@ -1525,16 +1425,6 @@ namespace Opc.Ua
             {
                 RsaUtils.RSADispose(rsa);
             }
-        }
-
-        /// <summary>
-        /// Get the serial number from a certificate as BigInteger.
-        /// </summary>
-        private static BigInteger GetSerialNumber(X509Certificate2 certificate)
-        {
-            byte[] serialNumber = certificate.GetSerialNumber();
-            Array.Reverse(serialNumber);
-            return new BigInteger(1, serialNumber);
         }
 
         /// <summary>
@@ -1743,7 +1633,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         //private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
