@@ -42,6 +42,8 @@ jobs:
       bash <(curl -s https://codecov.io/bash)
 
     continueOnError: true
+    env:
+      CODECOV_TOKEN: $(CODECOV_TOKEN)
     displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     inputs:

@@ -3,9 +3,11 @@
 #
 parameters:
   buildoption: ''
+  framework: netcoreapp2.1
+  jobnamesuffix: ''
   agents: '@{}'
 jobs:
-- job: buildprep
+- job: buildprep${{ parameters.jobnamesuffix }}
   displayName: Prepare Build Jobs
   pool:
     vmImage: 'windows-2019'
@@ -20,11 +22,11 @@ jobs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
-- job: buildall
+- job: buildall${{ parameters.jobnamesuffix }}
   displayName: Build
-  dependsOn: buildprep
+  dependsOn: buildprep${{ parameters.jobnamesuffix }}
   strategy:
-    matrix: $[dependencies.buildprep.outputs['buildmatrix.jobMatrix'] ]
+    matrix: $[dependencies.buildprep${{ parameters.jobnamesuffix }}.outputs['buildmatrix.jobMatrix'] ]
   pool:
     vmImage: $(poolImage)
   steps:
@@ -40,23 +42,35 @@ jobs:
     displayName: Release Restore
     inputs:
       command: restore
-      projects: '**/NetCore*.csproj'
-      arguments: '--configuration Release ${{ parameters.buildoption }}'
+      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
-      projects: '**/NetCore*.csproj'
-      arguments: '--configuration Release ${{ parameters.buildoption }}'
+      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }}'
+  - task: DotNetCoreCLI@2
+    displayName: Release Pack 
+    inputs:
+      command: pack
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
       command: restore
-      projects: '**/NetCore*.csproj'
-      arguments: '--configuration Debug ${{ parameters.buildoption }}'
+      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
-      projects: '**/NetCore*.csproj'
-      arguments: '--configuration Debug ${{ parameters.buildoption }}'
+      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }}'
+  - task: DotNetCoreCLI@2
+    displayName: Debug Pack 
+    inputs:
+      command: pack
+      projects: '**/Opc.Ua.*.csproj'
+      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }}'
