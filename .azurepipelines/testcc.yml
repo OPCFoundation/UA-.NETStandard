@@ -45,13 +45,7 @@ jobs:
     condition: ne( variables['CODECOV_TOKEN'], '')
     env:
       CODECOV_TOKEN: $(CODECOV_TOKEN)
-    displayName: 'Upload to codecov.io with token'
-  - script: |
-      bash <(curl -s https://codecov.io/bash)
-
-    continueOnError: true
-    condition: eq( variables['CODECOV_TOKEN'], '')
-    displayName: 'Upload to codecov.io, no token'
+    displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     inputs:
       command: custom
