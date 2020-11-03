@@ -3,10 +3,10 @@
 #
 parameters:
   configuration: 'Release'
-  framework: 'netcoreapp2.1'
+  framework: 'netcoreapp3.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
-  jobnamesuffix: 'netcore21'
+  jobnamesuffix: ''
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
   displayName: Run Code Coverage for ${{ parameters.agent }} (${{ parameters.framework }})
