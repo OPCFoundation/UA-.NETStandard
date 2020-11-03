@@ -3,7 +3,7 @@
 #
 parameters:
   buildoption: ''
-  framework: netcoreapp2.1
+  framework: netcoreapp3.1
   jobnamesuffix: ''
   agents: '@{}'
 jobs:

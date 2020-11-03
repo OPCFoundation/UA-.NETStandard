@@ -1,6 +1,5 @@
 <!-- This target must be imported into Directory.Build.targets -->
-<!-- Workaround. Remove once we're on 3.1.300+
-  https://github.com/dotnet/sourcelink/issues/572 -->
+<!-- Workaround for code coverage. Remove once issue is fixed. -->
 
 <Project>
   <PropertyGroup>
