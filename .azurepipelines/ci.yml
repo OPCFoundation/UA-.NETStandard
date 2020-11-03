@@ -3,7 +3,7 @@
 #
 parameters:
   buildoption: ''
-  framework: netcoreapp2.1
+  framework: netcoreapp3.1
   jobnamesuffix: ''
   agents: '@{}'
 jobs:
@@ -42,35 +42,37 @@ jobs:
     displayName: Release Restore
     inputs:
       command: restore
-      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
-      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Release Pack 
+    condition: eq(variables['poolImage'], 'windows-2019')
     inputs:
       command: pack
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }}'
+      arguments: '--no-restore --configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
       command: restore
-      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
-      projects: '**/@(Console|NetCore|Opc.Ua.)*.csproj'
+      projects: '**/@(Console|NetCore)*.csproj'
       arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Pack 
+    condition: eq(variables['poolImage'], 'windows-2019')
     inputs:
       command: pack
       projects: '**/Opc.Ua.*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }}'
+      arguments: '--configuration Debug ${{ parameters.buildoption }}'
