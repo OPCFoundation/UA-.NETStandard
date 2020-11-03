@@ -55,8 +55,9 @@ jobs:
     condition: eq(variables['poolImage'], 'windows-2019')
     inputs:
       command: pack
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--no-restore --configuration Release ${{ parameters.buildoption }}'
+      packagesToPack:  '**/Opc.Ua.*.csproj'
+      configuration: Release
+      configurationToPack: Release
   - task: DotNetCoreCLI@2
     displayName: Debug Restore
     inputs:
@@ -74,5 +75,6 @@ jobs:
     condition: eq(variables['poolImage'], 'windows-2019')
     inputs:
       command: pack
-      projects: '**/Opc.Ua.*.csproj'
-      arguments: '--configuration Debug ${{ parameters.buildoption }}'
+      packagesToPack:  '**/Opc.Ua.*.csproj'
+      configuration: Debug
+      configurationToPack: Debug
