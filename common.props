@@ -34,7 +34,7 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
   
-  <PropertyGroup Condition="'$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true'">
+  <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
