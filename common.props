@@ -34,6 +34,7 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
   
+  <!-- Deterministic build is currently not supported for code coverage tests. -->
   <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
