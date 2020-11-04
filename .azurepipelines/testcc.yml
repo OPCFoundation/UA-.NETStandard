@@ -3,10 +3,10 @@
 #
 parameters:
   configuration: 'Release'
-  framework: 'netcoreapp2.1'
+  framework: 'netcoreapp3.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
-  jobnamesuffix: 'netcore21'
+  jobnamesuffix: 'netcore31'
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
   displayName: Run Code Coverage for ${{ parameters.agent }} (${{ parameters.framework }})
@@ -42,6 +42,9 @@ jobs:
       bash <(curl -s https://codecov.io/bash)
 
     continueOnError: true
+    condition: ne( variables['CODECOV_TOKEN'], '')
+    env:
+      CODECOV_TOKEN: $(CODECOV_TOKEN)
     displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     inputs:

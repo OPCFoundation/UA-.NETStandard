@@ -3046,7 +3046,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Extracts the the DNS names specified in the certificate.
+        /// Extracts the DNS names specified in the certificate.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>The DNS names.</returns>
