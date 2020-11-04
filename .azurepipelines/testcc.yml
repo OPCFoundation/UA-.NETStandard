@@ -6,7 +6,7 @@ parameters:
   framework: 'netcoreapp3.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
-  jobnamesuffix: ''
+  jobnamesuffix: 'netcore31'
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
   displayName: Run Code Coverage for ${{ parameters.agent }} (${{ parameters.framework }})
