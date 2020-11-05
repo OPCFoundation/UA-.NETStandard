@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates.X509.Extension;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -160,7 +161,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual async Task<Opc.Ua.X509CRL> RevokeCertificateAsync(
+        public virtual async Task<Opc.Ua.Security.Certificates.X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
             return await CertificateFactory.RevokeCertificateAsync(

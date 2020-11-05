@@ -27,7 +27,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using Org.BouncyCastle.X509;
 
-namespace Opc.Ua
+namespace Opc.Ua.Security.Certificates
 {
     
     /// <summary>
@@ -70,7 +70,6 @@ namespace Opc.Ua
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -161,7 +160,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        X509Certificate2 m_issuer;
+        private X509Certificate2 m_issuer;
         private X509Crl m_crl;
         #endregion
     }

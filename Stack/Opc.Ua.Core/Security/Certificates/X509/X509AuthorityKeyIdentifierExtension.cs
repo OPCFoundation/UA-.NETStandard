@@ -20,7 +20,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Opc.Ua
+namespace Opc.Ua.Security.Certificates.X509.Extension
 {
     /// <summary>
     /// Stores the authority key identifier extension.
@@ -72,7 +72,7 @@ namespace Opc.Ua
         {
             StringBuilder buffer = new StringBuilder();
 
-            if (m_keyId != null && m_keyId.Length >  0)
+            if (m_keyId != null && m_keyId.Length > 0)
             {
                 if (buffer.Length > 0)
                 {
@@ -110,8 +110,8 @@ namespace Opc.Ua
                     buffer.Append(m_authorityNames[ii]);
                 }
             }
-            
-            if (m_serialNumber != null && m_serialNumber.Length >  0)
+
+            if (m_serialNumber != null && m_serialNumber.Length > 0)
             {
                 if (buffer.Length > 0)
                 {
@@ -231,6 +231,6 @@ namespace Opc.Ua
         private string m_keyId;
         private ReadOnlyList<string> m_authorityNames;
         private string m_serialNumber;
-#endregion
+        #endregion
     }
 }

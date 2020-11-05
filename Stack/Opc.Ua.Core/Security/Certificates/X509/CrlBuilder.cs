@@ -16,25 +16,11 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Collections.Generic;
+using Opc.Ua.Security.Certificates.Asn;
 
-namespace Opc.Ua
+namespace Opc.Ua.Security.Certificates
 {
 
-
-    public class OidConstants
-    {
-        public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
-        public const string ECDSASHA256SignatureAlgorithm = "1.2.840.10045.4.3.2";
-        public const string ECDSASHA384SignatureAlgorithm = "1.2.840.10045.4.3.3";
-        public const string ECDSASHA512SignatureAlgorithm = "1.2.840.10045.4.3.4";
-
-        public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
-        public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
-        public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
-        public const string RsaPkcs1Sha512 = "1.2.840.113549.1.1.13";
-
-        public const string CertificateRevocationReasonCode = "2.5.29.21";
-    }
 
 
     /// <summary>
@@ -55,7 +41,7 @@ namespace Opc.Ua
     ///      removeFromCRL(8),
     ///      privilegeWithdrawn(9),
     ///      aACompromise(10) }
-    /// <remarks>
+    /// </remarks>
 
     public enum CRLReason
     {

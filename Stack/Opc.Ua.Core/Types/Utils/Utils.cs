@@ -26,6 +26,8 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
 using System.Collections.ObjectModel;
+using Opc.Ua.Security.Certificates.X509.Extension;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {

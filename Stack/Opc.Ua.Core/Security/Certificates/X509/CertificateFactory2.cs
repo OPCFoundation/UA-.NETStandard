@@ -21,6 +21,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.Asn;
+using Opc.Ua.Security.Certificates.X509.Extension;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
@@ -231,7 +234,7 @@ namespace Opc.Ua
                 }
 
                 // save the key container so it can be deleted later.
-                // m_temporaryKeyContainers.Add(certificate);
+                m_temporaryKeyContainers.Add(certificate);
             }
 
             return certificate;
@@ -612,9 +615,10 @@ namespace Opc.Ua
                         throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
                     }
 
-                    CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA);
-                    certCAIdentifier.StorePath = storePath;
-                    certCAIdentifier.StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath);
+                    CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA) {
+                        StorePath = storePath,
+                        StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath)
+                    };
                     X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword);
 
                     if (certCAWithPrivateKey == null)
@@ -1014,9 +1018,9 @@ namespace Opc.Ua
                 RsaUtils.RSADispose(rsaPublicKey);
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1633,10 +1637,10 @@ namespace Opc.Ua
             }
         }
 
-#endregion
+        #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
-        //private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
+        private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
     }
 }
 #endif

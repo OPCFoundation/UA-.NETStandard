@@ -12,12 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
-using System.Xml.Serialization;
 
 namespace Opc.Ua.Security
 {
@@ -389,20 +385,20 @@ namespace Opc.Ua.Security
                 switch (profileUri)
                 {
                     case SecurityPolicies.None:
-                        {
-                            policy.SecurityMode = MessageSecurityMode.None;
-                            break;
-                        }
+                    {
+                        policy.SecurityMode = MessageSecurityMode.None;
+                        break;
+                    }
 
                     case SecurityPolicies.Basic128Rsa15:
                     case SecurityPolicies.Basic256:
                     case SecurityPolicies.Basic256Sha256:
                     case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     case SecurityPolicies.Aes256_Sha256_RsaPss:
-                        {
-                            policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                            break;
-                        }
+                    {
+                        policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                        break;
+                    }
 
                 }
             }
