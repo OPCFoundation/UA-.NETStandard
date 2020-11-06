@@ -15,16 +15,25 @@
 */
 
 using System;
-using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Opc.Ua.Security.Certificates.X509.Extension
+namespace Opc.Ua.Security.Certificates.X509
 {
     /// <summary>
     /// Stores the authority key identifier extension.
     /// </summary>
+    /// <remarks>
+    ///     id-ce-authorityKeyIdentifier OBJECT IDENTIFIER ::=  { id-ce 35 }
+    ///     AuthorityKeyIdentifier ::= SEQUENCE {
+    ///         keyIdentifier[0] KeyIdentifier           OPTIONAL,
+    ///         authorityCertIssuer[1] GeneralNames            OPTIONAL,
+    ///         authorityCertSerialNumber[2] CertificateSerialNumber OPTIONAL
+    ///         }
+    ///     KeyIdentifier::= OCTET STRING
+    /// </remarks>
     public class X509AuthorityKeyIdentifierExtension : X509Extension
     {
         #region Constructors
@@ -49,8 +58,27 @@ namespace Opc.Ua.Security.Certificates.X509.Extension
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(string oid, byte[] rawData, bool critical)
         :
-            this(new Oid(oid, s_FriendlyName), rawData, critical)
+            this(new Oid(oid, kFriendlyName), rawData, critical)
         {
+        }
+
+        /// <summary>
+        /// Build the X509 Authority Key extension.
+        /// </summary>
+        /// <param name="authorityName">The distinguished name of the issuer</param>
+        /// <param name="serialNumber">The serial number of the issuer</param>
+        /// <param name="subjectKeyIdentifier">The subject key identifier</param>
+        public X509AuthorityKeyIdentifierExtension(
+            X500DistinguishedName authorityName,
+            byte[] serialNumber,
+            byte[] subjectKeyIdentifier)
+        {
+            this.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            this.Critical = false;
+            m_Issuer = authorityName;
+            m_keyIdentifier = subjectKeyIdentifier;
+            m_serialNumber = serialNumber;
+            this.RawData = Encode();
         }
 
         /// <summary>
@@ -60,19 +88,19 @@ namespace Opc.Ua.Security.Certificates.X509.Extension
         :
             base(oid, rawData, critical)
         {
-            Parse(rawData);
+            Decode(rawData);
         }
         #endregion
 
         #region Overridden Methods
         /// <summary>
-        /// Returns a formatted version of the Abstract Syntax Notation One (ASN.1)-encoded data as a string.
+        /// Returns a formatted version of the Authority Key Identifier as a string.
         /// </summary>
         public override string Format(bool multiLine)
         {
             StringBuilder buffer = new StringBuilder();
 
-            if (m_keyId != null && m_keyId.Length > 0)
+            if (m_keyIdentifier != null && m_keyIdentifier.Length > 0)
             {
                 if (buffer.Length > 0)
                 {
@@ -86,48 +114,40 @@ namespace Opc.Ua.Security.Certificates.X509.Extension
                     }
                 }
 
-                buffer.Append(s_KeyIdentifier);
+                buffer.Append(kKeyIdentifier);
                 buffer.Append("=");
-                buffer.Append(m_keyId);
+                buffer.Append(Utils.ToHexString(m_keyIdentifier));
             }
 
-            if (m_authorityNames != null)
+            if (m_Issuer != null)
             {
-                for (int ii = 0; ii < m_authorityNames.Count; ii++)
+                if (multiLine)
                 {
-                    if (buffer.Length > 0)
-                    {
-                        if (multiLine)
-                        {
-                            buffer.Append("\r\n");
-                        }
-                        else
-                        {
-                            buffer.Append(", ");
-                        }
-                    }
-
-                    buffer.Append(m_authorityNames[ii]);
+                    buffer.Append("\r\n");
                 }
+                else
+                {
+                    buffer.Append(", ");
+                }
+
+                buffer.Append(kIssuer);
+                buffer.Append("=");
+                buffer.Append(m_Issuer.Format(true));
             }
 
             if (m_serialNumber != null && m_serialNumber.Length > 0)
             {
                 if (buffer.Length > 0)
                 {
-                    if (multiLine)
-                    {
-                        buffer.Append("\r\n");
-                    }
-                    else
+                    if (!multiLine)
                     {
                         buffer.Append(", ");
                     }
                 }
 
-                buffer.Append(s_SerialNumber);
+                buffer.Append(kSerialNumber);
                 buffer.Append("=");
-                buffer.Append(m_serialNumber);
+                buffer.Append(Utils.ToHexString(m_serialNumber));
             }
 
             return buffer.ToString();
@@ -140,7 +160,8 @@ namespace Opc.Ua.Security.Certificates.X509.Extension
         {
             if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
             this.Oid = asnEncodedData.Oid;
-            Parse(asnEncodedData.RawData);
+            this.RawData = asnEncodedData.RawData;
+            Decode(asnEncodedData.RawData);
         }
         #endregion
 
@@ -158,79 +179,99 @@ namespace Opc.Ua.Security.Certificates.X509.Extension
         /// <summary>
         /// The identifier for the key.
         /// </summary>
-        public string KeyId
-        {
-            get { return m_keyId; }
-            private set { m_keyId = value; }
-        }
+        public string KeyIdentifier => Utils.ToHexString(m_keyIdentifier);
 
         /// <summary>
-        /// A list of names for the issuer.
+        /// A list of distinguished names for the issuer.
         /// </summary>
-        public ReadOnlyList<string> AuthorityNames
-        {
-            get { return m_authorityNames; }
-            private set { m_authorityNames = value; }
-        }
+        public X500DistinguishedName Issuer => m_Issuer;
 
         /// <summary>
-        /// The serial number for the key.
+        /// The serial number of the authority key as a big endian hexadecimal string.
         /// </summary>
-        public string SerialNumber
-        {
-            get { return m_serialNumber; }
-            private set { m_serialNumber = value; }
-        }
+        public string SerialNumber => Utils.ToHexString(m_serialNumber);
         #endregion
 
         #region Private Methods
-        private void Parse(byte[] data)
+        private byte[] Encode()
+        {
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            writer.PushSequence();
+
+            if (m_keyIdentifier != null)
+            {
+                Asn1Tag keyIdTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+                writer.WriteOctetString(m_keyIdentifier, keyIdTag);
+            }
+
+            if (m_Issuer != null)
+            {
+                Asn1Tag issuerNameTag = new Asn1Tag(TagClass.ContextSpecific, 1);
+                writer.PushSequence(issuerNameTag);
+
+                // Add the issuer to constructed context-specific 4 (GeneralName.directoryName)
+                Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
+                writer.PushSetOf(directoryNameTag);
+                writer.WriteEncodedValue(m_Issuer.RawData);
+                writer.PopSetOf(directoryNameTag);
+
+                writer.PopSequence(issuerNameTag);
+            }
+
+            if (m_serialNumber != null)
+            {
+                Asn1Tag issuerSerialTag = new Asn1Tag(TagClass.ContextSpecific, 2);
+                System.Numerics.BigInteger issuerSerial = new System.Numerics.BigInteger(m_serialNumber);
+                writer.WriteInteger(issuerSerial, issuerSerialTag);
+            }
+
+            writer.PopSequence();
+            return writer.Encode();
+        }
+
+
+        private void Decode(byte[] data)
         {
             if (base.Oid.Value == AuthorityKeyIdentifierOid ||
                 base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
-                Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure authorityKey =
-                    new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(
-                        new Org.BouncyCastle.Asn1.DerOctetString(data));
-                if (authorityKey != null)
+                AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
+                var akiReader = dataReader?.ReadSequence();
+                if (akiReader != null)
                 {
-                    if (authorityKey.AuthorityCertSerialNumber != null)
+                    Asn1Tag keyId = new Asn1Tag(TagClass.ContextSpecific, 0);
+                    m_keyIdentifier = akiReader.ReadOctetString(keyId);
+
+                    AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+                    if (issuerReader != null)
                     {
-                        m_serialNumber = Utils.ToHexString(authorityKey.AuthorityCertSerialNumber.ToByteArray());
+                        Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
+                        m_Issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
                     }
-                    if (authorityKey.AuthorityCertIssuer != null)
-                    {
-                        List<string> authorityNames = new List<string>();
-                        foreach (var name in authorityKey.AuthorityCertIssuer.GetNames())
-                        {
-                            if (name.TagNo == Org.BouncyCastle.Asn1.X509.GeneralName.DirectoryName)
-                            {
-                                authorityNames.Add(name.Name.ToString());
-                            }
-                        }
-                        m_authorityNames = new ReadOnlyList<string>(authorityNames);
-                    }
-                    m_keyId = Utils.ToHexString(authorityKey.GetKeyIdentifier());
+
+                    Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
+                    m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
                     return;
                 }
             }
             throw new ServiceResultException(
                 StatusCodes.BadCertificateInvalid,
-                "Certificate uses unknown or bad AuthorityKeyIdentifierOid.");
+                "Certificate uses unknown data or bad AuthorityKeyIdentifierOid.");
         }
         #endregion
 
         #region Private Fields
         /// <summary>
         /// Authority Key Identifier extension string
-        /// definitions see RFC 3281 4.3.3
+        /// definitions see RFC 5280 4.2.1.1
         /// </summary>
-        private const string s_KeyIdentifier = "keyid";
-        private const string s_SerialNumber = "serialnumber";
-        private const string s_FriendlyName = "Authority Key Identifier";
-        private string m_keyId;
-        private ReadOnlyList<string> m_authorityNames;
-        private string m_serialNumber;
+        private const string kKeyIdentifier = "Key Identifier";
+        private const string kIssuer = "Issuer";
+        private const string kSerialNumber = "Serial Number";
+        private const string kFriendlyName = "Authority Key Identifier";
+        private byte[] m_keyIdentifier;
+        private X500DistinguishedName m_Issuer;
+        private byte[] m_serialNumber;
         #endregion
     }
 }

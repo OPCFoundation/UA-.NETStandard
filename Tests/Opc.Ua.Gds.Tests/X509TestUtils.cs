@@ -31,7 +31,7 @@ using System;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
-using Opc.Ua.Security.Certificates.X509.Extension;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -86,22 +86,29 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 signedCert = new X509Certificate2(rawSignedCert);
             X509Certificate2 issuerCert = new X509Certificate2(rawIssuerCerts[0]);
 
+            TestContext.Out.WriteLine($"Signed cert: {signedCert}");
+            TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");
+
             Assert.NotNull(signedCert);
             Assert.False(signedCert.HasPrivateKey);
-            Assert.True(Utils.CompareDistinguishedName(testApp.Subject, signedCert.Subject));
-            Assert.False(Utils.CompareDistinguishedName(signedCert.Issuer, signedCert.Subject));
-            Assert.True(Utils.CompareDistinguishedName(signedCert.Issuer, issuerCert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName(testApp.Subject, signedCert.Subject));
+            Assert.False(X509Utils.CompareDistinguishedName(signedCert.Issuer, signedCert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName(signedCert.Issuer, issuerCert.Subject));
+            TestContext.Out.WriteLine($"Signed Subject: {signedCert.Subject}");
+            TestContext.Out.WriteLine($"Issuer Subject: {issuerCert.Subject}");
 
             // test basic constraints
-            var constraints = FindBasicConstraintsExtension(signedCert);
+            X509BasicConstraintsExtension constraints = X509Utils.FindExtension<X509BasicConstraintsExtension>(signedCert);
             Assert.NotNull(constraints);
+            TestContext.Out.WriteLine($"Constraints: {constraints.Format(true)}");
             Assert.True(constraints.Critical);
             Assert.False(constraints.CertificateAuthority);
             Assert.False(constraints.HasPathLengthConstraint);
 
             // key usage
-            var keyUsage = FindKeyUsageExtension(signedCert);
+            X509KeyUsageExtension keyUsage = X509Utils.FindExtension<X509KeyUsageExtension>(signedCert);
             Assert.NotNull(keyUsage);
+            TestContext.Out.WriteLine($"KeyUsage: {keyUsage.Format(true)}");
             Assert.True(keyUsage.Critical);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.CrlSign) == 0);
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment);
@@ -114,119 +121,40 @@ namespace Opc.Ua.Gds.Tests
             Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.NonRepudiation) == X509KeyUsageFlags.NonRepudiation);
 
             // enhanced key usage
-            var enhancedKeyUsage = FindEnhancedKeyUsageExtension(signedCert);
+            X509EnhancedKeyUsageExtension enhancedKeyUsage = X509Utils.FindExtension<X509EnhancedKeyUsageExtension>(signedCert);
             Assert.NotNull(enhancedKeyUsage);
+            TestContext.Out.WriteLine($"Enhanced Key Usage: {enhancedKeyUsage.Format(true)}");
             Assert.True(enhancedKeyUsage.Critical);
 
             // test for authority key
-            X509AuthorityKeyIdentifierExtension authority = FindAuthorityKeyIdentifier(signedCert);
+            X509AuthorityKeyIdentifierExtension authority = X509Utils.FindExtension<X509AuthorityKeyIdentifierExtension>(signedCert);
             Assert.NotNull(authority);
+            TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
             Assert.NotNull(authority.SerialNumber);
-            Assert.NotNull(authority.KeyId);
-            Assert.NotNull(authority.AuthorityNames);
+            Assert.NotNull(authority.KeyIdentifier);
+            Assert.NotNull(authority.Issuer);
+            Assert.AreEqual(issuerCert.SubjectName.RawData, authority.Issuer.RawData);
+            Assert.AreEqual(issuerCert.SubjectName.RawData, authority.Issuer.RawData);
 
             // verify authority key in signed cert
-            X509SubjectKeyIdentifierExtension subjectKeyId = FindSubjectKeyIdentifierExtension(issuerCert);
-            Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyId);
+            X509SubjectKeyIdentifierExtension subjectKeyId = X509Utils.FindExtension<X509SubjectKeyIdentifierExtension>(issuerCert);
+            TestContext.Out.WriteLine($"Issuer Subject Key Identifier: {subjectKeyId}");
+            Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyIdentifier);
             Assert.AreEqual(issuerCert.SerialNumber, authority.SerialNumber);
 
-            X509SubjectAltNameExtension subjectAlternateName = FindSubjectAltName(signedCert);
+            X509SubjectAltNameExtension subjectAlternateName = X509Utils.FindExtension<X509SubjectAltNameExtension>(signedCert);
             Assert.NotNull(subjectAlternateName);
+            TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            var domainNames = Utils.GetDomainsFromCertficate(signedCert);
+            var domainNames = X509Utils.GetDomainsFromCertficate(signedCert);
             foreach (var domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = Utils.GetApplicationUriFromCertificate(signedCert);
+            var applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
             Assert.True(testApp.ApplicationRecord.ApplicationUri == applicationUri);
         }
-
-        private static X509BasicConstraintsExtension FindBasicConstraintsExtension(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509BasicConstraintsExtension extension = certificate.Extensions[ii] as X509BasicConstraintsExtension;
-                if (extension != null)
-                {
-                    return extension;
-                }
-            }
-            return null;
-        }
-
-        private static X509KeyUsageExtension FindKeyUsageExtension(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509KeyUsageExtension extension = certificate.Extensions[ii] as X509KeyUsageExtension;
-                if (extension != null)
-                {
-                    return extension;
-                }
-            }
-            return null;
-        }
-        private static X509EnhancedKeyUsageExtension FindEnhancedKeyUsageExtension(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509EnhancedKeyUsageExtension extension = certificate.Extensions[ii] as X509EnhancedKeyUsageExtension;
-                if (extension != null)
-                {
-                    return extension;
-                }
-            }
-            return null;
-        }
-
-        private static X509AuthorityKeyIdentifierExtension FindAuthorityKeyIdentifier(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509Extension extension = certificate.Extensions[ii];
-
-                switch (extension.Oid.Value)
-                {
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                    {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private static X509SubjectAltNameExtension FindSubjectAltName(X509Certificate2 certificate)
-        {
-            foreach (var extension in certificate.Extensions)
-            {
-                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
-                    extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                {
-                    return new X509SubjectAltNameExtension(extension, extension.Critical);
-                }
-            }
-            return null;
-        }
-
-        private static X509SubjectKeyIdentifierExtension FindSubjectKeyIdentifierExtension(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509SubjectKeyIdentifierExtension extension = certificate.Extensions[ii] as X509SubjectKeyIdentifierExtension;
-                if (extension != null)
-                {
-                    return extension;
-                }
-            }
-            return null;
-        }
-
-
     }
 
 }

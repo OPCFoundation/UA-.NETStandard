@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Security.Certificates.X509;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -260,7 +261,7 @@ namespace Opc.Ua.Gds.Server
 
                 foreach (var certificateGroup in m_certificateGroups.Values)
                 {
-                    if (Utils.CompareDistinguishedName(certificateGroup.Certificate.Subject, x509.Issuer))
+                    if (X509Utils.CompareDistinguishedName(certificateGroup.Certificate.Subject, x509.Issuer))
                     {
                         return certificateGroup;
                     }
@@ -668,7 +669,7 @@ namespace Opc.Ua.Gds.Server
         {
             bool contextFound = false;
 
-            var fields = Utils.ParseDistinguishedName(subjectName);
+            var fields = X509Utils.ParseDistinguishedName(subjectName);
 
             StringBuilder builder = new StringBuilder();
 

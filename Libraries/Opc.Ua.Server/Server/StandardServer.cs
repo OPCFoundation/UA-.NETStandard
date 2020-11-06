@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Server
 {
@@ -346,7 +347,7 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
+                            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
 
                             // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
                             if (!String.IsNullOrEmpty(certificateApplicationUri) &&
@@ -2272,7 +2273,7 @@ namespace Opc.Ua.Server
         {
             System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
-            foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
+            foreach (string domain in X509Utils.GetDomainsFromCertficate(e.Certificate))
             {
                 System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
 

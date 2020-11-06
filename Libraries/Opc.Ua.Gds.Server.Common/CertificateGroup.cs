@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates.X509.Extension;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -73,7 +73,7 @@ namespace Opc.Ua.Gds.Server
                 X509Certificate2Collection certificates = await store.Enumerate();
                 foreach (var certificate in certificates)
                 {
-                    if (Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
+                    if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
                     {
                         using (RSA rsa = certificate.GetRSAPublicKey())
                         {
@@ -337,7 +337,7 @@ namespace Opc.Ua.Gds.Server
                     X509Certificate2Collection certificates = await authorityStore.Enumerate();
                     foreach (var certificate in certificates)
                     {
-                        if (Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
+                        if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
                         {
                             X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint);
                             if (certs.Count == 0)

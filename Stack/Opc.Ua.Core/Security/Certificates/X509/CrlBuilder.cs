@@ -16,7 +16,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Collections.Generic;
-using Opc.Ua.Security.Certificates.Asn;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -42,7 +42,6 @@ namespace Opc.Ua.Security.Certificates
     ///      privilegeWithdrawn(9),
     ///      aACompromise(10) }
     /// </remarks>
-
     public enum CRLReason
     {
         Unspecified = 0,

@@ -22,8 +22,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Security.Certificates.Asn;
-using Opc.Ua.Security.Certificates.X509.Extension;
+using Opc.Ua.Security.Certificates.X509;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
@@ -370,14 +369,16 @@ namespace Opc.Ua
             request.CertificateExtensions.Add(ski);
 
             // Authority Key Identifier
+            System.Security.Cryptography.X509Certificates.X509Extension authorityKeyIdentifier = null;
             if (issuerCAKeyCert != null)
             {
-                request.CertificateExtensions.Add(BuildAuthorityKeyIdentifier(issuerCAKeyCert));
+                authorityKeyIdentifier = BuildAuthorityKeyIdentifier(issuerCAKeyCert);
             }
             else
             {
-                request.CertificateExtensions.Add(BuildAuthorityKeyIdentifier(subjectDN, serialNumber.Reverse().ToArray(), ski));
+                authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(subjectDN, serialNumber, Utils.FromHexString(ski.SubjectKeyIdentifier));
             }
+            request.CertificateExtensions.Add(authorityKeyIdentifier);
 
             if (isCA)
             {
@@ -579,7 +580,7 @@ namespace Opc.Ua
 
                 if (authority != null)
                 {
-                    keyId = authority.KeyId;
+                    keyId = authority.KeyIdentifier;
                     serialNumber = authority.SerialNumber;
                 }
                 else
@@ -590,7 +591,7 @@ namespace Opc.Ua
                 if (!isCACert)
                 {
                     if (serialNumber == certificate.SerialNumber ||
-                        Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                        X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
                     {
                         throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
                     }
@@ -774,7 +775,7 @@ namespace Opc.Ua
                 }
             }
 
-            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             // Subject Alternative Name
             var subjectAltName = BuildSubjectAlternativeName(applicationUri, domainNames);
@@ -1054,7 +1055,7 @@ namespace Opc.Ua
 
             if (!String.IsNullOrEmpty(subjectName))
             {
-                subjectNameEntries = Utils.ParseDistinguishedName(subjectName);
+                subjectNameEntries = X509Utils.ParseDistinguishedName(subjectName);
             }
 
             // check the application name.
@@ -1195,7 +1196,7 @@ namespace Opc.Ua
         {
             // force exception if SKI is not present
             var ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
-            return BuildAuthorityKeyIdentifier(issuerCaCertificate.SubjectName, issuerCaCertificate.GetSerialNumber(), ski);
+            return new X509AuthorityKeyIdentifierExtension(issuerCaCertificate.SubjectName, issuerCaCertificate.GetSerialNumber().Reverse().ToArray(), Utils.FromHexString(ski.SubjectKeyIdentifier));
         }
 
         /// <summary>
@@ -1247,17 +1248,17 @@ namespace Opc.Ua
         private static System.Security.Cryptography.X509Certificates.X509Extension BuildAuthorityKeyIdentifier(
             X500DistinguishedName issuerName,
             byte[] issuerSerialNumber,
-            X509SubjectKeyIdentifierExtension ski
+            string subjectKeyIdentifier
             )
         {
             {
                 AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
                 writer.PushSequence();
 
-                if (ski != null)
+                if (subjectKeyIdentifier != null)
                 {
                     Asn1Tag keyIdTag = new Asn1Tag(TagClass.ContextSpecific, 0);
-                    writer.WriteOctetString(HexToByteArray(ski.SubjectKeyIdentifier), keyIdTag);
+                    writer.WriteOctetString(HexToByteArray(subjectKeyIdentifier), keyIdTag);
                 }
 
                 Asn1Tag issuerNameTag = new Asn1Tag(TagClass.ContextSpecific, 1);
@@ -1513,7 +1514,7 @@ namespace Opc.Ua
 
             foreach (var certificate in certificates)
             {
-                if (Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
+                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;

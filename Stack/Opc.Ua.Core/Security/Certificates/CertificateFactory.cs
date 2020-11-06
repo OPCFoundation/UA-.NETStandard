@@ -21,7 +21,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Security.Certificates.X509.Extension;
+using Opc.Ua.Security.Certificates.X509;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
@@ -141,7 +141,7 @@ namespace Opc.Ua.Legacy
     /// </summary>
     public static class CertificateFactory
     {
-#region Public Constants
+        #region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -160,9 +160,9 @@ namespace Opc.Ua.Legacy
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -532,11 +532,11 @@ namespace Opc.Ua.Legacy
                 bool isCACert = IsCertificateAuthority(certificate);
 
                 // find the authority key identifier.
-                X509AuthorityKeyIdentifierExtension authority = FindAuthorityKeyIdentifier(certificate);
+                var authority = X509Utils.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
                 if (authority != null)
                 {
-                    keyId = authority.KeyId;
+                    keyId = authority.KeyIdentifier;
                     serialNumber = authority.SerialNumber;
                 }
                 else
@@ -547,7 +547,7 @@ namespace Opc.Ua.Legacy
                 if (!isCACert)
                 {
                     if (serialNumber == certificate.SerialNumber ||
-                        Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                        X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
                     {
                         throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
                     }
@@ -757,7 +757,7 @@ namespace Opc.Ua.Legacy
                 // build CSR extensions
                 List<GeneralName> generalNames = new List<GeneralName>();
 
-                string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+                string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
                 if (applicationUri != null)
                 {
                     generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
@@ -1021,9 +1021,9 @@ namespace Opc.Ua.Legacy
                 RsaUtils.RSADispose(rsaPublicKey);
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Legacy
 
             if (!String.IsNullOrEmpty(subjectName))
             {
-                subjectNameEntries = Utils.ParseDistinguishedName(subjectName);
+                subjectNameEntries = X509Utils.ParseDistinguishedName(subjectName);
             }
 
             // check the application name.
@@ -1330,32 +1330,10 @@ namespace Opc.Ua.Legacy
 
             foreach (var certificate in certificates)
             {
-                if (Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
+                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Return the authority key identifier in the certificate.
-        /// </summary>
-        private static X509AuthorityKeyIdentifierExtension FindAuthorityKeyIdentifier(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                System.Security.Cryptography.X509Certificates.X509Extension extension = certificate.Extensions[ii];
-
-                switch (extension.Oid.Value)
-                {
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                    {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                    }
                 }
             }
 
@@ -1453,8 +1431,7 @@ namespace Opc.Ua.Legacy
                 return (char[])password.Clone();
             }
         }
-
-#endregion
+        #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static object m_certificatesLock = new object();

@@ -16,7 +16,8 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
+
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua
 {
@@ -1199,7 +1200,7 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (String.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                configuration.ApplicationUri = Utils.GetApplicationUriFromCertificate(InstanceCertificate);
+                configuration.ApplicationUri = X509Utils.GetApplicationUriFromCertificate(InstanceCertificate);
 
                 if (String.IsNullOrEmpty(configuration.ApplicationUri))
                 {

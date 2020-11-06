@@ -38,6 +38,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.X509;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
 
@@ -78,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
             RegisterPushServerApplication(_pushClient.PushClient.EndpointUrl);
 
             _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            _domainNames = Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
+            _domainNames = X509Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
 
             CreateCATestCerts(_pushClient.TempStorePath);
         }
@@ -309,7 +310,7 @@ namespace Opc.Ua.Gds.Tests
             using (X509Certificate2 invalidCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
             using (X509Certificate2 serverCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate))
             {
-                if (!Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
+                if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
                 {
                     Assert.Ignore("Server has no self signed cert in use.");
                 }

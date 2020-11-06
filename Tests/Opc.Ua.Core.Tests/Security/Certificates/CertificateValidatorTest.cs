@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.X509;
 using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -677,7 +678,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
             CleanupValidatorAndStores();
             if (trusted)
             {
@@ -707,7 +708,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
             CleanupValidatorAndStores();
             if (trusted)
             {

@@ -11,7 +11,7 @@
 */
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-namespace Opc.Ua.Security.Certificates.Asn
+namespace Opc.Ua.Security.Certificates.X509
 {
     /// <summary>
     /// Oid constants defined for ASN encoding/decoding.

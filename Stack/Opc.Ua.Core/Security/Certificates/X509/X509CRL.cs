@@ -26,6 +26,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using Org.BouncyCastle.X509;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -131,7 +132,7 @@ namespace Opc.Ua.Security.Certificates
         public bool IsRevoked(X509Certificate2 certificate)
         {
             // check that the issuer matches.
-            if (m_issuer == null || !Utils.CompareDistinguishedName(certificate.Issuer, m_issuer.Subject))
+            if (m_issuer == null || !X509Utils.CompareDistinguishedName(certificate.Issuer, m_issuer.Subject))
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate was not created by the CRL issuer.");
             }
@@ -153,7 +154,7 @@ namespace Opc.Ua.Security.Certificates
             // replace state ST= with S= 
             issuerDN = issuerDN.Replace("ST=", "S=");
             // reverse DN order to match System.Security
-            List<string> issuerList = Utils.ParseDistinguishedName(issuerDN);
+            List<string> issuerList = X509Utils.ParseDistinguishedName(issuerDN);
             issuerList.Reverse();
             Issuer = string.Join(", ", issuerList);
         }

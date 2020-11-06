@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security.Certificates.X509;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client
@@ -367,7 +368,7 @@ namespace Opc.Ua.Client
             X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
 
             // check the certificate domains.
-            IList<string> domains = Utils.GetDomainsFromCertficate(serverCertificate);
+            IList<string> domains = X509Utils.GetDomainsFromCertficate(serverCertificate);
 
             if (domains != null)
             {

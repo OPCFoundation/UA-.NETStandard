@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Server
 {
@@ -507,7 +508,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (var cert in certCollection)
                         {
-                            if (Utils.CompareDistinguishedName(cert.Subject, crl.Issuer) &&
+                            if (X509Utils.CompareDistinguishedName(cert.Subject, crl.Issuer) &&
                                 crl.VerifySignature(cert, false))
                             {
                                 crlsToDelete.Add(crl);

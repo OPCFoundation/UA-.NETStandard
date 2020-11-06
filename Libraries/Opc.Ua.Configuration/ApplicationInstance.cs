@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Configuration
 {
@@ -509,7 +510,7 @@ namespace Opc.Ua.Configuration
             }
 
             // check uri.
-            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             if (String.IsNullOrEmpty(applicationUri))
             {
@@ -552,7 +553,7 @@ namespace Opc.Ua.Configuration
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
 
             // get computer name.
             string computerName = Utils.GetHostName();
@@ -780,14 +781,14 @@ namespace Opc.Ua.Configuration
 
                     Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to trusted peer store. StorePath={0}", storePath);
 
-                    List<string> subjectName = Utils.ParseDistinguishedName(certificate.Subject);
+                    List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                     // check for old certificate.
                     X509Certificate2Collection certificates = await store.Enumerate();
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
-                        if (Utils.CompareDistinguishedName(certificates[ii], subjectName))
+                        if (X509Utils.CompareDistinguishedName(certificates[ii], subjectName))
                         {
                             if (certificates[ii].Thumbprint == certificate.Thumbprint)
                             {

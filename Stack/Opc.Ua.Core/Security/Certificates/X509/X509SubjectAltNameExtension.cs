@@ -21,7 +21,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Opc.Ua.Security.Certificates.X509.Extension
+namespace Opc.Ua.Security.Certificates.X509
 {
     /// <summary>
     /// Stores the subject alternate name extension.

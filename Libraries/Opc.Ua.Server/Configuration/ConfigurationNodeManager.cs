@@ -33,6 +33,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Server
 {
@@ -408,13 +409,13 @@ namespace Opc.Ua.Server
             }
 
             // load existing application cert and private key
-            if (!Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.SubjectName, newCert.SubjectName.Name))
+            if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.SubjectName, newCert.SubjectName.Name))
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
             }
 
             // self signed
-            bool selfSigned = Utils.CompareDistinguishedName(newCert.Subject, newCert.Issuer);
+            bool selfSigned = X509Utils.CompareDistinguishedName(newCert.Subject, newCert.Issuer);
             if (selfSigned && newIssuerCollection.Count != 0)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer list not empty for self signed certificate.");
@@ -506,7 +507,7 @@ namespace Opc.Ua.Server
 
             string password = String.Empty;
             X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(password).Result;
-            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, Utils.GetDomainsFromCertficate(certWithPrivateKey));
+            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
             return ServiceResult.Good;
         }
 

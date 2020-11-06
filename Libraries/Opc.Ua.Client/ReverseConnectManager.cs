@@ -34,6 +34,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Client
 {
@@ -163,7 +164,7 @@ namespace Opc.Ua.Client
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
                 this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = Utils.GetApplicationUriFromCertificate(serverCertificate);
+                ServerUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
             }
 
             private Registration(
