@@ -97,7 +97,7 @@ namespace Opc.Ua
     /// Secure .Net Core Random Number generator wrapper for Bounce Castle.
     /// Creates an instance of RNGCryptoServiceProvider or an OpenSSL based version on other OS.
     /// </summary>
-    public class CertificateFactoryRandomGenerator : IRandomGenerator, IDisposable
+    public class CertificateFactoryRandomGenerator : Org.BouncyCastle.Crypto.Prng.IRandomGenerator, IDisposable
     {
         RandomNumberGenerator m_prg;
 
@@ -153,7 +153,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-        #region Public Constants
+#region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -172,9 +172,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -330,17 +330,6 @@ namespace Opc.Ua
                 rsaPublicKey = rsaKeyPair;
             }
             var request = new CertificateRequest(subjectDN, rsaPublicKey, GetRSAHashAlgorithmName(hashSizeInBits), RSASignaturePadding.Pkcs1);
-
-            BasicConstraints basicConstraints = new BasicConstraints(isCA);
-            if (isCA && pathLengthConstraint >= 0)
-            {
-                basicConstraints = new BasicConstraints(pathLengthConstraint);
-            }
-            else if (!isCA && issuerCAKeyCert == null)
-            {   // self-signed
-                basicConstraints = new BasicConstraints(0);
-            }
-
 
             // Basic constraints
             if (!isCA && issuerCAKeyCert == null)
@@ -532,7 +521,7 @@ namespace Opc.Ua
                         password ?? String.Empty,
                         storageFlags[flagsRetryCounter]);
                     // can we really access the private key?
-                    if (VerifyRSAKeyPair(certificate, certificate, true))
+                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                     {
                         return certificate;
                     }
@@ -573,10 +562,10 @@ namespace Opc.Ua
                 string serialNumber = null;
 
                 // caller may want to create empty CRL using the CA cert itself
-                bool isCACert = IsCertificateAuthority(certificate);
+                bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
                 // find the authority key identifier.
-                X509AuthorityKeyIdentifierExtension authority = FindAuthorityKeyIdentifier(certificate);
+                X509AuthorityKeyIdentifierExtension authority = X509Utils.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
                 if (authority != null)
                 {
@@ -801,7 +790,7 @@ namespace Opc.Ua
                 throw new NotSupportedException("Need a certificate with a private key.");
             }
 
-            if (!VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
+            if (!X509Utils.VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
             {
                 throw new NotSupportedException("The public and the private key pair doesn't match.");
             }
@@ -917,111 +906,9 @@ namespace Opc.Ua
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
+#endregion
 
-        /// <summary>
-        /// Verify the signature of a self signed certificate.
-        /// </summary>
-        public static bool VerifySelfSigned(X509Certificate2 cert)
-        {
-            try
-            {
-                Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(cert.RawData);
-                bcCert.Verify(bcCert.GetPublicKey());
-            }
-            catch
-            {
-                return false;
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Return the key usage flags of a certificate.
-        /// </summary>
-        public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
-        {
-            X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
-            foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
-            {
-                allFlags |= ext.KeyUsages;
-            }
-            return allFlags;
-        }
-
-        /// <summary>
-        /// Verify RSA key pair of two certificates.
-        /// </summary>
-        public static bool VerifyRSAKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false)
-        {
-            bool result = false;
-            RSA rsaPrivateKey = null;
-            RSA rsaPublicKey = null;
-            try
-            {
-                // verify the public and private key match
-                rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-#if NETSTANDARD2_1
-                // on .NET Core 3 
-                rsaPrivateKey.ExportParameters(true);
-#endif
-                rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
-                X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
-                {
-                    result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                }
-                else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                {
-                    result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
-                }
-                else
-                {
-                    throw new CryptographicException("Don't know how to verify the public/private key pair.");
-                }
-            }
-            catch (Exception)
-            {
-                if (throwOnError)
-                {
-                    throwOnError = false;
-                    throw;
-                }
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPrivateKey);
-                RsaUtils.RSADispose(rsaPublicKey);
-                if (!result && throwOnError)
-                {
-                    throw new CryptographicException("The public/private key pair in the certficates do not match.");
-                }
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Returns the size of the public key and disposes RSA key.
-        /// </summary>
-        /// <param name="certificate">The certificate</param>
-        public static int GetRSAPublicKeySize(X509Certificate2 certificate)
-        {
-            RSA rsaPublicKey = null;
-            try
-            {
-                rsaPublicKey = certificate.GetRSAPublicKey();
-                return rsaPublicKey.KeySize;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPublicKey);
-            }
-        }
-        #endregion
-
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1380,7 +1267,7 @@ namespace Opc.Ua
 
             return bytes;
         }
-
+#if BC
         /// <summary>
         /// helper to build alternate name domains list for certs.
         /// </summary>
@@ -1402,7 +1289,7 @@ namespace Opc.Ua
             }
             return generalNames;
         }
-
+#endif
         /// <summary>
         /// Get private key parameters from a X509Certificate2.
         /// The private key must be exportable.
@@ -1480,26 +1367,6 @@ namespace Opc.Ua
         private static string PatchExtensionUrl(string extensionUrl, string serial)
         {
             return extensionUrl.Replace("%serial%", serial.ToLower());
-        }
-
-        /// <summary>
-        /// Determines whether the certificate is issued by a Certificate Authority.
-        /// </summary>
-        public static bool IsCertificateAuthority(X509Certificate2 certificate)
-        {
-            X509BasicConstraintsExtension constraints = null;
-
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                constraints = certificate.Extensions[ii] as X509BasicConstraintsExtension;
-
-                if (constraints != null)
-                {
-                    return constraints.CertificateAuthority;
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -1591,36 +1458,6 @@ namespace Opc.Ua
         }
 
 
-        private static bool VerifyRSAKeyPairCrypt(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
-        {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
-            byte[] testBlock = new byte[blockSize];
-            randomSource.NextBytes(testBlock, 0, blockSize);
-            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
-            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
-            if (decryptedBlock != null)
-            {
-                return Utils.IsEqual(testBlock, decryptedBlock);
-            }
-            return false;
-        }
-
-        private static bool VerifyRSAKeyPairSign(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
-        {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
-            byte[] testBlock = new byte[blockSize];
-            randomSource.NextBytes(testBlock, 0, blockSize);
-            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-        }
-
-
         private class Password
             : IPasswordFinder
         {
@@ -1638,7 +1475,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

@@ -24,6 +24,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
@@ -72,6 +73,149 @@ namespace Opc.Ua.Security.Certificates.X509
             return null;
         }
 
+        /// <summary>
+        /// Determines whether the certificate is issued by a Certificate Authority.
+        /// </summary>
+        public static bool IsCertificateAuthority(X509Certificate2 certificate)
+        {
+            X509BasicConstraintsExtension constraints = X509Utils.FindExtension<X509BasicConstraintsExtension>(certificate);
+            if (constraints != null)
+            {
+                return constraints.CertificateAuthority;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Return the key usage flags of a certificate.
+        /// </summary>
+        public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+        {
+            X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
+            foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
+            {
+                allFlags |= ext.KeyUsages;
+            }
+            return allFlags;
+        }
+        /// <summary>
+        /// Returns the size of the public key and disposes RSA key.
+        /// </summary>
+        /// <param name="certificate">The certificate</param>
+        public static int GetRSAPublicKeySize(X509Certificate2 certificate)
+        {
+            RSA rsaPublicKey = null;
+            try
+            {
+                rsaPublicKey = certificate.GetRSAPublicKey();
+                return rsaPublicKey.KeySize;
+            }
+            finally
+            {
+                RsaUtils.RSADispose(rsaPublicKey);
+            }
+        }
+
+        /// <summary>
+        /// Verify RSA key pair of two certificates.
+        /// </summary>
+        public static bool VerifyRSAKeyPair(
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
+        {
+            bool result = false;
+            RSA rsaPrivateKey = null;
+            RSA rsaPublicKey = null;
+            try
+            {
+                // verify the public and private key match
+                rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+#if NETSTANDARD2_1
+                // on .NET Core 3 
+                rsaPrivateKey.ExportParameters(true);
+#endif
+                rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+                X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+                if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+                {
+                    result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                }
+                else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+                {
+                    result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                }
+                else
+                {
+                    throw new CryptographicException("Don't know how to verify the public/private key pair.");
+                }
+            }
+            catch (Exception)
+            {
+                if (throwOnError)
+                {
+                    throwOnError = false;
+                    throw;
+                }
+            }
+            finally
+            {
+                RsaUtils.RSADispose(rsaPrivateKey);
+                RsaUtils.RSADispose(rsaPublicKey);
+                if (!result && throwOnError)
+                {
+                    throw new CryptographicException("The public/private key pair in the certficates do not match.");
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Verify the signature of a self signed certificate.
+        /// </summary>
+        public static bool VerifySelfSigned(X509Certificate2 cert)
+        {
+            try
+            {
+                //TODO
+                Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(cert.RawData);
+                bcCert.Verify(bcCert.GetPublicKey());
+            }
+            catch
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private static bool VerifyRSAKeyPairCrypt(
+            RSA rsaPublicKey,
+            RSA rsaPrivateKey)
+        {
+            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
+            byte[] testBlock = new byte[blockSize];
+            randomSource.NextBytes(testBlock, 0, blockSize);
+            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
+            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
+            if (decryptedBlock != null)
+            {
+                return Utils.IsEqual(testBlock, decryptedBlock);
+            }
+            return false;
+        }
+
+        private static bool VerifyRSAKeyPairSign(
+            RSA rsaPublicKey,
+            RSA rsaPrivateKey)
+        {
+            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
+            byte[] testBlock = new byte[blockSize];
+            randomSource.NextBytes(testBlock, 0, blockSize);
+            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+        }
 
         /// <summary>
         /// Extracts the DNS names specified in the certificate.

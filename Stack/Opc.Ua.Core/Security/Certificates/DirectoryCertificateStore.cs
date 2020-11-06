@@ -333,7 +333,7 @@ namespace Opc.Ua
                             privateKeyFile.FullName,
                             password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
-                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
+                        if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                         {
                             return certificate;
                         }
@@ -344,7 +344,7 @@ namespace Opc.Ua
                             privateKeyFile.FullName,
                             password,
                             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
-                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
+                        if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
                         {
                             return certificate;
                         }

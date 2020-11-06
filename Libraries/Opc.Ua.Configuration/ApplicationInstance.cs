@@ -477,7 +477,7 @@ namespace Opc.Ua.Configuration
             }
 
             // check key size.
-            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
             if (minimumKeySize > keySize)
             {
                 string message = Utils.Format(

@@ -603,7 +603,7 @@ namespace Opc.Ua
                                     {
                                         if (status == StatusCodes.BadCertificateRevocationUnknown)
                                         {
-                                            if (CertificateFactory.IsCertificateAuthority(certificate))
+                                            if (X509Utils.IsCertificateAuthority(certificate))
                                             {
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
@@ -803,7 +803,7 @@ namespace Opc.Ua
             }
 
             // check if certificate is valid for use as app/sw or user cert
-            X509KeyUsageFlags certificateKeyUsage = CertificateFactory.GetKeyUsage(certificate);
+            X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
 
             if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
@@ -816,7 +816,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "SHA1 signed certificates are not trusted");
             }
 
-            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
             if (keySize < m_minimumCertificateKeySize)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "Certificate doesn't meet minimum key length requirement");
@@ -975,7 +975,7 @@ namespace Opc.Ua
         /// </summary>
         private static bool IsSignatureValid(X509Certificate2 cert)
         {
-            return CertificateFactory.VerifySelfSigned(cert);
+            return X509Utils.VerifySelfSigned(cert);
         }
         #endregion
 
