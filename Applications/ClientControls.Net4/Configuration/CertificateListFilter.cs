@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -124,7 +125,7 @@ namespace Opc.Ua.Client.Controls
 
                 if (!String.IsNullOrEmpty(m_domain))
                 {
-                    IList<string> domains = Utils.GetDomainsFromCertficate(certificate);
+                    IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
 
                     bool found = false;
 
@@ -169,7 +170,7 @@ namespace Opc.Ua.Client.Controls
                     }
 
                     // determine if self-signed.
-                    bool isSelfSigned = Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+                    bool isSelfSigned = X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
 
                     // match if one or more of the criteria match.
                     bool found = false;

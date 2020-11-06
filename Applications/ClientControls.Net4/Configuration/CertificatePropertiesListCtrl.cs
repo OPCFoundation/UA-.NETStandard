@@ -36,6 +36,7 @@ using System.Windows.Forms;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Client.Controls
 {
