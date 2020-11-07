@@ -335,7 +335,7 @@ namespace Opc.Ua.Legacy
 
                 // add extensions
                 // Subject key identifier
-                cg.AddExtension(X509Extensions.SubjectKeyIdentifier.Id, false,
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectKeyIdentifier.Id, false,
                     new SubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(subjectPublicKey)));
 
                 // Basic constraints
@@ -348,7 +348,7 @@ namespace Opc.Ua.Legacy
                 {   // self-signed
                     basicConstraints = new BasicConstraints(0);
                 }
-                cg.AddExtension(X509Extensions.BasicConstraints.Id, true, basicConstraints);
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.BasicConstraints.Id, true, basicConstraints);
 
                 // Authority Key identifier references the issuer cert or itself when self signed
                 AsymmetricKeyParameter issuerPublicKey;
@@ -368,7 +368,7 @@ namespace Opc.Ua.Legacy
                     issuerSerialNumber = serialNumber;
                 }
 
-                cg.AddExtension(X509Extensions.AuthorityKeyIdentifier.Id, false,
+                cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier.Id, false,
                     new AuthorityKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(issuerPublicKey),
                         new GeneralNames(new GeneralName(issuerDN)), issuerSerialNumber));
 
@@ -381,11 +381,11 @@ namespace Opc.Ua.Legacy
                     {   // only self signed certs need KeyCertSign flag.
                         keyUsage |= KeyUsage.KeyCertSign;
                     }
-                    cg.AddExtension(X509Extensions.KeyUsage, true,
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
                         new KeyUsage(keyUsage));
 
                     // Extended Key usage
-                    cg.AddExtension(X509Extensions.ExtendedKeyUsage, true,
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.ExtendedKeyUsage, true,
                         new ExtendedKeyUsage(new List<DerObjectIdentifier>() {
                     new DerObjectIdentifier("1.3.6.1.5.5.7.3.1"), // server auth
                     new DerObjectIdentifier("1.3.6.1.5.5.7.3.2"), // client auth
@@ -395,12 +395,12 @@ namespace Opc.Ua.Legacy
                     List<GeneralName> generalNames = new List<GeneralName>();
                     generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
                     generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
-                    cg.AddExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(generalNames.ToArray()));
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName, false, new GeneralNames(generalNames.ToArray()));
                 }
                 else
                 {
                     // Key usage CA
-                    cg.AddExtension(X509Extensions.KeyUsage, true,
+                    cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.KeyUsage, true,
                         new KeyUsage(KeyUsage.CrlSign | KeyUsage.DigitalSignature | KeyUsage.KeyCertSign));
                 }
 
@@ -529,10 +529,10 @@ namespace Opc.Ua.Legacy
                 string serialNumber = null;
 
                 // caller may want to create empty CRL using the CA cert itself
-                bool isCACert = X509Utils.IsCertificateAuthority(certificate);
+                bool isCACert = Security.Certificates.X509.X509Extensions.IsCertificateAuthority(certificate);
 
                 // find the authority key identifier.
-                var authority = X509Utils.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
+                var authority = Security.Certificates.X509.X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
                 if (authority != null)
                 {
@@ -688,13 +688,13 @@ namespace Opc.Ua.Legacy
                     }
                 }
 
-                crlGen.AddExtension(X509Extensions.AuthorityKeyIdentifier,
+                crlGen.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier,
                                     false,
                                     new AuthorityKeyIdentifierStructure(bcCertCA));
 
                 // set new serial number
                 crlSerialNumber = crlSerialNumber.Add(BigInteger.One);
-                crlGen.AddExtension(X509Extensions.CrlNumber,
+                crlGen.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber,
                                     false,
                                     new CrlNumber(crlSerialNumber));
 
@@ -757,7 +757,7 @@ namespace Opc.Ua.Legacy
                 // build CSR extensions
                 List<GeneralName> generalNames = new List<GeneralName>();
 
-                string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
+                string applicationUri = Security.Certificates.X509.X509Extensions.GetApplicationUriFromCertificate(certificate);
                 if (applicationUri != null)
                 {
                     generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
@@ -772,11 +772,11 @@ namespace Opc.Ua.Legacy
                 {
                     IList oids = new ArrayList();
                     IList values = new ArrayList();
-                    oids.Add(X509Extensions.SubjectAlternativeName);
+                    oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
                     values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
                         new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
                     AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                        new DerSet(new X509Extensions(oids, values)));
+                        new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
                     attributes = new DerSet(attribute);
                 }
 
@@ -1176,7 +1176,7 @@ namespace Opc.Ua.Legacy
             BigInteger crlNumber = BigInteger.One;
             try
             {
-                Asn1Object asn1Object = GetExtensionValue(crl, X509Extensions.CrlNumber);
+                Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
                 if (asn1Object != null)
                 {
                     crlNumber = CrlNumber.GetInstance(asn1Object).PositiveValue;

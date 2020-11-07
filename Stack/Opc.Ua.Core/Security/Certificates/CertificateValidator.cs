@@ -394,21 +394,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Determines whether the certificate is allowed to be an issuer.
-        /// </summary>
-        private bool IsIssuerAllowed(X509Certificate2 certificate)
-        {
-            X509BasicConstraintsExtension constraints = X509Utils.FindExtension<X509BasicConstraintsExtension>(certificate);
-
-            if (constraints != null)
-            {
-                return constraints.CertificateAuthority;
-            }
-
-            return false;
-        }
-
-        /// <summary>
         /// Returns true if the certificate matches the criteria.
         /// </summary>
         private bool Match(
@@ -441,7 +426,7 @@ namespace Opc.Ua
             // check for authority key id match.
             if (!String.IsNullOrEmpty(authorityKeyId))
             {
-                X509SubjectKeyIdentifierExtension subjectKeyId = X509Utils.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
+                X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
 
                 if (subjectKeyId != null)
                 {
@@ -537,7 +522,7 @@ namespace Opc.Ua
             string serialNumber = null;
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = X509Utils.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
+            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
             if (authority != null)
             {
@@ -554,7 +539,7 @@ namespace Opc.Ua
 
                     if (issuer != null)
                     {
-                        if (!IsIssuerAllowed(issuer))
+                        if (!X509Extensions.IsIssuerAllowed(issuer))
                         {
                             continue;
                         }
@@ -583,7 +568,7 @@ namespace Opc.Ua
 
                         if (issuer != null)
                         {
-                            if (!IsIssuerAllowed(issuer))
+                            if (!X509Extensions.IsIssuerAllowed(issuer))
                             {
                                 continue;
                             }
@@ -603,7 +588,7 @@ namespace Opc.Ua
                                     {
                                         if (status == StatusCodes.BadCertificateRevocationUnknown)
                                         {
-                                            if (X509Utils.IsCertificateAuthority(certificate))
+                                            if (X509Extensions.IsCertificateAuthority(certificate))
                                             {
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
@@ -803,7 +788,7 @@ namespace Opc.Ua
             }
 
             // check if certificate is valid for use as app/sw or user cert
-            X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
+            X509KeyUsageFlags certificateKeyUsage = X509Extensions.GetKeyUsage(certificate);
 
             if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {

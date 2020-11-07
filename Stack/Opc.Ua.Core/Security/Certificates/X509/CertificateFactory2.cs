@@ -28,13 +28,12 @@ using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Crypto.Prng;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
-using Org.BouncyCastle.X509.Extension;
+using X509Extensions = Opc.Ua.Security.Certificates.X509.X509Extensions;
 
 namespace Opc.Ua
 {
@@ -153,7 +152,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-#region Public Constants
+        #region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -172,9 +171,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -361,7 +360,7 @@ namespace Opc.Ua
             System.Security.Cryptography.X509Certificates.X509Extension authorityKeyIdentifier = null;
             if (issuerCAKeyCert != null)
             {
-                authorityKeyIdentifier = BuildAuthorityKeyIdentifier(issuerCAKeyCert);
+                authorityKeyIdentifier = X509Extensions.BuildAuthorityKeyIdentifier(issuerCAKeyCert);
             }
             else
             {
@@ -405,14 +404,13 @@ namespace Opc.Ua
                         new Oid("1.3.6.1.5.5.7.3.2") }, true));
 
                 // Subject Alternative Name
-                var subjectAltName = BuildSubjectAlternativeName(applicationUri, domainNames);
-                request.CertificateExtensions.Add(new System.Security.Cryptography.X509Certificates.X509Extension(subjectAltName, false));
+                request.CertificateExtensions.Add(new X509SubjectAltNameExtension(applicationUri, domainNames));
 
                 if (issuerCAKeyCert != null &&
                     extensionUrl != null)
                 {   // add Authority Information Access, if available
                     request.CertificateExtensions.Add(
-                        BuildX509AuthorityInformationAccess(new string[] { PatchExtensionUrl(extensionUrl, issuerCAKeyCert.SerialNumber) })
+                        X509Extensions.BuildX509AuthorityInformationAccess(new string[] { PatchExtensionUrl(extensionUrl, issuerCAKeyCert.SerialNumber) })
                         );
                 }
             }
@@ -562,10 +560,10 @@ namespace Opc.Ua
                 string serialNumber = null;
 
                 // caller may want to create empty CRL using the CA cert itself
-                bool isCACert = X509Utils.IsCertificateAuthority(certificate);
+                bool isCACert = X509Extensions.IsCertificateAuthority(certificate);
 
                 // find the authority key identifier.
-                X509AuthorityKeyIdentifierExtension authority = X509Utils.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
+                X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
                 if (authority != null)
                 {
@@ -705,8 +703,8 @@ namespace Opc.Ua
             var hashAlgorithmName = HashAlgorithmName.SHA256;
             CrlBuilder cRLBuilder = new CrlBuilder(issuerCertificate.SubjectName, serialNumbers.ToArray(), hashAlgorithmName);
             cRLBuilder.NextUpdate = nextUpdate;
-            cRLBuilder.CrlExtensions.Add(BuildAuthorityKeyIdentifier(issuerCertificate));
-            cRLBuilder.CrlExtensions.Add(BuildCRLNumber(123));
+            cRLBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate));
+            cRLBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
             byte[] crlRawData = cRLBuilder.GetEncoded();
             using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
             {
@@ -764,7 +762,7 @@ namespace Opc.Ua
                 }
             }
 
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Extensions.GetApplicationUriFromCertificate(certificate);
 
             // Subject Alternative Name
             var subjectAltName = BuildSubjectAlternativeName(applicationUri, domainNames);
@@ -857,7 +855,7 @@ namespace Opc.Ua
             using (var cfrg = new CertificateFactoryRandomGenerator())
             {
                 SecureRandom random = new SecureRandom(cfrg);
-                Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
+                Org.BouncyCastle.X509.X509Certificate x509 = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(certificate.RawData);
                 return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
             }
         }
@@ -906,9 +904,9 @@ namespace Opc.Ua
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1076,17 +1074,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Build the Authority Key Identifier from an Issuer CA certificate.
-        /// </summary>
-        /// <param name="issuerCaCertificate">The issuer CA certificate</param>
-        private static System.Security.Cryptography.X509Certificates.X509Extension BuildAuthorityKeyIdentifier(X509Certificate2 issuerCaCertificate)
-        {
-            // force exception if SKI is not present
-            var ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
-            return new X509AuthorityKeyIdentifierExtension(issuerCaCertificate.SubjectName, issuerCaCertificate.GetSerialNumber().Reverse().ToArray(), Utils.FromHexString(ski.SubjectKeyIdentifier));
-        }
-
-        /// <summary>
         /// Build the Subject Alternative name extension (for OPC UA application certs)
         /// </summary>
         /// <param name="applicationUri">The application Uri</param>
@@ -1113,16 +1100,6 @@ namespace Opc.Ua
             }
 
             return sanBuilder.Build();
-        }
-
-        /// <summary>
-        /// Build the CRL number.
-        /// </summary>
-        private static System.Security.Cryptography.X509Certificates.X509Extension BuildCRLNumber(System.Numerics.BigInteger crlNumber)
-        {
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            writer.WriteInteger(crlNumber);
-            return new System.Security.Cryptography.X509Certificates.X509Extension("2.5.29.20", writer.Encode(), false);
         }
 
 
@@ -1165,57 +1142,6 @@ namespace Opc.Ua
 
                 writer.PopSequence();
                 return new System.Security.Cryptography.X509Certificates.X509Extension("2.5.29.35", writer.Encode(), false);
-            }
-        }
-
-        /// <summary>
-        /// Build the Authority information Access extension.
-        /// </summary>
-        /// <param name="caIssuerUrls">Array of CA Issuer Urls</param>
-        /// <param name="ocspResponder">optional, the OCSP responder </param>
-        private static System.Security.Cryptography.X509Certificates.X509Extension BuildX509AuthorityInformationAccess(
-            string[] caIssuerUrls,
-            string ocspResponder = null
-            )
-        {
-            if (String.IsNullOrEmpty(ocspResponder) &&
-               (caIssuerUrls == null || caIssuerUrls.Length == 0))
-            {
-                throw new ArgumentNullException(nameof(caIssuerUrls), "One CA Issuer Url or OCSP responder is required for the extension.");
-            }
-
-            var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
-            Asn1Tag generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
-            {
-                AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-                writer.PushSequence();
-                if (caIssuerUrls != null)
-                {
-                    foreach (var caIssuerUrl in caIssuerUrls)
-                    {
-                        writer.PushSequence();
-                        writer.WriteObjectIdentifier("1.3.6.1.5.5.7.48.2");
-                        writer.WriteCharacterString(
-                            UniversalTagNumber.IA5String,
-                            caIssuerUrl,
-                            generalNameUriChoice
-                            );
-                        writer.PopSequence();
-                    }
-                }
-                if (!String.IsNullOrEmpty(ocspResponder))
-                {
-                    writer.PushSequence();
-                    writer.WriteObjectIdentifier("1.3.6.1.5.5.7.48.1");
-                    writer.WriteCharacterString(
-                        UniversalTagNumber.IA5String,
-                        ocspResponder,
-                        generalNameUriChoice
-                        );
-                    writer.PopSequence();
-                }
-                writer.PopSequence();
-                return new System.Security.Cryptography.X509Certificates.X509Extension("1.3.6.1.5.5.7.1.1", writer.Encode(), false);
             }
         }
 
@@ -1322,15 +1248,15 @@ namespace Opc.Ua
         /// <summary>
         /// Read the Crl number from a X509Crl.
         /// </summary>
-        public static BigInteger GetCrlNumber(X509Crl crl)
+        public static BigInteger GetCrlNumber(Org.BouncyCastle.X509.X509Crl crl)
         {
             BigInteger crlNumber = BigInteger.One;
             try
             {
-                Asn1Object asn1Object = GetExtensionValue(crl, X509Extensions.CrlNumber);
+                Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
                 if (asn1Object != null)
                 {
-                    crlNumber = CrlNumber.GetInstance(asn1Object).PositiveValue;
+                    crlNumber = Org.BouncyCastle.Asn1.X509.CrlNumber.GetInstance(asn1Object).PositiveValue;
                 }
             }
             finally
@@ -1347,7 +1273,7 @@ namespace Opc.Ua
             Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
             if (asn1Octet != null)
             {
-                return X509ExtensionUtilities.FromExtensionValue(asn1Octet);
+                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
             }
             return null;
         }
@@ -1475,7 +1401,7 @@ namespace Opc.Ua
             }
         }
 
-#endregion
+        #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

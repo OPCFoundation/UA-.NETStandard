@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
             RegisterPushServerApplication(_pushClient.PushClient.EndpointUrl);
 
             _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            _domainNames = X509Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
+            _domainNames = X509Extensions.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
 
             CreateCATestCerts(_pushClient.TempStorePath);
         }

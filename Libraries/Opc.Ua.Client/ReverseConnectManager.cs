@@ -164,7 +164,7 @@ namespace Opc.Ua.Client
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
                 this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
+                ServerUri = X509Extensions.GetApplicationUriFromCertificate(serverCertificate);
             }
 
             private Registration(

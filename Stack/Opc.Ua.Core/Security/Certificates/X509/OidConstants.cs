@@ -16,7 +16,7 @@ namespace Opc.Ua.Security.Certificates.X509
     /// <summary>
     /// Oid constants defined for ASN encoding/decoding.
     /// </summary>
-    public class OidConstants
+    public static class OidConstants
     {
         public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
         public const string ECDSASHA256SignatureAlgorithm = "1.2.840.10045.4.3.2";
@@ -28,6 +28,9 @@ namespace Opc.Ua.Security.Certificates.X509
         public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
         public const string RsaPkcs1Sha512 = "1.2.840.113549.1.1.13";
 
+        public const string CrlNumber = "2.5.29.20";
         public const string CertificateRevocationReasonCode = "2.5.29.21";
+
+
     }
 }

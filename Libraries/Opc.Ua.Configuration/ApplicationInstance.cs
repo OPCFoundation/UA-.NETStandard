@@ -510,7 +510,7 @@ namespace Opc.Ua.Configuration
             }
 
             // check uri.
-            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Extensions.GetApplicationUriFromCertificate(certificate);
 
             if (String.IsNullOrEmpty(applicationUri))
             {
@@ -553,7 +553,7 @@ namespace Opc.Ua.Configuration
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Extensions.GetDomainsFromCertficate(certificate);
 
             // get computer name.
             string computerName = Utils.GetHostName();

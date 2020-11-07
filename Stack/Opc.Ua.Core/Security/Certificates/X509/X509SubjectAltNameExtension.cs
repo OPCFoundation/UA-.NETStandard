@@ -50,9 +50,26 @@ namespace Opc.Ua.Security.Certificates.X509
         /// </summary>
         public X509SubjectAltNameExtension(string oid, byte[] rawData, bool critical)
         :
-            this(new Oid(oid, s_FriendlyName), rawData, critical)
+            this(new Oid(oid, kFriendlyName), rawData, critical)
         {
         }
+
+#if NETSTANDARD2_1
+        /// <summary>
+        /// Build the Subject Alternative name extension (for OPC UA application certs).
+        /// </summary>
+        /// <param name="applicationUri">The application Uri</param>
+        /// <param name="domainNames">The domain names. DNS Hostnames, IPv4 or IPv6 addresses</param>
+        public X509SubjectAltNameExtension(
+            string applicationUri,
+            IList<string> domainNames)
+        {
+            this.Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
+            this.Critical = false;
+            this.Initialize(applicationUri, domainNames);
+            this.RawData = Encode();
+        }
+#endif
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
@@ -61,7 +78,7 @@ namespace Opc.Ua.Security.Certificates.X509
         :
             base(oid, rawData, critical)
         {
-            Parse(rawData);
+            Decode(rawData);
         }
         #endregion
 
@@ -87,7 +104,7 @@ namespace Opc.Ua.Security.Certificates.X509
                     }
                 }
 
-                buffer.Append(s_UniformResourceIdentifier);
+                buffer.Append(kUniformResourceIdentifier);
                 buffer.Append("=");
                 buffer.Append(m_uris[ii]);
             }
@@ -106,7 +123,7 @@ namespace Opc.Ua.Security.Certificates.X509
                     }
                 }
 
-                buffer.Append(s_DnsName);
+                buffer.Append(kDnsName);
                 buffer.Append("=");
                 buffer.Append(m_domainNames[ii]);
             }
@@ -125,7 +142,7 @@ namespace Opc.Ua.Security.Certificates.X509
                     }
                 }
 
-                buffer.Append(s_IpAddress);
+                buffer.Append(kIpAddress);
                 buffer.Append("=");
                 buffer.Append(m_ipAddresses[ii]);
             }
@@ -140,7 +157,7 @@ namespace Opc.Ua.Security.Certificates.X509
         {
             if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
             this.Oid = asnEncodedData.Oid;
-            Parse(asnEncodedData.RawData);
+            Decode(asnEncodedData.RawData);
         }
         #endregion
 
@@ -148,18 +165,12 @@ namespace Opc.Ua.Security.Certificates.X509
         /// <summary>
         /// The OID for a Subject Alternate Name extension.
         /// </summary>
-        public static string SubjectAltNameOid
-        {
-            get { return s_SubjectAltNameOid; }
-        }
+        public const string SubjectAltNameOid = "2.5.29.7";
 
         /// <summary>
         /// The OID for a Subject Alternate Name 2 extension.
         /// </summary>
-        public static string SubjectAltName2Oid
-        {
-            get { return s_SubjectAltName2Oid; }
-        }
+        public static string SubjectAltName2Oid = "2.5.29.17";
 
         /// <summary>
         /// Gets the uris.
@@ -238,14 +249,78 @@ namespace Opc.Ua.Security.Certificates.X509
             }
         }
 
+#if NETSTANDARD2_1
+        /// <summary>
+        /// Encode the Subject Alternative name extension.
+        /// </summary>
+        private byte[] Encode()
+        {
+            var sanBuilder = new SubjectAlternativeNameBuilder();
+            foreach (var uri in m_uris)
+            {
+                sanBuilder.AddUri(new Uri(uri));
+            }
+            EncodeGeneralNames(sanBuilder, m_domainNames);
+            EncodeGeneralNames(sanBuilder, m_ipAddresses);
+            var extension = sanBuilder.Build();
+            return extension.RawData;
+        }
+
+        /// <summary>
+        /// Encode a list of general Names in a SAN builder
+        /// </summary>
+        /// <param name="sanBuilder">The subject slternative name builder</param>
+        /// <param name="generalNames">The general Names to add</param>
+        private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IList<string> generalNames)
+        {
+            foreach (string generalName in generalNames)
+            {
+                IPAddress ipAddr;
+                if (String.IsNullOrWhiteSpace(generalName))
+                {
+                    continue;
+                }
+                if (IPAddress.TryParse(generalName, out ipAddr))
+                {
+                    sanBuilder.AddIpAddress(ipAddr);
+                }
+                else
+                {
+                    sanBuilder.AddDnsName(generalName);
+                }
+            }
+        }
+#endif
+
         /// <summary>
         /// Parse certificate for alternate name extension.
         /// </summary>
-        private void Parse(byte[] data)
+        private void Decode(byte[] data)
         {
             if (base.Oid.Value == SubjectAltNameOid ||
                 base.Oid.Value == SubjectAltName2Oid)
             {
+#if TODO
+                AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
+                var akiReader = dataReader?.ReadSequence();
+                if (akiReader != null)
+                {
+                    Asn1Tag keyId = new Asn1Tag(TagClass.ContextSpecific, 0);
+                    m_keyIdentifier = akiReader.ReadOctetString(keyId);
+
+                    AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+                    if (issuerReader != null)
+                    {
+                        Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
+                        m_Issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                    }
+
+                    Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
+                    m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
+                    return;
+                }
+
+#endif
                 Org.BouncyCastle.Asn1.Asn1OctetString altNames = new Org.BouncyCastle.Asn1.DerOctetString(data);
                 var altNamesObjects = Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(altNames);
                 ParseSubjectAltNameUsageExtension(Org.BouncyCastle.Asn1.X509.GeneralNames.GetInstance(altNamesObjects));
@@ -257,20 +332,49 @@ namespace Opc.Ua.Security.Certificates.X509
                     "Certificate uses unknown SubjectAltNameOid.");
             }
         }
+
+        /// <summary>
+        /// Initialize the Subject Alternative name extension.
+        /// </summary>
+        /// <param name="applicationUri">The application Uri</param>
+        /// <param name="generalNames">The general names. DNS Hostnames, IPv4 or IPv6 addresses</param>
+        private void Initialize(string applicationUri, IList<string> generalNames)
+        {
+            List<string> uris = new List<string>();
+            List<string> domainNames = new List<string>();
+            List<string> ipAddresses = new List<string>();
+            uris.Add(applicationUri);
+            foreach (string generalName in generalNames)
+            {
+                IPAddress ipAddr;
+                if (String.IsNullOrWhiteSpace(generalName))
+                {
+                    continue;
+                }
+                if (IPAddress.TryParse(generalName, out ipAddr))
+                {
+                    ipAddresses.Add(generalName);
+                }
+                else
+                {
+                    domainNames.Add(generalName);
+                }
+            }
+            m_uris = new ReadOnlyList<string>(uris);
+            m_domainNames = new ReadOnlyList<string>(domainNames);
+            m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
+        }
         #endregion
 
         #region Private Fields
         /// <summary>
         /// Subject Alternate Name extension string
-        /// definitions see RFC 3280 4.2.1.7
+        /// definitions see RFC 5280 4.2.1.7
         /// </summary>
-        private const string s_UniformResourceIdentifier = "URL";
-        private const string s_DnsName = "DNS Name";
-        private const string s_IpAddress = "IP Address";
-
-        private const string s_SubjectAltNameOid = "2.5.29.7";
-        private const string s_SubjectAltName2Oid = "2.5.29.17";
-        private const string s_FriendlyName = "Subject Alternative Name";
+        private const string kUniformResourceIdentifier = "URL";
+        private const string kDnsName = "DNS Name";
+        private const string kIpAddress = "IP Address";
+        private const string kFriendlyName = "Subject Alternative Name";
         private ReadOnlyList<string> m_uris;
         private ReadOnlyList<string> m_domainNames;
         private ReadOnlyList<string> m_ipAddresses;

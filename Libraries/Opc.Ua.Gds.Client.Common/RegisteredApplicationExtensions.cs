@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Client
 
             if (certificate != null)
             {
-                var names = X509Utils.GetDomainsFromCertficate(certificate);
+                var names = X509Extensions.GetDomainsFromCertficate(certificate);
 
                 if (names != null && names.Count > 0)
                 {
