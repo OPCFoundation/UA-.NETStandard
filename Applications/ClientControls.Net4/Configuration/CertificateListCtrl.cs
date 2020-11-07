@@ -354,7 +354,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // look up domains.
-                IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
+                IList<string> domains = X509Extensions.GetDomainsFromCertficate(certificate);
 
                 StringBuilder buffer = new StringBuilder();
 
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 listItem.SubItems[3].Text = buffer.ToString();
-                listItem.SubItems[4].Text = X509Utils.GetApplicationUriFromCertificate(certificate);
+                listItem.SubItems[4].Text = X509Extensions.GetApplicationUriFromCertificate(certificate);
                 listItem.SubItems[5].Text = String.Format("{0:yyyy-MM-dd}", certificate.NotAfter);
             }
 

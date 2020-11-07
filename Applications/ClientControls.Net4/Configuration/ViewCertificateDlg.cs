@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.Controls
                     }
 
                     // fill in application uri.
-                    string applicationUri = X509Utils.GetApplicationUriFromCertificate(data);
+                    string applicationUri = X509Extensions.GetApplicationUriFromCertificate(data);
 
                     if (!String.IsNullOrEmpty(applicationUri))
                     {
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Controls
                     // fill in domains.
                     buffer = new StringBuilder();
 
-                    foreach (string domain in X509Utils.GetDomainsFromCertficate(data))
+                    foreach (string domain in X509Extensions.GetDomainsFromCertficate(data))
                     {
                         if (buffer.Length > 0)
                         {
