@@ -11,6 +11,9 @@
 */
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+using System;
+using System.Security.Cryptography;
+
 namespace Opc.Ua.Security.Certificates.X509
 {
     /// <summary>
@@ -31,6 +34,52 @@ namespace Opc.Ua.Security.Certificates.X509
         public const string CrlNumber = "2.5.29.20";
         public const string CertificateRevocationReasonCode = "2.5.29.21";
 
+        public const string ServerAuthentication = "1.3.6.1.5.5.7.3.1";
+        public const string ClientAuthentication = "1.3.6.1.5.5.7.3.2";
+
+        public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
+        {
+            if (hashAlgorithm == HashAlgorithmName.SHA1)
+            {
+                return OidConstants.RsaPkcs1Sha1;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA256)
+            {
+                return OidConstants.RsaPkcs1Sha256;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA384)
+            {
+                return OidConstants.RsaPkcs1Sha384;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA512)
+            {
+                return OidConstants.RsaPkcs1Sha512;
+            }
+            else
+            {
+                throw new NotSupportedException($"Signing RSA with hash {hashAlgorithm.Name} is not supported. ");
+            }
+        }
+
+        public static string GetECDSAOid(HashAlgorithmName hashAlgorithm)
+        {
+            if (hashAlgorithm == HashAlgorithmName.SHA256)
+            {
+                return OidConstants.ECDSASHA256SignatureAlgorithm;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA384)
+            {
+                return OidConstants.ECDSASHA384SignatureAlgorithm;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA512)
+            {
+                return OidConstants.ECDSASHA512SignatureAlgorithm;
+            }
+            else
+            {
+                throw new NotSupportedException($"Signing ECDSA with hash {hashAlgorithm.Name} is not supported. ");
+            }
+        }
 
     }
 }

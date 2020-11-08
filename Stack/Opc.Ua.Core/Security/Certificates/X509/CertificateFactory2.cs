@@ -23,16 +23,10 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.X509;
-using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.Pkcs;
-using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Security;
-using Org.BouncyCastle.X509;
 using X509Extensions = Opc.Ua.Security.Certificates.X509.X509Extensions;
 
 namespace Opc.Ua
@@ -58,7 +52,7 @@ namespace Opc.Ua
 
             // Signature Algorithm Identifier
             writer.PushSequence();
-            string signatureAlgorithm = CrlBuilder.GetRSAOid(hashAlgorithmName);
+            string signatureAlgorithm = OidConstants.GetRSAOid(hashAlgorithmName);
             writer.WriteObjectIdentifier(signatureAlgorithm);
             writer.WriteNull();
             writer.PopSequence();
@@ -71,7 +65,12 @@ namespace Opc.Ua
             return writer.Encode();
         }
 
-        static byte[] EncodeECDSASignatureToASNFormat(byte[] signature)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="signature"></param>
+        /// <returns></returns>
+        public static byte[] EncodeECDSASignatureToASNFormat(byte[] signature)
         {
             /*
              * Encode from ieee signature format to ASN1 DER encoded signature format for ecdsa certificates.
@@ -280,7 +279,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    var asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
+                    var asymmetricKeyParameter = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey);
                     var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
                     var parameters = new RSAParameters {
                         Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
@@ -400,8 +399,9 @@ namespace Opc.Ua
                 request.CertificateExtensions.Add(
                     new X509EnhancedKeyUsageExtension(
                         new OidCollection {
-                        new Oid("1.3.6.1.5.5.7.3.1"),
-                        new Oid("1.3.6.1.5.5.7.3.2") }, true));
+                        new Oid(OidConstants.ServerAuthentication),
+                        new Oid(OidConstants.ClientAuthentication)
+                        }, true));
 
                 // Subject Alternative Name
                 request.CertificateExtensions.Add(new X509SubjectAltNameExtension(applicationUri, domainNames));
@@ -677,11 +677,11 @@ namespace Opc.Ua
             // merge all existing revocation list
             if (issuerCrls != null)
             {
-                X509CrlParser parser = new X509CrlParser();
+                Org.BouncyCastle.X509.X509CrlParser parser = new Org.BouncyCastle.X509.X509CrlParser();
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
 
-                    X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
+                    Org.BouncyCastle.X509.X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
                     // TODO: add serialnumbers
                     var crlVersion = new System.Numerics.BigInteger(GetCrlNumber(crl).ToByteArrayUnsigned());
                     if (crlVersion > crlSerialNumber)
@@ -854,7 +854,7 @@ namespace Opc.Ua
 
             using (var cfrg = new CertificateFactoryRandomGenerator())
             {
-                SecureRandom random = new SecureRandom(cfrg);
+                var random = new Org.BouncyCastle.Security.SecureRandom(cfrg);
                 Org.BouncyCastle.X509.X509Certificate x509 = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(certificate.RawData);
                 return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
             }
@@ -890,7 +890,7 @@ namespace Opc.Ua
             using (TextWriter textWriter = new StringWriter())
             {
                 // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                var privateKeyInfo = Org.BouncyCastle.Pkcs.PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
                 string serializedPrivate = Convert.ToBase64String(serializedPrivateBytes);
                 textWriter.WriteLine("-----BEGIN PRIVATE KEY-----");
@@ -1193,29 +1193,7 @@ namespace Opc.Ua
 
             return bytes;
         }
-#if BC
-        /// <summary>
-        /// helper to build alternate name domains list for certs.
-        /// </summary>
-        private static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
-        {
-            // subject alternate name
-            List<GeneralName> generalNames = new List<GeneralName>();
-            for (int i = 0; i < domainNames.Count; i++)
-            {
-                int domainType = GeneralName.OtherName;
-                switch (Uri.CheckHostName(domainNames[i]))
-                {
-                    case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
-                    case UriHostNameType.IPv4:
-                    case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
-                    default: continue;
-                }
-                generalNames.Add(new GeneralName(domainType, domainNames[i]));
-            }
-            return generalNames;
-        }
-#endif
+
         /// <summary>
         /// Get private key parameters from a X509Certificate2.
         /// The private key must be exportable.
@@ -1253,7 +1231,7 @@ namespace Opc.Ua
             BigInteger crlNumber = BigInteger.One;
             try
             {
-                Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
+                Org.BouncyCastle.Asn1.Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
                 if (asn1Object != null)
                 {
                     crlNumber = Org.BouncyCastle.Asn1.X509.CrlNumber.GetInstance(asn1Object).PositiveValue;
@@ -1268,9 +1246,9 @@ namespace Opc.Ua
         /// <summary>
         /// Get the value of an extension oid.
         /// </summary>
-        private static Asn1Object GetExtensionValue(IX509Extension extension, DerObjectIdentifier oid)
+        private static Org.BouncyCastle.Asn1.Asn1Object GetExtensionValue(Org.BouncyCastle.X509.IX509Extension extension, Org.BouncyCastle.Asn1.DerObjectIdentifier oid)
         {
-            Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
+            Org.BouncyCastle.Asn1.Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
             if (asn1Octet != null)
             {
                 return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
@@ -1318,28 +1296,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Return the authority key identifier in the certificate.
-        /// </summary>
-        private static X509AuthorityKeyIdentifierExtension FindAuthorityKeyIdentifier(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                System.Security.Cryptography.X509Certificates.X509Extension extension = certificate.Extensions[ii];
-
-                switch (extension.Oid.Value)
-                {
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                    {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Create a X509Certificate2 with a private key by combining 
         /// a bouncy castle X509Certificate and a private key
         /// </summary>
@@ -1347,22 +1303,22 @@ namespace Opc.Ua
             Org.BouncyCastle.X509.X509Certificate certificate,
             string friendlyName,
             AsymmetricKeyParameter privateKey,
-            SecureRandom random)
+            Org.BouncyCastle.Security.SecureRandom random)
         {
             // create pkcs12 store for cert and private key
             using (MemoryStream pfxData = new MemoryStream())
             {
-                Pkcs12StoreBuilder builder = new Pkcs12StoreBuilder();
+                var builder = new Org.BouncyCastle.Pkcs.Pkcs12StoreBuilder();
                 builder.SetUseDerEncoding(true);
-                Pkcs12Store pkcsStore = builder.Build();
-                X509CertificateEntry[] chain = new X509CertificateEntry[1];
+                Org.BouncyCastle.Pkcs.Pkcs12Store pkcsStore = builder.Build();
+                Org.BouncyCastle.Pkcs.X509CertificateEntry[] chain = new Org.BouncyCastle.Pkcs.X509CertificateEntry[1];
                 string passcode = Guid.NewGuid().ToString();
-                chain[0] = new X509CertificateEntry(certificate);
+                chain[0] = new Org.BouncyCastle.Pkcs.X509CertificateEntry(certificate);
                 if (string.IsNullOrEmpty(friendlyName))
                 {
                     friendlyName = GetCertificateCommonName(certificate);
                 }
-                pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
+                pkcsStore.SetKeyEntry(friendlyName, new Org.BouncyCastle.Pkcs.AsymmetricKeyEntry(privateKey), chain);
                 pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
                 // merge into X509Certificate2
@@ -1375,7 +1331,7 @@ namespace Opc.Ua
         /// </summary>
         private static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
         {
-            var subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+            var subjectDN = certificate.SubjectDN.GetValueList(Org.BouncyCastle.Asn1.X509.X509Name.CN);
             if (subjectDN.Count > 0)
             {
                 return subjectDN[0].ToString();

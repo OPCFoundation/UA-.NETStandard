@@ -36,7 +36,6 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.X509;
-using Org.BouncyCastle.X509.Extension;
 
 #if !NETSTANDARD2_1
 namespace Opc.Ua
@@ -690,7 +689,7 @@ namespace Opc.Ua.Legacy
 
                 crlGen.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier,
                                     false,
-                                    new AuthorityKeyIdentifierStructure(bcCertCA));
+                                    new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(bcCertCA));
 
                 // set new serial number
                 crlSerialNumber = crlSerialNumber.Add(BigInteger.One);
@@ -1196,7 +1195,7 @@ namespace Opc.Ua.Legacy
             Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
             if (asn1Octet != null)
             {
-                return X509ExtensionUtilities.FromExtensionValue(asn1Octet);
+                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
             }
             return null;
         }

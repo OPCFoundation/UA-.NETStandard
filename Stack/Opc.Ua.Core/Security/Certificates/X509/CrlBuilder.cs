@@ -20,9 +20,6 @@ using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Security.Certificates
 {
-
-
-
     /// <summary>
     /// CRL Reason codes.
     /// </summary>
@@ -68,50 +65,6 @@ namespace Opc.Ua.Security.Certificates
         public DateTime NextUpdate { get; set; }
 
         public IList<X509Extension> CrlExtensions { get; private set; }
-
-        public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
-        {
-            if (hashAlgorithm == HashAlgorithmName.SHA1)
-            {
-                return OidConstants.RsaPkcs1Sha1;
-            }
-            else if (hashAlgorithm == HashAlgorithmName.SHA256)
-            {
-                return OidConstants.RsaPkcs1Sha256;
-            }
-            else if (hashAlgorithm == HashAlgorithmName.SHA384)
-            {
-                return OidConstants.RsaPkcs1Sha384;
-            }
-            else if (hashAlgorithm == HashAlgorithmName.SHA512)
-            {
-                return OidConstants.RsaPkcs1Sha512;
-            }
-            else
-            {
-                throw new NotSupportedException($"Signing RSA with hash {hashAlgorithm.Name} is not supported. ");
-            }
-        }
-
-        public static string GetECDSAOid(HashAlgorithmName hashAlgorithm)
-        {
-            if (hashAlgorithm == HashAlgorithmName.SHA256)
-            {
-                return OidConstants.ECDSASHA256SignatureAlgorithm;
-            }
-            else if (hashAlgorithm == HashAlgorithmName.SHA384)
-            {
-                return OidConstants.ECDSASHA384SignatureAlgorithm;
-            }
-            else if (hashAlgorithm == HashAlgorithmName.SHA512)
-            {
-                return OidConstants.ECDSASHA512SignatureAlgorithm;
-            }
-            else
-            {
-                throw new NotSupportedException($"Signing ECDSA with hash {hashAlgorithm.Name} is not supported. ");
-            }
-        }
 
         public CrlBuilder(X500DistinguishedName issuerSubjectName, string[] serialNumbers, HashAlgorithmName hashAlgorithmName)
         {
@@ -163,7 +116,7 @@ namespace Opc.Ua.Security.Certificates
 
                 // Signature Algorithm Identifier
                 crlWriter.PushSequence();
-                string signatureAlgorithm = GetRSAOid(this.HashAlgorithmName);
+                string signatureAlgorithm = OidConstants.GetRSAOid(this.HashAlgorithmName);
                 crlWriter.WriteObjectIdentifier(signatureAlgorithm);
                 crlWriter.WriteNull();
 
