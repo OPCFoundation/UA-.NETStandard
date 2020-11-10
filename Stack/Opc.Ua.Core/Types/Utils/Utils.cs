@@ -1322,7 +1322,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-        public static string ToHexString(byte[] buffer)
+        public static string ToHexString(byte[] buffer, bool bigEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
@@ -1331,9 +1331,19 @@ namespace Opc.Ua
 
             StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            for (int ii = 0; ii < buffer.Length; ii++)
+            if (bigEndian)
             {
-                builder.AppendFormat("{0:X2}", buffer[ii]);
+                for (int ii = buffer.Length-1; ii >= 0; ii--)
+                {
+                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                }
+            }
+            else
+            {
+                for (int ii = 0; ii < buffer.Length; ii++)
+                {
+                    builder.AppendFormat("{0:X2}", buffer[ii]);
+                }
             }
 
             return builder.ToString();

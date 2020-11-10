@@ -164,22 +164,33 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify CRL for CA signed app certs.
         /// </summary>
         [Test]
-        public void VerifyX509AuthorityKeyIndentifierExtension()
+        public void VerifyX509AuthorityKeyIdentifierExtension()
         {
-            var subject = "CN=CA Test Cert";
-            var cert = CertificateFactory.CreateCertificate(
-                null, null, null,
-                null, null, subject,
-                null, CertificateFactory.DefaultKeySize,
-                DateTime.UtcNow, 25 * 12,
-                CertificateFactory.DefaultHashSize);
-
-            // TODO
-
-
-
+            var authorityName = new X500DistinguishedName("CN=Test,O=OPC Foundation,DC=localhost");
+            byte[] serialNumber = new byte[] { 9, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+            byte[] subjectKeyIdentifier = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+            var aki = new X509AuthorityKeyIdentifierExtension(authorityName, serialNumber, subjectKeyIdentifier);
+            Assert.NotNull(aki);
+            Assert.AreEqual(authorityName, aki.Issuer);
+            Assert.AreEqual(serialNumber, aki.GetSerialNumber());
+            Assert.AreEqual(Utils.ToHexString(serialNumber, true), aki.SerialNumber);
+            Assert.AreEqual(subjectKeyIdentifier, aki.GetKeyIdentifier());
+            var akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid, aki.RawData, aki.Critical);
+            Assert.AreEqual(aki.RawData, akidecoded.RawData);
+            Assert.AreEqual(authorityName.ToString(), akidecoded.Issuer.ToString());
+            Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
+            Assert.AreEqual(Utils.ToHexString(serialNumber, true), akidecoded.SerialNumber);
+            Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
+            akidecoded = new X509AuthorityKeyIdentifierExtension(aki.Oid.Value, aki.RawData, aki.Critical);
+            Assert.AreEqual(aki.RawData, akidecoded.RawData);
+            Assert.AreEqual(authorityName.ToString(), akidecoded.Issuer.ToString());
+            Assert.AreEqual(serialNumber, akidecoded.GetSerialNumber());
+            Assert.AreEqual(Utils.ToHexString(serialNumber, true), akidecoded.SerialNumber);
+            Assert.AreEqual(subjectKeyIdentifier, akidecoded.GetKeyIdentifier());
         }
 
+
+        // TODO: finalize
 #if NETCOREAPP3_1
         /// <summary>
         /// Verify CRL for CA signed app certs.
@@ -260,6 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public static void VerifySelfSignedApplicationCert(ApplicationTestData testApp, X509Certificate2 cert)
         {
             TestContext.Out.WriteLine($"{nameof(VerifySelfSignedApplicationCert)}:");
+            File.WriteAllBytes("d:\\VerifySelfSignedApplicationCert.der", cert.RawData);
             Assert.NotNull(cert);
             TestContext.Out.WriteLine(cert);
             Assert.False(cert.HasPrivateKey);
@@ -311,6 +323,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(cert);
             TestContext.Out.WriteLine(subjectKeyId.Format(true));
             Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyIdentifier);
+            Assert.AreEqual(cert.GetSerialNumber(), authority.GetSerialNumber());
             Assert.AreEqual(cert.SerialNumber, authority.SerialNumber);
 
             X509SubjectAltNameExtension subjectAlternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(cert);
@@ -324,7 +337,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
             var applicationUri = X509Extensions.GetApplicationUriFromCertificate(cert);
-            TestContext.Out.WriteLine("ApplicationUri:");
+            TestContext.Out.WriteLine("ApplicationUri: ");
             TestContext.Out.WriteLine(applicationUri);
             Assert.AreEqual(testApp.ApplicationUri, applicationUri);
         }
@@ -332,6 +345,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public static void VerifyCACert(X509Certificate2 cert, string subject, int pathLengthConstraint)
         {
             TestContext.Out.WriteLine($"{nameof(VerifyCACert)}:");
+            File.WriteAllBytes("d:\\VerifyCACert.der", cert.RawData);
             Assert.NotNull(cert);
             TestContext.Out.WriteLine(cert);
             Assert.False(cert.HasPrivateKey);
@@ -378,15 +392,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(authority);
             TestContext.Out.WriteLine(authority.Format(true));
             Assert.NotNull(authority.SerialNumber);
+            Assert.NotNull(authority.GetSerialNumber());
             Assert.NotNull(authority.KeyIdentifier);
             Assert.NotNull(authority.Issuer);
             Assert.NotNull(authority.ToString());
+            Assert.AreEqual(authority.SerialNumber, Utils.ToHexString(authority.GetSerialNumber(), true));
 
             // verify authority key in signed cert
             X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(cert);
             TestContext.Out.WriteLine(subjectKeyId.Format(true));
             Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyIdentifier);
             Assert.AreEqual(cert.SerialNumber, authority.SerialNumber);
+            Assert.AreEqual(cert.GetSerialNumber(), authority.GetSerialNumber());
 
             X509SubjectAltNameExtension subjectAlternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(cert);
             Assert.Null(subjectAlternateName);

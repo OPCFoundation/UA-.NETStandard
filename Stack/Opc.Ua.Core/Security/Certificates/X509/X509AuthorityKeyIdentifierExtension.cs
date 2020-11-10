@@ -1,14 +1,10 @@
-/* Copyright (c) 1996-2015, OPC Foundation. All rights reserved.
-
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
-
    RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-
    GNU General Public License as published by the Free Software Foundation;
    version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-
    This source code is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -147,7 +143,7 @@ namespace Opc.Ua.Security.Certificates.X509
 
                 buffer.Append(kSerialNumber);
                 buffer.Append("=");
-                buffer.Append(Utils.ToHexString(m_serialNumber));
+                buffer.Append(Utils.ToHexString(m_serialNumber, true));
             }
 
             return buffer.ToString();
@@ -177,9 +173,14 @@ namespace Opc.Ua.Security.Certificates.X509
         public const string AuthorityKeyIdentifier2Oid = "2.5.29.35";
 
         /// <summary>
-        /// The identifier for the key.
+        /// The identifier for the key as a little endian hexadecimal string.
         /// </summary>
         public string KeyIdentifier => Utils.ToHexString(m_keyIdentifier);
+
+        /// <summary>
+        /// The identifier for the key as a byte array.
+        /// </summary>
+        public byte[] GetKeyIdentifier() => m_keyIdentifier;
 
         /// <summary>
         /// A list of distinguished names for the issuer.
@@ -189,7 +190,12 @@ namespace Opc.Ua.Security.Certificates.X509
         /// <summary>
         /// The serial number of the authority key as a big endian hexadecimal string.
         /// </summary>
-        public string SerialNumber => Utils.ToHexString(m_serialNumber);
+        public string SerialNumber => Utils.ToHexString(m_serialNumber, true);
+
+        /// <summary>
+        /// The serial number of the authority key as a byte array in little endian order.
+        /// </summary>
+        public byte[] GetSerialNumber() => m_serialNumber;
         #endregion
 
         #region Private Methods
@@ -221,7 +227,11 @@ namespace Opc.Ua.Security.Certificates.X509
             if (m_serialNumber != null)
             {
                 Asn1Tag issuerSerialTag = new Asn1Tag(TagClass.ContextSpecific, 2);
+#if NETSTANDARD2_1
                 System.Numerics.BigInteger issuerSerial = new System.Numerics.BigInteger(m_serialNumber);
+#else
+                System.Numerics.BigInteger issuerSerial = new System.Numerics.BigInteger(m_serialNumber);
+#endif
                 writer.WriteInteger(issuerSerial, issuerSerialTag);
             }
 
@@ -250,7 +260,12 @@ namespace Opc.Ua.Security.Certificates.X509
                     }
 
                     Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
+#if NETSTANDARD2_1
                     m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
+#else
+                    m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
+                    //Array.Reverse(m_serialNumber);
+#endif
                     return;
                 }
             }

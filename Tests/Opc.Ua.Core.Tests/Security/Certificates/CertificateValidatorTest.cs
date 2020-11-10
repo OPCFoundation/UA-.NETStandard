@@ -705,6 +705,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 null, CertificateFactory.DefaultKeySize,
                 new DateTime(2010, 1, 1), 12,
                 CertificateFactory.DefaultHashSize);
+            TestContext.Out.WriteLine($"{cert}:");
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);

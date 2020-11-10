@@ -151,7 +151,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-        #region Public Constants
+#region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -170,9 +170,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -302,7 +302,7 @@ namespace Opc.Ua
                 }
             }
 
-            int serialNumberLength = 20;
+            int serialNumberLength = isCA ? 20 : 10;
 
             // new serial number
             byte[] serialNumber = new byte[serialNumberLength];
@@ -363,7 +363,7 @@ namespace Opc.Ua
             }
             else
             {
-                authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(subjectDN, serialNumber, Utils.FromHexString(ski.SubjectKeyIdentifier));
+                authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(subjectDN, serialNumber.Reverse().ToArray(), Utils.FromHexString(ski.SubjectKeyIdentifier));
             }
             request.CertificateExtensions.Add(authorityKeyIdentifier);
 
@@ -904,9 +904,9 @@ namespace Opc.Ua
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1357,7 +1357,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
