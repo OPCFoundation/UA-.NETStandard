@@ -227,11 +227,7 @@ namespace Opc.Ua.Security.Certificates.X509
             if (m_serialNumber != null)
             {
                 Asn1Tag issuerSerialTag = new Asn1Tag(TagClass.ContextSpecific, 2);
-#if NETSTANDARD2_1
                 System.Numerics.BigInteger issuerSerial = new System.Numerics.BigInteger(m_serialNumber);
-#else
-                System.Numerics.BigInteger issuerSerial = new System.Numerics.BigInteger(m_serialNumber);
-#endif
                 writer.WriteInteger(issuerSerial, issuerSerialTag);
             }
 
@@ -260,12 +256,7 @@ namespace Opc.Ua.Security.Certificates.X509
                     }
 
                     Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
-#if NETSTANDARD2_1
                     m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
-#else
-                    m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
-                    //Array.Reverse(m_serialNumber);
-#endif
                     return;
                 }
             }

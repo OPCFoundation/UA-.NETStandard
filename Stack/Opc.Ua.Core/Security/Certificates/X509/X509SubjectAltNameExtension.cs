@@ -16,6 +16,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -24,8 +25,39 @@ using System.Text;
 namespace Opc.Ua.Security.Certificates.X509
 {
     /// <summary>
-    /// Stores the subject alternate name extension.
+    /// The subject alternate name extension.
     /// </summary>
+    /// <remarks>
+    /// 
+    /// id-ce-subjectAltName OBJECT IDENTIFIER::=  { id-ce 17 }
+    /// 
+    /// SubjectAltName::= GeneralNames
+    /// 
+    ///    GeneralNames::= SEQUENCE SIZE(1..MAX) OF GeneralName
+    /// 
+    ///    GeneralName ::= CHOICE {
+    ///        otherName                       [0] OtherName,
+    ///        rfc822Name[1]                   IA5String,
+    ///        dNSName[2]                      IA5String,
+    ///        x400Address[3]                  ORAddress,
+    ///        directoryName[4]                Name,
+    ///        ediPartyName[5]                 EDIPartyName,
+    ///        uniformResourceIdentifier[6]    IA5String,
+    ///        iPAddress[7]                    OCTET STRING,
+    ///        registeredID[8]                 OBJECT IDENTIFIER
+    ///        }
+    /// 
+    ///    OtherName::= SEQUENCE {
+    ///        type-id                         OBJECT IDENTIFIER,
+    ///        value[0] EXPLICIT ANY DEFINED BY type - id
+    ///        }
+    /// 
+    ///    EDIPartyName::= SEQUENCE {
+    ///        nameAssigner[0]                 DirectoryString OPTIONAL,
+    ///        partyName[1]                    DirectoryString
+    ///        }
+    /// 
+    /// </remarks>
     public class X509SubjectAltNameExtension : X509Extension
     {
         #region Constructors
@@ -46,7 +78,7 @@ namespace Opc.Ua.Security.Certificates.X509
         }
 
         /// <summary>
-        /// Creates an extension from ASN.1 encoded data.
+        /// Creates an extension from an Oid and ASN.1 encoded raw data.
         /// </summary>
         public X509SubjectAltNameExtension(string oid, byte[] rawData, bool critical)
         :
@@ -202,36 +234,6 @@ namespace Opc.Ua.Security.Certificates.X509
 
         #region Private Methods
         /// <summary>
-        /// Extract URI, DNS and IP from Subject Alternative Name.
-        /// </summary>
-        private void ParseSubjectAltNameUsageExtension(Org.BouncyCastle.Asn1.X509.GeneralNames generalNames)
-        {
-            List<string> uris = new List<string>();
-            List<string> domainNames = new List<string>();
-            List<string> ipAddresses = new List<string>();
-            foreach (var generalName in generalNames.GetNames())
-            {
-                switch (generalName.TagNo)
-                {
-                    case Org.BouncyCastle.Asn1.X509.GeneralName.UniformResourceIdentifier:
-                        uris.Add(generalName.Name.ToString());
-                        break;
-                    case Org.BouncyCastle.Asn1.X509.GeneralName.DnsName:
-                        domainNames.Add(generalName.Name.ToString());
-                        break;
-                    case Org.BouncyCastle.Asn1.X509.GeneralName.IPAddress:
-                        ipAddresses.Add(IPAddressToString(Org.BouncyCastle.Asn1.DerOctetString.GetInstance(generalName.Name).GetOctets()));
-                        break;
-                    default:
-                        break;
-                }
-            }
-            m_uris = new ReadOnlyList<string>(uris);
-            m_domainNames = new ReadOnlyList<string>(domainNames);
-            m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
-        }
-
-        /// <summary>
         /// Create a normalized IPv4 or IPv6 address from a 4 byte or 16 byte array.
         /// </summary>
         private string IPAddressToString(byte[] encodedIPAddress)
@@ -267,9 +269,9 @@ namespace Opc.Ua.Security.Certificates.X509
         }
 
         /// <summary>
-        /// Encode a list of general Names in a SAN builder
+        /// Encode a list of general Names in a SAN builder.
         /// </summary>
-        /// <param name="sanBuilder">The subject slternative name builder</param>
+        /// <param name="sanBuilder">The subject alternative name builder</param>
         /// <param name="generalNames">The general Names to add</param>
         private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IList<string> generalNames)
         {
@@ -293,37 +295,65 @@ namespace Opc.Ua.Security.Certificates.X509
 #endif
 
         /// <summary>
-        /// Parse certificate for alternate name extension.
+        /// Decode URI, DNS and IP from Subject Alternative Name.
         /// </summary>
+        /// <remarks>
+        /// 
+        /// </remarks>
         private void Decode(byte[] data)
         {
             if (base.Oid.Value == SubjectAltNameOid ||
                 base.Oid.Value == SubjectAltName2Oid)
             {
-#if TODO
-                AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
-                var akiReader = dataReader?.ReadSequence();
-                if (akiReader != null)
+                try
                 {
-                    Asn1Tag keyId = new Asn1Tag(TagClass.ContextSpecific, 0);
-                    m_keyIdentifier = akiReader.ReadOctetString(keyId);
-
-                    AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
-                    if (issuerReader != null)
+                    List<string> uris = new List<string>();
+                    List<string> domainNames = new List<string>();
+                    List<string> ipAddresses = new List<string>();
+                    Asn1Tag uriTag = new Asn1Tag(TagClass.ContextSpecific, 6);
+                    Asn1Tag dnsTag = new Asn1Tag(TagClass.ContextSpecific, 2);
+                    Asn1Tag ipTag = new Asn1Tag(TagClass.ContextSpecific, 7);
+                    AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
+                    var akiReader = dataReader?.ReadSequence();
+                    if (akiReader != null)
                     {
-                        Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
-                        m_Issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                        Asn1Tag peekTag;
+                        while (akiReader.HasData)
+                        {
+                            peekTag = akiReader.PeekTag();
+                            if (peekTag == uriTag)
+                            {
+                                var uri = akiReader.ReadCharacterString(UniversalTagNumber.IA5String,
+                                    new Asn1Tag(TagClass.ContextSpecific, 6));
+                                uris.Add(uri);
+                            }
+                            else if (peekTag == dnsTag)
+                            {
+                                var dnsName = akiReader.ReadCharacterString(UniversalTagNumber.IA5String,
+                                    new Asn1Tag(TagClass.ContextSpecific, 2));
+                                domainNames.Add(dnsName);
+                            }
+                            else if (peekTag == ipTag)
+                            {
+                                var ip = akiReader.ReadOctetString(new Asn1Tag(TagClass.ContextSpecific, 7));
+                                ipAddresses.Add(IPAddressToString(ip));
+                            }
+                            else  // skip over
+                            {
+                                akiReader.ReadEncodedValue();
+                            }
+                        }
                     }
-
-                    Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
-                    m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
-                    return;
+                    m_uris = new ReadOnlyList<string>(uris);
+                    m_domainNames = new ReadOnlyList<string>(domainNames);
+                    m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
                 }
-
-#endif
-                Org.BouncyCastle.Asn1.Asn1OctetString altNames = new Org.BouncyCastle.Asn1.DerOctetString(data);
-                var altNamesObjects = Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(altNames);
-                ParseSubjectAltNameUsageExtension(Org.BouncyCastle.Asn1.X509.GeneralNames.GetInstance(altNamesObjects));
+                catch (AsnContentException e)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Certificate has invalid ASN content in the SubjectAltName extension.");
+                }
             }
             else
             {
