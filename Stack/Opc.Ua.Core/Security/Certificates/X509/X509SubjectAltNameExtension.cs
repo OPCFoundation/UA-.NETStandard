@@ -317,10 +317,9 @@ namespace Opc.Ua.Security.Certificates.X509
                     var akiReader = dataReader?.ReadSequence();
                     if (akiReader != null)
                     {
-                        Asn1Tag peekTag;
                         while (akiReader.HasData)
                         {
-                            peekTag = akiReader.PeekTag();
+                            Asn1Tag peekTag = akiReader.PeekTag();
                             if (peekTag == uriTag)
                             {
                                 var uri = akiReader.ReadCharacterString(UniversalTagNumber.IA5String,

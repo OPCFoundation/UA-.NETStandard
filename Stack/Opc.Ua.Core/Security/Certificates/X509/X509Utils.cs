@@ -40,8 +40,6 @@ namespace Opc.Ua.Security.Certificates.X509
             }
         }
 
-
-
         /// <summary>
         /// Compares two distinguished names.
         /// </summary>
@@ -331,7 +329,7 @@ namespace Opc.Ua.Security.Certificates.X509
             RSA rsaPublicKey,
             RSA rsaPrivateKey)
         {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+            Test.RandomSource randomSource = new Test.RandomSource();
             int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
             byte[] testBlock = new byte[blockSize];
             randomSource.NextBytes(testBlock, 0, blockSize);
@@ -355,7 +353,5 @@ namespace Opc.Ua.Security.Certificates.X509
             byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
         }
-
-
     }
 }

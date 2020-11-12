@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
@@ -127,6 +128,69 @@ namespace Opc.Ua.Security.Certificates.X509
                 }
                 writer.PopSequence();
                 return new X509Extension("1.3.6.1.5.5.7.1.1", writer.Encode(), false);
+            }
+        }
+
+#if NETSTANDARD2_1
+        /// <summary>
+        /// Build the Subject Alternative name extension (for OPC UA application certs)
+        /// </summary>
+        /// <param name="applicationUri">The application Uri</param>
+        /// <param name="domainNames">The domain names. DNS Hostnames, IPv4 or IPv6 addresses</param>
+        public static X509Extension BuildSubjectAlternativeName(string applicationUri, IList<string> domainNames)
+        {
+            var sanBuilder = new SubjectAlternativeNameBuilder();
+            sanBuilder.AddUri(new Uri(applicationUri));
+            foreach (string domainName in domainNames)
+            {
+                IPAddress ipAddr;
+                if (String.IsNullOrWhiteSpace(domainName))
+                {
+                    continue;
+                }
+                if (IPAddress.TryParse(domainName, out ipAddr))
+                {
+                    sanBuilder.AddIpAddress(ipAddr);
+                }
+                else
+                {
+                    sanBuilder.AddDnsName(domainName);
+                }
+            }
+
+            return sanBuilder.Build();
+        }
+#endif
+
+        /// <summary>
+        /// Build the CRL Distribution Point extension.
+        /// </summary>
+        /// <param name="distributionPoint">The CRL distribution point</param>
+        public static X509Extension BuildX509CRLDistributionPoints(
+            string distributionPoint
+            )
+        {
+            var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
+            Asn1Tag distributionPointChoice = context0;
+            Asn1Tag fullNameChoice = context0;
+            Asn1Tag generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
+
+            {
+                AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+                writer.PushSequence();
+                writer.PushSequence();
+                writer.PushSequence(distributionPointChoice);
+                writer.PushSequence(fullNameChoice);
+                writer.WriteCharacterString(
+                    UniversalTagNumber.IA5String,
+                    distributionPoint,
+                    generalNameUriChoice
+                    );
+                writer.PopSequence(fullNameChoice);
+                writer.PopSequence(distributionPointChoice);
+                writer.PopSequence();
+                writer.PopSequence();
+                return new X509Extension("2.5.29.31", writer.Encode(), false);
             }
         }
 
