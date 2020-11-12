@@ -724,15 +724,8 @@ namespace Opc.Ua.Legacy
                     new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
 
                 Asn1Set attributes = null;
-                X509SubjectAltNameExtension alternateName = null;
-                foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in certificate.Extensions)
-                {
-                    if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                    {
-                        alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
-                        break;
-                    }
-                }
+                var san = Security.Certificates.X509.X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+                X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 domainNames = domainNames ?? new List<String>();
                 if (alternateName != null)

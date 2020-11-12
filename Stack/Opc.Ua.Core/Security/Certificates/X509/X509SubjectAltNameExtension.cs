@@ -298,7 +298,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// Decode URI, DNS and IP from Subject Alternative Name.
         /// </summary>
         /// <remarks>
-        /// 
+        /// Only general names relevant for Opc.Ua are decoded.
         /// </remarks>
         private void Decode(byte[] data)
         {
@@ -348,7 +348,7 @@ namespace Opc.Ua.Security.Certificates.X509
                     m_domainNames = new ReadOnlyList<string>(domainNames);
                     m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
                 }
-                catch (AsnContentException e)
+                catch (AsnContentException)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,

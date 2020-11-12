@@ -151,7 +151,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-#region Public Constants
+        #region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -170,9 +170,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -277,20 +277,20 @@ namespace Opc.Ua
             RSA rsaPublicKey = null;
             if (publicKey != null)
             {
+                int bytes;
                 try
                 {
-                    var asymmetricKeyParameter = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey);
-                    var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
-                    var parameters = new RSAParameters {
-                        Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
-                        Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
-                    };
                     rsaPublicKey = RSA.Create();
-                    rsaPublicKey.ImportParameters(parameters);
+                    rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
                 }
-                catch
+                catch (Exception e)
                 {
-                    rsaPublicKey = null;
+                    throw new ArgumentException("Failed to decode the public key.", e);
+                }
+
+                if (publicKey.Length != bytes)
+                {
+                    throw new ArgumentException("Decoded the public key but extra bytes were found.");
                 }
             }
 
@@ -298,7 +298,7 @@ namespace Opc.Ua
             {
                 if (rsaPublicKey.KeySize != keySize)
                 {
-                    throw new NotSupportedException(String.Format("Public key size {0} does not match expected key size {1}", rsaPublicKey.KeySize, keySize));
+                    throw new ArgumentException($"Public key size {rsaPublicKey.KeySize} does not match expected key size {keySize}");
                 }
             }
 
