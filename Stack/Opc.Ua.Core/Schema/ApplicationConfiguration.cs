@@ -44,6 +44,7 @@ namespace Opc.Ua
             m_transportConfigurations = new TransportConfigurationCollection();
             m_disableHiResClock = true;
             m_properties = new Dictionary<string, object>();
+            m_certificateValidator = new CertificateValidator();
         }
 
         /// <summary>
