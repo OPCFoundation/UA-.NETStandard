@@ -22,8 +22,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.X509;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
@@ -40,7 +38,7 @@ namespace Opc.Ua
         /// <param name="signature">signature of the encoded data.</param>
         /// <param name="hashAlgorithmName"></param>
         /// <returns>X509 ASN format of EncodedData+SignatureOID+Signature bytes.</returns>
-        public static byte[] AddSignature(byte[] encodedData, byte[] signature, HashAlgorithmName hashAlgorithmName)
+        public static byte[] AddRSASignature(byte[] encodedData, byte[] signature, HashAlgorithmName hashAlgorithmName)
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
 
@@ -71,11 +69,11 @@ namespace Opc.Ua
         /// <param name="signature"></param>
         public static byte[] EncodeECDSASignatureToASNFormat(byte[] signature)
         {
-            /*
-             * Encode from ieee signature format to ASN1 DER encoded signature format for ecdsa certificates.
-             * ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
-             * https://www.ietf.org/rfc/rfc5480.txt
-             */
+            
+            // Encode from ieee signature format to ASN1 DER encoded 
+            // signature format for ecdsa certificates.
+            // ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
+            // https://www.ietf.org/rfc/rfc5480.txt
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             var tag = Asn1Tag.Sequence;
             writer.PushSequence(tag);
@@ -343,8 +341,8 @@ namespace Opc.Ua
                 request.CertificateExtensions.Add(
                     new X509EnhancedKeyUsageExtension(
                         new OidCollection {
-                        new Oid(OidConstants.ServerAuthentication),
-                        new Oid(OidConstants.ClientAuthentication)
+                            new Oid(OidConstants.ServerAuthentication),
+                            new Oid(OidConstants.ClientAuthentication)
                         }, true));
 
                 // Subject Alternative Name
@@ -371,7 +369,7 @@ namespace Opc.Ua
                 }
             }
 
-            X509Certificate2 certificate = null;
+            X509Certificate2 certificate;
             X509Certificate2 signedCert;
             if (issuerCAKeyCert != null)
             {
@@ -645,16 +643,17 @@ namespace Opc.Ua
             }
 
             var hashAlgorithmName = HashAlgorithmName.SHA256;
-            CrlBuilder cRLBuilder = new CrlBuilder(issuerCertificate.SubjectName, serialNumbers.ToArray(), hashAlgorithmName);
-            cRLBuilder.NextUpdate = nextUpdate;
-            cRLBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate));
-            cRLBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            byte[] crlRawData = cRLBuilder.GetEncoded();
+            CrlBuilder crlBuilder = new CrlBuilder(issuerCertificate.SubjectName, serialNumbers.ToArray(), hashAlgorithmName);
+            crlBuilder.ThisUpdate = thisUpdate;
+            crlBuilder.NextUpdate = nextUpdate;
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate));
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(crlSerialNumber + 1));
+            byte[] crlRawData = crlBuilder.GetEncoded();
             using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
                 byte[] signature = generator.SignData(crlRawData, hashAlgorithmName);
-                byte[] crlWithSignature = SignatureBuilder.AddSignature(crlRawData, signature, hashAlgorithmName);
+                byte[] crlWithSignature = SignatureBuilder.AddRSASignature(crlRawData, signature, hashAlgorithmName);
                 return new X509CRL(crlWithSignature);
             }
         }
@@ -768,17 +767,17 @@ namespace Opc.Ua
                     var pemObject = pemReader.ReadObject();
                     while (pemObject != null)
                     {
-                        RsaPrivateCrtKeyParameters privateKey = null;
-                        var keypair = pemObject as AsymmetricCipherKeyPair;
+                        Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters privateKey = null;
+                        var keypair = pemObject as Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair;
                         if (keypair != null)
                         {
-                            privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
+                            privateKey = keypair.Private as Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters;
                             break;
                         }
 
                         if (privateKey == null)
                         {
-                            privateKey = pemObject as RsaPrivateCrtKeyParameters;
+                            privateKey = pemObject as Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters;
                         }
 
                         if (privateKey != null)
@@ -811,18 +810,28 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
         {
-            Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(certificate.RawData);
+            return EncodeAsPem(certificate.RawData, "CERTIFICATE");
+        }
 
-            using (var memoryStream = new MemoryStream())
+        /// <summary>
+        /// Returns a byte array containing the public key in PEM format.
+        /// </summary>
+        public static byte[] ExportPublicKeyAsPEM(
+            X509Certificate2 certificate
+            )
+        {
+            byte[] exportedPublicKey = null;
+            RSA rsaPublicKey = null;
+            try
             {
-                using (var textWriter = new StreamWriter(memoryStream))
-                {
-                    var pemWriter = new PemWriter(textWriter);
-                    pemWriter.WriteObject(bcCert);
-                    pemWriter.Writer.Flush();
-                    return memoryStream.ToArray();
-                }
+                rsaPublicKey = certificate.GetRSAPublicKey();
+                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
             }
+            finally
+            {
+                RsaUtils.RSADispose(rsaPublicKey);
+            }
+            return EncodeAsPem(exportedPublicKey, "PUBLIC KEY");
         }
 
         /// <summary>
@@ -848,25 +857,30 @@ namespace Opc.Ua
             {
                 RsaUtils.RSADispose(rsaPrivateKey);
             }
-            string base64 = Convert.ToBase64String(exportedPkcs8PrivateKey);
-            using (TextWriter textWriter = new StringWriter())
-            {
-                string keyString = String.IsNullOrEmpty(password) ?
-                    " PRIVATE KEY-----" : " ENCRYPTED PRIVATE KEY-----";
-                textWriter.WriteLine("-----BEGIN{0}", keyString);
-                while (base64.Length > 64)
-                {
-                    textWriter.WriteLine(base64.Substring(0, 64));
-                    base64 = base64.Substring(64);
-                }
-                textWriter.WriteLine(base64);
-                textWriter.WriteLine("-----END{0}", keyString);
-                return Encoding.ASCII.GetBytes(textWriter.ToString());
-            }
+            return EncodeAsPem(exportedPkcs8PrivateKey,
+                String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
         #endregion
 
         #region Private Methods
+        private static byte[] EncodeAsPem(byte[] content, string contentType)
+        {
+            const int LineLength = 64;
+            string base64 = Convert.ToBase64String(content);
+            using (TextWriter textWriter = new StringWriter())
+            {
+                textWriter.WriteLine("-----BEGIN {0}-----", contentType);
+                while (base64.Length > LineLength)
+                {
+                    textWriter.WriteLine(base64.Substring(0, LineLength));
+                    base64 = base64.Substring(LineLength);
+                }
+                textWriter.WriteLine(base64);
+                textWriter.WriteLine("-----END {0}-----", contentType);
+                return Encoding.ASCII.GetBytes(textWriter.ToString());
+            }
+        }
+
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -1051,40 +1065,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get private key parameters from a X509Certificate2.
-        /// The private key must be exportable.
-        /// </summary>
-        private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
-        {
-            RSA rsa = null;
-            try
-            {
-                // try to get signing/private key from certificate passed in
-                rsa = certificate.GetRSAPrivateKey();
-                RSAParameters rsaParams = rsa.ExportParameters(true);
-                RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent),
-                    new BigInteger(1, rsaParams.D),
-                    new BigInteger(1, rsaParams.P),
-                    new BigInteger(1, rsaParams.Q),
-                    new BigInteger(1, rsaParams.DP),
-                    new BigInteger(1, rsaParams.DQ),
-                    new BigInteger(1, rsaParams.InverseQ));
-                return keyParams;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
-        }
-
-        /// <summary>
         /// Read the Crl number from a X509Crl.
         /// </summary>
         public static BigInteger GetCrlNumber(Org.BouncyCastle.X509.X509Crl crl)
         {
-            BigInteger crlNumber = BigInteger.One;
+            var crlNumber = BigInteger.One;
             try
             {
                 Org.BouncyCastle.Asn1.Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);

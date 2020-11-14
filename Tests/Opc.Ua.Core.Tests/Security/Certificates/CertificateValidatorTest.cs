@@ -190,6 +190,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
         }
         #endregion
+
         #region Test Methods
         /// <summary>
         /// Verify self signed app certs are not trusted.
@@ -658,10 +659,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var pemDataBlob = CertificateFactory.ExportPrivateKeyAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
                 CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob);
-                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, "password");
+                // note: password is ignored
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, "password");
+                X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }
+
+        /// <summary>
+        /// Verify the PEM Writer, no password
+        /// </summary>
+        [Test, Order(502)]
+        public void VerifyPemWriterPublicKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in m_appSelfSignedCerts)
+            {
+                var pemDataBlob = CertificateFactory.ExportCertificateAsPEM(appCert);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
+            }
+        }
+
+#if NETCOREAPP3_1
+        /// <summary>
+        /// Verify the PEM Writer, with password
+        /// </summary>
+        [Test, Order(501)]
+        public void VerifyPemWriterPasswordPrivateKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in m_appSelfSignedCerts)
+            {
+                var password = Guid.NewGuid().ToString().Substring(0, 8);
+                TestContext.Out.WriteLine("Password: {0}", password);
+                var pemDataBlob = CertificateFactory.ExportPrivateKeyAsPEM(appCert, password);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
+                var exception = Assert.Throws<Org.BouncyCastle.OpenSsl.PemException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, password);
+                X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
+            }
+        }
+#endif
 
         /// <summary>
         /// Verify self signed certs, not yet valid.

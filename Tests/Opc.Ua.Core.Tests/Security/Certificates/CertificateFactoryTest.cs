@@ -277,11 +277,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             var crlLegacy = Opc.Ua.Legacy.CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
             Assert.NotNull(crlLegacy);
-            File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
+            //File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
             crlLegacy.VerifySignature(issuerCertificate, true);
 
             var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
-            File.WriteAllBytes("D:\\test2.crl", crl.RawData);
+            //File.WriteAllBytes("D:\\test2.crl", crl.RawData);
             Assert.NotNull(crl);
 
             X509CrlParser parser = new X509CrlParser();
@@ -305,7 +305,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public static void VerifySelfSignedApplicationCert(ApplicationTestData testApp, X509Certificate2 cert)
         {
             TestContext.Out.WriteLine($"{nameof(VerifySelfSignedApplicationCert)}:");
-            File.WriteAllBytes("d:\\VerifySelfSignedApplicationCert.der", cert.RawData);
+            //File.WriteAllBytes("d:\\VerifySelfSignedApplicationCert.der", cert.RawData);
             Assert.NotNull(cert);
             TestContext.Out.WriteLine(cert);
             Assert.False(cert.HasPrivateKey);
@@ -320,7 +320,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True(constraints.CertificateAuthority);
             Assert.True(constraints.HasPathLengthConstraint);
             Assert.AreEqual(0, constraints.PathLengthConstraint);
-            
 
             // key usage
             X509KeyUsageExtension keyUsage = X509Extensions.FindExtension<X509KeyUsageExtension>(cert);
@@ -379,7 +378,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public static void VerifyCACert(X509Certificate2 cert, string subject, int pathLengthConstraint)
         {
             TestContext.Out.WriteLine($"{nameof(VerifyCACert)}:");
-            File.WriteAllBytes("d:\\VerifyCACert.der", cert.RawData);
+            //File.WriteAllBytes("d:\\VerifyCACert.der", cert.RawData);
             Assert.NotNull(cert);
             TestContext.Out.WriteLine(cert);
             Assert.False(cert.HasPrivateKey);

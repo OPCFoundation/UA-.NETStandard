@@ -308,6 +308,7 @@ namespace Opc.Ua.Gds.Server
             return Certificate;
         }
         #endregion
+
         #region Public Methods
         /// <summary>
         /// load the authority signing key.
@@ -322,6 +323,7 @@ namespace Opc.Ua.Gds.Server
             return await certIdentifier.LoadPrivateKey(signingKeyPassword);
         }
         #endregion
+
         #region Private Methods
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the trusted list.
