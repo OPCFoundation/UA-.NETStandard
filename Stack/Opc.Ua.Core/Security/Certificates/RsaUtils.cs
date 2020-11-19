@@ -386,6 +386,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Verify a RSA key pair using a encryption.
+        /// </summary>
+        /// <param name="rsaPublicKey"></param>
+        /// <param name="rsaPrivateKey"></param>
+        internal static bool VerifyRSAKeyPairCrypt(
+            RSA rsaPublicKey,
+            RSA rsaPrivateKey)
+        {
+            Test.RandomSource randomSource = new Test.RandomSource();
+            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
+            byte[] testBlock = new byte[blockSize];
+            randomSource.NextBytes(testBlock, 0, blockSize);
+            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
+            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
+            if (decryptedBlock != null)
+            {
+                return Utils.IsEqual(testBlock, decryptedBlock);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Verify a RSA key pair using a signature.
+        /// </summary>
+        /// <param name="rsaPublicKey"></param>
+        /// <param name="rsaPrivateKey"></param>
+        internal static bool VerifyRSAKeyPairSign(
+            RSA rsaPublicKey,
+            RSA rsaPrivateKey)
+        {
+            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
+            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
+            byte[] testBlock = new byte[blockSize];
+            randomSource.NextBytes(testBlock, 0, blockSize);
+            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+        }
+
+        /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
         internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {

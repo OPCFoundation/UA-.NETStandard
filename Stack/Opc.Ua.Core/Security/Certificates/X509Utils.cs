@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -21,6 +22,78 @@ namespace Opc.Ua.Security.Certificates.X509
 {
     public static class X509Utils
     {
+        /// <summary>
+        /// Extracts the DNS names specified in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>The DNS names.</returns>
+        public static IList<string> GetDomainsFromCertficate(X509Certificate2 certificate)
+        {
+            List<string> dnsNames = new List<string>();
+
+            // extracts the domain from the subject name.
+            List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
+
+            StringBuilder builder = new StringBuilder();
+
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                if (fields[ii].StartsWith("DC="))
+                {
+                    if (builder.Length > 0)
+                    {
+                        builder.Append('.');
+                    }
+
+                    builder.Append(fields[ii].Substring(3));
+                }
+            }
+
+            if (builder.Length > 0)
+            {
+                dnsNames.Add(builder.ToString().ToUpperInvariant());
+            }
+
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+            if (alternateName != null)
+            {
+                for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
+                {
+                    string hostname = alternateName.DomainNames[ii];
+
+                    // do not add duplicates to the list.
+                    bool found = false;
+
+                    for (int jj = 0; jj < dnsNames.Count; jj++)
+                    {
+                        if (String.Compare(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase) == 0)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        dnsNames.Add(hostname.ToUpperInvariant());
+                    }
+                }
+
+                for (int ii = 0; ii < alternateName.IPAddresses.Count; ii++)
+                {
+                    string ipAddress = alternateName.IPAddresses[ii];
+
+                    if (!dnsNames.Contains(ipAddress))
+                    {
+                        dnsNames.Add(ipAddress);
+                    }
+                }
+            }
+
+            // return the list.
+            return dnsNames;
+        }
 
         /// <summary>
         /// Returns the size of the public key and disposes RSA key.
@@ -38,6 +111,119 @@ namespace Opc.Ua.Security.Certificates.X509
             {
                 RsaUtils.RSADispose(rsaPublicKey);
             }
+        }
+
+        /// <summary>
+        /// Extracts the application URI specified in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>The application URI.</returns>
+        public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+
+            // get the application uri.
+            if (alternateName != null && alternateName.Uris.Count > 0)
+            {
+                return alternateName.Uris[0];
+            }
+
+            return string.Empty;
+        }
+
+        // TODO: remove function?
+        /// <summary>
+        /// Check if certificate has an application urn.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <returns>true if the application URI starts with urn: </returns>
+        public static bool HasApplicationURN(X509Certificate2 certificate)
+        {
+            // extract the alternate domains from the subject alternate name extension.
+            X509SubjectAltNameExtension alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+
+            // find the application urn.
+            if (alternateName != null && alternateName.Uris.Count > 0)
+            {
+                string urn = "urn:";
+                for (int i = 0; i < alternateName.Uris.Count; i++)
+                {
+                    if (string.Compare(alternateName.Uris[i], 0, urn, 0, urn.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks that the domain in the URL provided matches one of the domains in the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="endpointUrl">The endpoint url to verify.</param>
+        /// <returns>True if the certificate matches the url.</returns>
+        public static bool DoesUrlMatchCertificate(X509Certificate2 certificate, Uri endpointUrl)
+        {
+            if (endpointUrl == null || certificate == null)
+            {
+                return false;
+            }
+
+            IList<string> domainNames = GetDomainsFromCertficate(certificate);
+
+            for (int jj = 0; jj < domainNames.Count; jj++)
+            {
+                if (String.Compare(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the certificate is allowed to be an issuer.
+        /// </summary>
+        public static bool IsIssuerAllowed(X509Certificate2 certificate)
+        {
+            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+
+            if (constraints != null)
+            {
+                return constraints.CertificateAuthority;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the certificate is issued by a Certificate Authority.
+        /// </summary>
+        public static bool IsCertificateAuthority(X509Certificate2 certificate)
+        {
+            var constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate);
+            if (constraints != null)
+            {
+                return constraints.CertificateAuthority;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Return the key usage flags of a certificate.
+        /// </summary>
+        public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+        {
+            var allFlags = X509KeyUsageFlags.None;
+            foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
+            {
+                allFlags |= ext.KeyUsages;
+            }
+            return allFlags;
         }
 
         /// <summary>
@@ -252,7 +438,6 @@ namespace Opc.Ua.Security.Certificates.X509
             return fields;
         }
 
-
         /// <summary>
         /// Verify RSA key pair of two certificates.
         /// </summary>
@@ -273,14 +458,14 @@ namespace Opc.Ua.Security.Certificates.X509
                 rsaPrivateKey.ExportParameters(true);
 #endif
                 rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
-                X509KeyUsageFlags keyUsage = X509Extensions.GetKeyUsage(certWithPublicKey);
+                X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                 if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
                 {
-                    result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                    result = RsaUtils.VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
                 }
                 else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
                 {
-                    result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                    result = RsaUtils.VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
                 }
                 else
                 {
@@ -325,33 +510,5 @@ namespace Opc.Ua.Security.Certificates.X509
             return true;
         }
 
-        private static bool VerifyRSAKeyPairCrypt(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
-        {
-            Test.RandomSource randomSource = new Test.RandomSource();
-            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
-            byte[] testBlock = new byte[blockSize];
-            randomSource.NextBytes(testBlock, 0, blockSize);
-            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
-            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
-            if (decryptedBlock != null)
-            {
-                return Utils.IsEqual(testBlock, decryptedBlock);
-            }
-            return false;
-        }
-
-        private static bool VerifyRSAKeyPairSign(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
-        {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
-            byte[] testBlock = new byte[blockSize];
-            randomSource.NextBytes(testBlock, 0, blockSize);
-            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-        }
     }
 }

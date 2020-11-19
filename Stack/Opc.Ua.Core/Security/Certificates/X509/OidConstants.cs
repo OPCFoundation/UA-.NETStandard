@@ -22,9 +22,9 @@ namespace Opc.Ua.Security.Certificates.X509
     public static class OidConstants
     {
         public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
-        public const string ECDSASHA256SignatureAlgorithm = "1.2.840.10045.4.3.2";
-        public const string ECDSASHA384SignatureAlgorithm = "1.2.840.10045.4.3.3";
-        public const string ECDSASHA512SignatureAlgorithm = "1.2.840.10045.4.3.4";
+        public const string ECDSASHA256 = "1.2.840.10045.4.3.2";
+        public const string ECDSASHA384 = "1.2.840.10045.4.3.3";
+        public const string ECDSASHA512 = "1.2.840.10045.4.3.4";
 
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
@@ -65,20 +65,35 @@ namespace Opc.Ua.Security.Certificates.X509
         {
             if (hashAlgorithm == HashAlgorithmName.SHA256)
             {
-                return OidConstants.ECDSASHA256SignatureAlgorithm;
+                return OidConstants.ECDSASHA256;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA384)
             {
-                return OidConstants.ECDSASHA384SignatureAlgorithm;
+                return OidConstants.ECDSASHA384;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA512)
             {
-                return OidConstants.ECDSASHA512SignatureAlgorithm;
+                return OidConstants.ECDSASHA512;
             }
             else
             {
                 throw new NotSupportedException($"Signing ECDSA with hash {hashAlgorithm.Name} is not supported. ");
             }
+        }
+
+        public static HashAlgorithmName GetHashAlgorithmName(string oid)
+        {
+            switch (oid)
+            {
+                case OidConstants.RsaPkcs1Sha1: return HashAlgorithmName.SHA1;
+                case OidConstants.ECDSASHA256:
+                case OidConstants.RsaPkcs1Sha256: return HashAlgorithmName.SHA256;
+                case OidConstants.ECDSASHA384:
+                case OidConstants.RsaPkcs1Sha384: return HashAlgorithmName.SHA384;
+                case OidConstants.ECDSASHA512:
+                case OidConstants.RsaPkcs1Sha512: return HashAlgorithmName.SHA512;
+            }
+            throw new NotSupportedException($"Unknown hash algorithm {oid} is not supported. ");
         }
 
     }

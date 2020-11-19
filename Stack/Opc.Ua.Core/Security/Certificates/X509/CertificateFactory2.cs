@@ -29,65 +29,6 @@ using X509Extensions = Opc.Ua.Security.Certificates.X509.X509Extensions;
 
 namespace Opc.Ua
 {
-    internal static class SignatureBuilder
-    {
-        /// <summary>
-        /// Adds a signature to encoded data in ASN format.
-        /// </summary>
-        /// <param name="encodedData">ASN encoded data.</param>
-        /// <param name="signature">signature of the encoded data.</param>
-        /// <param name="hashAlgorithmName"></param>
-        /// <returns>X509 ASN format of EncodedData+SignatureOID+Signature bytes.</returns>
-        public static byte[] AddRSASignature(byte[] encodedData, byte[] signature, HashAlgorithmName hashAlgorithmName)
-        {
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-
-            var tag = Asn1Tag.Sequence;
-            writer.PushSequence(tag);
-
-            // write Tbs encoded data
-            writer.WriteEncodedValue(encodedData);
-
-            // Signature Algorithm Identifier
-            writer.PushSequence();
-            string signatureAlgorithm = OidConstants.GetRSAOid(hashAlgorithmName);
-            writer.WriteObjectIdentifier(signatureAlgorithm);
-            writer.WriteNull();
-            writer.PopSequence();
-
-            // Add signature
-            writer.WriteBitString(signature);
-
-            writer.PopSequence(tag);
-
-            return writer.Encode();
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="signature"></param>
-        public static byte[] EncodeECDSASignatureToASNFormat(byte[] signature)
-        {
-            
-            // Encode from ieee signature format to ASN1 DER encoded 
-            // signature format for ecdsa certificates.
-            // ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
-            // https://www.ietf.org/rfc/rfc5480.txt
-            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            var tag = Asn1Tag.Sequence;
-            writer.PushSequence(tag);
-
-            int segmentLength = signature.Length / 2;
-            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, 0, segmentLength));
-            writer.WriteIntegerUnsigned(new ReadOnlySpan<byte>(signature, segmentLength, segmentLength));
-
-            writer.PopSequence(tag);
-
-            return writer.Encode();
-        }
-    }
-
     /// <summary>
     /// Creates certificates.
     /// </summary>
@@ -502,7 +443,7 @@ namespace Opc.Ua
                 string serialNumber = null;
 
                 // caller may want to create empty CRL using the CA cert itself
-                bool isCACert = X509Extensions.IsCertificateAuthority(certificate);
+                bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
                 // find the authority key identifier.
                 X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
@@ -653,7 +594,8 @@ namespace Opc.Ua
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
                 byte[] signature = generator.SignData(crlRawData, hashAlgorithmName);
-                byte[] crlWithSignature = SignatureBuilder.AddRSASignature(crlRawData, signature, hashAlgorithmName);
+                var crlSigner = new X509Signature(crlRawData, signature, hashAlgorithmName);
+                byte[] crlWithSignature = crlSigner.GetEncoded();
                 return new X509CRL(crlWithSignature);
             }
         }
@@ -705,7 +647,7 @@ namespace Opc.Ua
                 }
             }
 
-            string applicationUri = X509Extensions.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             // Subject Alternative Name
             var subjectAltName = X509Extensions.BuildSubjectAlternativeName(applicationUri, domainNames);

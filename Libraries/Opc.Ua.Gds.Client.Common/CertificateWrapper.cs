@@ -210,7 +210,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Extensions.GetApplicationUriFromCertificate(Certificate);
+                        return X509Utils.GetApplicationUriFromCertificate(Certificate);
                     }
                     catch (Exception e)
                     {
@@ -233,7 +233,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return X509Extensions.GetDomainsFromCertficate(Certificate);
+                        return X509Utils.GetDomainsFromCertficate(Certificate);
                     }
                     catch (Exception e)
                     {

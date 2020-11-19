@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.X509;
 using Org.BouncyCastle.X509;
 
@@ -167,7 +168,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void VerifyX509AuthorityKeyIdentifierExtension()
         {
             var authorityName = new X500DistinguishedName("CN=Test,O=OPC Foundation,DC=localhost");
-            byte[] serialNumber = new byte[] { 9, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+            byte[] serialNumber = new byte[] { 9, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
             byte[] subjectKeyIdentifier = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
             var aki = new X509AuthorityKeyIdentifierExtension(authorityName, serialNumber, subjectKeyIdentifier);
             Assert.NotNull(aki);
@@ -203,7 +204,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void VerifyX509SubjectAlternateNameExtension()
         {
             string applicationUri = "urn:opcfoundation.org";
-            string [] domainNames = { "mypc.mydomain.com", "192.168.100.100", "1234:5678::1"};
+            string[] domainNames = { "mypc.mydomain.com", "192.168.100.100", "1234:5678::1" };
             TestContext.Out.WriteLine("Encoded:");
             var san = new X509SubjectAltNameExtension(applicationUri, domainNames.ToList());
             TestContext.Out.WriteLine(san.Format(true));
@@ -277,12 +278,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             var crlLegacy = Opc.Ua.Legacy.CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
             Assert.NotNull(crlLegacy);
-            //File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
+            File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
             crlLegacy.VerifySignature(issuerCertificate, true);
 
             var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
-            //File.WriteAllBytes("D:\\test2.crl", crl.RawData);
+            File.WriteAllBytes("D:\\test2.crl", crl.RawData);
             Assert.NotNull(crl);
+
+            var crl2 = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts, DateTime.UtcNow, DateTime.MinValue);
+            File.WriteAllBytes("D:\\test3.crl", crl.RawData);
+            Assert.NotNull(crl2);
 
             X509CrlParser parser = new X509CrlParser();
             X509Crl crlbcLegacy = parser.ReadCrl(crlLegacy.RawData);
@@ -290,18 +295,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Crl crlbc2 = parser.ReadCrl(crl.RawData);
             var crlVersion = CertificateFactory.GetCrlNumber(crlbc2);
 
+            var newcrlDecoder = new X509Signature(crl.RawData);
+            var newcrl = new CrlBuilder(newcrlDecoder.Tbs);
+
             crl.VerifySignature(issuerCertificate, true);
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl.IsRevoked(cert));
             }
 
+            var newcrl2Decoder = new X509Signature(crl2.RawData);
+            var newcrl2 = new CrlBuilder(newcrl2Decoder.Tbs);
+
+            crl2.VerifySignature(issuerCertificate, true);
+            foreach (var cert in revokedCerts)
+            {
+                Assert.True(crl2.IsRevoked(cert));
+            }
+
         }
 #endif
 
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         public static void VerifySelfSignedApplicationCert(ApplicationTestData testApp, X509Certificate2 cert)
         {
             TestContext.Out.WriteLine($"{nameof(VerifySelfSignedApplicationCert)}:");
@@ -363,13 +380,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine(subjectAlternateName.Format(true));
             Assert.False(subjectAlternateName.Critical);
-            var domainNames = X509Extensions.GetDomainsFromCertficate(cert);
+            var domainNames = X509Utils.GetDomainsFromCertficate(cert);
             foreach (var domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = X509Extensions.GetApplicationUriFromCertificate(cert);
+            var applicationUri = X509Utils.GetApplicationUriFromCertificate(cert);
             TestContext.Out.WriteLine("ApplicationUri: ");
             TestContext.Out.WriteLine(applicationUri);
             Assert.AreEqual(testApp.ApplicationUri, applicationUri);
@@ -441,10 +458,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509SubjectAltNameExtension subjectAlternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(cert);
             Assert.Null(subjectAlternateName);
         }
-#endregion
+        #endregion
 
-#region Private Fields
-#endregion
+        #region Private Fields
+        #endregion
     }
 
 }

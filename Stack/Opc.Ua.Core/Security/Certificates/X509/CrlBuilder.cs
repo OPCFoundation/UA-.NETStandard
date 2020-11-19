@@ -17,6 +17,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Collections.Generic;
 using Opc.Ua.Security.Certificates.X509;
+using System.Numerics;
+using System.Linq;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -55,24 +57,54 @@ namespace Opc.Ua.Security.Certificates
 
     public class CrlBuilder
     {
+        public class RevokedCertificate
+        {
+            public RevokedCertificate(string serialNumber)
+            {
+                UserCertificate = serialNumber;
+                RevocationDate = DateTime.UtcNow;
+                CrlEntryExtensions = new List<X509Extension>();
+                CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(CRLReason.KeyCompromise));
+            }
+
+            public string UserCertificate { get; set; }
+            public DateTime RevocationDate { get; set; }
+            public IList<X509Extension> CrlEntryExtensions { get; }
+        }
+
         public X500DistinguishedName IssuerSubjectName { get; private set; }
-
-        public string[] SerialNumbers { get; private set; }
-
         public HashAlgorithmName HashAlgorithmName { get; private set; }
-
         public DateTime ThisUpdate { get; set; }
         public DateTime NextUpdate { get; set; }
+        public IList<RevokedCertificate> RevokedCertificates { get; }
+        public IList<X509Extension> CrlExtensions { get; }
 
-        public IList<X509Extension> CrlExtensions { get; private set; }
+        public CrlBuilder(byte[] crl)
+        {
+            this.ThisUpdate = DateTime.MinValue;
+            this.NextUpdate = DateTime.MinValue;
+            this.RevokedCertificates = new List<RevokedCertificate>();
+            this.CrlExtensions = new List<X509Extension>();
+            Decode(crl);
+        }
+
+        public CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        {
+            this.IssuerSubjectName = issuerSubjectName;
+            this.HashAlgorithmName = hashAlgorithmName;
+            this.ThisUpdate = DateTime.UtcNow;
+            this.NextUpdate = DateTime.MinValue;
+            this.RevokedCertificates = new List<RevokedCertificate>();
+            this.CrlExtensions = new List<X509Extension>();
+        }
 
         public CrlBuilder(X500DistinguishedName issuerSubjectName, string[] serialNumbers, HashAlgorithmName hashAlgorithmName)
         {
             this.IssuerSubjectName = issuerSubjectName;
-            this.SerialNumbers = serialNumbers;
             this.HashAlgorithmName = hashAlgorithmName;
             this.ThisUpdate = DateTime.UtcNow;
             this.NextUpdate = DateTime.MinValue;
+            this.RevokedCertificates = serialNumbers.Select(s => new RevokedCertificate(s)).ToList();
             this.CrlExtensions = new List<X509Extension>();
         }
 
@@ -139,23 +171,23 @@ namespace Opc.Ua.Security.Certificates
                 // sequence to start the revoked certificates.
                 crlWriter.PushSequence();
 
-                foreach (string serialNumber in this.SerialNumbers)
+                foreach (var revokedCert in this.RevokedCertificates)
                 {
                     crlWriter.PushSequence();
 
-                    System.Numerics.BigInteger srlNumberValue = System.Numerics.BigInteger.Parse(serialNumber, NumberStyles.AllowHexSpecifier);
+                    BigInteger srlNumberValue = BigInteger.Parse(revokedCert.UserCertificate, NumberStyles.AllowHexSpecifier);
                     crlWriter.WriteInteger(srlNumberValue);
-                    crlWriter.WriteUtcTime(DateTime.UtcNow);
+                    crlWriter.WriteUtcTime(revokedCert.RevocationDate);
 
-                    crlWriter.PushSequence();
-                    crlWriter.PushSequence();
-                    crlWriter.WriteObjectIdentifier(OidConstants.CertificateRevocationReasonCode);
-
-                    // TODO: is there a better way to encode CRLReason?
-                    crlWriter.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)CRLReason.Unspecified });
-
-                    crlWriter.PopSequence();
-                    crlWriter.PopSequence();
+                    if (revokedCert.CrlEntryExtensions.Count > 0)
+                    {
+                        crlWriter.PushSequence();
+                        foreach (var crlEntryExt in revokedCert.CrlEntryExtensions)
+                        {
+                            crlWriter.WriteEncodedValue(crlEntryExt.RawData);
+                        }
+                        crlWriter.PopSequence();
+                    }
                     crlWriter.PopSequence();
                 }
 
@@ -172,6 +204,7 @@ namespace Opc.Ua.Security.Certificates
                     crlWriter.PushSequence();
                     foreach (var extension in CrlExtensions)
                     {
+                        //crlWriter.WriteEncodedValue(extension.RawData);
                         var etag = Asn1Tag.Sequence;
                         crlWriter.PushSequence(etag);
                         crlWriter.WriteObjectIdentifier(extension.Oid.Value);
@@ -187,6 +220,99 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.PopSequence();
 
                 return crlWriter.Encode();
+            }
+        }
+
+
+        public void Decode(byte[] crl)
+        {
+            AsnReader crlReader = new AsnReader(crl, AsnEncodingRules.DER);
+            {
+                var tag = Asn1Tag.Sequence;
+                var seqReader = crlReader?.ReadSequence(tag);
+                if (seqReader != null)
+                {
+                    uint version = 0;
+                    if (seqReader.TryReadUInt32(out version))
+                    {
+                        if (version != 1)
+                        {
+                            throw new AsnContentException($"The CRL contains an incorrect version {version}");
+                        }
+                    }
+
+                    // Signature Algorithm Identifier
+                    var sigReader = seqReader.ReadSequence();
+                    var oid = sigReader.ReadObjectIdentifier();
+                    HashAlgorithmName = OidConstants.GetHashAlgorithmName(oid);
+
+                    // Issuer
+                    IssuerSubjectName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
+
+                    // thisUpdate
+                    ThisUpdate = seqReader.ReadUtcTime().UtcDateTime;
+
+                    // nextUpdate is OPTIONAL
+                    var utcTag = new Asn1Tag(UniversalTagNumber.UtcTime);
+                    var peekTag = seqReader.PeekTag();
+                    if (peekTag == utcTag)
+                    {
+                        NextUpdate = seqReader.ReadUtcTime().UtcDateTime;
+                    }
+
+                    // revoked certificates
+                    var boolTag = new Asn1Tag(UniversalTagNumber.Boolean);
+                    var revReader = seqReader.ReadSequence(tag);
+                    while (revReader.HasData)
+                    {
+                        var crlEntry = revReader.ReadSequence();
+                        var serial = crlEntry.ReadInteger();
+                        var revokedCertificate = new RevokedCertificate(Utils.ToHexString(serial.ToByteArray()));
+                        revokedCertificate.RevocationDate = crlEntry.ReadUtcTime().UtcDateTime;
+                        if (crlEntry.HasData)
+                        {
+                            var crlEntryExtensions = crlEntry.ReadSequence();
+                            while (crlEntryExtensions.HasData)
+                            {
+                                var crlEntryExt = crlEntryExtensions.ReadSequence();
+                                var extOid = crlEntryExt.ReadObjectIdentifier();
+                                bool critical = false;
+                                peekTag = crlEntryExt.PeekTag();
+                                if (peekTag == boolTag)
+                                {
+                                    critical = crlEntryExt.ReadBoolean();
+                                }
+                                var data = crlEntryExt.ReadOctetString();
+                                var x509Ext = new X509Extension(new Oid(extOid), data, critical);
+                                revokedCertificate.CrlEntryExtensions.Add(x509Ext);
+                            }
+                        }
+                        this.RevokedCertificates.Add(revokedCertificate);
+                    }
+
+                    // CRL extensions
+                    var ext = new Asn1Tag(TagClass.ContextSpecific, 0);
+                    var optReader = seqReader.ReadSequence(ext);
+                    if (optReader.HasData)
+                    {
+                        var crlExtensions = optReader.ReadSequence();
+                        while (crlExtensions.HasData)
+                        {
+                            var etag = Asn1Tag.Sequence;
+                            var extension = crlExtensions.ReadSequence(etag);
+                            var extOid = extension.ReadObjectIdentifier();
+                            bool critical = false;
+                            peekTag = extension.PeekTag();
+                            if (peekTag == boolTag)
+                            {
+                                critical = extension.ReadBoolean();
+                            }
+                            var data = extension.ReadOctetString();
+                            var x509Ext = new X509Extension(new Oid(extOid), data, critical);
+                            this.CrlExtensions.Add(x509Ext);
+                        }
+                    }
+                }
             }
         }
     }

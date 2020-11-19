@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.Linq;
 using System.Net;
+using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
@@ -54,31 +55,6 @@ namespace Opc.Ua.Security.Certificates.X509
             return certificate.Extensions.OfType<T>().FirstOrDefault();
         }
 
-        /// <summary>
-        /// Determines whether the certificate is issued by a Certificate Authority.
-        /// </summary>
-        public static bool IsCertificateAuthority(X509Certificate2 certificate)
-        {
-            var constraints = FindExtension<X509BasicConstraintsExtension>(certificate);
-            if (constraints != null)
-            {
-                return constraints.CertificateAuthority;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Return the key usage flags of a certificate.
-        /// </summary>
-        public static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
-        {
-            var allFlags = X509KeyUsageFlags.None;
-            foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
-            {
-                allFlags |= ext.KeyUsages;
-            }
-            return allFlags;
-        }
 
         /// <summary>
         /// Build the Authority information Access extension.
@@ -195,6 +171,22 @@ namespace Opc.Ua.Security.Certificates.X509
         }
 
         /// <summary>
+        /// Build the CRL Reason extension.
+        /// </summary>
+        public static X509Extension BuildX509CRLReason(
+            CRLReason reason
+            )
+        {
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            writer.PushSequence();
+            writer.WriteObjectIdentifier(OidConstants.CertificateRevocationReasonCode);
+            // TODO: is there a better way to encode CRLReason?
+            writer.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)reason });
+            writer.PopSequence();
+            return new X509Extension(OidConstants.CertificateRevocationReasonCode, writer.Encode(), false);
+        }
+
+        /// <summary>
         /// Build the Authority Key Identifier from an Issuer CA certificate.
         /// </summary>
         /// <param name="issuerCaCertificate">The issuer CA certificate</param>
@@ -209,172 +201,11 @@ namespace Opc.Ua.Security.Certificates.X509
         /// <summary>
         /// Build the CRL number.
         /// </summary>
-        public static X509Extension BuildCRLNumber(System.Numerics.BigInteger crlNumber)
+        public static X509Extension BuildCRLNumber(BigInteger crlNumber)
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteInteger(crlNumber);
             return new X509Extension(OidConstants.CrlNumber, writer.Encode(), false);
         }
-
-        /// <summary>
-        /// Extracts the DNS names specified in the certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <returns>The DNS names.</returns>
-        public static IList<string> GetDomainsFromCertficate(X509Certificate2 certificate)
-        {
-            List<string> dnsNames = new List<string>();
-
-            // extracts the domain from the subject name.
-            List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
-
-            StringBuilder builder = new StringBuilder();
-
-            for (int ii = 0; ii < fields.Count; ii++)
-            {
-                if (fields[ii].StartsWith("DC="))
-                {
-                    if (builder.Length > 0)
-                    {
-                        builder.Append('.');
-                    }
-
-                    builder.Append(fields[ii].Substring(3));
-                }
-            }
-
-            if (builder.Length > 0)
-            {
-                dnsNames.Add(builder.ToString().ToUpperInvariant());
-            }
-
-            // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = FindExtension<X509SubjectAltNameExtension>(certificate);
-            if (alternateName != null)
-            {
-                for (int ii = 0; ii < alternateName.DomainNames.Count; ii++)
-                {
-                    string hostname = alternateName.DomainNames[ii];
-
-                    // do not add duplicates to the list.
-                    bool found = false;
-
-                    for (int jj = 0; jj < dnsNames.Count; jj++)
-                    {
-                        if (String.Compare(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase) == 0)
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        dnsNames.Add(hostname.ToUpperInvariant());
-                    }
-                }
-
-                for (int ii = 0; ii < alternateName.IPAddresses.Count; ii++)
-                {
-                    string ipAddress = alternateName.IPAddresses[ii];
-
-                    if (!dnsNames.Contains(ipAddress))
-                    {
-                        dnsNames.Add(ipAddress);
-                    }
-                }
-            }
-
-            // return the list.
-            return dnsNames;
-        }
-
-        /// <summary>
-        /// Extracts the application URI specified in the certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <returns>The application URI.</returns>
-        public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
-        {
-            // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = FindExtension<X509SubjectAltNameExtension>(certificate);
-
-            // get the application uri.
-            if (alternateName != null && alternateName.Uris.Count > 0)
-            {
-                return alternateName.Uris[0];
-            }
-
-            return string.Empty;
-        }
-
-        // TODO: remove function?
-        /// <summary>
-        /// Check if certificate has an application urn.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <returns>true if the application URI starts with urn: </returns>
-        public static bool HasApplicationURN(X509Certificate2 certificate)
-        {
-            // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = FindExtension<X509SubjectAltNameExtension>(certificate);
-
-            // find the application urn.
-            if (alternateName != null && alternateName.Uris.Count > 0)
-            {
-                string urn = "urn:";
-                for (int i = 0; i < alternateName.Uris.Count; i++)
-                {
-                    if (string.Compare(alternateName.Uris[i], 0, urn, 0, urn.Length, StringComparison.OrdinalIgnoreCase) == 0)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Checks that the domain in the URL provided matches one of the domains in the certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <param name="endpointUrl">The endpoint url to verify.</param>
-        /// <returns>True if the certificate matches the url.</returns>
-        public static bool DoesUrlMatchCertificate(X509Certificate2 certificate, Uri endpointUrl)
-        {
-            if (endpointUrl == null || certificate == null)
-            {
-                return false;
-            }
-
-            IList<string> domainNames = GetDomainsFromCertficate(certificate);
-
-            for (int jj = 0; jj < domainNames.Count; jj++)
-            {
-                if (String.Compare(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Determines whether the certificate is allowed to be an issuer.
-        /// </summary>
-        public static bool IsIssuerAllowed(X509Certificate2 certificate)
-        {
-            X509BasicConstraintsExtension constraints = FindExtension<X509BasicConstraintsExtension>(certificate);
-
-            if (constraints != null)
-            {
-                return constraints.CertificateAuthority;
-            }
-
-            return false;
-        }
-
     }
 }

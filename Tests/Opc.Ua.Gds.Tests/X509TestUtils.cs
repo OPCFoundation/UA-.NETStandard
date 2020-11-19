@@ -146,13 +146,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            var domainNames = X509Extensions.GetDomainsFromCertficate(signedCert);
+            var domainNames = X509Utils.GetDomainsFromCertficate(signedCert);
             foreach (var domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = X509Extensions.GetApplicationUriFromCertificate(signedCert);
+            var applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
             Assert.True(testApp.ApplicationRecord.ApplicationUri == applicationUri);
         }
     }

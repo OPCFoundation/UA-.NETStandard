@@ -539,7 +539,7 @@ namespace Opc.Ua
 
                     if (issuer != null)
                     {
-                        if (!X509Extensions.IsIssuerAllowed(issuer))
+                        if (!X509Utils.IsIssuerAllowed(issuer))
                         {
                             continue;
                         }
@@ -568,7 +568,7 @@ namespace Opc.Ua
 
                         if (issuer != null)
                         {
-                            if (!X509Extensions.IsIssuerAllowed(issuer))
+                            if (!X509Utils.IsIssuerAllowed(issuer))
                             {
                                 continue;
                             }
@@ -588,7 +588,7 @@ namespace Opc.Ua
                                     {
                                         if (status == StatusCodes.BadCertificateRevocationUnknown)
                                         {
-                                            if (X509Extensions.IsCertificateAuthority(certificate))
+                                            if (X509Utils.IsCertificateAuthority(certificate))
                                             {
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
@@ -788,7 +788,7 @@ namespace Opc.Ua
             }
 
             // check if certificate is valid for use as app/sw or user cert
-            X509KeyUsageFlags certificateKeyUsage = X509Extensions.GetKeyUsage(certificate);
+            X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
 
             if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
@@ -900,12 +900,13 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
+                        // TODO: add logging
                         break;
                     }
 
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateIssuerTimeInvalid,
-                        "Certificate issuer validatity time does not overhas is expired or not yet valid. {0}: {1}",
+                        "Certificate issuer validatity time is expired or not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }
@@ -914,6 +915,7 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
+                        // TODO: add logging
                         break;
                     }
 
