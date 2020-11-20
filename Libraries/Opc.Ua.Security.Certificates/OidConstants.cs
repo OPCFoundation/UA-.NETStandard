@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         public const string RsaPkcs1Sha512 = "1.2.840.113549.1.1.13";
 
         public const string CrlNumber = "2.5.29.20";
-        public const string CertificateRevocationReasonCode = "2.5.29.21";
+        public const string CrlReasonCode = "2.5.29.21";
 
         public const string ServerAuthentication = "1.3.6.1.5.5.7.3.1";
         public const string ClientAuthentication = "1.3.6.1.5.5.7.3.2";

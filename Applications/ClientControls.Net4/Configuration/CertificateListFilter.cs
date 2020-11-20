@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates.X509;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Controls
 
                 if (!String.IsNullOrEmpty(m_domain))
                 {
-                    IList<string> domains = X509Extensions.GetDomainsFromCertficate(certificate);
+                    IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
 
                     bool found = false;
 

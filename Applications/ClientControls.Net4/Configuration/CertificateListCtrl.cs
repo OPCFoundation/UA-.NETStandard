@@ -29,8 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Security.Cryptography.X509Certificates;
@@ -38,9 +36,8 @@ using System.Reflection;
 using System.Xml;
 using System.IO;
 using System.Runtime.Serialization;
-using Opc.Ua.Configuration;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates.X509;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -354,7 +351,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // look up domains.
-                IList<string> domains = X509Extensions.GetDomainsFromCertficate(certificate);
+                IList<string> domains = X509Utils.GetDomainsFromCertficate(certificate);
 
                 StringBuilder buffer = new StringBuilder();
 
@@ -369,7 +366,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 listItem.SubItems[3].Text = buffer.ToString();
-                listItem.SubItems[4].Text = X509Extensions.GetApplicationUriFromCertificate(certificate);
+                listItem.SubItems[4].Text = X509Utils.GetApplicationUriFromCertificate(certificate);
                 listItem.SubItems[5].Text = String.Format("{0:yyyy-MM-dd}", certificate.NotAfter);
             }
 

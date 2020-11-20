@@ -33,7 +33,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows.Forms;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates.X509;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.Controls
                     }
 
                     // fill in application uri.
-                    string applicationUri = X509Extensions.GetApplicationUriFromCertificate(data);
+                    string applicationUri = X509Utils.GetApplicationUriFromCertificate(data);
 
                     if (!String.IsNullOrEmpty(applicationUri))
                     {
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Controls
                     // fill in domains.
                     buffer = new StringBuilder();
 
-                    foreach (string domain in X509Extensions.GetDomainsFromCertficate(data))
+                    foreach (string domain in X509Utils.GetDomainsFromCertficate(data))
                     {
                         if (buffer.Length > 0)
                         {

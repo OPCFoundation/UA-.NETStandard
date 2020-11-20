@@ -1015,6 +1015,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj">
+      <Project>{4b72937f-5a57-4cea-b9fe-b4c45cf7b284}</Project>
+      <Name>Opc.Ua.Security.Certificates</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
       <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
       <Name>Opc.Ua.Core</Name>

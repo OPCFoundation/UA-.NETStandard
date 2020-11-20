@@ -29,10 +29,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Formats.Asn1;
 using System.Linq;
 using System.Net;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
@@ -185,6 +187,38 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        public static X509Extension ReadExtension(this AsnReader reader)
+        {
+            if (reader.HasData)
+            {
+                var boolTag = new Asn1Tag(UniversalTagNumber.Boolean);
+                var extReader = reader.ReadSequence();
+                var extOid = extReader.ReadObjectIdentifier();
+                bool critical = false;
+                var peekTag = extReader.PeekTag();
+                if (peekTag == boolTag)
+                {
+                    critical = extReader.ReadBoolean();
+                }
+                var data = extReader.ReadOctetString();
+                return new X509Extension(new Oid(extOid), data, critical);
+            }
+            return null;
+        }
+
+        public static void WriteExtension(this AsnWriter writer, X509Extension extension)
+        {
+            var etag = Asn1Tag.Sequence;
+            writer.PushSequence(etag);
+            writer.WriteObjectIdentifier(extension.Oid.Value);
+            if (extension.Critical)
+            {
+                writer.WriteBoolean(extension.Critical);
+            }
+            writer.WriteOctetString(extension.RawData);
+            writer.PopSequence(etag);
+        }
+
         /// <summary>
         /// Build the CRL Reason extension.
         /// </summary>
@@ -193,12 +227,12 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            writer.PushSequence();
-            writer.WriteObjectIdentifier(OidConstants.CertificateRevocationReasonCode);
+            //writer.PushSequence();
+            //writer.WriteObjectIdentifier(OidConstants.CrlReasonCode);
             // TODO: is there a better way to encode CRLReason?
             writer.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)reason });
-            writer.PopSequence();
-            return new X509Extension(OidConstants.CertificateRevocationReasonCode, writer.Encode(), false);
+            //writer.PopSequence();
+            return new X509Extension(OidConstants.CrlReasonCode, writer.Encode(), false);
         }
 
         /// <summary>

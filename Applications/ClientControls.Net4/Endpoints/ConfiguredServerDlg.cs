@@ -29,18 +29,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Reflection;
-using System.IO;
 using System.Threading;
-
-using Opc.Ua.Configuration;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates.X509;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -1777,7 +1772,7 @@ namespace Opc.Ua.Client.Controls
                     if ((m_currentDescription.ServerCertificate != null) && (m_currentDescription.ServerCertificate.Length > 0))
                     {
                         X509Certificate2 serverCertificate = new X509Certificate2(m_currentDescription.ServerCertificate);
-                        String certificateApplicationUri = X509Extensions.GetApplicationUriFromCertificate(serverCertificate);
+                        String certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
 
                         if (certificateApplicationUri != m_currentDescription.Server.ApplicationUri)
                         {

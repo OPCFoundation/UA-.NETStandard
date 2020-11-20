@@ -200,7 +200,7 @@ namespace Opc.Ua.Security.Certificates
                         crlWriter.PushSequence();
                         foreach (var crlEntryExt in revokedCert.CrlEntryExtensions)
                         {
-                            crlWriter.WriteEncodedValue(crlEntryExt.RawData);
+                            crlWriter.WriteExtension(crlEntryExt);
                         }
                         crlWriter.PopSequence();
                     }
@@ -220,13 +220,7 @@ namespace Opc.Ua.Security.Certificates
                     crlWriter.PushSequence();
                     foreach (var extension in CrlExtensions)
                     {
-                        //crlWriter.WriteEncodedValue(extension.RawData);
-                        var etag = Asn1Tag.Sequence;
-                        crlWriter.PushSequence(etag);
-                        crlWriter.WriteObjectIdentifier(extension.Oid.Value);
-                        crlWriter.WriteBoolean(extension.Critical);
-                        crlWriter.WriteOctetString(extension.RawData);
-                        crlWriter.PopSequence(etag);
+                        crlWriter.WriteExtension(extension);
                     }
                     crlWriter.PopSequence();
 
@@ -291,17 +285,8 @@ namespace Opc.Ua.Security.Certificates
                             var crlEntryExtensions = crlEntry.ReadSequence();
                             while (crlEntryExtensions.HasData)
                             {
-                                var crlEntryExt = crlEntryExtensions.ReadSequence();
-                                var extOid = crlEntryExt.ReadObjectIdentifier();
-                                bool critical = false;
-                                peekTag = crlEntryExt.PeekTag();
-                                if (peekTag == boolTag)
-                                {
-                                    critical = crlEntryExt.ReadBoolean();
-                                }
-                                var data = crlEntryExt.ReadOctetString();
-                                var x509Ext = new X509Extension(new Oid(extOid), data, critical);
-                                revokedCertificate.CrlEntryExtensions.Add(x509Ext);
+                                var extension = crlEntryExtensions.ReadExtension();
+                                revokedCertificate.CrlEntryExtensions.Add(extension);
                             }
                         }
                         this.RevokedCertificates.Add(revokedCertificate);
@@ -315,18 +300,8 @@ namespace Opc.Ua.Security.Certificates
                         var crlExtensions = optReader.ReadSequence();
                         while (crlExtensions.HasData)
                         {
-                            var etag = Asn1Tag.Sequence;
-                            var extension = crlExtensions.ReadSequence(etag);
-                            var extOid = extension.ReadObjectIdentifier();
-                            bool critical = false;
-                            peekTag = extension.PeekTag();
-                            if (peekTag == boolTag)
-                            {
-                                critical = extension.ReadBoolean();
-                            }
-                            var data = extension.ReadOctetString();
-                            var x509Ext = new X509Extension(new Oid(extOid), data, critical);
-                            this.CrlExtensions.Add(x509Ext);
+                            var extension = crlExtensions.ReadExtension();
+                            this.CrlExtensions.Add(extension);
                         }
                     }
                 }

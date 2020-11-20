@@ -763,6 +763,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
         }
         #endregion
+
         #region Private Methods
         private CertificateValidator InitValidatorWithStores()
         {
@@ -791,6 +792,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(rootBCCert.GetPublicKey()).GetDerEncoded();
         }
         #endregion
+
         #region Private Fields
         private const int kCaChainCount = 4;
         private const int kGoodApplicationsTestCount = 10;
