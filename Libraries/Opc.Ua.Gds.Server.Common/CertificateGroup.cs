@@ -29,10 +29,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates.X509;
+using Opc.Ua.Security.X509Certificates;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -161,7 +162,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual async Task<Opc.Ua.Security.Certificates.X509CRL> RevokeCertificateAsync(
+        public virtual async Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
             return await CertificateFactory.RevokeCertificateAsync(

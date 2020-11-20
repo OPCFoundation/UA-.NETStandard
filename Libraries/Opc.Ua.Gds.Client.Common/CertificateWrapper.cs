@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Gds.Client
 {

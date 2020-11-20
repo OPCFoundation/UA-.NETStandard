@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Opc.Ua.Security.Certificates.X509;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Client

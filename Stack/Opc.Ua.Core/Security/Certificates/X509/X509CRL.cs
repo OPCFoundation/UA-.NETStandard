@@ -15,9 +15,8 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using Org.BouncyCastle.X509;
-using Opc.Ua.Security.Certificates.X509;
 
-namespace Opc.Ua.Security.Certificates
+namespace Opc.Ua
 {
     
     /// <summary>

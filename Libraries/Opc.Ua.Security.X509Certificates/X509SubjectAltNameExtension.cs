@@ -1,18 +1,31 @@
-/* Copyright (c) 1996-2015, OPC Foundation. All rights reserved.
-
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -22,7 +35,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Opc.Ua.Security.Certificates.X509
+namespace Opc.Ua.Security.X509Certificates
 {
     /// <summary>
     /// The subject alternate name extension.
@@ -208,7 +221,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// Gets the uris.
         /// </summary>
         /// <value>The uris.</value>
-        public ReadOnlyList<string> Uris
+        public IReadOnlyList<string> Uris
         {
             get { return m_uris; }
         }
@@ -217,7 +230,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// Gets the domain names.
         /// </summary>
         /// <value>The domain names.</value>
-        public ReadOnlyList<string> DomainNames
+        public IReadOnlyList<string> DomainNames
         {
             get { return m_domainNames; }
         }
@@ -226,7 +239,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// Gets the IP addresses.
         /// </summary>
         /// <value>The IP addresses.</value>
-        public ReadOnlyList<string> IPAddresses
+        public IReadOnlyList<string> IPAddresses
         {
             get { return m_ipAddresses; }
         }
@@ -245,9 +258,7 @@ namespace Opc.Ua.Security.Certificates.X509
             }
             catch
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid,
-                    "Certificate contains invalid IP address.");
+                throw new CryptographicException("Certificate contains invalid IP address.");
             }
         }
 
@@ -273,7 +284,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// </summary>
         /// <param name="sanBuilder">The subject alternative name builder</param>
         /// <param name="generalNames">The general Names to add</param>
-        private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IList<string> generalNames)
+        private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IReadOnlyList<string> generalNames)
         {
             foreach (string generalName in generalNames)
             {
@@ -343,22 +354,18 @@ namespace Opc.Ua.Security.Certificates.X509
                             }
                         }
                     }
-                    m_uris = new ReadOnlyList<string>(uris);
-                    m_domainNames = new ReadOnlyList<string>(domainNames);
-                    m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
+                    m_uris = uris.AsReadOnly();
+                    m_domainNames = domainNames.AsReadOnly();
+                    m_ipAddresses = ipAddresses.AsReadOnly();
                 }
-                catch (AsnContentException)
+                catch (AsnContentException ace)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Certificate has invalid ASN content in the SubjectAltName extension.");
+                    throw new CryptographicException("Certificate has invalid ASN content in the SubjectAltName extension.", ace);
                 }
             }
             else
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadCertificateInvalid,
-                    "Certificate uses unknown SubjectAltNameOid.");
+                throw new CryptographicException("Certificate uses unknown SubjectAltNameOid.");
             }
         }
 
@@ -389,9 +396,9 @@ namespace Opc.Ua.Security.Certificates.X509
                     domainNames.Add(generalName);
                 }
             }
-            m_uris = new ReadOnlyList<string>(uris);
-            m_domainNames = new ReadOnlyList<string>(domainNames);
-            m_ipAddresses = new ReadOnlyList<string>(ipAddresses);
+            m_uris = uris.AsReadOnly();
+            m_domainNames = domainNames.AsReadOnly();
+            m_ipAddresses = ipAddresses.AsReadOnly(); 
         }
         #endregion
 
@@ -404,9 +411,9 @@ namespace Opc.Ua.Security.Certificates.X509
         private const string kDnsName = "DNS Name";
         private const string kIpAddress = "IP Address";
         private const string kFriendlyName = "Subject Alternative Name";
-        private ReadOnlyList<string> m_uris;
-        private ReadOnlyList<string> m_domainNames;
-        private ReadOnlyList<string> m_ipAddresses;
+        private IReadOnlyList<string> m_uris;
+        private IReadOnlyList<string> m_domainNames;
+        private IReadOnlyList<string> m_ipAddresses;
         #endregion
     }
 }

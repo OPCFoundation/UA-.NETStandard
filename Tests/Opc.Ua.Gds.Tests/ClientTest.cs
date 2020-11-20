@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Tests
 
         }
 
-
+#if TODO
         [DatapointSource]
         public static ConnectionProfile[] ConnectionProfileArray = new ConnectionProfile[] {
             new ConnectionProfile( SecurityPolicies.None, MessageSecurityMode.None),
@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
             new ConnectionProfile( SecurityPolicies.Aes128_Sha256_RsaOaep, MessageSecurityMode.SignAndEncrypt),
             new ConnectionProfile( SecurityPolicies.Aes256_Sha256_RsaPss, MessageSecurityMode.SignAndEncrypt),
         };
-
+#endif
 
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
@@ -124,9 +124,9 @@ namespace Opc.Ua.Gds.Tests
         {
             DisconnectGDS();
         }
-        #endregion
+#endregion
 
-        #region Test Methods
+#region Test Methods
         /// <summary>
         /// Connect to the GDS server using all available security profiles.
         /// </summary>
@@ -1033,8 +1033,8 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        #endregion
-        #region Private Methods
+#endregion
+#region Private Methods
         private void ConnectGDS(bool admin)
         {
             _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
@@ -1116,8 +1116,8 @@ namespace Opc.Ua.Gds.Tests
             return _goodApplicationTestSet.Sum(a => a.ApplicationRecord.DiscoveryUrls.Count);
         }
 
-        #endregion
-        #region Private Fields
+#endregion
+#region Private Fields
         private const int goodApplicationsTestCount = 10;
         private const int invalidApplicationsTestCount = 10;
         private const int randomStart = 1;
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Gds.Tests
         private bool _goodRegistrationOk;
         private bool _invalidRegistrationOk;
         private bool _goodNewKeyPairRequestOk;
-        #endregion
+#endregion
     }
 
 }

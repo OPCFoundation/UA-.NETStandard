@@ -15,7 +15,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates.X509;
+using Opc.Ua.Security.X509Certificates;
 
 namespace Opc.Ua
 {

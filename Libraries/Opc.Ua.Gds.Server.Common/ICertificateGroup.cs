@@ -72,7 +72,7 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             );
 
-        Task<Opc.Ua.Security.Certificates.X509CRL> RevokeCertificateAsync(
+        Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate
             );
 

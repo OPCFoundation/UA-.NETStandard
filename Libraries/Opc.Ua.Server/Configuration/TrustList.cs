@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
-using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Server
 {

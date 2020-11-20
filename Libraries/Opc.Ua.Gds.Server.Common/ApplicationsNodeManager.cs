@@ -35,7 +35,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Security.Certificates.X509;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server

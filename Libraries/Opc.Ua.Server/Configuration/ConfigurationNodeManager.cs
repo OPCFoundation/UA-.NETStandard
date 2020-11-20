@@ -33,7 +33,6 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Xml;
-using Opc.Ua.Security.Certificates.X509;
 
 namespace Opc.Ua.Server
 {

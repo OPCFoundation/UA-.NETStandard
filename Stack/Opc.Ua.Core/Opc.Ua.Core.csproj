@@ -64,6 +64,10 @@
     <Folder Include="Properties\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.X509Certificates\Opc.Ua.Security.X509Certificates.csproj" />
+  </ItemGroup>
+
   <Target Name="GetPackagingOutputs" />
 
 </Project>

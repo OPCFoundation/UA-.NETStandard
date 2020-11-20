@@ -1,14 +1,31 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
 using System.Formats.Asn1;
@@ -16,7 +33,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
-namespace Opc.Ua.Security.Certificates.X509
+namespace Opc.Ua.Security.X509Certificates
 {
     /// <summary>
     /// Stores the authority key identifier extension.
@@ -112,7 +129,7 @@ namespace Opc.Ua.Security.Certificates.X509
 
                 buffer.Append(kKeyIdentifier);
                 buffer.Append("=");
-                buffer.Append(Utils.ToHexString(m_keyIdentifier));
+                buffer.Append(m_keyIdentifier.ToHexString());
             }
 
             if (m_Issuer != null)
@@ -143,7 +160,7 @@ namespace Opc.Ua.Security.Certificates.X509
 
                 buffer.Append(kSerialNumber);
                 buffer.Append("=");
-                buffer.Append(Utils.ToHexString(m_serialNumber, true));
+                buffer.Append(m_serialNumber.ToHexString(true));
             }
 
             return buffer.ToString();
@@ -175,7 +192,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// <summary>
         /// The identifier for the key as a little endian hexadecimal string.
         /// </summary>
-        public string KeyIdentifier => Utils.ToHexString(m_keyIdentifier);
+        public string KeyIdentifier => m_keyIdentifier.ToHexString();
 
         /// <summary>
         /// The identifier for the key as a byte array.
@@ -190,7 +207,7 @@ namespace Opc.Ua.Security.Certificates.X509
         /// <summary>
         /// The serial number of the authority key as a big endian hexadecimal string.
         /// </summary>
-        public string SerialNumber => Utils.ToHexString(m_serialNumber, true);
+        public string SerialNumber => m_serialNumber.ToHexString(true);
 
         /// <summary>
         /// The serial number of the authority key as a byte array in little endian order.
@@ -257,12 +274,11 @@ namespace Opc.Ua.Security.Certificates.X509
 
                     Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
                     m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
+                    m_decoded = true;
                     return;
                 }
             }
-            throw new ServiceResultException(
-                StatusCodes.BadCertificateInvalid,
-                "Certificate uses unknown data or bad AuthorityKeyIdentifierOid.");
+            throw new CryptographicException("Certificate uses unknown data or has bad AuthorityKeyIdentifierOid.");
         }
         #endregion
 
@@ -278,6 +294,7 @@ namespace Opc.Ua.Security.Certificates.X509
         private byte[] m_keyIdentifier;
         private X500DistinguishedName m_Issuer;
         private byte[] m_serialNumber;
+        private bool m_decoded;
         #endregion
     }
 }
