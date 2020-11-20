@@ -31,7 +31,7 @@ using System;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
 
-namespace Opc.Ua.Security.X509Certificates
+namespace Opc.Ua.Security.Certificates
 {
     public class X509Signature
     {

@@ -33,7 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
-using Opc.Ua.Security.X509Certificates;
+using Opc.Ua.Security.Certificates;
 using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates

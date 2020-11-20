@@ -36,7 +36,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Linq;
 
-namespace Opc.Ua.Security.X509Certificates
+namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
     /// CRL Reason codes.

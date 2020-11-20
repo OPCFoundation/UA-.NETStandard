@@ -20,7 +20,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using Opc.Ua.Security.X509Certificates;
+using Opc.Ua.Security.Certificates;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
@@ -530,7 +530,7 @@ namespace Opc.Ua.Legacy
                 bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
                 // find the authority key identifier.
-                var authority = Security.X509Certificates.X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
+                var authority = Security.Certificates.X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
                 if (authority != null)
                 {
@@ -723,7 +723,7 @@ namespace Opc.Ua.Legacy
                     new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
 
                 Asn1Set attributes = null;
-                var san = Security.X509Certificates.X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+                var san = Security.Certificates.X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
                 X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 domainNames = domainNames ?? new List<String>();

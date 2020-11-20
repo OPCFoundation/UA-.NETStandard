@@ -30,7 +30,7 @@
 using System;
 
 #if NETFRAMEWORK
-namespace Opc.Ua.Security.X509Certificates.Tests
+namespace Opc.Ua.Security.Certificates.Tests
 {
     static class Program
     {

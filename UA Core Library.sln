@@ -57,9 +57,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Bindings.Https", "Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj", "{759563A2-AF35-4E7B-B813-082F047C8705}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.X509Certificates", "Libraries\Opc.Ua.Security.X509Certificates\Opc.Ua.Security.X509Certificates.csproj", "{484FB34A-4DCF-4F63-976B-C00F0230BE28}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates", "Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj", "{484FB34A-4DCF-4F63-976B-C00F0230BE28}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.X509Certificates.Tests", "Tests\Opc.Ua.Security.X509Certificates.Tests\Opc.Ua.Security.X509Certificates.Tests.csproj", "{A727180B-4AA8-4182-B35F-5B6D6CB79593}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates.Tests", "Tests\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj", "{A727180B-4AA8-4182-B35F-5B6D6CB79593}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

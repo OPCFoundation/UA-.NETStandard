@@ -28,12 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.Linq;
+using System.Net;
 using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Opc.Ua.Security.X509Certificates
+namespace Opc.Ua.Security.Certificates
 {
     public static class X509Extensions
     {

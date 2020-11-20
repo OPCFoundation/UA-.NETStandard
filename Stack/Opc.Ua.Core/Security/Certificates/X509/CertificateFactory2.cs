@@ -19,11 +19,11 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using Opc.Ua.Security.X509Certificates;
+using Opc.Ua.Security.Certificates;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
-using X509Extensions = Opc.Ua.Security.X509Certificates.X509Extensions;
+using X509Extensions = Opc.Ua.Security.Certificates.X509Extensions;
 
 namespace Opc.Ua
 {

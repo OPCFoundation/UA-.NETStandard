@@ -31,7 +31,7 @@
 using System;
 using System.Security.Cryptography;
 
-namespace Opc.Ua.Security.X509Certificates
+namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
     /// Oid constants defined for ASN encoding/decoding.
