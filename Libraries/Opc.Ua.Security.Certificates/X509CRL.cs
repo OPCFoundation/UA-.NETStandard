@@ -61,7 +61,7 @@ namespace Opc.Ua.Security.Certificates
             Decode(RawData);
         }
 
-        private X509CRL()
+        internal X509CRL()
         {
             ThisUpdate = DateTime.MinValue;
             NextUpdate = DateTime.MinValue;
@@ -124,12 +124,12 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The revoked user certificates
         /// </summary>
-        public IList<RevokedCertificate> RevokedCertificates { get; }
+        public IReadOnlyList<RevokedCertificate> RevokedCertificates { get; private set; }
 
         /// <summary>
         /// The X509Extensions of the CRL.
         /// </summary>
-        public IList<X509Extension> CrlExtensions { get; }
+        public IReadOnlyList<X509Extension> CrlExtensions { get; private set;  }
 
         /// <summary>
         /// The raw data for the CRL.
@@ -198,7 +198,7 @@ namespace Opc.Ua.Security.Certificates
         /// Decode the Tbs of the CRL.
         /// </summary>
         /// <param name="tbs">The raw Tbs data of the CRL.</param>
-        private void DecodeCrl(byte[] tbs)
+        internal void DecodeCrl(byte[] tbs)
         {
             try
             {
@@ -248,6 +248,7 @@ namespace Opc.Ua.Security.Certificates
                         // revoked certificates
                         var boolTag = new Asn1Tag(UniversalTagNumber.Boolean);
                         var revReader = seqReader.ReadSequence(tag);
+                        var revokedCertificates = new List<RevokedCertificate>();
                         while (revReader.HasData)
                         {
                             var crlEntry = revReader.ReadSequence();
@@ -264,8 +265,9 @@ namespace Opc.Ua.Security.Certificates
                                     revokedCertificate.CrlEntryExtensions.Add(extension);
                                 }
                             }
-                            this.RevokedCertificates.Add(revokedCertificate);
+                            revokedCertificates.Add(revokedCertificate);
                         }
+                        this.RevokedCertificates = revokedCertificates.AsReadOnly();
                     }
 
                     // CRL extensions
@@ -273,12 +275,14 @@ namespace Opc.Ua.Security.Certificates
                     var optReader = seqReader.ReadSequence(extTag);
                     if (optReader.HasData)
                     {
+                        var crlExtensionList = new List<X509Extension>();
                         var crlExtensions = optReader.ReadSequence();
                         while (crlExtensions.HasData)
                         {
                             var extension = crlExtensions.ReadExtension();
-                            this.CrlExtensions.Add(extension);
+                            crlExtensionList.Add(extension);
                         }
+                        this.CrlExtensions = crlExtensionList.AsReadOnly();
                     }
                 }
             }

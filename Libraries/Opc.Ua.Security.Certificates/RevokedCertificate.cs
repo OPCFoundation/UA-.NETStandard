@@ -30,6 +30,7 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -55,9 +56,21 @@ namespace Opc.Ua.Security.Certificates
         /// Construct revoked certificate with serialnumber,
         /// actual UTC time and the CRL reason.
         /// </summary>
-        /// <param name="serialNumber"></param>
-        /// <param name="crlReason"></param>
+        /// <param name="serialNumber">The serial number</param>
+        /// <param name="crlReason">The reason for revocation</param>
         public RevokedCertificate(string serialNumber, CRLReason crlReason)
+            : this(serialNumber)
+        {
+            CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+        }
+
+        /// <summary>
+        /// Construct revoked certificate with serialnumber,
+        /// actual UTC time and the CRL reason.
+        /// </summary>
+        /// <param name="serialNumber">The serial number</param>
+        /// <param name="crlReason">The reason for revocation</param>
+        public RevokedCertificate(byte[] serialNumber, CRLReason crlReason)
             : this(serialNumber)
         {
             CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
@@ -70,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="serialNumber"></param>
         public RevokedCertificate(string serialNumber) : this()
         {
-            UserCertificate = serialNumber.FromHexString();
+            UserCertificate = serialNumber.FromHexString().Reverse().ToArray();
         }
 
         /// <summary>

@@ -144,7 +144,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     crlWriter.PushSequence();
 
-                    BigInteger srlNumberValue = new BigInteger(revokedCert.UserCertificate.Reverse().ToArray());
+                    BigInteger srlNumberValue = new BigInteger(revokedCert.UserCertificate);
                     crlWriter.WriteInteger(srlNumberValue);
                     crlWriter.WriteUtcTime(revokedCert.RevocationDate);
 
