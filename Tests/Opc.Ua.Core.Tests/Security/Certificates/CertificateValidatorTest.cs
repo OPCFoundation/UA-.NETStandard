@@ -356,7 +356,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (var app in m_goodApplicationTestSet)
                 {
                     var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); });
-                    Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                    List<uint> statusCodes = new List<uint>();
+                    do
+                    {
+                        statusCodes.Add((uint)serviceResultException.StatusCode);
+                        serviceResultException = (ServiceResultException)serviceResultException.InnerException;
+                    } while (serviceResultException != null);
+
+                    Assert.Contains(StatusCodes.BadCertificateChainIncomplete, statusCodes,
+                        String.Format("The ist of service results does not contain the expected value {0}", StatusCodes.GetBrowseName(StatusCodes.BadCertificateChainIncomplete)));
+                    //Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
                 }
             }
         }
@@ -389,7 +398,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 foreach (var app in m_goodApplicationTestSet)
                 {
                     var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(new X509Certificate2(app.Certificate)); });
-                    Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                    List<uint> statusCodes = new List<uint>();
+                    do
+                    {
+                        statusCodes.Add((uint)serviceResultException.StatusCode);
+                        serviceResultException = (ServiceResultException)serviceResultException.InnerException;
+                    } while (serviceResultException != null);
+
+                    Assert.Contains(StatusCodes.BadCertificateChainIncomplete, statusCodes,
+                        String.Format("The ist of service results does not contain the expected value {0}", StatusCodes.GetBrowseName(StatusCodes.BadCertificateChainIncomplete)));
+                    //Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
                 }
             }
         }

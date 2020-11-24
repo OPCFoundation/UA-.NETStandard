@@ -64,6 +64,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the exception with an exception and a ServiceResult
+        /// </summary>
+        public ServiceResultException(Exception e, ServiceResult serviceResult) : base(e.Message, e)
+        {
+            m_status = serviceResult;
+            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
+            {
+                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1} {2}", m_status, e.GetType().Name, e.Message);
+            }
+        }
+
+        /// <summary>
         /// Initializes the exception with a message and an exception.
         /// </summary>
         public ServiceResultException(string message, Exception e) : base(message, e)
