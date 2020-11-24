@@ -702,7 +702,6 @@ namespace Opc.Ua.Legacy
             }
         }
 
-
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -1132,7 +1131,7 @@ namespace Opc.Ua.Legacy
                 // try to get signing/private key from certificate passed in
                 rsa = certificate.GetRSAPrivateKey();
                 RSAParameters rsaParams = rsa.ExportParameters(true);
-                RsaPrivateCrtKeyParameters keyParams = new RsaPrivateCrtKeyParameters(
+                var keyParams = new RsaPrivateCrtKeyParameters(
                     new BigInteger(1, rsaParams.Modulus),
                     new BigInteger(1, rsaParams.Exponent),
                     new BigInteger(1, rsaParams.D),
@@ -1258,7 +1257,7 @@ namespace Opc.Ua.Legacy
             return string.Empty;
         }
 
-
+#if MIST
         private static bool VerifyRSAKeyPairCrypt(
             RSA rsaPublicKey,
             RSA rsaPrivateKey)
@@ -1287,7 +1286,7 @@ namespace Opc.Ua.Legacy
             byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
         }
-
+#endif
 
         private class Password
             : IPasswordFinder
@@ -1305,7 +1304,7 @@ namespace Opc.Ua.Legacy
                 return (char[])password.Clone();
             }
         }
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static object m_certificatesLock = new object();

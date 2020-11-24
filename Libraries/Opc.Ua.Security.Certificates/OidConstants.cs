@@ -43,6 +43,7 @@ namespace Opc.Ua.Security.Certificates
         public const string ECDSASHA384 = "1.2.840.10045.4.3.3";
         public const string ECDSASHA512 = "1.2.840.10045.4.3.4";
 
+        public const string RsaPkcs1MD5 = "1.2.840.113549.1.1.4";
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
         public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
@@ -56,7 +57,11 @@ namespace Opc.Ua.Security.Certificates
 
         public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
         {
-            if (hashAlgorithm == HashAlgorithmName.SHA1)
+            if (hashAlgorithm == HashAlgorithmName.MD5)
+            {
+                return OidConstants.RsaPkcs1MD5;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
                 return OidConstants.RsaPkcs1Sha1;
             }
@@ -102,6 +107,7 @@ namespace Opc.Ua.Security.Certificates
         {
             switch (oid)
             {
+                case OidConstants.RsaPkcs1MD5: return HashAlgorithmName.MD5;
                 case OidConstants.RsaPkcs1Sha1: return HashAlgorithmName.SHA1;
                 case OidConstants.ECDSASHA256:
                 case OidConstants.RsaPkcs1Sha256: return HashAlgorithmName.SHA256;

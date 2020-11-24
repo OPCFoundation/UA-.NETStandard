@@ -260,26 +260,33 @@ namespace Opc.Ua.Security.Certificates
             if (base.Oid.Value == AuthorityKeyIdentifierOid ||
                 base.Oid.Value == AuthorityKeyIdentifier2Oid)
             {
-                AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
-                var akiReader = dataReader?.ReadSequence();
-                if (akiReader != null)
+                try
                 {
-                    Asn1Tag keyId = new Asn1Tag(TagClass.ContextSpecific, 0);
-                    m_keyIdentifier = akiReader.ReadOctetString(keyId);
-
-                    AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
-                    if (issuerReader != null)
+                    AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
+                    var akiReader = dataReader?.ReadSequence();
+                    if (akiReader != null)
                     {
-                        Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
-                        m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
-                    }
+                        Asn1Tag keyId = new Asn1Tag(TagClass.ContextSpecific, 0);
+                        m_keyIdentifier = akiReader.ReadOctetString(keyId);
 
-                    Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
-                    m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
-                    return;
+                        AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+                        if (issuerReader != null)
+                        {
+                            Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
+                            m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                        }
+
+                        Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
+                        m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
+                        return;
+                    }
+                }
+                catch (AsnContentException ace)
+                {
+                    throw new CryptographicException("Failed to decode the AuthorityKeyIdentifier extension.", ace);
                 }
             }
-            throw new CryptographicException("Certificate uses unknown data or has bad AuthorityKeyIdentifierOid.");
+            throw new CryptographicException("Invalid AuthorityKeyIdentifierOid.");
         }
         #endregion
 

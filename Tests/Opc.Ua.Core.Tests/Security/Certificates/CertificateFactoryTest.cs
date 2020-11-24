@@ -294,24 +294,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Crl crlbc2 = parser.ReadCrl(crl.RawData);
             var crlVersion = CertificateFactory.GetCrlNumber(crlbc2);
 
-            var newcrlDecoder = new X509Signature(crl.RawData);
-            var newcrl = new CrlBuilder(newcrlDecoder.Tbs);
-
+            var newcrl = new X509CRL(crl.RawData);
             crl.VerifySignature(issuerCertificate, true);
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl.IsRevoked(cert));
             }
 
-            var newcrl2Decoder = new X509Signature(crl2.RawData);
-            var newcrl2 = new CrlBuilder(newcrl2Decoder.Tbs);
-
+            var newcrl2 = new X509CRL(crl.RawData);
             crl2.VerifySignature(issuerCertificate, true);
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl2.IsRevoked(cert));
             }
-
         }
 #endif
 

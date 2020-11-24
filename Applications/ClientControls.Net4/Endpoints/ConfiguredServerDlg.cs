@@ -35,7 +35,6 @@ using System.Windows.Forms;
 using System.Reflection;
 using System.Threading;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -155,7 +154,7 @@ namespace Opc.Ua.Client.Controls
                 get
                 {
                     StatusType type = StatusType.Ok;
-                    
+
                     for (int i = 0; i < m_maxChannels; ++i)
                     {
                         if (m_statusTypes[i] > type)
@@ -213,17 +212,17 @@ namespace Opc.Ua.Client.Controls
                 switch (m_endpointDescription.EncodingSupport)
                 {
                     case BinaryEncodingSupport.None:
-                        {
-                            m_encoding = Encoding.Xml;
-                            break;
-                        }
+                    {
+                        m_encoding = Encoding.Xml;
+                        break;
+                    }
 
                     case BinaryEncodingSupport.Optional:
                     case BinaryEncodingSupport.Required:
-                        {
-                            m_encoding = Encoding.Binary;
-                            break;
-                        }
+                    {
+                        m_encoding = Encoding.Binary;
+                        break;
+                    }
                 }
 
                 BuildEndpointDescription();
@@ -283,22 +282,22 @@ namespace Opc.Ua.Client.Controls
                 switch (m_endpointDescription.EncodingSupport)
                 {
                     case BinaryEncodingSupport.None:
-                        {
-                            m_stringRepresentation += Encoding.Xml;
-                            break;
-                        }
+                    {
+                        m_stringRepresentation += Encoding.Xml;
+                        break;
+                    }
 
                     case BinaryEncodingSupport.Required:
-                        {
-                            m_stringRepresentation += Encoding.Binary;
-                            break;
-                        }
+                    {
+                        m_stringRepresentation += Encoding.Binary;
+                        break;
+                    }
 
                     case BinaryEncodingSupport.Optional:
-                        {
-                            m_stringRepresentation += Encoding.Binary + "/" + Encoding.Xml;
-                            break;
-                        }
+                    {
+                        m_stringRepresentation += Encoding.Binary + "/" + Encoding.Xml;
+                        break;
+                    }
                 }
 
             }
@@ -637,10 +636,10 @@ namespace Opc.Ua.Client.Controls
                         switch (url.TransportProfileUri)
                         {
                             case Profiles.HttpsBinaryTransport:
-                                {
-                                    Profile = "REST";
-                                    break;
-                                }
+                            {
+                                Profile = "REST";
+                                break;
+                            }
                         }
                     }
                 }
@@ -763,7 +762,7 @@ namespace Opc.Ua.Client.Controls
             if (currentProtocol != null)
             {
                 index = 0;
-                
+
                 for (int ii = 0; ii < ProtocolCB.Items.Count; ii++)
                 {
                     if (((Protocol)ProtocolCB.Items[ii]).Matches(currentProtocol.Url))
@@ -964,35 +963,35 @@ namespace Opc.Ua.Client.Controls
                         switch (endpointDescription.EncodingSupport)
                         {
                             case BinaryEncodingSupport.None:
+                            {
+                                if (!EncodingCB.Items.Contains(Encoding.Xml))
                                 {
-                                    if (!EncodingCB.Items.Contains(Encoding.Xml))
-                                    {
-                                        EncodingCB.Items.Add(Encoding.Xml);
-                                    }
-                                    break;
+                                    EncodingCB.Items.Add(Encoding.Xml);
                                 }
+                                break;
+                            }
 
                             case BinaryEncodingSupport.Required:
+                            {
+                                if (!EncodingCB.Items.Contains(Encoding.Binary))
                                 {
-                                    if (!EncodingCB.Items.Contains(Encoding.Binary))
-                                    {
-                                        EncodingCB.Items.Add(Encoding.Binary);
-                                    }
-                                    break;
+                                    EncodingCB.Items.Add(Encoding.Binary);
                                 }
+                                break;
+                            }
 
                             case BinaryEncodingSupport.Optional:
+                            {
+                                if (!EncodingCB.Items.Contains(Encoding.Binary))
                                 {
-                                    if (!EncodingCB.Items.Contains(Encoding.Binary))
-                                    {
-                                        EncodingCB.Items.Add(Encoding.Binary);
-                                    }
-                                    if (!EncodingCB.Items.Contains(Encoding.Xml))
-                                    {
-                                        EncodingCB.Items.Add(Encoding.Xml);
-                                    }
-                                    break;
+                                    EncodingCB.Items.Add(Encoding.Binary);
                                 }
+                                if (!EncodingCB.Items.Contains(Encoding.Xml))
+                                {
+                                    EncodingCB.Items.Add(Encoding.Xml);
+                                }
+                                break;
+                            }
                         }
                     }
                 }
@@ -1326,7 +1325,7 @@ namespace Opc.Ua.Client.Controls
 
             UriBuilder builder = null;
             string scheme = Utils.UriSchemeOpcTcp;
-            
+
             if (currentProtocol != null && currentProtocol.Url != null)
             {
                 scheme = currentProtocol.Url.Scheme;
@@ -1555,7 +1554,7 @@ namespace Opc.Ua.Client.Controls
                         m_currentDescription = FindBestEndpointDescription(m_availableEndpoints);
 
                         InitializeEncodings(m_availableEndpoints, m_currentDescription);
-                        SelectCorrespondingEndpointFromList(m_currentDescription); 
+                        SelectCorrespondingEndpointFromList(m_currentDescription);
                     }
                     finally
                     {
@@ -1732,7 +1731,7 @@ namespace Opc.Ua.Client.Controls
                 if ((m_currentDescription != null) && (m_currentDescription.Server != null))
                 {
                     m_statusObject.ClearStatus(StatusChannel.Server);
-                    
+
                     if (m_currentDescription.Server.ApplicationType == ApplicationType.Client)
                     {
                         m_statusObject.SetStatus(StatusChannel.ApplicationType, "Warning: Application type is unsupported.", StatusType.Warning);

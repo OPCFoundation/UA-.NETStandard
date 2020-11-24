@@ -37,7 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using static Opc.Ua.Utils;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -336,7 +336,7 @@ namespace Opc.Ua.Client
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed because the channel is encrypted.");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed because the channel is encrypted.");
                     }
                     else
                     {
@@ -350,7 +350,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {

@@ -16,6 +16,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {

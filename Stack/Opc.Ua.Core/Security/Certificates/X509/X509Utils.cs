@@ -17,9 +17,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua
+namespace Opc.Ua.Security.Certificates
 {
     public static class X509Utils
     {

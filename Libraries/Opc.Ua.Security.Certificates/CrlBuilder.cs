@@ -31,7 +31,6 @@ using System;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Globalization;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Linq;
@@ -39,74 +38,45 @@ using System.Linq;
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
-    /// CRL Reason codes.
+    /// Builds the tbsCertList of a CRL.
     /// </summary>
-    /// <remarks>
-    /// id-ce-cRLReasons OBJECT IDENTIFIER ::= { id-ce 21 }
-    ///   -- reasonCode::= { CRLReason }
-    /// CRLReason::= ENUMERATED {
-    ///      unspecified(0),
-    ///      keyCompromise(1),
-    ///      cACompromise(2),
-    ///      affiliationChanged(3),
-    ///      superseded(4),
-    ///      cessationOfOperation(5),
-    ///      certificateHold(6),
-    ///           --value 7 is not used
-    ///      removeFromCRL(8),
-    ///      privilegeWithdrawn(9),
-    ///      aACompromise(10) }
-    /// </remarks>
-    public enum CRLReason
+    public sealed class CrlBuilder 
     {
-        Unspecified = 0,
-        KeyCompromise = 1,
-        CACompromise = 2,
-        AffiliationChanged = 3,
-        Superseded = 4,
-        CessationOfOperation = 5,
-        CertificateHold = 6,
-        RemoveFromCRL = 8,
-        PrivilegeWithdrawn = 9,
-        AACompromise = 10
-    };
+        // CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1
+        // 
+        // CertificateList  ::=  SEQUENCE  {
+        //    tbsCertList          TBSCertList,
+        //    signatureAlgorithm   AlgorithmIdentifier,
+        //    signatureValue       BIT STRING
+        //    }
+        //
+        // TBSCertList  ::=  SEQUENCE  {
+        //    version                 Version OPTIONAL,
+        //                            -- if present, MUST be v2
+        //    signature               AlgorithmIdentifier,
+        //    issuer                  Name,
+        //    thisUpdate              Time,
+        //    nextUpdate              Time OPTIONAL,
+        //    revokedCertificates     SEQUENCE OF SEQUENCE  {
+        //        userCertificate         CertificateSerialNumber,
+        //        revocationDate          Time,
+        //        crlEntryExtensions      Extensions OPTIONAL
+        //                              -- if present, version MUST be v2
+        //                            }  OPTIONAL,
+        //    crlExtensions           [0]  EXPLICIT Extensions OPTIONAL
+        //                              -- if present, version MUST be v2
+        //                            }
 
-    public class CrlBuilder
-    {
-        public class RevokedCertificate
-        {
-            public RevokedCertificate(string serialNumber)
-            {
-                UserCertificate = serialNumber;
-                RevocationDate = DateTime.UtcNow;
-                CrlEntryExtensions = new List<X509Extension>();
-                CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(CRLReason.KeyCompromise));
-            }
-
-            public string UserCertificate { get; set; }
-            public DateTime RevocationDate { get; set; }
-            public IList<X509Extension> CrlEntryExtensions { get; }
-        }
-
-        public X500DistinguishedName IssuerSubjectName { get; private set; }
+        public X500DistinguishedName Issuer { get; private set; }
         public HashAlgorithmName HashAlgorithmName { get; private set; }
         public DateTime ThisUpdate { get; set; }
         public DateTime NextUpdate { get; set; }
         public IList<RevokedCertificate> RevokedCertificates { get; }
         public IList<X509Extension> CrlExtensions { get; }
 
-        public CrlBuilder(byte[] crl)
-        {
-            this.ThisUpdate = DateTime.MinValue;
-            this.NextUpdate = DateTime.MinValue;
-            this.RevokedCertificates = new List<RevokedCertificate>();
-            this.CrlExtensions = new List<X509Extension>();
-            Decode(crl);
-        }
-
         public CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
         {
-            this.IssuerSubjectName = issuerSubjectName;
+            this.Issuer = issuerSubjectName;
             this.HashAlgorithmName = hashAlgorithmName;
             this.ThisUpdate = DateTime.UtcNow;
             this.NextUpdate = DateTime.MinValue;
@@ -116,7 +86,7 @@ namespace Opc.Ua.Security.Certificates
 
         public CrlBuilder(X500DistinguishedName issuerSubjectName, string[] serialNumbers, HashAlgorithmName hashAlgorithmName)
         {
-            this.IssuerSubjectName = issuerSubjectName;
+            this.Issuer = issuerSubjectName;
             this.HashAlgorithmName = hashAlgorithmName;
             this.ThisUpdate = DateTime.UtcNow;
             this.NextUpdate = DateTime.MinValue;
@@ -124,36 +94,19 @@ namespace Opc.Ua.Security.Certificates
             this.CrlExtensions = new List<X509Extension>();
         }
 
+#if NETSTANDARD2_1
+        // TODO
+        public X509CRL Create(X509SignatureGenerator generator)
+        {
+            return null;
+        }
+#endif
+
         /// <summary>
         /// Constructs Certificate Revocation List raw data in X509 ASN format.
         /// </summary>
         public byte[] GetEncoded()
         {
-            // CRL fields -- https://tools.ietf.org/html/rfc5280#section-5.1
-            // 
-            // CertificateList  ::=  SEQUENCE  {
-            //    tbsCertList          TBSCertList,
-            //    signatureAlgorithm   AlgorithmIdentifier,
-            //    signatureValue       BIT STRING
-            //    }
-            //
-            // TBSCertList  ::=  SEQUENCE  {
-            //    version                 Version OPTIONAL,
-            //                            -- if present, MUST be v2
-            //    signature               AlgorithmIdentifier,
-            //    issuer                  Name,
-            //    thisUpdate              Time,
-            //    nextUpdate              Time OPTIONAL,
-            //    revokedCertificates     SEQUENCE OF SEQUENCE  {
-            //        userCertificate         CertificateSerialNumber,
-            //        revocationDate          Time,
-            //        crlEntryExtensions      Extensions OPTIONAL
-            //                              -- if present, version MUST be v2
-            //                            }  OPTIONAL,
-            //    crlExtensions           [0]  EXPLICIT Extensions OPTIONAL
-            //                              -- if present, version MUST be v2
-            //                            }
-
             AsnWriter crlWriter = new AsnWriter(AsnEncodingRules.DER);
             {
                 // tbsCertList
@@ -172,7 +125,7 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.PopSequence();
 
                 // Issuer
-                crlWriter.WriteEncodedValue((ReadOnlySpan<byte>)this.IssuerSubjectName.RawData);
+                crlWriter.WriteEncodedValue((ReadOnlySpan<byte>)this.Issuer.RawData);
 
                 // this update
                 crlWriter.WriteUtcTime(this.ThisUpdate);
@@ -191,7 +144,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     crlWriter.PushSequence();
 
-                    BigInteger srlNumberValue = BigInteger.Parse(revokedCert.UserCertificate, NumberStyles.AllowHexSpecifier);
+                    BigInteger srlNumberValue = new BigInteger(revokedCert.UserCertificate.Reverse().ToArray());
                     crlWriter.WriteInteger(srlNumberValue);
                     crlWriter.WriteUtcTime(revokedCert.RevocationDate);
 
@@ -212,7 +165,7 @@ namespace Opc.Ua.Security.Certificates
                 // CRL extensions
                 if (CrlExtensions.Count > 0)
                 {
-                    // [0]  EXPLICIT Extensions
+                    // [0]  EXPLICIT Extensions OPTIONAL
                     var tag = new Asn1Tag(TagClass.ContextSpecific, 0);
                     crlWriter.PushSequence(tag);
 
@@ -230,85 +183,6 @@ namespace Opc.Ua.Security.Certificates
                 crlWriter.PopSequence();
 
                 return crlWriter.Encode();
-            }
-        }
-
-
-        public void Decode(byte[] crl)
-        {
-            try
-            {
-                AsnReader crlReader = new AsnReader(crl, AsnEncodingRules.DER);
-                var tag = Asn1Tag.Sequence;
-                var seqReader = crlReader?.ReadSequence(tag);
-                if (seqReader != null)
-                {
-                    uint version = 0;
-                    if (seqReader.TryReadUInt32(out version))
-                    {
-                        if (version != 1)
-                        {
-                            throw new AsnContentException($"The CRL contains an incorrect version {version}");
-                        }
-                    }
-
-                    // Signature Algorithm Identifier
-                    var sigReader = seqReader.ReadSequence();
-                    var oid = sigReader.ReadObjectIdentifier();
-                    HashAlgorithmName = OidConstants.GetHashAlgorithmName(oid);
-
-                    // Issuer
-                    IssuerSubjectName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
-
-                    // thisUpdate
-                    ThisUpdate = seqReader.ReadUtcTime().UtcDateTime;
-
-                    // nextUpdate is OPTIONAL
-                    var utcTag = new Asn1Tag(UniversalTagNumber.UtcTime);
-                    var peekTag = seqReader.PeekTag();
-                    if (peekTag == utcTag)
-                    {
-                        NextUpdate = seqReader.ReadUtcTime().UtcDateTime;
-                    }
-
-                    // revoked certificates
-                    var boolTag = new Asn1Tag(UniversalTagNumber.Boolean);
-                    var revReader = seqReader.ReadSequence(tag);
-                    while (revReader.HasData)
-                    {
-                        var crlEntry = revReader.ReadSequence();
-                        var serial = crlEntry.ReadInteger();
-                        var revokedCertificate = new RevokedCertificate(serial.ToByteArray().ToHexString());
-                        revokedCertificate.RevocationDate = crlEntry.ReadUtcTime().UtcDateTime;
-                        if (crlEntry.HasData)
-                        {
-                            var crlEntryExtensions = crlEntry.ReadSequence();
-                            while (crlEntryExtensions.HasData)
-                            {
-                                var extension = crlEntryExtensions.ReadExtension();
-                                revokedCertificate.CrlEntryExtensions.Add(extension);
-                            }
-                        }
-                        this.RevokedCertificates.Add(revokedCertificate);
-                    }
-
-                    // CRL extensions
-                    var ext = new Asn1Tag(TagClass.ContextSpecific, 0);
-                    var optReader = seqReader.ReadSequence(ext);
-                    if (optReader.HasData)
-                    {
-                        var crlExtensions = optReader.ReadSequence();
-                        while (crlExtensions.HasData)
-                        {
-                            var extension = crlExtensions.ReadExtension();
-                            this.CrlExtensions.Add(extension);
-                        }
-                    }
-                }
-            }
-            catch (AsnContentException ace)
-            {
-                throw new CryptographicException("Failed to decode the CRL.", ace);
             }
         }
     }

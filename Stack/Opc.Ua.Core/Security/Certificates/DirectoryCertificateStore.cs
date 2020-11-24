@@ -17,6 +17,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -408,7 +409,7 @@ namespace Opc.Ua
                         return StatusCodes.BadCertificateRevoked;
                     }
 
-                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
                     {
                         crlExpired = false;
                     }
@@ -477,7 +478,7 @@ namespace Opc.Ua
                 }
 
                 if (!validateUpdateTime ||
-                    crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
                 {
                     crls.Add(crl);
                 }

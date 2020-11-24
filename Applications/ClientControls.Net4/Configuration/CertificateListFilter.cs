@@ -156,18 +156,7 @@ namespace Opc.Ua.Client.Controls
                 if (m_certificateTypes != null)
                 {
                     // determine if a CA certificate.
-                    bool isCA = false;
-
-                    foreach (X509Extension extension in certificate.Extensions)
-                    {
-                        X509BasicConstraintsExtension basicContraints = extension as X509BasicConstraintsExtension; 
-                        
-                        if (basicContraints != null)
-                        {
-                            isCA = basicContraints.CertificateAuthority;
-                            break;
-                        }
-                    }
+                    bool isCA = X509Utils.IsCertificateAuthority(certificate);
 
                     // determine if self-signed.
                     bool isSelfSigned = X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);

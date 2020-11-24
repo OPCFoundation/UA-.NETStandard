@@ -82,37 +82,43 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] crl)
         {
-            AsnReader crlReader = new AsnReader(crl, AsnEncodingRules.DER);
+            try
             {
-                var tag = Asn1Tag.Sequence;
-                var seqReader = crlReader?.ReadSequence(tag);
-                if (seqReader != null)
+                AsnReader crlReader = new AsnReader(crl, AsnEncodingRules.DER);
                 {
-                    // Tbs encoded data
-                    Tbs = seqReader.ReadEncodedValue().ToArray();
+                    var tag = Asn1Tag.Sequence;
+                    var seqReader = crlReader?.ReadSequence(tag);
+                    if (seqReader != null)
+                    {
+                        // Tbs encoded data
+                        Tbs = seqReader.ReadEncodedValue().ToArray();
 
-                    // Signature Algorithm Identifier
-                    var sigOid = seqReader.ReadSequence();
-                    var signatureAlgorithm = sigOid.ReadObjectIdentifier();
-                    Name = OidConstants.GetHashAlgorithmName(signatureAlgorithm);
+                        // Signature Algorithm Identifier
+                        var sigOid = seqReader.ReadSequence();
+                        var signatureAlgorithm = sigOid.ReadObjectIdentifier();
+                        Name = OidConstants.GetHashAlgorithmName(signatureAlgorithm);
 
-                    // Signature
-                    int unusedBitCount;
-                    Signature = seqReader.ReadBitString(out unusedBitCount);
+                        // Signature
+                        int unusedBitCount;
+                        Signature = seqReader.ReadBitString(out unusedBitCount);
+                    }
                 }
+            }
+            catch (AsnContentException ace)
+            {
+                throw new CryptographicException("Failed to decode the X509 signature.", ace);
             }
         }
 
         /// <summary>
-        /// 
+        /// Encode a ECDSA signature as ASN.1
         /// </summary>
         /// <param name="signature"></param>
-        public static byte[] EncodeECDSASignatureToASNFormat(byte[] signature)
+        public static byte[] EncodeECDSA(byte[] signature)
         {
-            // Encode from ieee signature format to ASN1 DER encoded 
+            // Encode from IEEE signature format to ASN1 DER encoded 
             // signature format for ecdsa certificates.
             // ECDSA-Sig-Value ::= SEQUENCE { r INTEGER, s INTEGER }
-            // https://www.ietf.org/rfc/rfc5480.txt
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             var tag = Asn1Tag.Sequence;
             writer.PushSequence(tag);

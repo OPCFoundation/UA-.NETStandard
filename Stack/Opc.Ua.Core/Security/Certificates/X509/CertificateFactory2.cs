@@ -32,7 +32,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-        #region Public Constants
+#region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -51,9 +51,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -648,7 +648,7 @@ namespace Opc.Ua
             string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             // Subject Alternative Name
-            var subjectAltName = X509Extensions.BuildSubjectAlternativeName(applicationUri, domainNames);
+            var subjectAltName = new X509SubjectAltNameExtension(applicationUri, domainNames);
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
 
             using (RSA rsa = certificate.GetRSAPrivateKey())
@@ -746,6 +746,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns a byte array containing the CSR in PEM format.
+        /// </summary>
+        public static byte[] ExportCSRAsPEM(byte [] csr)
+        {
+            return EncodeAsPem(csr, "CERTIFICATE REQUEST");
+        }
+
+        /// <summary>
         /// Returns a byte array containing the cert in PEM format.
         /// </summary>
         public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
@@ -800,9 +808,9 @@ namespace Opc.Ua
             return EncodeAsPem(exportedPkcs8PrivateKey,
                 String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         private static byte[] EncodeAsPem(byte[] content, string contentType)
         {
             const int LineLength = 64;
@@ -1092,7 +1100,7 @@ namespace Opc.Ua
                 return (char[])password.Clone();
             }
         }
-        #endregion
+#endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

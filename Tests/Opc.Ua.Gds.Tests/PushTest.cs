@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
 

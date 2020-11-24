@@ -41,6 +41,12 @@ namespace Opc.Ua.Security.Certificates
 {
     public static class X509Extensions
     {
+        /// <summary>
+        /// Find a typed extension in a certificate.
+        /// </summary>
+        /// <typeparam name="T">The type of the extension.</typeparam>
+        /// <param name="certificate">The certificate with extensions.</param>
+        /// <returns></returns>
         public static T FindExtension<T>(X509Certificate2 certificate) where T : X509Extension
         {
             // search known custom extensions
@@ -124,37 +130,6 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-#if NETSTANDARD2_1
-        /// <summary>
-        /// Build the Subject Alternative name extension (for OPC UA application certs)
-        /// </summary>
-        /// <param name="applicationUri">The application Uri</param>
-        /// <param name="domainNames">The domain names. DNS Hostnames, IPv4 or IPv6 addresses</param>
-        public static X509Extension BuildSubjectAlternativeName(string applicationUri, IList<string> domainNames)
-        {
-            var sanBuilder = new SubjectAlternativeNameBuilder();
-            sanBuilder.AddUri(new Uri(applicationUri));
-            foreach (string domainName in domainNames)
-            {
-                IPAddress ipAddr;
-                if (String.IsNullOrWhiteSpace(domainName))
-                {
-                    continue;
-                }
-                if (IPAddress.TryParse(domainName, out ipAddr))
-                {
-                    sanBuilder.AddIpAddress(ipAddr);
-                }
-                else
-                {
-                    sanBuilder.AddDnsName(domainName);
-                }
-            }
-
-            return sanBuilder.Build();
-        }
-#endif
-
         /// <summary>
         /// Build the CRL Distribution Point extension.
         /// </summary>
@@ -187,6 +162,11 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Read an ASN.1 extension sequence as X509Extension object.
+        /// </summary>
+        /// <param name="reader">The ASN reader.</param>
+        /// <returns></returns>
         public static X509Extension ReadExtension(this AsnReader reader)
         {
             if (reader.HasData)
@@ -206,6 +186,11 @@ namespace Opc.Ua.Security.Certificates
             return null;
         }
 
+        /// <summary>
+        /// Write an extension object as ASN.1.
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="extension"></param>
         public static void WriteExtension(this AsnWriter writer, X509Extension extension)
         {
             var etag = Asn1Tag.Sequence;
@@ -227,11 +212,8 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            //writer.PushSequence();
-            //writer.WriteObjectIdentifier(OidConstants.CrlReasonCode);
             // TODO: is there a better way to encode CRLReason?
             writer.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)reason });
-            //writer.PopSequence();
             return new X509Extension(OidConstants.CrlReasonCode, writer.Encode(), false);
         }
 

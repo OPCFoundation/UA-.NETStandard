@@ -360,12 +360,12 @@ namespace Opc.Ua.Security.Certificates
                 }
                 catch (AsnContentException ace)
                 {
-                    throw new CryptographicException("Certificate has invalid ASN content in the SubjectAltName extension.", ace);
+                    throw new CryptographicException("Failed to decode the SubjectAltName extension.", ace);
                 }
             }
             else
             {
-                throw new CryptographicException("Certificate uses unknown SubjectAltNameOid.");
+                throw new CryptographicException("Invalid SubjectAltNameOid.");
             }
         }
 

@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -218,12 +219,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (i == kCaChainCount / 2)
                 {
-                    await m_trustedStore.Add(m_caChain[i]);
+                    await m_trustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                     m_trustedStore.AddCRL(m_crlChain[i]);
                 }
                 else
                 {
-                    await m_issuerStore.Add(m_caChain[i]);
+                    await m_issuerStore.Add(m_caChain[i]).ConfigureAwait(false);
                     m_issuerStore.AddCRL(m_crlChain[i]);
                 }
             }
@@ -248,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CleanupValidatorAndStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    await m_issuerStore.Add(cert);
+                    await m_issuerStore.Add(cert).ConfigureAwait(false);
                 }
                 Assert.AreEqual(m_appSelfSignedCerts.Count, m_issuerStore.Enumerate().Result.Count);
                 var certValidator = InitValidatorWithStores();
@@ -262,7 +263,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CleanupValidatorAndStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    await m_trustedStore.Add(cert);
+                    await m_trustedStore.Add(cert).ConfigureAwait(false);
                 }
                 Assert.AreEqual(m_appSelfSignedCerts.Count, m_trustedStore.Enumerate().Result.Count);
                 certValidator = InitValidatorWithStores();
@@ -275,7 +276,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CleanupValidatorAndStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    await m_trustedStore.Add(cert);
+                    await m_trustedStore.Add(cert).ConfigureAwait(false);
                     await m_issuerStore.Add(cert);
                 }
                 certValidator = InitValidatorWithStores();
