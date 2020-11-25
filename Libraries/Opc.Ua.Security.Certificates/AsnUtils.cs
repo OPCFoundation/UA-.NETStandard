@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Formats.Asn1;
 using System.Text;
 
 namespace Opc.Ua.Security.Certificates
 {
-    internal static class HexUtils
+    internal static class AsnUtils
     {
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
@@ -116,5 +117,44 @@ namespace Opc.Ua.Security.Certificates
 
             return bytes;
         }
+
+        /// <summary>
+        /// Writer for Public Key parameters.
+        /// </summary>
+        /// <param name="writer">The writer</param>
+        /// <param name="integer">The key parameter</param>
+        public static void WriteKeyParameterInteger(this AsnWriter writer, ReadOnlySpan<byte> integer)
+        {
+            if (integer[0] == 0)
+            {
+                int newStart = 1;
+
+                while (newStart < integer.Length)
+                {
+                    if (integer[newStart] >= 0x80)
+                    {
+                        newStart--;
+                        break;
+                    }
+
+                    if (integer[newStart] != 0)
+                    {
+                        break;
+                    }
+
+                    newStart++;
+                }
+
+                if (newStart == integer.Length)
+                {
+                    newStart--;
+                }
+
+                integer = integer.Slice(newStart);
+            }
+
+            writer.WriteIntegerUnsigned(integer);
+        }
+
     }
 }

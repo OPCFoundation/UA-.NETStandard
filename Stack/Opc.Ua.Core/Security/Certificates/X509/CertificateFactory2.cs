@@ -280,8 +280,8 @@ namespace Opc.Ua
                 request.CertificateExtensions.Add(
                     new X509EnhancedKeyUsageExtension(
                         new OidCollection {
-                            new Oid(OidConstants.ServerAuthentication),
-                            new Oid(OidConstants.ClientAuthentication)
+                            new Oid(Oids.ServerAuthentication),
+                            new Oid(Oids.ClientAuthentication)
                         }, true));
 
                 // Subject Alternative Name
@@ -581,20 +581,16 @@ namespace Opc.Ua
                 }
             }
 
-            var hashAlgorithmName = HashAlgorithmName.SHA256;
-            CrlBuilder crlBuilder = new CrlBuilder(issuerCertificate.SubjectName, serialNumbers.ToArray(), hashAlgorithmName);
+            var hashAlgorithmName = Oids.GetHashAlgorithmName(issuerCertificate.SignatureAlgorithm.Value);
+            CrlBuilder crlBuilder = new CrlBuilder(issuerCertificate.SubjectName, hashAlgorithmName, serialNumbers.ToArray());
             crlBuilder.ThisUpdate = thisUpdate;
             crlBuilder.NextUpdate = nextUpdate;
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate));
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(crlSerialNumber + 1));
-            byte[] crlRawData = crlBuilder.GetEncoded();
             using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                byte[] signature = generator.SignData(crlRawData, hashAlgorithmName);
-                var crlSigner = new X509Signature(crlRawData, signature, hashAlgorithmName);
-                byte[] crlWithSignature = crlSigner.GetEncoded();
-                return new X509CRL(crlWithSignature);
+                return new X509CRL(crlBuilder.Create(generator));
             }
         }
 
@@ -748,7 +744,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a byte array containing the CSR in PEM format.
         /// </summary>
-        public static byte[] ExportCSRAsPEM(byte [] csr)
+        public static byte[] ExportCSRAsPEM(byte[] csr)
         {
             return EncodeAsPem(csr, "CERTIFICATE REQUEST");
         }
@@ -983,13 +979,13 @@ namespace Opc.Ua
         {
             switch (signatureAlgorithm.Value)
             {
-                case OidConstants.RsaPkcs1Sha1:
+                case Oids.RsaPkcs1Sha1:
                     return HashAlgorithmName.SHA1;
-                case OidConstants.RsaPkcs1Sha256:
+                case Oids.RsaPkcs1Sha256:
                     return HashAlgorithmName.SHA256;
-                case OidConstants.RsaPkcs1Sha384:
+                case Oids.RsaPkcs1Sha384:
                     return HashAlgorithmName.SHA384;
-                case OidConstants.RsaPkcs1Sha512:
+                case Oids.RsaPkcs1Sha512:
                     return HashAlgorithmName.SHA512;
             }
             throw new NotSupportedException($"Signature algorithm {signatureAlgorithm.FriendlyName} is not supported.");

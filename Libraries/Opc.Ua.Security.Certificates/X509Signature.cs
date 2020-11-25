@@ -55,7 +55,7 @@ namespace Opc.Ua.Security.Certificates
         /// Encode Tbs with a signature in ASN format.
         /// </summary>
         /// <returns>X509 ASN format of EncodedData+SignatureOID+Signature bytes.</returns>
-        public byte[] GetEncoded()
+        public byte[] Encode()
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
 
@@ -67,7 +67,7 @@ namespace Opc.Ua.Security.Certificates
 
             // Signature Algorithm Identifier
             writer.PushSequence();
-            string signatureAlgorithm = OidConstants.GetRSAOid(Name);
+            string signatureAlgorithm = Oids.GetRSAOid(Name);
             writer.WriteObjectIdentifier(signatureAlgorithm);
             writer.WriteNull();
             writer.PopSequence();
@@ -96,7 +96,7 @@ namespace Opc.Ua.Security.Certificates
                         // Signature Algorithm Identifier
                         var sigOid = seqReader.ReadSequence();
                         var signatureAlgorithm = sigOid.ReadObjectIdentifier();
-                        Name = OidConstants.GetHashAlgorithmName(signatureAlgorithm);
+                        Name = Oids.GetHashAlgorithmName(signatureAlgorithm);
 
                         // Signature
                         int unusedBitCount;

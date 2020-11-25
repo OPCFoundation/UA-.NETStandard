@@ -31,7 +31,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -46,7 +45,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     [TestFixture, Category("CRL")]
     [Parallelizable]
     [SetCulture("en-us")]
-    public class CertificateFactoryTest
+    public class CRLTest
     {
         #region DataPointSources
         public class CRLAsset : IFormattable
@@ -101,7 +100,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [DatapointSource]
-        public CRLAsset[] CRLTestCases = new CRLAssetCollection(Directory.EnumerateFiles("./Asset", "*.crl")).ToArray();
+        public CRLAsset[] CRLTestCases = new CRLAssetCollection(Directory.EnumerateFiles("./Assets", "*.crl")).ToArray();
         #endregion
 
         #region Test Setup
@@ -138,6 +137,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine(crlInfo);
         }
 
+        /// <summary>
+        /// Validate a CRL Builder and decoder pass.
+        /// </summary>
         [Test]
         public void CrlBuilderTest()
         {
@@ -152,7 +154,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var revokedstring = new RevokedCertificate(serstring);
             crlBuilder.RevokedCertificates.Add(revokedstring);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
-            var crlEncoded = crlBuilder.GetEncoded();
+            var crlEncoded = crlBuilder.Encode();
             Assert.NotNull(crlEncoded);
             var x509Crl = new X509CRL();
             x509Crl.DecodeCrl(crlEncoded);
@@ -177,7 +179,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             stringBuilder.AppendLine($"Issuer:     {x509Crl.Issuer}");
             stringBuilder.AppendLine($"ThisUpdate: {x509Crl.ThisUpdate}");
             stringBuilder.AppendLine($"NextUpdate: {x509Crl.NextUpdate}");
-#if NETCOREAPP3_1
             stringBuilder.AppendLine($"RevokedCertificates:");
             foreach (var revokedCert in x509Crl.RevokedCertificates)
             {
@@ -193,7 +194,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 stringBuilder.AppendLine($"{extension.Format(false)}");
             }
-#endif
             return stringBuilder.ToString();
         }
 

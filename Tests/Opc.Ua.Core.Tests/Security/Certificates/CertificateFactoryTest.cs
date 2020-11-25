@@ -274,12 +274,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifySelfSigned(issuerCertificate);
             X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
-
+#if mist
             var crlLegacy = Opc.Ua.Legacy.CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
             Assert.NotNull(crlLegacy);
             File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
             crlLegacy.VerifySignature(issuerCertificate, true);
-
+#endif
             var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
             File.WriteAllBytes("D:\\test2.crl", crl.RawData);
             Assert.NotNull(crl);
@@ -287,13 +287,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var crl2 = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts, DateTime.UtcNow, DateTime.MinValue);
             File.WriteAllBytes("D:\\test3.crl", crl.RawData);
             Assert.NotNull(crl2);
-
+#if mist
             X509CrlParser parser = new X509CrlParser();
             X509Crl crlbcLegacy = parser.ReadCrl(crlLegacy.RawData);
             var crlVersionLegacy = CertificateFactory.GetCrlNumber(crlbcLegacy);
             X509Crl crlbc2 = parser.ReadCrl(crl.RawData);
             var crlVersion = CertificateFactory.GetCrlNumber(crlbc2);
-
+#endif
             var newcrl = new X509CRL(crl.RawData);
             crl.VerifySignature(issuerCertificate, true);
             foreach (var cert in revokedCerts)
@@ -310,9 +310,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 #endif
 
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         public static void VerifySelfSignedApplicationCert(ApplicationTestData testApp, X509Certificate2 cert)
         {
             TestContext.Out.WriteLine($"{nameof(VerifySelfSignedApplicationCert)}:");
@@ -452,10 +452,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509SubjectAltNameExtension subjectAlternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(cert);
             Assert.Null(subjectAlternateName);
         }
-        #endregion
+#endregion
 
-        #region Private Fields
-        #endregion
+#region Private Fields
+#endregion
     }
 
 }

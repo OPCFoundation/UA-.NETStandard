@@ -214,7 +214,7 @@ namespace Opc.Ua.Security.Certificates
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             // TODO: is there a better way to encode CRLReason?
             writer.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)reason });
-            return new X509Extension(OidConstants.CrlReasonCode, writer.Encode(), false);
+            return new X509Extension(Oids.CrlReasonCode, writer.Encode(), false);
         }
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace Opc.Ua.Security.Certificates
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteInteger(crlNumber);
-            return new X509Extension(OidConstants.CrlNumber, writer.Encode(), false);
+            return new X509Extension(Oids.CrlNumber, writer.Encode(), false);
         }
     }
 }

@@ -38,9 +38,9 @@ using System.Formats.Asn1;
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
-    /// Provides access to an X509 CRL object.
+    /// Decodes a X509 CRL and provides access to information.
     /// </summary>
-    public sealed class X509CRL : IDisposable
+    public class X509CRL : IX509CRL
     {
         #region Constructors
         /// <summary>
@@ -61,80 +61,42 @@ namespace Opc.Ua.Security.Certificates
             Decode(RawData);
         }
 
+        /// <summary>
+        /// Default constructor, also internal test hook.
+        /// </summary>
         internal X509CRL()
         {
             ThisUpdate = DateTime.MinValue;
             NextUpdate = DateTime.MinValue;
-            RevokedCertificates = new List<RevokedCertificate>();
-            CrlExtensions = new List<X509Extension>();
+            m_revokedCertificates = new List<RevokedCertificate>();
+            m_crlExtensions = new List<X509Extension>();
         }
         #endregion
 
-        #region IDisposable Members
-        /// <summary>
-        /// The finalizer implementation.
-        /// </summary>
-        ~X509CRL()
-        {
-            Dispose(false);
-        }
+        #region IX509CRL Interface
+        /// <inheritdoc/>
+        public X500DistinguishedName IssuerName { get; protected set; }
 
-        /// <summary>
-        /// Frees any unmanaged resources.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        private void Dispose(bool disposing)
-        {
-        }
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// The name of the issuer for the CRL.
-        /// </summary>
-        public X500DistinguishedName IssuerName { get; private set; }
-
-        /// <summary>
-        /// The name of the issuer for the CRL.
-        /// </summary>
+        /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
 
-        /// <summary>
-        /// When the CRL was last updated.
-        /// </summary>
-        public DateTime ThisUpdate { get; private set; }
+        /// <inheritdoc/>
+        public DateTime ThisUpdate { get; protected set; }
 
-        /// <summary>
-        /// When the CRL is due for its next update.
-        /// </summary>
-        public DateTime NextUpdate { get; private set; }
+        /// <inheritdoc/>
+        public DateTime NextUpdate { get; protected set; }
 
-        /// <summary>
-        /// The hash algorithm used to sign the CRL.
-        /// </summary>
-        public HashAlgorithmName HashAlgorithmName { get; private set; }
+        /// <inheritdoc/>
+        public HashAlgorithmName HashAlgorithmName { get; protected set; }
 
-        /// <summary>
-        /// The revoked user certificates
-        /// </summary>
-        public IReadOnlyList<RevokedCertificate> RevokedCertificates { get; private set; }
+        /// <inheritdoc/>
+        public IList<RevokedCertificate> RevokedCertificates => m_revokedCertificates.AsReadOnly();
 
-        /// <summary>
-        /// The X509Extensions of the CRL.
-        /// </summary>
-        public IReadOnlyList<X509Extension> CrlExtensions { get; private set;  }
+        /// <inheritdoc/>
+        public IList<X509Extension> CrlExtensions => m_crlExtensions.AsReadOnly();
 
-        /// <summary>
-        /// The raw data for the CRL.
-        /// </summary>
-        public byte[] RawData { get; private set; }
+        /// <inheritdoc/>
+        public byte[] RawData { get; protected set; }
         #endregion
 
         #region Public Methods
@@ -162,7 +124,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Returns true the certificate is in the CRL.
+        /// Returns true if the certificate is revoked in the CRL.
         /// </summary>
         public bool IsRevoked(X509Certificate2 certificate)
         {
@@ -186,18 +148,19 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Decode the complete CRL.
         /// </summary>
-        /// <param name="crl">The raw CRL.</param>
-        private void Decode(byte[] crl)
+        /// <param name="crl">The raw signed CRL</param>
+        internal void Decode(byte[] crl)
         {
+            // Decode the Tbs and signature
             m_signature = new X509Signature(crl);
+            // Decode the TbsCertList
             DecodeCrl(m_signature.Tbs);
-            // TODO validate signature here
         }
 
         /// <summary>
         /// Decode the Tbs of the CRL.
         /// </summary>
-        /// <param name="tbs">The raw Tbs data of the CRL.</param>
+        /// <param name="tbs">The raw TbsCertList of the CRL.</param>
         internal void DecodeCrl(byte[] tbs)
         {
             try
@@ -225,7 +188,7 @@ namespace Opc.Ua.Security.Certificates
                     // Signature Algorithm Identifier
                     var sigReader = seqReader.ReadSequence();
                     var oid = sigReader.ReadObjectIdentifier();
-                    HashAlgorithmName = OidConstants.GetHashAlgorithmName(oid);
+                    HashAlgorithmName = Oids.GetHashAlgorithmName(oid);
 
                     // Issuer
                     IssuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
@@ -255,7 +218,8 @@ namespace Opc.Ua.Security.Certificates
                             var serial = crlEntry.ReadInteger();
                             var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
                             revokedCertificate.RevocationDate = crlEntry.ReadUtcTime().UtcDateTime;
-                            if (crlEntry.HasData)
+                            if (version == 1 &&
+                                crlEntry.HasData)
                             {
                                 // CRL entry extensions
                                 var crlEntryExtensions = crlEntry.ReadSequence();
@@ -267,14 +231,15 @@ namespace Opc.Ua.Security.Certificates
                             }
                             revokedCertificates.Add(revokedCertificate);
                         }
-                        this.RevokedCertificates = revokedCertificates.AsReadOnly();
+                        m_revokedCertificates = revokedCertificates;
                     }
 
-                    // CRL extensions
-                    var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
-                    var optReader = seqReader.ReadSequence(extTag);
-                    if (optReader.HasData)
+                    // CRL extensions OPTIONAL
+                    if (version == 1 &&
+                        seqReader.HasData)
                     {
+                        var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+                        var optReader = seqReader.ReadSequence(extTag);
                         var crlExtensionList = new List<X509Extension>();
                         var crlExtensions = optReader.ReadSequence();
                         while (crlExtensions.HasData)
@@ -282,7 +247,7 @@ namespace Opc.Ua.Security.Certificates
                             var extension = crlExtensions.ReadExtension();
                             crlExtensionList.Add(extension);
                         }
-                        this.CrlExtensions = crlExtensionList.AsReadOnly();
+                        m_crlExtensions = crlExtensionList;
                     }
                 }
             }
@@ -294,7 +259,9 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Private Fields
-        private X509Signature m_signature;
+        protected X509Signature m_signature;
+        protected List<RevokedCertificate> m_revokedCertificates;
+        protected List<X509Extension> m_crlExtensions;
         #endregion
     }
 }

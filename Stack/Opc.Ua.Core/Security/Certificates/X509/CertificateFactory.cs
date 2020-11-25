@@ -38,9 +38,6 @@ using Org.BouncyCastle.X509;
 
 #if !NETSTANDARD2_1
 namespace Opc.Ua
-#else
-namespace Opc.Ua.Legacy
-#endif
 {
     /// <summary>
     /// Secure .Net Core Random Number generator wrapper for Bounce Castle.
@@ -1304,7 +1301,7 @@ namespace Opc.Ua.Legacy
                 return (char[])password.Clone();
             }
         }
-#endregion
+        #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static object m_certificatesLock = new object();
@@ -1312,3 +1309,4 @@ namespace Opc.Ua.Legacy
     }
 }
 
+#endif

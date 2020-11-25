@@ -36,18 +36,23 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Oid constants defined for ASN encoding/decoding.
     /// </summary>
-    public static class OidConstants
+    public static class Oids
     {
-        public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
-        public const string ECDSASHA256 = "1.2.840.10045.4.3.2";
-        public const string ECDSASHA384 = "1.2.840.10045.4.3.3";
-        public const string ECDSASHA512 = "1.2.840.10045.4.3.4";
-
-        public const string RsaPkcs1MD5 = "1.2.840.113549.1.1.4";
+        // Asymmetric encryption algorithms
+        public const string Dsa = "1.2.840.10040.4.1";
+        public const string Rsa = "1.2.840.113549.1.1.1";
+        public const string RsaOaep = "1.2.840.113549.1.1.7";
+        public const string RsaPss = "1.2.840.113549.1.1.10";
+        public const string RsaPkcs1Md5 = "1.2.840.113549.1.1.4";
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
         public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
         public const string RsaPkcs1Sha512 = "1.2.840.113549.1.1.13";
+
+        public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
+        public const string ECDsaWithSha256 = "1.2.840.10045.4.3.2";
+        public const string ECDsaWithSha384 = "1.2.840.10045.4.3.3";
+        public const string ECDsaWithSha512 = "1.2.840.10045.4.3.4";
 
         public const string CrlNumber = "2.5.29.20";
         public const string CrlReasonCode = "2.5.29.21";
@@ -59,23 +64,23 @@ namespace Opc.Ua.Security.Certificates
         {
             if (hashAlgorithm == HashAlgorithmName.MD5)
             {
-                return OidConstants.RsaPkcs1MD5;
+                return Oids.RsaPkcs1Md5;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
-                return OidConstants.RsaPkcs1Sha1;
+                return Oids.RsaPkcs1Sha1;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA256)
             {
-                return OidConstants.RsaPkcs1Sha256;
+                return Oids.RsaPkcs1Sha256;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA384)
             {
-                return OidConstants.RsaPkcs1Sha384;
+                return Oids.RsaPkcs1Sha384;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA512)
             {
-                return OidConstants.RsaPkcs1Sha512;
+                return Oids.RsaPkcs1Sha512;
             }
             else
             {
@@ -85,17 +90,21 @@ namespace Opc.Ua.Security.Certificates
 
         public static string GetECDSAOid(HashAlgorithmName hashAlgorithm)
         {
-            if (hashAlgorithm == HashAlgorithmName.SHA256)
+            if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
-                return OidConstants.ECDSASHA256;
+                return Oids.ECDsaWithSha1;
+            }
+            else if (hashAlgorithm == HashAlgorithmName.SHA256)
+            {
+                return Oids.ECDsaWithSha256;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA384)
             {
-                return OidConstants.ECDSASHA384;
+                return Oids.ECDsaWithSha384;
             }
             else if (hashAlgorithm == HashAlgorithmName.SHA512)
             {
-                return OidConstants.ECDSASHA512;
+                return Oids.ECDsaWithSha512;
             }
             else
             {
@@ -107,14 +116,14 @@ namespace Opc.Ua.Security.Certificates
         {
             switch (oid)
             {
-                case OidConstants.RsaPkcs1MD5: return HashAlgorithmName.MD5;
-                case OidConstants.RsaPkcs1Sha1: return HashAlgorithmName.SHA1;
-                case OidConstants.ECDSASHA256:
-                case OidConstants.RsaPkcs1Sha256: return HashAlgorithmName.SHA256;
-                case OidConstants.ECDSASHA384:
-                case OidConstants.RsaPkcs1Sha384: return HashAlgorithmName.SHA384;
-                case OidConstants.ECDSASHA512:
-                case OidConstants.RsaPkcs1Sha512: return HashAlgorithmName.SHA512;
+                case Oids.RsaPkcs1Md5: return HashAlgorithmName.MD5;
+                case Oids.RsaPkcs1Sha1: return HashAlgorithmName.SHA1;
+                case Oids.ECDsaWithSha256:
+                case Oids.RsaPkcs1Sha256: return HashAlgorithmName.SHA256;
+                case Oids.ECDsaWithSha384:
+                case Oids.RsaPkcs1Sha384: return HashAlgorithmName.SHA384;
+                case Oids.ECDsaWithSha512:
+                case Oids.RsaPkcs1Sha512: return HashAlgorithmName.SHA512;
             }
             throw new NotSupportedException($"Unknown hash algorithm {oid} is not supported. ");
         }
