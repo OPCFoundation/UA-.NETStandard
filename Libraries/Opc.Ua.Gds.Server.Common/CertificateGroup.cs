@@ -152,7 +152,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 else if (privateKeyFormat == "PEM")
                 {
-                    privateKey = CertificateFactory.ExportPrivateKeyAsPEM(certificate);
+                    privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate);
                 }
                 else
                 {

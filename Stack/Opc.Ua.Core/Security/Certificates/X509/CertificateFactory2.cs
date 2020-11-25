@@ -32,7 +32,7 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-#region Public Constants
+        #region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -51,9 +51,9 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -362,61 +362,6 @@ namespace Opc.Ua
                     store.Add(certificate, password).Wait();
                     store.Close();
                 }
-            }
-
-            return certificate;
-        }
-
-        /// <summary>
-        /// Creates a certificate from a PKCS #12 store with a private key.
-        /// </summary>
-        /// <param name="rawData">The raw PKCS #12 store data.</param>
-        /// <param name="password">The password to use to access the store.</param>
-        /// <returns>The certificate with a private key.</returns>
-        public static X509Certificate2 CreateCertificateFromPKCS12(
-            byte[] rawData,
-            string password
-            )
-        {
-            Exception ex = null;
-            int flagsRetryCounter = 0;
-            X509Certificate2 certificate = null;
-
-            // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
-            X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet
-            };
-
-            // try some combinations of storage flags, support is platform dependent
-            while (certificate == null &&
-                flagsRetryCounter < storageFlags.Length)
-            {
-                try
-                {
-                    // merge first cert with private key into X509Certificate2
-                    certificate = new X509Certificate2(
-                        rawData,
-                        password ?? String.Empty,
-                        storageFlags[flagsRetryCounter]);
-                    // can we really access the private key?
-                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
-                    {
-                        return certificate;
-                    }
-                }
-                catch (Exception e)
-                {
-                    ex = e;
-                    certificate?.Dispose();
-                    certificate = null;
-                }
-                flagsRetryCounter++;
-            }
-
-            if (certificate == null)
-            {
-                throw new NotSupportedException("Creating X509Certificate from PKCS #12 store failed", ex);
             }
 
             return certificate;
@@ -740,91 +685,9 @@ namespace Opc.Ua
             return new X509Certificate2(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
 
         }
+        #endregion
 
-        /// <summary>
-        /// Returns a byte array containing the CSR in PEM format.
-        /// </summary>
-        public static byte[] ExportCSRAsPEM(byte[] csr)
-        {
-            return EncodeAsPem(csr, "CERTIFICATE REQUEST");
-        }
-
-        /// <summary>
-        /// Returns a byte array containing the cert in PEM format.
-        /// </summary>
-        public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
-        {
-            return EncodeAsPem(certificate.RawData, "CERTIFICATE");
-        }
-
-        /// <summary>
-        /// Returns a byte array containing the public key in PEM format.
-        /// </summary>
-        public static byte[] ExportPublicKeyAsPEM(
-            X509Certificate2 certificate
-            )
-        {
-            byte[] exportedPublicKey = null;
-            RSA rsaPublicKey = null;
-            try
-            {
-                rsaPublicKey = certificate.GetRSAPublicKey();
-                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPublicKey);
-            }
-            return EncodeAsPem(exportedPublicKey, "PUBLIC KEY");
-        }
-
-        /// <summary>
-        /// Returns a byte array containing the private key in PEM format.
-        /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
-            string password = null
-            )
-        {
-            byte[] exportedPkcs8PrivateKey = null;
-            RSA rsaPrivateKey = null;
-            try
-            {
-                rsaPrivateKey = certificate.GetRSAPrivateKey();
-                // write private key as PKCS#8
-                exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
-                    rsaPrivateKey.ExportPkcs8PrivateKey() :
-                    rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                        new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPrivateKey);
-            }
-            return EncodeAsPem(exportedPkcs8PrivateKey,
-                String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
-        }
-#endregion
-
-#region Private Methods
-        private static byte[] EncodeAsPem(byte[] content, string contentType)
-        {
-            const int LineLength = 64;
-            string base64 = Convert.ToBase64String(content);
-            using (TextWriter textWriter = new StringWriter())
-            {
-                textWriter.WriteLine("-----BEGIN {0}-----", contentType);
-                while (base64.Length > LineLength)
-                {
-                    textWriter.WriteLine(base64.Substring(0, LineLength));
-                    base64 = base64.Substring(LineLength);
-                }
-                textWriter.WriteLine(base64);
-                textWriter.WriteLine("-----END {0}-----", contentType);
-                return Encoding.ASCII.GetBytes(textWriter.ToString());
-            }
-        }
-
+        #region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -992,23 +855,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Convert a hex string to a byte array.
-        /// </summary>
-        /// <param name="hexString">The hex string</param>
-        internal static byte[] HexToByteArray(string hexString)
-        {
-            byte[] bytes = new byte[hexString.Length / 2];
-
-            for (int i = 0; i < hexString.Length; i += 2)
-            {
-                string s = hexString.Substring(i, 2);
-                bytes[i / 2] = byte.Parse(s, System.Globalization.NumberStyles.HexNumber, null);
-            }
-
-            return bytes;
-        }
-
-        /// <summary>
         /// Read the Crl number from a X509Crl.
         /// </summary>
         public static BigInteger GetCrlNumber(Org.BouncyCastle.X509.X509Crl crl)
@@ -1096,7 +942,7 @@ namespace Opc.Ua
                 return (char[])password.Clone();
             }
         }
-#endregion
+        #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();

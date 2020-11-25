@@ -34,7 +34,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using NUnit.Framework;
-using Opc.Ua.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -784,7 +784,7 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2 csrCertificate;
                 if (application.PrivateKeyFormat == "PFX")
                 {
-                    csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
                 }
                 else
                 {

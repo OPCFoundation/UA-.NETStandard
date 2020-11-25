@@ -45,7 +45,7 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
             {
-                newPrivateKeyCert = CertificateFactory.CreateCertificateFromPKCS12(privateKey, privateKeyPassword);
+                newPrivateKeyCert = X509Utils.CreateCertificateFromPKCS12(privateKey, privateKeyPassword);
             }
             else if (privateKeyFormat == "PEM")
             {

@@ -451,61 +451,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a certificate from a PKCS #12 store with a private key.
-        /// </summary>
-        /// <param name="rawData">The raw PKCS #12 store data.</param>
-        /// <param name="password">The password to use to access the store.</param>
-        /// <returns>The certificate with a private key.</returns>
-        public static X509Certificate2 CreateCertificateFromPKCS12(
-            byte[] rawData,
-            string password
-            )
-        {
-            Exception ex = null;
-            int flagsRetryCounter = 0;
-            X509Certificate2 certificate = null;
-
-            // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
-            X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet
-            };
-
-            // try some combinations of storage flags, support is platform dependent
-            while (certificate == null &&
-                flagsRetryCounter < storageFlags.Length)
-            {
-                try
-                {
-                    // merge first cert with private key into X509Certificate2
-                    certificate = new X509Certificate2(
-                        rawData,
-                        password ?? String.Empty,
-                        storageFlags[flagsRetryCounter]);
-                    // can we really access the private key?
-                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
-                    {
-                        return certificate;
-                    }
-                }
-                catch (Exception e)
-                {
-                    ex = e;
-                    certificate?.Dispose();
-                    certificate = null;
-                }
-                flagsRetryCounter++;
-            }
-
-            if (certificate == null)
-            {
-                throw new NotSupportedException("Creating X509Certificate from PKCS #12 store failed", ex);
-            }
-
-            return certificate;
-        }
-
-        /// <summary>
         /// Revoke the CA signed certificate. 
         /// The issuer CA public key, the private key and the crl reside in the storepath.
         /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
@@ -866,51 +811,6 @@ namespace Opc.Ua
                 return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
             }
         }
-
-        /// <summary>
-        /// Returns a byte array containing the cert in PEM format.
-        /// </summary>
-        public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
-        {
-            Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(certificate.RawData);
-
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var textWriter = new StreamWriter(memoryStream))
-                {
-                    var pemWriter = new PemWriter(textWriter);
-                    pemWriter.WriteObject(bcCert);
-                    pemWriter.Writer.Flush();
-                    return memoryStream.ToArray();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns a byte array containing the private key in PEM format.
-        /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate
-            )
-        {
-            RsaPrivateCrtKeyParameters privateKeyParameter = GetPrivateKeyParameter(certificate);
-            using (TextWriter textWriter = new StringWriter())
-            {
-                // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
-                byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
-                string serializedPrivate = Convert.ToBase64String(serializedPrivateBytes);
-                textWriter.WriteLine("-----BEGIN PRIVATE KEY-----");
-                while (serializedPrivate.Length > 64)
-                {
-                    textWriter.WriteLine(serializedPrivate.Substring(0, 64));
-                    serializedPrivate = serializedPrivate.Substring(64);
-                }
-                textWriter.WriteLine(serializedPrivate);
-                textWriter.WriteLine("-----END PRIVATE KEY-----");
-                return Encoding.ASCII.GetBytes(textWriter.ToString());
-            }
-        }
         #endregion
 
         #region Private Methods
@@ -1237,7 +1137,7 @@ namespace Opc.Ua
                 pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
 
                 // merge into X509Certificate2
-                return CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
+                return X509Utils.CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
             }
         }
 

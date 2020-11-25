@@ -452,7 +452,7 @@ namespace Opc.Ua.Gds.Tests
             else if (keyFormat == "PEM")
             {
                 Assert.IsTrue(newCert.HasPrivateKey);
-                privateKey = CertificateFactory.ExportPrivateKeyAsPEM(newCert);
+                privateKey = PEMWriter.ExportPrivateKeyAsPEM(newCert);
             }
             else
             {

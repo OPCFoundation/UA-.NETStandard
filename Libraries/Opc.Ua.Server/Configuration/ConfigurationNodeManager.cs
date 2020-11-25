@@ -458,7 +458,7 @@ namespace Opc.Ua.Server
                         }
                     case "PFX":
                         {
-                            X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateFromPKCS12(privateKey, password);
+                            X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(privateKey, password);
                             updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, certWithPrivateKey);
                             break;
                         }

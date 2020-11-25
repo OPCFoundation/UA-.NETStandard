@@ -88,7 +88,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        public static string GetECDSAOid(HashAlgorithmName hashAlgorithm)
+        public static string GetECDsaOid(HashAlgorithmName hashAlgorithm)
         {
             if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
@@ -108,7 +108,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                throw new NotSupportedException($"Signing ECDSA with hash {hashAlgorithm.Name} is not supported. ");
+                throw new NotSupportedException($"Signing ECDsa with hash {hashAlgorithm.Name} is not supported. ");
             }
         }
 
@@ -117,6 +117,7 @@ namespace Opc.Ua.Security.Certificates
             switch (oid)
             {
                 case Oids.RsaPkcs1Md5: return HashAlgorithmName.MD5;
+                case Oids.ECDsaWithSha1:
                 case Oids.RsaPkcs1Sha1: return HashAlgorithmName.SHA1;
                 case Oids.ECDsaWithSha256:
                 case Oids.RsaPkcs1Sha256: return HashAlgorithmName.SHA256;
