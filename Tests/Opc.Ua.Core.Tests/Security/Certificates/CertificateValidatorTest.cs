@@ -656,7 +656,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // all app certs are trusted
             foreach (var appCert in m_appSelfSignedCerts)
             {
-                var pemDataBlob = CertificateFactory.ExportPrivateKeyAsPEM(appCert);
+                var pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
                 CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob);
@@ -675,7 +675,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // all app certs are trusted
             foreach (var appCert in m_appSelfSignedCerts)
             {
-                var pemDataBlob = CertificateFactory.ExportCertificateAsPEM(appCert);
+                var pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
             }
@@ -693,7 +693,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var password = Guid.NewGuid().ToString().Substring(0, 8);
                 TestContext.Out.WriteLine("Password: {0}", password);
-                var pemDataBlob = CertificateFactory.ExportPrivateKeyAsPEM(appCert, password);
+                var pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert, password);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
                 var exception = Assert.Throws<Org.BouncyCastle.OpenSsl.PemException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });

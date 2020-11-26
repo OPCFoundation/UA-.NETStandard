@@ -36,9 +36,10 @@ using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.X509;
 
-#if !NETSTANDARD2_1
 namespace Opc.Ua
 {
+
+#if !NETSTANDARD2_1
     /// <summary>
     /// Secure .Net Core Random Number generator wrapper for Bounce Castle.
     /// Creates an instance of RNGCryptoServiceProvider or an OpenSSL based version on other OS.
@@ -130,11 +131,11 @@ namespace Opc.Ua
             return distinguishedName.Replace("S=", "ST=");
         }
     }
-
+#endif
     /// <summary>
     /// Creates certificates.
     /// </summary>
-    public static class CertificateFactory
+    public static partial class CertificateFactory
     {
         #region Public Constants
         /// <summary>
@@ -222,6 +223,7 @@ namespace Opc.Ua
             return certificate;
         }
 
+#if !NETSTANDARD2_1
         /// <summary>
         /// Creates a self signed application instance certificate.
         /// </summary>
@@ -450,199 +452,6 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Revoke the CA signed certificate. 
-        /// The issuer CA public key, the private key and the crl reside in the storepath.
-        /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
-        /// </summary>
-        public static async Task<X509CRL> RevokeCertificateAsync(
-            string storePath,
-            X509Certificate2 certificate,
-            string issuerKeyFilePassword = null
-            )
-        {
-            X509CRL updatedCRL = null;
-            try
-            {
-                string subjectName = certificate.IssuerName.Name;
-                string keyId = null;
-                string serialNumber = null;
-
-                // caller may want to create empty CRL using the CA cert itself
-                bool isCACert = X509Utils.IsCertificateAuthority(certificate);
-
-                // find the authority key identifier.
-                var authority = Security.Certificates.X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
-
-                if (authority != null)
-                {
-                    keyId = authority.KeyIdentifier;
-                    serialNumber = authority.SerialNumber;
-                }
-                else
-                {
-                    throw new ArgumentException("Certificate does not contain an Authority Key");
-                }
-
-                if (!isCACert)
-                {
-                    if (serialNumber == certificate.SerialNumber ||
-                        X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
-                    {
-                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
-                    }
-                }
-
-                X509Certificate2 certCA = null;
-                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
-                {
-                    if (store == null)
-                    {
-                        throw new ArgumentException("Invalid store path/type");
-                    }
-                    certCA = await FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber);
-
-                    if (certCA == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
-                    }
-
-                    if (!certCA.HasPrivateKey)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
-                    }
-
-                    CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA);
-                    certCAIdentifier.StorePath = storePath;
-                    certCAIdentifier.StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath);
-                    X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword);
-
-                    if (certCAWithPrivateKey == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
-                    }
-
-                    List<X509CRL> certCACrl = store.EnumerateCRLs(certCA, false);
-
-                    var certificateCollection = new X509Certificate2Collection() { };
-                    if (!isCACert)
-                    {
-                        certificateCollection.Add(certificate);
-                    }
-                    updatedCRL = RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
-
-                    store.AddCRL(updatedCRL);
-
-                    // delete outdated CRLs from store
-                    foreach (X509CRL caCrl in certCACrl)
-                    {
-                        store.DeleteCRL(caCrl);
-                    }
-                    store.Close();
-                }
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            return updatedCRL;
-        }
-
-        /// <summary>
-        /// Revoke the certificate. 
-        /// The CRL number is increased by one and the new CRL is returned.
-        /// </summary>
-        public static X509CRL RevokeCertificate(
-            X509Certificate2 issuerCertificate,
-            List<X509CRL> issuerCrls,
-            X509Certificate2Collection revokedCertificates
-            )
-        {
-            return RevokeCertificate(issuerCertificate, issuerCrls, revokedCertificates,
-                DateTime.UtcNow, DateTime.UtcNow.AddMonths(12));
-        }
-
-        /// <summary>
-        /// Revoke the certificate. 
-        /// The CRL number is increased by one and the new CRL is returned.
-        /// </summary>
-        public static X509CRL RevokeCertificate(
-            X509Certificate2 issuerCertificate,
-            List<X509CRL> issuerCrls,
-            X509Certificate2Collection revokedCertificates,
-            DateTime thisUpdate,
-            DateTime nextUpdate
-            )
-        {
-            if (!issuerCertificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
-            }
-
-            using (var cfrg = new CertificateFactoryRandomGenerator())
-            {
-                // cert generators
-                SecureRandom random = new SecureRandom(cfrg);
-                BigInteger crlSerialNumber = BigInteger.Zero;
-
-                Org.BouncyCastle.X509.X509Certificate bcCertCA = new X509CertificateParser().ReadCertificate(issuerCertificate.RawData);
-                AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(issuerCertificate);
-
-                ISignatureFactory signatureFactory =
-                        new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
-
-                X509V2CrlGenerator crlGen = new X509V2CrlGenerator();
-                crlGen.SetIssuerDN(bcCertCA.SubjectDN);
-                crlGen.SetThisUpdate(thisUpdate);
-                crlGen.SetNextUpdate(nextUpdate);
-
-                // merge all existing revocation list
-                if (issuerCrls != null)
-                {
-                    X509CrlParser parser = new X509CrlParser();
-                    foreach (X509CRL issuerCrl in issuerCrls)
-                    {
-
-                        X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
-                        crlGen.AddCrl(crl);
-                        var crlVersion = GetCrlNumber(crl);
-                        if (crlVersion.IntValue > crlSerialNumber.IntValue)
-                        {
-                            crlSerialNumber = crlVersion;
-                        }
-                    }
-                }
-
-                DateTime now = DateTime.UtcNow;
-                if (revokedCertificates == null || revokedCertificates.Count == 0)
-                {
-                    // add a dummy revoked cert
-                    crlGen.AddCrlEntry(BigInteger.One, now, CrlReason.Unspecified);
-                }
-                else
-                {
-                    // add the revoked cert
-                    foreach (var revokedCertificate in revokedCertificates)
-                    {
-                        crlGen.AddCrlEntry(GetSerialNumber(revokedCertificate), now, CrlReason.PrivilegeWithdrawn);
-                    }
-                }
-
-                crlGen.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.AuthorityKeyIdentifier,
-                                    false,
-                                    new Org.BouncyCastle.X509.Extension.AuthorityKeyIdentifierStructure(bcCertCA));
-
-                // set new serial number
-                crlSerialNumber = crlSerialNumber.Add(BigInteger.One);
-                crlGen.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber,
-                                    false,
-                                    new CrlNumber(crlSerialNumber));
-
-                // generate updated CRL
-                X509Crl updatedCrl = crlGen.Generate(signatureFactory);
-                return new X509CRL(updatedCrl.GetEncoded());
-            }
-        }
 
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
@@ -811,9 +620,11 @@ namespace Opc.Ua
                 return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
             }
         }
+#endif
         #endregion
 
         #region Private Methods
+#if !NETSTANDARD2_1
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -965,7 +776,7 @@ namespace Opc.Ua
             }
             return generalNames;
         }
-
+#endif
         /// <summary>
         /// helper to get the Bouncy Castle hash algorithm name by hash size in bits.
         /// </summary>
@@ -995,6 +806,7 @@ namespace Opc.Ua
             }
         }
 
+#if !NETSTANDARD2_1
         /// <summary>
         /// Get public key parameters from a X509Certificate2
         /// </summary>
@@ -1054,7 +866,7 @@ namespace Opc.Ua
             Array.Reverse(serialNumber);
             return new BigInteger(1, serialNumber);
         }
-
+#endif
         /// <summary>
         /// Read the Crl number from a X509Crl.
         /// </summary>
@@ -1074,20 +886,6 @@ namespace Opc.Ua
             }
             return crlNumber;
         }
-
-        /// <summary>
-        /// Get the value of an extension oid.
-        /// </summary>
-        private static Asn1Object GetExtensionValue(IX509Extension extension, DerObjectIdentifier oid)
-        {
-            Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
-            if (asn1Octet != null)
-            {
-                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
-            }
-            return null;
-        }
-
         /// <summary>
         /// Get the certificate by issuer and serial number.
         /// </summary>
@@ -1110,6 +908,20 @@ namespace Opc.Ua
             return null;
         }
 
+        /// <summary>
+        /// Get the value of an extension oid.
+        /// </summary>
+        private static Asn1Object GetExtensionValue(IX509Extension extension, DerObjectIdentifier oid)
+        {
+            Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
+            if (asn1Octet != null)
+            {
+                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
+            }
+            return null;
+        }
+
+#if !NETSTANDARD2_1
         /// <summary>
         /// Create a X509Certificate2 with a private key by combining 
         /// a bouncy castle X509Certificate and a private key
@@ -1153,36 +965,6 @@ namespace Opc.Ua
             }
             return string.Empty;
         }
-
-#if MIST
-        private static bool VerifyRSAKeyPairCrypt(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
-        {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
-            byte[] testBlock = new byte[blockSize];
-            randomSource.NextBytes(testBlock, 0, blockSize);
-            byte[] encryptedBlock = rsaPublicKey.Encrypt(testBlock, RSAEncryptionPadding.OaepSHA1);
-            byte[] decryptedBlock = rsaPrivateKey.Decrypt(encryptedBlock, RSAEncryptionPadding.OaepSHA1);
-            if (decryptedBlock != null)
-            {
-                return Utils.IsEqual(testBlock, decryptedBlock);
-            }
-            return false;
-        }
-
-        private static bool VerifyRSAKeyPairSign(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
-        {
-            Opc.Ua.Test.RandomSource randomSource = new Opc.Ua.Test.RandomSource();
-            int blockSize = RsaUtils.GetPlainTextBlockSize(rsaPrivateKey, RsaUtils.Padding.OaepSHA1);
-            byte[] testBlock = new byte[blockSize];
-            randomSource.NextBytes(testBlock, 0, blockSize);
-            byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-            return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
-        }
 #endif
 
         private class Password
@@ -1201,6 +983,7 @@ namespace Opc.Ua
                 return (char[])password.Clone();
             }
         }
+
         #endregion
 
         private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
@@ -1208,5 +991,3 @@ namespace Opc.Ua
         private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
     }
 }
-
-#endif

@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if NETSTANDARD2_1
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,9 +19,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
-using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
+
 using X509Extensions = Opc.Ua.Security.Certificates.X509Extensions;
 
 namespace Opc.Ua
@@ -30,93 +29,9 @@ namespace Opc.Ua
     /// <summary>
     /// Creates certificates.
     /// </summary>
-    public static class CertificateFactory
+    public static partial class CertificateFactory
     {
-        #region Public Constants
-        /// <summary>
-        /// The default key size for RSA certificates in bits.
-        /// </summary>
-        /// <remarks>
-        /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
-        /// </remarks>
-        public static readonly ushort DefaultKeySize = 2048;
-        /// <summary>
-        /// The default hash size for RSA certificates in bits.
-        /// </summary>
-        /// <remarks>
-        /// Supported values are 160 for SHA-1(deprecated) or 256, 384 and 512 for SHA-2.
-        /// </remarks>
-        public static readonly ushort DefaultHashSize = 256;
-        /// <summary>
-        /// The default lifetime of certificates in months.
-        /// </summary>
-        public static readonly ushort DefaultLifeTime = 12;
-        #endregion
-
-        #region Public Methods
-        /// <summary>
-        /// Creates a certificate from a buffer with DER encoded certificate.
-        /// </summary>
-        /// <param name="encodedData">The encoded data.</param>
-        /// <param name="useCache">if set to <c>true</c> the copy of the certificate in the cache is used.</param>
-        /// <returns>The certificate.</returns>
-        public static X509Certificate2 Create(byte[] encodedData, bool useCache)
-        {
-            if (useCache)
-            {
-                return Load(new X509Certificate2(encodedData), false);
-            }
-            return new X509Certificate2(encodedData);
-        }
-
-        /// <summary>
-        /// Loads the cached version of a certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate to load.</param>
-        /// <param name="ensurePrivateKeyAccessible">If true a key container is created for a certificate that must be deleted by calling Cleanup.</param>
-        /// <returns>The cached certificate.</returns>
-        /// <remarks>
-        /// This function is necessary because all private keys used for cryptography 
-        /// operations must be in a key container. 
-        /// Private keys stored in a PFX file have no key container by default.
-        /// </remarks>
-        public static X509Certificate2 Load(X509Certificate2 certificate, bool ensurePrivateKeyAccessible)
-        {
-            if (certificate == null)
-            {
-                return null;
-            }
-
-            lock (m_certificates)
-            {
-                X509Certificate2 cachedCertificate = null;
-
-                // check for existing cached certificate.
-                if (m_certificates.TryGetValue(certificate.Thumbprint, out cachedCertificate))
-                {
-                    return cachedCertificate;
-                }
-
-                // nothing more to do if no private key or dont care about accessibility.
-                if (!certificate.HasPrivateKey || !ensurePrivateKeyAccessible)
-                {
-                    return certificate;
-                }
-
-                // update the cache.
-                m_certificates[certificate.Thumbprint] = certificate;
-
-                if (m_certificates.Count > 100)
-                {
-                    Utils.Trace("WARNING - Process certificate cache has {0} certificates in it.", m_certificates.Count);
-                }
-
-                // save the key container so it can be deleted later.
-                m_temporaryKeyContainers.Add(certificate);
-            }
-
-            return certificate;
-        }
+#if NETSTANDARD2_1
         /// <summary>
         /// Creates a self signed application instance certificate.
         /// </summary>
@@ -191,7 +106,7 @@ namespace Opc.Ua
             serialNumber[0] &= 0x7F;
 
             // set default values.
-            X500DistinguishedName subjectDN = SetSuitableDefaults(
+            X500DistinguishedName subjectDN = SetSuitableDefaults2(
                 ref applicationUri,
                 ref applicationName,
                 ref subjectName,
@@ -366,6 +281,7 @@ namespace Opc.Ua
 
             return certificate;
         }
+#endif
 
         /// <summary>
         /// Revoke the CA signed certificate. 
@@ -497,7 +413,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
             }
 
-            System.Numerics.BigInteger crlSerialNumber;
+            System.Numerics.BigInteger crlSerialNumber = 0;
             IList<string> serialNumbers = new List<string>();
 
             // merge all existing revocation list
@@ -539,7 +455,7 @@ namespace Opc.Ua
             }
         }
 
-
+#if NETSTANDARD2_1
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -555,18 +471,9 @@ namespace Opc.Ua
 
             RSA rsaPublicKey = certificate.GetRSAPublicKey();
             var request = new CertificateRequest(certificate.SubjectName, rsaPublicKey,
-                GetRSAHashAlgorithmName(certificate.SignatureAlgorithm), RSASignaturePadding.Pkcs1);
+                Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value), RSASignaturePadding.Pkcs1);
 
-            X509SubjectAltNameExtension alternateName = null;
-            foreach (X509Extension extension in certificate.Extensions)
-            {
-                if (extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid || extension.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                {
-                    alternateName = new X509SubjectAltNameExtension(extension, extension.Critical);
-                    break;
-                }
-            }
-
+            var alternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
             domainNames = domainNames ?? new List<String>();
             if (alternateName != null)
             {
@@ -685,13 +592,13 @@ namespace Opc.Ua
             return new X509Certificate2(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
 
         }
-        #endregion
+#endif
 
         #region Private Methods
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
-        private static X500DistinguishedName SetSuitableDefaults(
+        private static X500DistinguishedName SetSuitableDefaults2(
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
@@ -838,55 +745,6 @@ namespace Opc.Ua
             }
         }
 
-        private static HashAlgorithmName GetRSAHashAlgorithmName(Oid signatureAlgorithm)
-        {
-            switch (signatureAlgorithm.Value)
-            {
-                case Oids.RsaPkcs1Sha1:
-                    return HashAlgorithmName.SHA1;
-                case Oids.RsaPkcs1Sha256:
-                    return HashAlgorithmName.SHA256;
-                case Oids.RsaPkcs1Sha384:
-                    return HashAlgorithmName.SHA384;
-                case Oids.RsaPkcs1Sha512:
-                    return HashAlgorithmName.SHA512;
-            }
-            throw new NotSupportedException($"Signature algorithm {signatureAlgorithm.FriendlyName} is not supported.");
-        }
-
-        /// <summary>
-        /// Read the Crl number from a X509Crl.
-        /// </summary>
-        public static BigInteger GetCrlNumber(Org.BouncyCastle.X509.X509Crl crl)
-        {
-            var crlNumber = BigInteger.One;
-            try
-            {
-                Org.BouncyCastle.Asn1.Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
-                if (asn1Object != null)
-                {
-                    crlNumber = Org.BouncyCastle.Asn1.X509.CrlNumber.GetInstance(asn1Object).PositiveValue;
-                }
-            }
-            finally
-            {
-            }
-            return crlNumber;
-        }
-
-        /// <summary>
-        /// Get the value of an extension oid.
-        /// </summary>
-        private static Org.BouncyCastle.Asn1.Asn1Object GetExtensionValue(Org.BouncyCastle.X509.IX509Extension extension, Org.BouncyCastle.Asn1.DerObjectIdentifier oid)
-        {
-            Org.BouncyCastle.Asn1.Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
-            if (asn1Octet != null)
-            {
-                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
-            }
-            return null;
-        }
-
         /// <summary>
         /// Patch serial number in a Url. byte version.
         /// </summary>
@@ -903,49 +761,7 @@ namespace Opc.Ua
         {
             return extensionUrl.Replace("%serial%", serial.ToLower());
         }
-
-        /// <summary>
-        /// Get the certificate by issuer and serial number.
-        /// </summary>
-        private static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
-            ICertificateStore store,
-            string issuer,
-            string serialnumber)
-        {
-            X509Certificate2Collection certificates = await store.Enumerate();
-
-            foreach (var certificate in certificates)
-            {
-                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
-                    Utils.IsEqual(certificate.SerialNumber, serialnumber))
-                {
-                    return certificate;
-                }
-            }
-
-            return null;
-        }
-
-        private class Password
-            : IPasswordFinder
-        {
-            private readonly char[] password;
-
-            public Password(
-                char[] word)
-            {
-                this.password = (char[])word.Clone();
-            }
-
-            public char[] GetPassword()
-            {
-                return (char[])password.Clone();
-            }
-        }
         #endregion
-
-        private static Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
-        private static List<X509Certificate2> m_temporaryKeyContainers = new List<X509Certificate2>();
     }
 }
-#endif
+
