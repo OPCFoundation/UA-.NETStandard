@@ -227,9 +227,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a self signed application instance certificate.
         /// </summary>
-        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
-        /// <param name="storePath">The store path (syntax depends on storeType).</param>
-        /// <param name="password">The password to use to protect the certificate.</param>
         /// <param name="applicationUri">The application uri (created if not specified).</param>
         /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
         /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
@@ -244,9 +241,6 @@ namespace Opc.Ua
         /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificate(
-            string storeType,
-            string storePath,
-            string password,
             string applicationUri,
             string applicationName,
             string subjectName,
@@ -273,14 +267,16 @@ namespace Opc.Ua
                 throw new NotSupportedException("Cannot use a public key without a CA certificate with a private key.");
             }
 
-            // set default values.
-            X509Name subjectDN = SetSuitableDefaults(
+            // set default values and validate parameters
+            SetSuitableDefaults(
                 ref applicationUri,
                 ref applicationName,
                 ref subjectName,
                 ref domainNames,
                 ref keySize,
                 ref lifetimeInMonths);
+
+            X509Name subjectDN = new CertificateFactoryX509Name(subjectName);
 
             using (var cfrg = new CertificateFactoryRandomGenerator())
             {
@@ -431,22 +427,6 @@ namespace Opc.Ua
                 }
 
                 Utils.Trace(Utils.TraceMasks.Security, "Created new certificate: {0}", certificate.Thumbprint);
-
-                // add cert to the store.
-                if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
-                {
-                    using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType))
-                    {
-                        if (store == null)
-                        {
-                            throw new ArgumentException("Invalid store type");
-                        }
-
-                        store.Open(storePath);
-                        store.Add(certificate, password).Wait();
-                        store.Close();
-                    }
-                }
 
                 return certificate;
             }
@@ -624,11 +604,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Methods
-#if !NETSTANDARD2_1
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
-        private static X509Name SetSuitableDefaults(
+        private static void SetSuitableDefaults(
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
@@ -751,10 +730,9 @@ namespace Opc.Ua
                     subjectName = Utils.ReplaceDCLocalhost(subjectName, domainNames[0]);
                 }
             }
-
-            return new CertificateFactoryX509Name(subjectName);
         }
 
+#if !NETSTANDARD2_1
         /// <summary>
         /// helper to build alternate name domains list for certs.
         /// </summary>
@@ -776,7 +754,7 @@ namespace Opc.Ua
             }
             return generalNames;
         }
-#endif
+
         /// <summary>
         /// helper to get the Bouncy Castle hash algorithm name by hash size in bits.
         /// </summary>
@@ -806,7 +784,6 @@ namespace Opc.Ua
             }
         }
 
-#if !NETSTANDARD2_1
         /// <summary>
         /// Get public key parameters from a X509Certificate2
         /// </summary>
@@ -885,27 +862,6 @@ namespace Opc.Ua
             {
             }
             return crlNumber;
-        }
-        /// <summary>
-        /// Get the certificate by issuer and serial number.
-        /// </summary>
-        private static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
-            ICertificateStore store,
-            string issuer,
-            string serialnumber)
-        {
-            X509Certificate2Collection certificates = await store.Enumerate();
-
-            foreach (var certificate in certificates)
-            {
-                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
-                    Utils.IsEqual(certificate.SerialNumber, serialnumber))
-                {
-                    return certificate;
-                }
-            }
-
-            return null;
         }
 
         /// <summary>

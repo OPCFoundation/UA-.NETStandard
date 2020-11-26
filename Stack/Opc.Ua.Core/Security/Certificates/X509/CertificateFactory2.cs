@@ -35,9 +35,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a self signed application instance certificate.
         /// </summary>
-        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
-        /// <param name="storePath">The store path (syntax depends on storeType).</param>
-        /// <param name="password">The password to use to protect the certificate.</param>
         /// <param name="applicationUri">The application uri (created if not specified).</param>
         /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
         /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
@@ -53,9 +50,6 @@ namespace Opc.Ua
         /// <param name="extensionUrl"></param>
         /// <returns>The certificate with a private key.</returns>
         public static X509Certificate2 CreateCertificate(
-            string storeType,
-            string storePath,
-            string password,
             string applicationUri,
             string applicationName,
             string subjectName,
@@ -106,13 +100,15 @@ namespace Opc.Ua
             serialNumber[0] &= 0x7F;
 
             // set default values.
-            X500DistinguishedName subjectDN = SetSuitableDefaults2(
+            SetSuitableDefaults(
                 ref applicationUri,
                 ref applicationName,
                 ref subjectName,
                 ref domainNames,
                 ref keySize,
                 ref lifetimeInMonths);
+
+            X500DistinguishedName subjectDN = new X500DistinguishedName(subjectName);
 
             DateTime notBefore = startTime;
             DateTime notAfter = startTime + TimeSpan.FromDays(lifetimeInMonths * 30);
@@ -263,22 +259,6 @@ namespace Opc.Ua
                 certificate = signedCert.CopyWithPrivateKey(rsaKeyPair);
             }
 
-            // add cert to the store.
-            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
-            {
-                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType))
-                {
-                    if (store == null)
-                    {
-                        throw new ArgumentException("Invalid store type");
-                    }
-
-                    store.Open(storePath);
-                    store.Add(certificate, password).Wait();
-                    store.Close();
-                }
-            }
-
             return certificate;
         }
 #endif
@@ -333,7 +313,7 @@ namespace Opc.Ua
                     {
                         throw new ArgumentException("Invalid store path/type");
                     }
-                    certCA = await FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber);
+                    certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber);
 
                     if (certCA == null)
                     {
@@ -595,136 +575,6 @@ namespace Opc.Ua
 #endif
 
         #region Private Methods
-        /// <summary>
-        /// Sets the parameters to suitable defaults.
-        /// </summary>
-        private static X500DistinguishedName SetSuitableDefaults2(
-            ref string applicationUri,
-            ref string applicationName,
-            ref string subjectName,
-            ref IList<String> domainNames,
-            ref ushort keySize,
-            ref ushort lifetimeInMonths)
-        {
-            // enforce recommended keysize unless lower value is enforced.
-            if (keySize < 1024)
-            {
-                keySize = DefaultKeySize;
-            }
-
-            if (keySize % 1024 != 0)
-            {
-                throw new ArgumentNullException(nameof(keySize), "KeySize must be a multiple of 1024.");
-            }
-
-            // enforce minimum lifetime.
-            if (lifetimeInMonths < 1)
-            {
-                lifetimeInMonths = 1;
-            }
-
-            // parse the subject name if specified.
-            List<string> subjectNameEntries = null;
-
-            if (!String.IsNullOrEmpty(subjectName))
-            {
-                subjectNameEntries = X509Utils.ParseDistinguishedName(subjectName);
-            }
-
-            // check the application name.
-            if (String.IsNullOrEmpty(applicationName))
-            {
-                if (subjectNameEntries == null)
-                {
-                    throw new ArgumentNullException(nameof(applicationName), "Must specify a applicationName or a subjectName.");
-                }
-
-                // use the common name as the application name.
-                for (int ii = 0; ii < subjectNameEntries.Count; ii++)
-                {
-                    if (subjectNameEntries[ii].StartsWith("CN="))
-                    {
-                        applicationName = subjectNameEntries[ii].Substring(3).Trim();
-                        break;
-                    }
-                }
-            }
-
-            if (String.IsNullOrEmpty(applicationName))
-            {
-                throw new ArgumentNullException(nameof(applicationName), "Must specify a applicationName or a subjectName.");
-            }
-
-            // remove special characters from name.
-            StringBuilder buffer = new StringBuilder();
-
-            for (int ii = 0; ii < applicationName.Length; ii++)
-            {
-                char ch = applicationName[ii];
-
-                if (Char.IsControl(ch) || ch == '/' || ch == ',' || ch == ';')
-                {
-                    ch = '+';
-                }
-
-                buffer.Append(ch);
-            }
-
-            applicationName = buffer.ToString();
-
-            // ensure at least one host name.
-            if (domainNames == null || domainNames.Count == 0)
-            {
-                domainNames = new List<string>();
-                domainNames.Add(Utils.GetHostName());
-            }
-
-            // create the application uri.
-            if (String.IsNullOrEmpty(applicationUri))
-            {
-                StringBuilder builder = new StringBuilder();
-
-                builder.Append("urn:");
-                builder.Append(domainNames[0]);
-                builder.Append(":");
-                builder.Append(applicationName);
-
-                applicationUri = builder.ToString();
-            }
-
-            Uri uri = Utils.ParseUri(applicationUri);
-
-            if (uri == null)
-            {
-                throw new ArgumentNullException(nameof(applicationUri), "Must specify a valid URL.");
-            }
-
-            // create the subject name,
-            if (String.IsNullOrEmpty(subjectName))
-            {
-                subjectName = Utils.Format("CN={0}", applicationName);
-            }
-
-            if (!subjectName.Contains("CN="))
-            {
-                subjectName = Utils.Format("CN={0}", subjectName);
-            }
-
-            if (domainNames != null && domainNames.Count > 0)
-            {
-                if (!subjectName.Contains("DC=") && !subjectName.Contains("="))
-                {
-                    subjectName += Utils.Format(", DC={0}", domainNames[0]);
-                }
-                else
-                {
-                    subjectName = Utils.ReplaceDCLocalhost(subjectName, domainNames[0]);
-                }
-            }
-
-            return new X500DistinguishedName(subjectName);
-        }
-
         private static HashAlgorithmName GetRSAHashAlgorithmName(uint hashSizeInBits)
         {
             if (hashSizeInBits <= 160)

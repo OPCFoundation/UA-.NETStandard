@@ -658,9 +658,6 @@ namespace Opc.Ua.Configuration
             }
 
             X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                id.StoreType,
-                id.StorePath,
-                null,
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
                 id.SubjectName,
@@ -672,6 +669,10 @@ namespace Opc.Ua.Configuration
                 false,
                 null,
                 null
+                ).AddToStore(
+                    id.StoreType,
+                    id.StorePath,
+                    null
                 );
 
             id.Certificate = certificate;

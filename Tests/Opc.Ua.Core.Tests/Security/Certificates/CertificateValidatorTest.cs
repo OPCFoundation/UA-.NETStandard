@@ -83,7 +83,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             DateTime rootCABaseTime = DateTime.UtcNow;
             rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1);
             var rootCert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, "CN=Root CA Test Cert",
                 null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
                 pathLengthConstraint: -1);
@@ -91,7 +90,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_caChain[0] = rootCert;
             m_crlChain[0] = CertificateFactory.RevokeCertificate(rootCert, null, null);
             m_caDupeChain[0] = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, "CN=Root CA Test Cert",
                 null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
                 pathLengthConstraint: -1);
@@ -107,7 +105,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (hashSize > 256) { hashSize -= 128; }
                 var subject = $"CN=Sub CA {i} Test Cert";
                 var subCACert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     null, null, subject,
                     null, keySize, subCABaseTime, 5 * 12, hashSize, true,
                     signingCert, pathLengthConstraint: kCaChainCount - 1 - i);
@@ -115,7 +112,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 m_crlChain[i] = CertificateFactory.RevokeCertificate(subCACert, null, null, subCABaseTime, subCABaseTime + TimeSpan.FromDays(10));
                 var subCADupeCert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     null, null, subject,
                     null, keySize, subCABaseTime, 5 * 12, hashSize, true,
                     signingCert, pathLengthConstraint: kCaChainCount - 1 - i);
@@ -140,7 +136,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var subject = app.Subject;
                 var appCert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     app.ApplicationUri,
                     app.ApplicationName,
                     subject,
@@ -155,7 +150,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var subject = app.Subject;
                 var appCert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     app.ApplicationUri,
                     app.ApplicationName,
                     subject,
@@ -710,7 +704,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyNotBeforeInvalid(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, "App Test Cert", null,
                 null, CertificateFactory.DefaultKeySize,
                 DateTime.UtcNow + TimeSpan.FromDays(14), 12,
@@ -740,7 +733,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyNotAfterInvalid(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, "CN=App Test Cert",
                 null, CertificateFactory.DefaultKeySize,
                 new DateTime(2010, 1, 1), 12,

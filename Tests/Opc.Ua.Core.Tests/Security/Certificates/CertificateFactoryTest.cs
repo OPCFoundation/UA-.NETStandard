@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
-            var cert = CertificateFactory.CreateCertificate(null, null, null,
+            var cert = CertificateFactory.CreateCertificate(
                 app.ApplicationUri, app.ApplicationName, app.Subject,
                 app.DomainNames, keyHashPair.KeySize, DateTime.UtcNow,
                 CertificateFactory.DefaultLifeTime, keyHashPair.HashSize);
@@ -142,7 +142,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
             var cert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, subject,
                 null, keyHashPair.KeySize,
                 DateTime.UtcNow, 25 * 12,
@@ -237,7 +236,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = 1;
             var issuerCertificate = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, subject,
                 null, keyHashPair.KeySize,
                 DateTime.UtcNow, 25 * 12,
@@ -249,7 +247,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             for (int i = 0; i < 10; i++)
             {
                 var cert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     null, null, $"CN=Test Cert {i}",
                     null, keyHashPair.KeySize,
                     DateTime.UtcNow, 2 * 12,

@@ -17,6 +17,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -563,6 +564,63 @@ namespace Opc.Ua.Security.Certificates
                 throw new NotSupportedException("Creating X509Certificate from PKCS #12 store failed", ex);
             }
 
+            return certificate;
+        }
+
+        /// <summary>
+        /// Get the certificate by issuer and serial number.
+        /// </summary>
+        public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
+            ICertificateStore store,
+            string issuer,
+            string serialnumber)
+        {
+            X509Certificate2Collection certificates = await store.Enumerate();
+
+            foreach (var certificate in certificates)
+            {
+                if (X509Utils.CompareDistinguishedName(certificate.Subject, issuer) &&
+                    Utils.IsEqual(certificate.SerialNumber, serialnumber))
+                {
+                    return certificate;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
+        /// </summary>
+        /// <remarks>
+        /// Saves also the private key, if available. 
+        /// </remarks>
+        /// <param name="certificate">The certificate to store.</param>
+        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="storePath">The store path (syntax depends on storeType).</param>
+        /// <param name="password">The password to use to protect the certificate.</param>
+        /// <returns></returns>
+        public static X509Certificate2 AddToStore(
+            this X509Certificate2 certificate,
+            string storeType,
+            string storePath,
+            string password)
+        {
+            // add cert to the store.
+            if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))
+            {
+                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                {
+                    if (store == null)
+                    {
+                        throw new ArgumentException("Invalid store type");
+                    }
+
+                    store.Open(storePath);
+                    store.Add(certificate, password).Wait();
+                    store.Close();
+                }
+            }
             return certificate;
         }
 

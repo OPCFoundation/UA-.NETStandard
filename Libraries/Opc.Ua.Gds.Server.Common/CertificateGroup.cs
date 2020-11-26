@@ -130,9 +130,6 @@ namespace Opc.Ua.Gds.Server
         {
             using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
             using (var certificate = CertificateFactory.CreateCertificate(
-                 null,
-                 null,
-                 null,
                  application.ApplicationUri ?? "urn:ApplicationURI",
                  application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
                  subjectName,
@@ -250,9 +247,6 @@ namespace Opc.Ua.Gds.Server
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
                 {
                     return CertificateFactory.CreateCertificate(
-                        null,
-                        null,
-                        null,
                         application.ApplicationUri ?? "urn:ApplicationURI",
                         application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
                         info.Subject.ToString(),
@@ -283,9 +277,6 @@ namespace Opc.Ua.Gds.Server
         {
             DateTime yesterday = DateTime.UtcNow.AddDays(-1);
             X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
-                m_authoritiesStoreType,
-                m_authoritiesStorePath,
-                null,
                 null,
                 null,
                 subjectName,
@@ -296,7 +287,11 @@ namespace Opc.Ua.Gds.Server
                 Configuration.CACertificateHashSize,
                 true,
                 null,
-                null);
+                null).AddToStore(
+                    m_authoritiesStoreType,
+                    m_authoritiesStorePath,
+                    null
+                );
 
             // save only public key
             Certificate = new X509Certificate2(newCertificate.RawData);
@@ -316,8 +311,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         public virtual async Task<X509Certificate2> LoadSigningKeyAsync(X509Certificate2 signingCertificate, string signingKeyPassword)
         {
-            CertificateIdentifier certIdentifier = new CertificateIdentifier(signingCertificate)
-            {
+            CertificateIdentifier certIdentifier = new CertificateIdentifier(signingCertificate) {
                 StorePath = m_authoritiesStorePath,
                 StoreType = m_authoritiesStoreType
             };
