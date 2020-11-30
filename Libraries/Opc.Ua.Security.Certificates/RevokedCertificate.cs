@@ -73,7 +73,10 @@ namespace Opc.Ua.Security.Certificates
         public RevokedCertificate(byte[] serialNumber, CRLReason crlReason)
             : this(serialNumber)
         {
-            CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+            if (crlReason != CRLReason.Unspecified)
+            {
+                CrlEntryExtensions.Add(X509Extensions.BuildX509CRLReason(crlReason));
+            }
         }
 
         /// <summary>

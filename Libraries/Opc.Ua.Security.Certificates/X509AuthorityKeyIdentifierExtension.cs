@@ -79,17 +79,33 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Build the X509 Authority Key extension.
         /// </summary>
-        /// <param name="authorityName">The distinguished name of the issuer</param>
-        /// <param name="serialNumber">The serial number of the issuer</param>
         /// <param name="subjectKeyIdentifier">The subject key identifier</param>
         public X509AuthorityKeyIdentifierExtension(
-            X500DistinguishedName authorityName,
-            byte[] serialNumber,
-            byte[] subjectKeyIdentifier)
+            byte[] subjectKeyIdentifier
+            )
         {
+            if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
+            m_keyIdentifier = subjectKeyIdentifier;
+            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            base.Critical = false;
+            base.RawData = Encode();
+        }
+
+        /// <summary>
+        /// Build the X509 Authority Key extension.
+        /// </summary>
+        /// <param name="subjectKeyIdentifier">The subject key identifier</param>
+        /// <param name="authorityName">The distinguished name of the issuer</param>
+        /// <param name="serialNumber">The serial number of the issuer certificate</param>
+        public X509AuthorityKeyIdentifierExtension(
+            byte[] subjectKeyIdentifier,
+            X500DistinguishedName authorityName,
+            byte[] serialNumber
+            )
+        {
+            if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             if (authorityName == null) throw new ArgumentNullException(nameof(authorityName));
             if (serialNumber == null) throw new ArgumentNullException(nameof(serialNumber));
-            if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             m_issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
             m_serialNumber = serialNumber;
@@ -266,18 +282,35 @@ namespace Opc.Ua.Security.Certificates
                     var akiReader = dataReader?.ReadSequence();
                     if (akiReader != null)
                     {
-                        Asn1Tag keyId = new Asn1Tag(TagClass.ContextSpecific, 0);
-                        m_keyIdentifier = akiReader.ReadOctetString(keyId);
-
-                        AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
-                        if (issuerReader != null)
+                        Asn1Tag keyIdTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+                        Asn1Tag serialNumberTag = new Asn1Tag(TagClass.ContextSpecific, 2);
+                        while (akiReader.HasData)
                         {
-                            Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
-                            m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
-                        }
+                            Asn1Tag peekTag = akiReader.PeekTag();
+                            if (akiReader.PeekTag() == keyIdTag)
+                            {
+                                m_keyIdentifier = akiReader.ReadOctetString(keyIdTag);
+                                continue;
+                            }
 
-                        Asn1Tag serialNumber = new Asn1Tag(TagClass.ContextSpecific, 2);
-                        m_serialNumber = akiReader.ReadInteger(serialNumber).ToByteArray();
+                            if (peekTag == new Asn1Tag(TagClass.ContextSpecific, 1, true))
+                            {
+                                AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+                                if (issuerReader != null)
+                                {
+                                    Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
+                                    m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                                }
+                                continue;
+                            }
+
+                            if (peekTag == serialNumberTag)
+                            {
+                                m_serialNumber = akiReader.ReadInteger(serialNumberTag).ToByteArray();
+                                continue;
+                            }
+                            break;
+                        }
                         return;
                     }
                 }
@@ -295,9 +328,9 @@ namespace Opc.Ua.Security.Certificates
         /// Authority Key Identifier extension string
         /// definitions see RFC 5280 4.2.1.1
         /// </summary>
-        private const string kKeyIdentifier = "Key Identifier";
+        private const string kKeyIdentifier = "KeyID";
         private const string kIssuer = "Issuer";
-        private const string kSerialNumber = "Serial Number";
+        private const string kSerialNumber = "SerialNumber";
         private const string kFriendlyName = "Authority Key Identifier";
         private byte[] m_keyIdentifier;
         private X500DistinguishedName m_issuer;

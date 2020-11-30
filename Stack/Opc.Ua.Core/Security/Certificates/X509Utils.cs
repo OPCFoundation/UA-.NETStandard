@@ -133,7 +133,6 @@ namespace Opc.Ua.Security.Certificates
             return string.Empty;
         }
 
-        // TODO: remove function?
         /// <summary>
         /// Check if certificate has an application urn.
         /// </summary>
@@ -593,7 +592,8 @@ namespace Opc.Ua.Security.Certificates
         /// Extension to add a certificate to a <see cref="ICertificateStore"/>.
         /// </summary>
         /// <remarks>
-        /// Saves also the private key, if available. 
+        /// Saves also the private key, if available.
+        /// If written to a Pfx file, the password is used for protection.
         /// </remarks>
         /// <param name="certificate">The certificate to store.</param>
         /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
@@ -604,7 +604,7 @@ namespace Opc.Ua.Security.Certificates
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password)
+            string password = null)
         {
             // add cert to the store.
             if (!String.IsNullOrEmpty(storePath) && !String.IsNullOrEmpty(storeType))

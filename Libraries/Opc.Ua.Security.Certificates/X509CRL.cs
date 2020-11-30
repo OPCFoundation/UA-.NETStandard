@@ -49,7 +49,6 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(string filePath) : this()
         {
             RawData = File.ReadAllBytes(filePath);
-            Decode(RawData);
         }
 
         /// <summary>
@@ -58,7 +57,22 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(byte[] crl) : this()
         {
             RawData = crl;
-            Decode(RawData);
+        }
+
+        /// <summary>
+        /// Create CRL from IX509CRL interface.
+        /// </summary>
+        /// <param name="crl"></param>
+        public X509CRL(IX509CRL crl)
+        {
+            m_decoded = true;
+            m_issuerName = crl.IssuerName;
+            m_hashAlgorithmName = crl.HashAlgorithmName;
+            m_thisUpdate = crl.ThisUpdate;
+            m_nextUpdate = crl.NextUpdate;
+            m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
+            m_crlExtensions = new List<X509Extension>(crl.CrlExtensions);
+            RawData = crl.RawData;
         }
 
         /// <summary>
@@ -66,8 +80,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         internal X509CRL()
         {
-            ThisUpdate = DateTime.MinValue;
-            NextUpdate = DateTime.MinValue;
+            m_decoded = false;
+            m_thisUpdate = DateTime.MinValue;
+            m_nextUpdate = DateTime.MinValue;
             m_revokedCertificates = new List<RevokedCertificate>();
             m_crlExtensions = new List<X509Extension>();
         }
@@ -75,28 +90,70 @@ namespace Opc.Ua.Security.Certificates
 
         #region IX509CRL Interface
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName { get; protected set; }
+        public X500DistinguishedName IssuerName
+        {
+            get
+            {
+                EnsureDecoded();
+                return m_issuerName;
+            }
+        }
 
         /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
 
         /// <inheritdoc/>
-        public DateTime ThisUpdate { get; protected set; }
+        public DateTime ThisUpdate
+        {
+            get
+            {
+                EnsureDecoded();
+                return m_thisUpdate;
+            }
+        }
 
         /// <inheritdoc/>
-        public DateTime NextUpdate { get; protected set; }
+        public DateTime NextUpdate
+        {
+            get
+            {
+                EnsureDecoded();
+                return m_nextUpdate;
+            }
+        }
 
         /// <inheritdoc/>
-        public HashAlgorithmName HashAlgorithmName { get; protected set; }
+        public HashAlgorithmName HashAlgorithmName
+        {
+            get
+            {
+                EnsureDecoded();
+                return m_hashAlgorithmName;
+            }
+        }
 
         /// <inheritdoc/>
-        public IList<RevokedCertificate> RevokedCertificates => m_revokedCertificates.AsReadOnly();
+        public IList<RevokedCertificate> RevokedCertificates
+        {
+            get
+            {
+                EnsureDecoded();
+                return m_revokedCertificates.AsReadOnly();
+            }
+        }
 
         /// <inheritdoc/>
-        public IList<X509Extension> CrlExtensions => m_crlExtensions.AsReadOnly();
+        public IList<X509Extension> CrlExtensions
+        {
+            get
+            {
+                EnsureDecoded();
+                return m_crlExtensions.AsReadOnly();
+            }
+        }
 
         /// <inheritdoc/>
-        public byte[] RawData { get; protected set; }
+        public byte[] RawData { get; private set; }
         #endregion
 
         #region Public Methods
@@ -107,6 +164,8 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
+                // todo: only decode signature
+                EnsureDecoded();
 #if TODO
                 Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(issuer.RawData);
                 m_crl.Verify(bccert.GetPublicKey());
@@ -132,6 +191,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 throw new CryptographicException("Certificate was not created by the CRL Issuer.");
             }
+            EnsureDecoded();
             var serialnumber = certificate.GetSerialNumber();
             foreach (var revokedCert in RevokedCertificates)
             {
@@ -188,20 +248,20 @@ namespace Opc.Ua.Security.Certificates
                     // Signature Algorithm Identifier
                     var sigReader = seqReader.ReadSequence();
                     var oid = sigReader.ReadObjectIdentifier();
-                    HashAlgorithmName = Oids.GetHashAlgorithmName(oid);
+                    m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
 
                     // Issuer
-                    IssuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
+                    m_issuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
 
                     // thisUpdate
-                    ThisUpdate = seqReader.ReadUtcTime().UtcDateTime;
+                    m_thisUpdate = seqReader.ReadUtcTime().UtcDateTime;
 
                     // nextUpdate is OPTIONAL
                     var utcTag = new Asn1Tag(UniversalTagNumber.UtcTime);
                     peekTag = seqReader.PeekTag();
                     if (peekTag == utcTag)
                     {
-                        NextUpdate = seqReader.ReadUtcTime().UtcDateTime;
+                        m_nextUpdate = seqReader.ReadUtcTime().UtcDateTime;
                     }
 
                     var seqTag = new Asn1Tag(UniversalTagNumber.Sequence, true);
@@ -250,18 +310,35 @@ namespace Opc.Ua.Security.Certificates
                         m_crlExtensions = crlExtensionList;
                     }
                 }
+                m_decoded = true;
             }
             catch (Exception ex)
             {
                 throw new CryptographicException("Failed to decode the CRL.", ex);
             }
         }
+
+        /// <summary>
+        /// Decode if RawData is yet undecoded.
+        /// </summary>
+        private void EnsureDecoded()
+        {
+            if (!m_decoded)
+            {
+                Decode(RawData);
+            }
+        }
         #endregion
 
         #region Private Fields
-        protected X509Signature m_signature;
-        protected List<RevokedCertificate> m_revokedCertificates;
-        protected List<X509Extension> m_crlExtensions;
+        private bool m_decoded = false;
+        private X509Signature m_signature;
+        private X500DistinguishedName m_issuerName;
+        private DateTime m_thisUpdate;
+        private DateTime m_nextUpdate;
+        private HashAlgorithmName m_hashAlgorithmName;
+        private List<RevokedCertificate> m_revokedCertificates;
+        private List<X509Extension> m_crlExtensions;
         #endregion
     }
 }

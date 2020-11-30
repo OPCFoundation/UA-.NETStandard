@@ -38,7 +38,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-        public static string ToHexString(this byte[] buffer, bool bigEndian = false)
+        internal static string ToHexString(this byte[] buffer, bool bigEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
@@ -68,7 +68,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Converts a hexadecimal string to an array of bytes.
         /// </summary>
-        public static byte[] FromHexString(this string buffer)
+        internal static byte[] FromHexString(this string buffer)
         {
             if (buffer == null)
             {
@@ -123,7 +123,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="writer">The writer</param>
         /// <param name="integer">The key parameter</param>
-        public static void WriteKeyParameterInteger(this AsnWriter writer, ReadOnlySpan<byte> integer)
+        internal static void WriteKeyParameterInteger(this AsnWriter writer, ReadOnlySpan<byte> integer)
         {
             if (integer[0] == 0)
             {

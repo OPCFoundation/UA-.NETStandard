@@ -671,8 +671,7 @@ namespace Opc.Ua.Configuration
                 null
                 ).AddToStore(
                     id.StoreType,
-                    id.StorePath,
-                    null
+                    id.StorePath
                 );
 
             id.Certificate = certificate;

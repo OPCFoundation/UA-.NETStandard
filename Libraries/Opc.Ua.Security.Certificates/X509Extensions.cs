@@ -28,11 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Formats.Asn1;
 using System.Linq;
-using System.Net;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -46,13 +44,22 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="certificate">The certificate with extensions.</param>
-        /// <returns></returns>
         public static T FindExtension<T>(X509Certificate2 certificate) where T : X509Extension
+        {
+            return FindExtension<T>(certificate.Extensions);
+        }
+
+        /// <summary>
+        /// Find a typed extension in a extension collection.
+        /// </summary>
+        /// <typeparam name="T">The type of the extension.</typeparam>
+        /// <param name="extensions">The extensions to search.</param>
+        public static T FindExtension<T>(X509ExtensionCollection extensions) where T : X509Extension
         {
             // search known custom extensions
             if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
             {
-                var extension = certificate.Extensions.Cast<X509Extension>().Where(e => (
+                var extension = extensions.Cast<X509Extension>().Where(e => (
                     e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid ||
                     e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid)
                 ).FirstOrDefault();
@@ -64,7 +71,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (typeof(T) == typeof(X509SubjectAltNameExtension))
             {
-                var extension = certificate.Extensions.Cast<X509Extension>().Where(e => (
+                var extension = extensions.Cast<X509Extension>().Where(e => (
                     e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
                     e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
                 ).FirstOrDefault();
@@ -75,9 +82,8 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // search builtin extension
-            return certificate.Extensions.OfType<T>().FirstOrDefault();
+            return extensions.OfType<T>().FirstOrDefault();
         }
-
 
         /// <summary>
         /// Build the Authority information Access extension.
@@ -105,7 +111,7 @@ namespace Opc.Ua.Security.Certificates
                     foreach (var caIssuerUrl in caIssuerUrls)
                     {
                         writer.PushSequence();
-                        writer.WriteObjectIdentifier("1.3.6.1.5.5.7.48.2");
+                        writer.WriteObjectIdentifier(Oids.CertificateAuthorityIssuers);
                         writer.WriteCharacterString(
                             UniversalTagNumber.IA5String,
                             caIssuerUrl,
@@ -117,7 +123,7 @@ namespace Opc.Ua.Security.Certificates
                 if (!String.IsNullOrEmpty(ocspResponder))
                 {
                     writer.PushSequence();
-                    writer.WriteObjectIdentifier("1.3.6.1.5.5.7.48.1");
+                    writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);
                     writer.WriteCharacterString(
                         UniversalTagNumber.IA5String,
                         ocspResponder,
@@ -126,7 +132,7 @@ namespace Opc.Ua.Security.Certificates
                     writer.PopSequence();
                 }
                 writer.PopSequence();
-                return new X509Extension("1.3.6.1.5.5.7.1.1", writer.Encode(), false);
+                return new X509Extension(Oids.AuthorityInfoAccess, writer.Encode(), false);
             }
         }
 
@@ -142,31 +148,27 @@ namespace Opc.Ua.Security.Certificates
             Asn1Tag distributionPointChoice = context0;
             Asn1Tag fullNameChoice = context0;
             Asn1Tag generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
-
-            {
-                AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-                writer.PushSequence();
-                writer.PushSequence();
-                writer.PushSequence(distributionPointChoice);
-                writer.PushSequence(fullNameChoice);
-                writer.WriteCharacterString(
-                    UniversalTagNumber.IA5String,
-                    distributionPoint,
-                    generalNameUriChoice
-                    );
-                writer.PopSequence(fullNameChoice);
-                writer.PopSequence(distributionPointChoice);
-                writer.PopSequence();
-                writer.PopSequence();
-                return new X509Extension("2.5.29.31", writer.Encode(), false);
-            }
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            writer.PushSequence();
+            writer.PushSequence();
+            writer.PushSequence(distributionPointChoice);
+            writer.PushSequence(fullNameChoice);
+            writer.WriteCharacterString(
+                UniversalTagNumber.IA5String,
+                distributionPoint,
+                generalNameUriChoice
+                );
+            writer.PopSequence(fullNameChoice);
+            writer.PopSequence(distributionPointChoice);
+            writer.PopSequence();
+            writer.PopSequence();
+            return new X509Extension(Oids.CRLDistributionPoint, writer.Encode(), false);
         }
 
         /// <summary>
         /// Read an ASN.1 extension sequence as X509Extension object.
         /// </summary>
         /// <param name="reader">The ASN reader.</param>
-        /// <returns></returns>
         public static X509Extension ReadExtension(this AsnReader reader)
         {
             if (reader.HasData)
@@ -212,7 +214,6 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            // TODO: is there a better way to encode CRLReason?
             writer.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)reason });
             return new X509Extension(Oids.CrlReasonCode, writer.Encode(), false);
         }
@@ -225,8 +226,10 @@ namespace Opc.Ua.Security.Certificates
         {
             // force exception if SKI is not present
             var ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
-            return new X509AuthorityKeyIdentifierExtension(issuerCaCertificate.SubjectName,
-                issuerCaCertificate.GetSerialNumber(), ski.SubjectKeyIdentifier.FromHexString());
+            return new X509AuthorityKeyIdentifierExtension(
+                ski.SubjectKeyIdentifier.FromHexString(),
+                issuerCaCertificate.SubjectName,
+                issuerCaCertificate.GetSerialNumber());
         }
 
         /// <summary>

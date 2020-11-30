@@ -85,8 +85,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509SubjectAltNameExtension(AsnEncodedData encodedExtension, bool critical)
-        :
-            this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
         {
         }
 
@@ -94,9 +93,18 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from an Oid and ASN.1 encoded raw data.
         /// </summary>
         public X509SubjectAltNameExtension(string oid, byte[] rawData, bool critical)
-        :
-            this(new Oid(oid, kFriendlyName), rawData, critical)
+            : this(new Oid(oid, kFriendlyName), rawData, critical)
         {
+        }
+
+        /// <summary>
+        /// Creates an extension from ASN.1 encoded data.
+        /// </summary>
+        public X509SubjectAltNameExtension(Oid oid, byte[] rawData, bool critical)
+        :
+            base(oid, rawData, critical)
+        {
+            m_decoded = false;
         }
 
 #if NETSTANDARD2_1
@@ -109,22 +117,13 @@ namespace Opc.Ua.Security.Certificates
             string applicationUri,
             IList<string> domainNames)
         {
-            this.Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
-            this.Critical = false;
-            this.Initialize(applicationUri, domainNames);
-            this.RawData = Encode();
+            Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
+            Critical = false;
+            Initialize(applicationUri, domainNames);
+            RawData = Encode();
+            m_decoded = true;
         }
 #endif
-
-        /// <summary>
-        /// Creates an extension from ASN.1 encoded data.
-        /// </summary>
-        public X509SubjectAltNameExtension(Oid oid, byte[] rawData, bool critical)
-        :
-            base(oid, rawData, critical)
-        {
-            Decode(rawData);
-        }
         #endregion
 
         #region Overridden Methods
@@ -133,8 +132,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public override string Format(bool multiLine)
         {
+            EnsureDecoded();
             StringBuilder buffer = new StringBuilder();
-
             for (int ii = 0; ii < m_uris.Count; ii++)
             {
                 if (buffer.Length > 0)
@@ -201,8 +200,9 @@ namespace Opc.Ua.Security.Certificates
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
             if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
-            this.Oid = asnEncodedData.Oid;
-            Decode(asnEncodedData.RawData);
+            Oid = asnEncodedData.Oid;
+            RawData = asnEncodedData.RawData;
+            m_decoded = false;
         }
         #endregion
 
@@ -223,7 +223,11 @@ namespace Opc.Ua.Security.Certificates
         /// <value>The uris.</value>
         public IReadOnlyList<string> Uris
         {
-            get { return m_uris; }
+            get
+            {
+                EnsureDecoded();
+                return m_uris.AsReadOnly();
+            }
         }
 
         /// <summary>
@@ -232,7 +236,11 @@ namespace Opc.Ua.Security.Certificates
         /// <value>The domain names.</value>
         public IReadOnlyList<string> DomainNames
         {
-            get { return m_domainNames; }
+            get
+            {
+                EnsureDecoded();
+                return m_domainNames.AsReadOnly();
+            }
         }
 
         /// <summary>
@@ -241,7 +249,11 @@ namespace Opc.Ua.Security.Certificates
         /// <value>The IP addresses.</value>
         public IReadOnlyList<string> IPAddresses
         {
-            get { return m_ipAddresses; }
+            get
+            {
+                EnsureDecoded();
+                return m_ipAddresses.AsReadOnly();
+            }
         }
         #endregion
 
@@ -284,7 +296,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="sanBuilder">The subject alternative name builder</param>
         /// <param name="generalNames">The general Names to add</param>
-        private static void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IReadOnlyList<string> generalNames)
+        private void EncodeGeneralNames(SubjectAlternativeNameBuilder sanBuilder, IList<string> generalNames)
         {
             foreach (string generalName in generalNames)
             {
@@ -304,6 +316,17 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 #endif
+
+        /// <summary>
+        /// Decode if RawData is yet undecoded.
+        /// </summary>
+        private void EnsureDecoded()
+        {
+            if (!m_decoded)
+            {
+                Decode(RawData);
+            }
+        }
 
         /// <summary>
         /// Decode URI, DNS and IP from Subject Alternative Name.
@@ -354,9 +377,10 @@ namespace Opc.Ua.Security.Certificates
                             }
                         }
                     }
-                    m_uris = uris.AsReadOnly();
-                    m_domainNames = domainNames.AsReadOnly();
-                    m_ipAddresses = ipAddresses.AsReadOnly();
+                    m_uris = uris;
+                    m_domainNames = domainNames;
+                    m_ipAddresses = ipAddresses;
+                    m_decoded = true;
                 }
                 catch (AsnContentException ace)
                 {
@@ -382,23 +406,19 @@ namespace Opc.Ua.Security.Certificates
             uris.Add(applicationUri);
             foreach (string generalName in generalNames)
             {
-                IPAddress ipAddr;
-                if (String.IsNullOrWhiteSpace(generalName))
+                switch (Uri.CheckHostName(generalName))
                 {
-                    continue;
-                }
-                if (IPAddress.TryParse(generalName, out ipAddr))
-                {
-                    ipAddresses.Add(generalName);
-                }
-                else
-                {
-                    domainNames.Add(generalName);
+                    case UriHostNameType.Dns:
+                        domainNames.Add(generalName); break;
+                    case UriHostNameType.IPv4:
+                    case UriHostNameType.IPv6:
+                        ipAddresses.Add(generalName); break;
+                    default: continue;
                 }
             }
-            m_uris = uris.AsReadOnly();
-            m_domainNames = domainNames.AsReadOnly();
-            m_ipAddresses = ipAddresses.AsReadOnly(); 
+            m_uris = uris;
+            m_domainNames = domainNames;
+            m_ipAddresses = ipAddresses;
         }
         #endregion
 
@@ -411,9 +431,10 @@ namespace Opc.Ua.Security.Certificates
         private const string kDnsName = "DNS Name";
         private const string kIpAddress = "IP Address";
         private const string kFriendlyName = "Subject Alternative Name";
-        private IReadOnlyList<string> m_uris;
-        private IReadOnlyList<string> m_domainNames;
-        private IReadOnlyList<string> m_ipAddresses;
+        private List<string> m_uris;
+        private List<string> m_domainNames;
+        private List<string> m_ipAddresses;
+        private bool m_decoded;
         #endregion
     }
 }

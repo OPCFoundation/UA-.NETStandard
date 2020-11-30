@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
@@ -832,7 +833,7 @@ namespace Opc.Ua.Gds.Tests
             _caCert = newCACert;
 
             // initialize cert revocation list (CRL)
-            X509CRL newCACrl = CertificateFactory.RevokeCertificateAsync(tempStorePath, newCACert).Result;
+            X509CRL newCACrl = CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert).Result;
 
             _caCrl = newCACrl;
         }

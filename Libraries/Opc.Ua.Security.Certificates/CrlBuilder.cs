@@ -44,7 +44,7 @@ namespace Opc.Ua.Security.Certificates
     {
         #region Constructors
         /// <summary>
-        /// Initialize a CRL builder with a decoded CRL.
+        /// Create a CRL builder initialized with a decoded CRL.
         /// </summary>
         /// <param name="crl">The decoded CRL</param>
         public CrlBuilder(IX509CRL crl)
@@ -59,27 +59,24 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Initialize the CRL builder with Issuer.
+        /// </summary>
+        /// <param name="issuerSubjectName">Issuer name</param>
+        public CrlBuilder(X500DistinguishedName issuerSubjectName)
+            : this(issuerSubjectName, Defaults.HashAlgorithmName)
+        {
+        }
+
+        /// <summary>
         /// Initialize the CRL builder with Issuer and hash algorithm.
         /// </summary>
         /// <param name="issuerSubjectName">Issuer distinguished name</param>
         /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        public CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName) : this()
+        public CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+            : this()
         {
             IssuerName = issuerSubjectName;
             HashAlgorithmName = hashAlgorithmName;
-            ThisUpdate = DateTime.UtcNow;
-        }
-
-        /// <summary>
-        /// Initialize the CRL builder with Issuer, hash algorithm and .
-        /// </summary>
-        /// <param name="issuerSubjectName">Issuer distinguished name</param>
-        /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        /// <param name="serialNumbers">The array of serial numbers to revoke.</param>
-        public CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName, string[] serialNumbers)
-            : this(issuerSubjectName, hashAlgorithmName)
-        {
-            m_revokedCertificates.AddRange(serialNumbers.Select(s => new RevokedCertificate(s)).ToList());
         }
 
         /// <summary>
@@ -87,7 +84,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private CrlBuilder()
         {
-            ThisUpdate = DateTime.MinValue;
+            ThisUpdate = DateTime.UtcNow;
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = new List<RevokedCertificate>();
             m_crlExtensions = new List<X509Extension>();
@@ -102,10 +99,10 @@ namespace Opc.Ua.Security.Certificates
         public string Issuer => IssuerName.Name;
 
         /// <inheritdoc/>
-        public DateTime ThisUpdate { get; set; }
+        public DateTime ThisUpdate { get; private set; }
 
         /// <inheritdoc/>
-        public DateTime NextUpdate { get; set; }
+        public DateTime NextUpdate { get; private set; }
 
         /// <inheritdoc/>
         public HashAlgorithmName HashAlgorithmName { get; private set; }
@@ -122,19 +119,114 @@ namespace Opc.Ua.Security.Certificates
 
         #region Public Methods
         /// <summary>
-        /// Create the CRL with signature.
+        /// Set this update time.
         /// </summary>
-        /// <param name="generator">The RSA or ECDSA signature generator to use.</param>
-        /// <returns>The signed certificate.</returns>
-        public byte [] Create(X509SignatureGenerator generator)
+        public CrlBuilder SetThisUpdate(DateTime thisUpdate)
+        {
+            ThisUpdate = thisUpdate;
+            return this;
+        }
+
+        /// <summary>
+        /// Set next update time (optional).
+        /// </summary>
+        public CrlBuilder SetNextUpdate(DateTime nextUpdate)
+        {
+            NextUpdate = nextUpdate;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the hash algorithm.
+        /// </summary>
+        public CrlBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
+        {
+            HashAlgorithmName = hashAlgorithmName;
+            return this;
+        }
+
+        /// <summary>
+        /// Add array of serialnumbers of revoked certificates.
+        /// </summary>
+        /// <param name="serialNumbers">The array of serial numbers to revoke.</param>
+        /// <param name="crlReason">The revocation reason</param>
+        public CrlBuilder AddRevokedSerialNumbers(string[] serialNumbers, CRLReason crlReason = CRLReason.Unspecified)
+        {
+            m_revokedCertificates.AddRange(serialNumbers.Select(s => new RevokedCertificate(s, crlReason)).ToList());
+            return this;
+        }
+
+        /// <summary>
+        /// Add a revoked certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate to revoke.</param>
+        /// <param name="crlReason">The revocation reason</param>
+        public CrlBuilder AddRevokedCertificate(X509Certificate2 certificate, CRLReason crlReason = CRLReason.Unspecified)
+        {
+            m_revokedCertificates.Add(new RevokedCertificate(certificate.SerialNumber, crlReason));
+            return this;
+        }
+
+        /// <summary>
+        /// Add a revoked certificate.
+        /// </summary>
+        public CrlBuilder AddRevokedCertificate(RevokedCertificate revokedCertificate)
+        {
+            m_revokedCertificates.Add(revokedCertificate);
+            return this;
+        }
+
+        /// <summary>
+        /// Add a revoked certificate.
+        /// </summary>
+        public CrlBuilder AddCRLExtension(X509Extension extension)
+        {
+            m_crlExtensions.Add(extension);
+            return this;
+        }
+
+        /// <summary>
+        /// Create the CRL with signature generator.
+        /// </summary>
+        /// <param name="generator">The RSA or ECDsa signature generator to use.</param>
+        /// <returns>The signed CRL.</returns>
+        public IX509CRL Create(X509SignatureGenerator generator)
         {
             var tbsRawData = Encode();
             var signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
             var crlSigner = new X509Signature(tbsRawData, signature, HashAlgorithmName);
             RawData = crlSigner.Encode();
-            return RawData;
+            return this;
         }
+
+        /// <summary>
+        /// Create the CRL with signature for RSA.
+        /// </summary>
+        /// <returns>The signed CRL.</returns>
+        public IX509CRL CreateForRSA(X509Certificate2 issuerCertificate)
+        {
+            using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
+            {
+                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                return Create(generator);
+            }
+        }
+
+#if NETSTANDARD2_1
+        /// <summary>
+        /// Create the CRL with signature for ECDsa.
+        /// </summary>
+        /// <returns>The signed CRL.</returns>
+        public IX509CRL CreateForECDsa(X509Certificate2 issuerCertificate)
+        {
+            using (ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey())
+            {
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+                return Create(generator);
+            }
+        }
+#endif
         #endregion
 
         #region Internal Methods

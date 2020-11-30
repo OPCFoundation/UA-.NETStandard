@@ -159,10 +159,10 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        public virtual async Task<X509CRL> RevokeCertificateAsync(
+        public virtual Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
-            return await CertificateFactory.RevokeCertificateAsync(
+            return RevokeCertificateAsync(
                 m_authoritiesStorePath,
                 certificate,
                 null);
@@ -297,12 +297,13 @@ namespace Opc.Ua.Gds.Server
             Certificate = new X509Certificate2(newCertificate.RawData);
 
             // initialize revocation list
-            await CertificateFactory.RevokeCertificateAsync(m_authoritiesStorePath, newCertificate, null);
+            await RevokeCertificateAsync(m_authoritiesStorePath, newCertificate, null);
 
             await UpdateAuthorityCertInTrustedList();
 
             return Certificate;
         }
+
         #endregion
 
         #region Public Methods
@@ -316,6 +317,105 @@ namespace Opc.Ua.Gds.Server
                 StoreType = m_authoritiesStoreType
             };
             return await certIdentifier.LoadPrivateKey(signingKeyPassword);
+        }
+
+        /// <summary>
+        /// Revoke the CA signed certificate. 
+        /// The issuer CA public key, the private key and the crl reside in the storepath.
+        /// The CRL number is increased by one and existing CRL for the issuer are deleted from the store.
+        /// </summary>
+        public static async Task<X509CRL> RevokeCertificateAsync(
+            string storePath,
+            X509Certificate2 certificate,
+            string issuerKeyFilePassword = null
+            )
+        {
+            X509CRL updatedCRL = null;
+            try
+            {
+                string subjectName = certificate.IssuerName.Name;
+                string keyId = null;
+                string serialNumber = null;
+
+                // caller may want to create empty CRL using the CA cert itself
+                bool isCACert = X509Utils.IsCertificateAuthority(certificate);
+
+                // find the authority key identifier.
+                X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
+
+                if (authority != null)
+                {
+                    keyId = authority.KeyIdentifier;
+                    serialNumber = authority.SerialNumber;
+                }
+                else
+                {
+                    throw new ArgumentException("Certificate does not contain an Authority Key");
+                }
+
+                if (!isCACert)
+                {
+                    if (serialNumber == certificate.SerialNumber ||
+                        X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot revoke self signed certificates");
+                    }
+                }
+
+                X509Certificate2 certCA = null;
+                using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
+                {
+                    if (store == null)
+                    {
+                        throw new ArgumentException("Invalid store path/type");
+                    }
+                    certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber);
+
+                    if (certCA == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
+                    }
+
+                    if (!certCA.HasPrivateKey)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
+                    }
+
+                    CertificateIdentifier certCAIdentifier = new CertificateIdentifier(certCA) {
+                        StorePath = storePath,
+                        StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath)
+                    };
+                    X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword);
+
+                    if (certCAWithPrivateKey == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
+                    }
+
+                    List<X509CRL> certCACrl = store.EnumerateCRLs(certCA, false);
+
+                    var certificateCollection = new X509Certificate2Collection() { };
+                    if (!isCACert)
+                    {
+                        certificateCollection.Add(certificate);
+                    }
+                    updatedCRL = CertificateFactory.RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
+
+                    store.AddCRL(updatedCRL);
+
+                    // delete outdated CRLs from store
+                    foreach (X509CRL caCrl in certCACrl)
+                    {
+                        store.DeleteCRL(caCrl);
+                    }
+                    store.Close();
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            return updatedCRL;
         }
         #endregion
 

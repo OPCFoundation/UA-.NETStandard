@@ -40,67 +40,16 @@ using Org.BouncyCastle.X509;
 namespace Opc.Ua.Security.Certificates.Tests
 {
     /// <summary>
-    /// Tests for the CertificateFactory class.
+    /// Tests for the CRL class.
     /// </summary>
     [TestFixture, Category("CRL")]
     [Parallelizable]
     [SetCulture("en-us")]
-    public class CRLTest
+    public class CRLTests
     {
         #region DataPointSources
-        public class CRLAsset : IFormattable
-        {
-            public CRLAsset(byte[] crl, string path)
-            {
-                Path = path;
-                Crl = crl;
-                try
-                {
-                    X509CrlParser parser = new X509CrlParser();
-                    X509Crl = parser.ReadCrl(crl);
-                }
-                catch
-                { }
-            }
-
-            public string Path;
-            public byte[] Crl;
-            public X509Crl X509Crl;
-
-            public string ToString(string format, IFormatProvider formatProvider)
-            {
-                var file = System.IO.Path.GetFileName(Path);
-                return $"{file}";
-            }
-        }
-
-        public class CRLAssetCollection : List<CRLAsset>
-        {
-            public CRLAssetCollection() { }
-            public CRLAssetCollection(IEnumerable<CRLAsset> collection) : base(collection) { }
-            public CRLAssetCollection(int capacity) : base(capacity) { }
-            public static CRLAssetCollection ToCLRAssetCollection(CRLAsset[] values)
-            {
-                return values != null ? new CRLAssetCollection(values) : new CRLAssetCollection();
-            }
-
-            public CRLAssetCollection(IEnumerable<string> filelist) : base()
-            {
-                foreach (var file in filelist)
-                {
-                    Add(file);
-                }
-            }
-
-            public void Add(string path)
-            {
-                byte[] crl = File.ReadAllBytes(path);
-                Add(new CRLAsset(crl, path));
-            }
-        }
-
         [DatapointSource]
-        public CRLAsset[] CRLTestCases = new CRLAssetCollection(Directory.EnumerateFiles("./Assets", "*.crl")).ToArray();
+        public CRLAsset[] CRLTestCases = new AssetCollection<CRLAsset>(Directory.EnumerateFiles("./Assets", "*.crl")).ToArray();
         #endregion
 
         #region Test Setup
@@ -145,8 +94,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             var dname = new X500DistinguishedName("CN=Test");
             var hash = HashAlgorithmName.SHA256;
-            var crlBuilder = new CrlBuilder(dname, hash);
-            crlBuilder.NextUpdate = crlBuilder.ThisUpdate.AddDays(30);
+            var crlBuilder = new CrlBuilder(dname, hash)
+                .SetNextUpdate(DateTime.Today.AddDays(30));
             byte[] serial = new byte[] { 4, 5, 6, 7 };
             var revokedarray = new RevokedCertificate(serial);
             crlBuilder.RevokedCertificates.Add(revokedarray);

@@ -38,27 +38,39 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class Oids
     {
-        // Asymmetric encryption algorithms
+        // Asymmetric encryption algorithms, padding
         public const string Dsa = "1.2.840.10040.4.1";
         public const string Rsa = "1.2.840.113549.1.1.1";
         public const string RsaOaep = "1.2.840.113549.1.1.7";
         public const string RsaPss = "1.2.840.113549.1.1.10";
+
+        // RSA signatures
         public const string RsaPkcs1Md5 = "1.2.840.113549.1.1.4";
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
         public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
         public const string RsaPkcs1Sha512 = "1.2.840.113549.1.1.13";
 
+        // ECDsa signatures
         public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
         public const string ECDsaWithSha256 = "1.2.840.10045.4.3.2";
         public const string ECDsaWithSha384 = "1.2.840.10045.4.3.3";
         public const string ECDsaWithSha512 = "1.2.840.10045.4.3.4";
 
+
         public const string CrlNumber = "2.5.29.20";
         public const string CrlReasonCode = "2.5.29.21";
 
+        // Transport Layer Security(TLS) World Wide Web(WWW) server authentication
         public const string ServerAuthentication = "1.3.6.1.5.5.7.3.1";
         public const string ClientAuthentication = "1.3.6.1.5.5.7.3.2";
+
+        // Authority Inforamtion access
+        public const string AuthorityInfoAccess = "1.3.6.1.5.5.7.1.1";
+        public const string OnlineCertificateStatusProtocol = "1.3.6.1.5.5.7.48.1";
+        public const string CertificateAuthorityIssuers = "1.3.6.1.5.5.7.48.2";
+
+        public const string CRLDistributionPoint = "2.5.29.31";
 
         public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
         {

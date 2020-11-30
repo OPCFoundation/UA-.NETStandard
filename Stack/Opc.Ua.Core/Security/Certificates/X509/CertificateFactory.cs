@@ -632,6 +632,22 @@ namespace Opc.Ua
                 lifetimeInMonths = 1;
             }
 
+            SetSuitableDefaults(
+                ref applicationUri,
+                ref applicationName,
+                ref subjectName,
+                ref domainNames);
+        }
+
+        /// <summary>
+        /// Sets the parameters to suitable defaults.
+        /// </summary>
+        private static void SetSuitableDefaults(
+            ref string applicationUri,
+            ref string applicationName,
+            ref string subjectName,
+            ref IList<String> domainNames)
+        {
             // parse the subject name if specified.
             List<string> subjectNameEntries = null;
 

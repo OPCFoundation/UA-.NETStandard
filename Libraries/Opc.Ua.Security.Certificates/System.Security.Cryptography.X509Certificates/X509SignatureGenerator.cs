@@ -2,6 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 #if !NETSTANDARD2_1
+
+// This source code is intentionally copied from the .NET core runtime to close
+// a gap in the .NET 4.6 and the .NET Core 2.x runtime implementations.
+// original code is located here:
+// https://github.com/dotnet/runtime/blob/master/src/libraries/System.Security.Cryptography.X509Certificates/src/System/Security/Cryptography/X509Certificates/X509SignatureGenerator.cs
+
 namespace System.Security.Cryptography.X509Certificates
 {
     public abstract class X509SignatureGenerator
