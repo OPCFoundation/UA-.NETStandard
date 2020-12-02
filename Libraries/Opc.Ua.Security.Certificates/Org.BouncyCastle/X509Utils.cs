@@ -24,6 +24,7 @@ using Org.BouncyCastle.Math;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Security.Certificates.BouncyCastle
 {
@@ -143,9 +144,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     /// </summary>
     internal static class X509Utils
     {
-        #region Public Methods
-        #endregion
-
         #region Internal Methods
         /// <summary>
         /// Create a Pfx blob with a private key by combining 
@@ -209,16 +207,24 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             try
             {
                 rsa = certificate.GetRSAPublicKey();
-                RSAParameters rsaParams = rsa.ExportParameters(false);
-                return new RsaKeyParameters(
-                    false,
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent));
+                return GetPublicKeyParameter(rsa);
             }
             finally
             {
                 RsaUtils.RSADispose(rsa);
             }
+        }
+
+        /// <summary>
+        /// Get public key parameters from a RSA.
+        /// </summary>
+        internal static RsaKeyParameters GetPublicKeyParameter(RSA rsa)
+        {
+            RSAParameters rsaParams = rsa.ExportParameters(false);
+            return new RsaKeyParameters(
+                false,
+                new BigInteger(1, rsaParams.Modulus),
+                new BigInteger(1, rsaParams.Exponent));
         }
 
         /// <summary>
@@ -232,23 +238,32 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             {
                 // try to get signing/private key from certificate passed in
                 rsa = certificate.GetRSAPrivateKey();
-                RSAParameters rsaParams = rsa.ExportParameters(true);
-                var keyParams = new RsaPrivateCrtKeyParameters(
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent),
-                    new BigInteger(1, rsaParams.D),
-                    new BigInteger(1, rsaParams.P),
-                    new BigInteger(1, rsaParams.Q),
-                    new BigInteger(1, rsaParams.DP),
-                    new BigInteger(1, rsaParams.DQ),
-                    new BigInteger(1, rsaParams.InverseQ));
-                return keyParams;
+                return GetPrivateKeyParameter(rsa);
             }
             finally
             {
                 RsaUtils.RSADispose(rsa);
             }
         }
+
+        /// <summary>
+        /// Get private key parameters from a RSA private key.
+        /// The private key must be exportable.
+        /// </summary>
+        internal static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(RSA rsa)
+        {
+            RSAParameters rsaParams = rsa.ExportParameters(true);
+            return new RsaPrivateCrtKeyParameters(
+                new BigInteger(1, rsaParams.Modulus),
+                new BigInteger(1, rsaParams.Exponent),
+                new BigInteger(1, rsaParams.D),
+                new BigInteger(1, rsaParams.P),
+                new BigInteger(1, rsaParams.Q),
+                new BigInteger(1, rsaParams.DP),
+                new BigInteger(1, rsaParams.DQ),
+                new BigInteger(1, rsaParams.InverseQ));
+        }
+
 
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.

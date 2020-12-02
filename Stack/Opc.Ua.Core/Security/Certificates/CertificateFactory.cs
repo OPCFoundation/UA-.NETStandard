@@ -20,8 +20,18 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Security.Certificates;
-
-
+#if !NETSTANDARD2_1
+using Opc.Ua.Security.Certificates.BouncyCastle;
+using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Operators;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Security;
+using X509Extensions = Opc.Ua.Security.Certificates.X509Extensions;
+using X509Utils = Opc.Ua.Security.Certificates.X509Utils;
+#endif
 
 namespace Opc.Ua
 {
@@ -124,14 +134,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Create a certificate for a OPC UA application.
+        /// Create a certificate for an OPC UA application.
         /// </summary>
         /// <param name="applicationUri">The application Uri</param>
         /// <param name="applicationName">The friendly name of the application</param>
         /// <param name="subjectName">The subject of the certificate</param>
         /// <param name="domainNames">The domain names for the alt name extension</param>
         /// <returns>
-        /// Return the Certificate builder with X509 Alt Name extension
+        /// Return the Certificate builder with X509 Subject Alt Name extension
         /// to create the certificate.
         /// </returns>
         public static CertificateBuilder CreateCertificate(
@@ -150,7 +160,30 @@ namespace Opc.Ua
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames));
         }
 
+        /// <summary>
+        /// Creates a self-signed, signed or CA certificate.
+        /// </summary>
+        /// <param name="storeType">Type of certificate store (Directory) <see cref="CertificateStoreType"/>.</param>
+        /// <param name="storePath">The store path (syntax depends on storeType).</param>
+        /// <param name="password">The password to use to protect the certificate.</param>
+        /// <param name="applicationUri">The application uri (created if not specified).</param>
+        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+        /// <param name="hashSizeInBits">The hash size in bits.</param>
+        /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
+        /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+        /// <param name="publicKey">The public key if no new keypair is created.</param>
+        /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
+        /// <returns>The certificate with a private key.</returns>
+        [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         public static X509Certificate2 CreateCertificate(
+            string storeType,
+            string storePath,
+            string password,
             string applicationUri,
             string applicationName,
             string subjectName,
@@ -162,54 +195,35 @@ namespace Opc.Ua
             bool isCA = false,
             X509Certificate2 issuerCAKeyCert = null,
             byte[] publicKey = null,
-            int pathLengthConstraint = 0,
-            string extensionUrl = null)
+            int pathLengthConstraint = 0)
         {
-            CertificateBuilder builder = null;
-            if (isCA)
+            return CreateCertificate(
+                applicationUri, applicationName, subjectName, domainNames,
+                keySize, startTime, lifetimeInMonths, hashSizeInBits,
+                isCA, issuerCAKeyCert, publicKey, pathLengthConstraint)
+                .AddToStore(storeType, storePath, password);
+        }
+
+#if !NETSTANDARD2_1
+        /// <summary>
+        /// Create a 
+        /// </summary>
+        /// <param name="builder"></param>
+        /// <param name="keySize"></param>
+        /// <returns></returns>
+        public static X509Certificate2 CreateForRSA(this CertificateBuilder builder, int keySize = 0)
+        {
+            if (builder.HasPublicKey)
             {
-                builder = CreateCertificate(subjectName);
+                return builder.CreateForRSAWithPublicKey();
             }
             else
             {
-                builder = CreateCertificate(
-                    applicationUri,
-                    applicationName,
-                    subjectName,
-                    domainNames);
+                string passcode = Guid.NewGuid().ToString();
+                return X509Utils.CreateCertificateFromPKCS12(builder.CreatePfxForRSA(passcode, keySize), passcode);
             }
-            builder.SetNotBefore(startTime);
-            builder.SetNotAfter(startTime.AddMonths(lifetimeInMonths));
-            builder.SetHashAlgorithm(GetRSAHashAlgorithmName(hashSizeInBits));
-            if (isCA)
-            {
-                builder.SetCAConstraint(pathLengthConstraint);
-            }
-            if (issuerCAKeyCert != null)
-            {
-                if (publicKey != null)
-                {
-                    builder.SetIssuer(issuerCAKeyCert);
-                    builder.SetRSAPublicKey(publicKey);
-                }
-                else
-                {
-                    builder.SetIssuer(issuerCAKeyCert);
-                }
-            }
-            if (extensionUrl != null)
-            {
-                if (issuerCAKeyCert == null && publicKey != null)
-                {
-                    builder.AddExtension(X509Extensions.BuildX509AuthorityInformationAccess(new string[] { extensionUrl }));
-                }
-                else if (issuerCAKeyCert != null)
-                {
-                    builder.AddExtension(X509Extensions.BuildX509CRLDistributionPoints(extensionUrl));
-                }
-            }
-            return builder.CreateForRSA(keySize);
         }
+#endif
 
         /// <summary>
         /// Revoke the certificate. 
@@ -365,61 +379,8 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            RSA rsaPrivateKey = RSA.Create();
-            PemReader pemReader;
-            using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
-            {
-                if (String.IsNullOrEmpty(password))
-                {
-                    pemReader = new PemReader(pemStreamReader);
-                }
-                else
-                {
-                    Password pwFinder = new Password(password.ToCharArray());
-                    pemReader = new PemReader(pemStreamReader, pwFinder);
-                }
-                try
-                {
-                    // find the private key in the PEM blob
-                    var pemObject = pemReader.ReadObject();
-                    while (pemObject != null)
-                    {
-                        Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters privateKey = null;
-                        var keypair = pemObject as Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair;
-                        if (keypair != null)
-                        {
-                            privateKey = keypair.Private as Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters;
-                            break;
-                        }
-
-                        if (privateKey == null)
-                        {
-                            privateKey = pemObject as Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters;
-                        }
-
-                        if (privateKey != null)
-                        {
-                            rsaPrivateKey.ImportParameters(DotNetUtilities.ToRSAParameters(privateKey));
-                            break;
-                        }
-
-                        // read next object
-                        pemObject = pemReader.ReadObject();
-                    }
-                }
-                finally
-                {
-                    pemReader.Reader.Dispose();
-                }
-            }
-
-            if (rsaPrivateKey == null)
-            {
-                throw new ServiceResultException("PEM data blob does not contain a private key.");
-            }
-
+            RSA rsaPrivateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
             return new X509Certificate2(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
-
         }
 #else
         /// <summary>
@@ -442,7 +403,7 @@ namespace Opc.Ua
                     new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
 
                 Asn1Set attributes = null;
-                var san = Security.Certificates.X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
+                var san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
                 X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 domainNames = domainNames ?? new List<String>();
@@ -465,17 +426,17 @@ namespace Opc.Ua
                 }
 
                 // build CSR extensions
-                List<GeneralName> generalNames = new List<GeneralName>();
+                var generalNames = new List<Org.BouncyCastle.Asn1.X509.GeneralName>();
 
                 string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
                 if (applicationUri != null)
                 {
-                    generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
+                    generalNames.Add(new Org.BouncyCastle.Asn1.X509.GeneralName(Org.BouncyCastle.Asn1.X509.GeneralName.UniformResourceIdentifier, applicationUri));
                 }
 
                 if (domainNames.Count > 0)
                 {
-                    generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
+                    generalNames.AddRange(Opc.Ua.Security.Certificates.BouncyCastle.X509Extensions.CreateSubjectAlternateNameDomains(domainNames));
                 }
 
                 if (generalNames.Count > 0)
@@ -484,8 +445,8 @@ namespace Opc.Ua
                     IList values = new ArrayList();
                     oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
                     values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
-                        new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
-                    AttributePkcs attribute = new AttributePkcs(PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                        new DerOctetString(new Org.BouncyCastle.Asn1.X509.GeneralNames(generalNames.ToArray()).GetDerEncoded())));
+                    var attribute = new Org.BouncyCastle.Asn1.Pkcs.AttributePkcs(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
                         new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
                     attributes = new DerSet(attribute);
                 }
@@ -518,11 +479,18 @@ namespace Opc.Ua
                 throw new NotSupportedException("The public and the private key pair doesn't match.");
             }
 
-            using (var cfrg = new CertificateFactoryRandomGenerator())
+            string passcode = Guid.NewGuid().ToString();
+            RSA rsaPrivateKey = null;
+            try
             {
-                SecureRandom random = new SecureRandom(cfrg);
-                Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
-                return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, GetPrivateKeyParameter(certificateWithPrivateKey), random);
+                rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
+                byte[] pfxData = CertificateBuilder.CreatePfxWithPrivateKey(
+                    certificate, certificate.FriendlyName, rsaPrivateKey, passcode);
+                return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+            }
+            finally
+            {
+                RsaUtils.RSADispose(rsaPrivateKey);
             }
         }
 
@@ -535,61 +503,86 @@ namespace Opc.Ua
             byte[] pemDataBlob,
             string password = null)
         {
-            AsymmetricKeyParameter privateKey = null;
-            PemReader pemReader;
-            using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
-            {
-                if (String.IsNullOrEmpty(password))
-                {
-                    pemReader = new PemReader(pemStreamReader);
-                }
-                else
-                {
-                    Password pwFinder = new Password(password.ToCharArray());
-                    pemReader = new PemReader(pemStreamReader, pwFinder);
-                }
-                try
-                {
-                    // find the private key in the PEM blob
-                    var pemObject = pemReader.ReadObject();
-                    while (pemObject != null)
-                    {
-                        privateKey = pemObject as RsaPrivateCrtKeyParameters;
-                        if (privateKey != null)
-                        {
-                            break;
-                        }
-
-                        AsymmetricCipherKeyPair keypair = pemObject as AsymmetricCipherKeyPair;
-                        if (keypair != null)
-                        {
-                            privateKey = keypair.Private;
-                            break;
-                        }
-
-                        // read next object
-                        pemObject = pemReader.ReadObject();
-                    }
-                }
-                finally
-                {
-                    pemReader.Reader.Dispose();
-                }
-            }
-
+            RSA privateKey = PEMReader.ImportPrivateKeyFromPEM(pemDataBlob, password);
             if (privateKey == null)
             {
                 throw new ServiceResultException("PEM data blob does not contain a private key.");
             }
 
-            using (var cfrg = new CertificateFactoryRandomGenerator())
-            {
-                SecureRandom random = new SecureRandom(cfrg);
-                Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
-                return CreateCertificateWithPrivateKey(x509, certificate.FriendlyName, privateKey, random);
-            }
+            string passcode = Guid.NewGuid().ToString();
+            byte[] pfxData = CertificateBuilder.CreatePfxWithPrivateKey(
+                certificate, certificate.FriendlyName, privateKey, passcode);
+            return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
         }
 #endif
+        #endregion
+
+        #region Internal Methods
+        /// <summary>
+        /// Creates a self-signed, signed or CA certificate.
+        /// </summary>
+        /// <param name="applicationUri">The application uri (created if not specified).</param>
+        /// <param name="applicationName">Name of the application (optional if subjectName is specified).</param>
+        /// <param name="subjectName">The subject used to create the certificate (optional if applicationName is specified).</param>
+        /// <param name="domainNames">The domain names that can be used to access the server machine (defaults to local computer name if not specified).</param>
+        /// <param name="keySize">Size of the key (1024, 2048 or 4096).</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="lifetimeInMonths">The lifetime of the key in months.</param>
+        /// <param name="hashSizeInBits">The hash size in bits.</param>
+        /// <param name="isCA">if set to <c>true</c> then a CA certificate is created.</param>
+        /// <param name="issuerCAKeyCert">The CA cert with the CA private key.</param>
+        /// <param name="publicKey">The public key if no new keypair is created.</param>
+        /// <param name="pathLengthConstraint">The path length constraint for CA certs.</param>
+        /// <returns>The certificate with a private key.</returns>
+        [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
+        internal static X509Certificate2 CreateCertificate(
+        string applicationUri,
+        string applicationName,
+        string subjectName,
+        IList<String> domainNames,
+        ushort keySize,
+        DateTime startTime,
+        ushort lifetimeInMonths,
+        ushort hashSizeInBits,
+        bool isCA = false,
+        X509Certificate2 issuerCAKeyCert = null,
+        byte[] publicKey = null,
+        int pathLengthConstraint = 0)
+        {
+            CertificateBuilder builder = null;
+            if (isCA)
+            {
+                builder = CreateCertificate(subjectName);
+            }
+            else
+            {
+                builder = CreateCertificate(
+                    applicationUri,
+                    applicationName,
+                    subjectName,
+                    domainNames);
+            }
+            builder.SetNotBefore(startTime);
+            builder.SetNotAfter(startTime.AddMonths(lifetimeInMonths));
+            builder.SetHashAlgorithm(GetRSAHashAlgorithmName(hashSizeInBits));
+            if (isCA)
+            {
+                builder.SetCAConstraint(pathLengthConstraint);
+            }
+            if (issuerCAKeyCert != null)
+            {
+                if (publicKey != null)
+                {
+                    builder.SetIssuer(issuerCAKeyCert);
+                    builder.SetRSAPublicKey(publicKey);
+                }
+                else
+                {
+                    builder.SetIssuer(issuerCAKeyCert);
+                }
+            }
+            return builder.CreateForRSA(keySize);
+        }
         #endregion
 
         #region Private Methods
@@ -739,28 +732,6 @@ namespace Opc.Ua
 
 #if !NETSTANDARD2_1
         /// <summary>
-        /// helper to build alternate name domains list for certs.
-        /// </summary>
-        private static List<GeneralName> CreateSubjectAlternateNameDomains(IList<String> domainNames)
-        {
-            // subject alternate name
-            List<GeneralName> generalNames = new List<GeneralName>();
-            for (int i = 0; i < domainNames.Count; i++)
-            {
-                int domainType = GeneralName.OtherName;
-                switch (Uri.CheckHostName(domainNames[i]))
-                {
-                    case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
-                    case UriHostNameType.IPv4:
-                    case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
-                    default: continue;
-                }
-                generalNames.Add(new GeneralName(domainType, domainNames[i]));
-            }
-            return generalNames;
-        }
-
-        /// <summary>
         /// helper to get the Bouncy Castle hash algorithm name by hash size in bits.
         /// </summary>
         /// <param name="hashSizeInBits"></param>
@@ -801,8 +772,8 @@ namespace Opc.Ua
                 RSAParameters rsaParams = rsa.ExportParameters(false);
                 return new RsaKeyParameters(
                     false,
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent));
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Modulus),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Exponent));
             }
             finally
             {
@@ -823,14 +794,14 @@ namespace Opc.Ua
                 rsa = certificate.GetRSAPrivateKey();
                 RSAParameters rsaParams = rsa.ExportParameters(true);
                 var keyParams = new RsaPrivateCrtKeyParameters(
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent),
-                    new BigInteger(1, rsaParams.D),
-                    new BigInteger(1, rsaParams.P),
-                    new BigInteger(1, rsaParams.Q),
-                    new BigInteger(1, rsaParams.DP),
-                    new BigInteger(1, rsaParams.DQ),
-                    new BigInteger(1, rsaParams.InverseQ));
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Modulus),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Exponent),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.D),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.P),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Q),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.DP),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.DQ),
+                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.InverseQ));
                 return keyParams;
             }
             finally
@@ -838,19 +809,19 @@ namespace Opc.Ua
                 RsaUtils.RSADispose(rsa);
             }
         }
-#endif
+
         /// <summary>
         /// Read the Crl number from a X509Crl.
         /// </summary>
-        private static BigInteger GetCrlNumber(X509Crl crl)
+        private static Org.BouncyCastle.Math.BigInteger GetCrlNumber(Org.BouncyCastle.X509.X509Crl crl)
         {
-            BigInteger crlNumber = BigInteger.One;
+            Org.BouncyCastle.Math.BigInteger crlNumber = Org.BouncyCastle.Math.BigInteger.One;
             try
             {
                 Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
                 if (asn1Object != null)
                 {
-                    crlNumber = CrlNumber.GetInstance(asn1Object).PositiveValue;
+                    crlNumber = Org.BouncyCastle.Asn1.X509.CrlNumber.GetInstance(asn1Object).PositiveValue;
                 }
             }
             finally
@@ -862,7 +833,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get the value of an extension oid.
         /// </summary>
-        private static Asn1Object GetExtensionValue(IX509Extension extension, DerObjectIdentifier oid)
+        private static Asn1Object GetExtensionValue(Org.BouncyCastle.X509.IX509Extension extension, DerObjectIdentifier oid)
         {
             Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
             if (asn1Octet != null)
@@ -872,51 +843,19 @@ namespace Opc.Ua
             return null;
         }
 
-#if !NETSTANDARD2_1
-        /// <summary>
-        /// Create a X509Certificate2 with a private key by combining 
-        /// a bouncy castle X509Certificate and a private key
-        /// </summary>
-        private static X509Certificate2 CreateCertificateWithPrivateKey(
-            Org.BouncyCastle.X509.X509Certificate certificate,
-            string friendlyName,
-            AsymmetricKeyParameter privateKey,
-            SecureRandom random)
-        {
-            // create pkcs12 store for cert and private key
-            using (MemoryStream pfxData = new MemoryStream())
-            {
-                Pkcs12StoreBuilder builder = new Pkcs12StoreBuilder();
-                builder.SetUseDerEncoding(true);
-                Pkcs12Store pkcsStore = builder.Build();
-                X509CertificateEntry[] chain = new X509CertificateEntry[1];
-                string passcode = Guid.NewGuid().ToString();
-                chain[0] = new X509CertificateEntry(certificate);
-                if (string.IsNullOrEmpty(friendlyName))
-                {
-                    friendlyName = GetCertificateCommonName(certificate);
-                }
-                pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
-                pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
-
-                // merge into X509Certificate2
-                return X509Utils.CreateCertificateFromPKCS12(pfxData.ToArray(), passcode);
-            }
-        }
 
         /// <summary>
         /// Read the Common Name from a certificate.
         /// </summary>
         private static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
         {
-            var subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+            var subjectDN = certificate.SubjectDN.GetValueList(Org.BouncyCastle.Asn1.X509.X509Name.CN);
             if (subjectDN.Count > 0)
             {
                 return subjectDN[0].ToString();
             }
             return string.Empty;
         }
-#endif
 
         private class Password
             : IPasswordFinder
@@ -934,10 +873,12 @@ namespace Opc.Ua
                 return (char[])password.Clone();
             }
         }
-
-        #endregion
-
-        #region Private Methods
+#endif
+        /// <summary>
+        /// Get the hash algorithm from the hash size in bits.
+        /// </summary>
+        /// <param name="hashSizeInBits"></param>
+        /// <returns></returns>
         private static HashAlgorithmName GetRSAHashAlgorithmName(uint hashSizeInBits)
         {
             if (hashSizeInBits <= 160)
@@ -956,23 +897,6 @@ namespace Opc.Ua
             {
                 return HashAlgorithmName.SHA512;
             }
-        }
-
-        /// <summary>
-        /// Patch serial number in a Url. byte version.
-        /// </summary>
-        private static string PatchExtensionUrl(string extensionUrl, byte[] serialNumber)
-        {
-            string serial = BitConverter.ToString(serialNumber).Replace("-", "");
-            return PatchExtensionUrl(extensionUrl, serial);
-        }
-
-        /// <summary>
-        /// Patch serial number in a Url. string version.
-        /// </summary>
-        private static string PatchExtensionUrl(string extensionUrl, string serial)
-        {
-            return extensionUrl.Replace("%serial%", serial.ToLower());
         }
         #endregion
 

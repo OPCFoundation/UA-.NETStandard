@@ -51,7 +51,7 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a Certificate.
     /// </summary>
-    public class CertificateBuilder
+    public class CertificateBuilder : ICertificate
     {
         #region Constructors
         /// <summary>
@@ -87,84 +87,51 @@ namespace Opc.Ua.Security.Certificates
 
         #region ICertificate Interface
         /// <inheritdoc/>
-        public X500DistinguishedName SubjectName
-        {
-            get
-            {
-                return m_subjectName;
-            }
-        }
+        public X500DistinguishedName SubjectName => m_subjectName;
 
         /// <inheritdoc/>
         public string Subject => SubjectName.Name;
 
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName
-        {
-            get
-            {
-                return m_issuerName;
-            }
-        }
+        public X500DistinguishedName IssuerName => m_issuerName;
 
         /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
 
         /// <inheritdoc/>
-        public DateTime NotBefore
-        {
-            get
-            {
-                return m_notBefore;
-            }
-        }
+        public DateTime NotBefore => m_notBefore;
 
         /// <inheritdoc/>
-        public DateTime NotAfter
-        {
-            get
-            {
-                return m_notAfter;
-            }
-        }
+        public DateTime NotAfter => m_notAfter;
 
         /// <inheritdoc/>
-        public byte[] SerialNumber
-        {
-            get
-            {
-                return m_serialNumber;
-            }
-        }
+        public byte[] SerialNumber => m_serialNumber;
 
         /// <inheritdoc/>
-        public HashAlgorithmName HashAlgorithmName
-        {
-            get
-            {
-                return m_hashAlgorithmName;
-            }
-        }
+        public HashAlgorithmName HashAlgorithmName => m_hashAlgorithmName;
 
         /// <inheritdoc/>
         public IReadOnlyList<X509Extension> Extensions => m_extensions.AsReadOnly();
+
+        /// <inheritdoc/>
+        public bool HasPublicKey => m_rsaPublicKey != null;
         #endregion
 
         #region Public Methods
         /// <summary>
-        /// Sign the RSA certificate with public key.
+        /// Create the RSA certificate with a given public key.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        public X509Certificate2 SignForRSA()
+        public X509Certificate2 CreateForRSAWithPublicKey()
         {
             if (m_rsaPublicKey == null)
             {
-                throw new CryptographicException("Need a public key for ths signed certificate.");
+                throw new ArgumentException("Need a public key for the certificate.");
             }
 
             if (m_issuerCAKeyCert == null || !m_issuerCAKeyCert.HasPrivateKey)
             {
-                throw new NotSupportedException("Cannot sign a public key without a issuer certificate with a private key.");
+                throw new NotSupportedException("Cannot create cert with public key without a issuer certificate and a private key.");
             }
 
             using (var cfrg = new CertificateFactoryRandomGenerator())
@@ -176,7 +143,7 @@ namespace Opc.Ua.Security.Certificates
                 CreateMandatoryFields(cg);
 
                 // set public key
-                AsymmetricKeyParameter subjectPublicKey = GetPublicKeyParameter(m_rsaPublicKey);
+                AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(m_rsaPublicKey);
                 cg.SetPublicKey(subjectPublicKey);
 
                 CreateExtensions(cg, subjectPublicKey);
@@ -195,23 +162,26 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Create the RSA certificate with signature.
+        /// Create the RSA certificate as Pfx with private key.
         /// </summary>
-        /// <returns>The Pfx with certificate and private key.</returns>
+        /// <returns>
+        /// Returns the Pfx with certificate and private key.
+        /// With public key, returns the raw encoded signed certificate.
+        /// </returns>
         public byte[] CreatePfxForRSA(string passcode, int keySize = 0)
         {
+            if (m_rsaPublicKey != null &&
+               (m_issuerCAKeyCert == null || !m_issuerCAKeyCert.HasPrivateKey))
+            {
+                throw new ArgumentException("Cannot use a public key without a issuer certificate with a private key.");
+            }
+
             using (var cfrg = new CertificateFactoryRandomGenerator())
             {
                 // cert generators
                 SecureRandom random = new SecureRandom(cfrg);
 
                 CreateDefaults(cfrg);
-
-                if (m_rsaPublicKey != null &&
-                   (m_issuerCAKeyCert == null || !m_issuerCAKeyCert.HasPrivateKey))
-                {
-                    throw new NotSupportedException("Cannot use a public key without a issuer certificate with a private key.");
-                }
 
                 X509V3CertificateGenerator cg = new X509V3CertificateGenerator();
                 CreateMandatoryFields(cg);
@@ -221,7 +191,7 @@ namespace Opc.Ua.Security.Certificates
                 AsymmetricKeyParameter subjectPrivateKey;
                 if (m_rsaPublicKey == null)
                 {
-                    var keyGenerationParameters = new KeyGenerationParameters(random, keySize);
+                    var keyGenerationParameters = new KeyGenerationParameters(random, keySize == 0 ? Defaults.RSAKeySize : keySize);
                     var keyPairGenerator = new RsaKeyPairGenerator();
                     keyPairGenerator.Init(keyGenerationParameters);
                     AsymmetricCipherKeyPair subjectKeyPair = keyPairGenerator.GenerateKeyPair();
@@ -231,8 +201,7 @@ namespace Opc.Ua.Security.Certificates
                 else
                 {
                     // special case, if a cert is signed by CA, the private key of the cert is not needed
-                    subjectPublicKey = GetPublicKeyParameter(m_rsaPublicKey);
-                    //PublicKeyFactory.CreateKey(publicKey);
+                    subjectPublicKey = X509Utils.GetPublicKeyParameter(m_rsaPublicKey);
                     subjectPrivateKey = null;
                 }
                 cg.SetPublicKey(subjectPublicKey);
@@ -255,7 +224,7 @@ namespace Opc.Ua.Security.Certificates
                             new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey, random);
                 Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 
-                // convert to X509Certificate2
+                // convert to der encoded
                 byte[] certificate;
                 if (subjectPrivateKey == null)
                 {
@@ -272,8 +241,6 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        public bool HasPublicKey => m_rsaPublicKey != null;
-
         public CertificateBuilder SetSerialNumberLength(int length)
         {
             if (length > Defaults.SerialNumberLengthMax || length == 0)
@@ -281,8 +248,31 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
             }
             m_serialNumberLength = length;
+            m_presetSerial = false;
             return this;
         }
+
+        public CertificateBuilder SetSerialNumber(byte[] serialNumber)
+        {
+            if (serialNumber.Length > Defaults.SerialNumberLengthMax ||
+                serialNumber.Length == 0)
+            {
+                throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
+            }
+            serialNumber[0] &= 0x7f;
+            m_serialNumber = serialNumber;
+            m_serialNumberLength = serialNumber.Length;
+            m_presetSerial = true;
+            return this;
+        }
+
+        public CertificateBuilder CreateSerialNumber()
+        {
+            NewSerialNumber();
+            m_presetSerial = true;
+            return this;
+        }
+
 
         public CertificateBuilder SetNotBefore(DateTime notBefore)
         {
@@ -298,6 +288,7 @@ namespace Opc.Ua.Security.Certificates
 
         public CertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
+            if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
             m_hashAlgorithmName = hashAlgorithmName;
             return this;
         }
@@ -344,6 +335,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (issuerCertificate == null) throw new ArgumentNullException(nameof(issuerCertificate));
             m_issuerCAKeyCert = issuerCertificate;
+            m_issuerName = issuerCertificate.SubjectName;
             // the issuer may have a different key algorithm, enforce to create a new public key
             m_rsaPublicKey = null;
             return this;
@@ -354,6 +346,27 @@ namespace Opc.Ua.Security.Certificates
             m_extensions.Add(extension);
             return this;
         }
+
+        /// <summary>
+        /// Create a X509Certificate2 with a private key by combining 
+        /// a bouncy castle X509Certificate and a private key
+        /// </summary>
+        public static byte[] CreatePfxWithPrivateKey(
+            X509Certificate2 certificate,
+            string friendlyName,
+            RSA privateKey,
+            string passcode)
+        {
+            var x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
+            using (var cfrg = new CertificateFactoryRandomGenerator())
+            {
+                return X509Utils.CreatePfxWithPrivateKey(
+                            x509, friendlyName,
+                            X509Utils.GetPrivateKeyParameter(privateKey),
+                            passcode,
+                            new SecureRandom(cfrg));
+            }
+        }
         #endregion
 
         #region Private Methods
@@ -363,10 +376,11 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="random"></param>
         private void CreateDefaults(IRandomGenerator random)
         {
-            // recreate serial number for a new cert
-            m_serialNumber = new byte[m_serialNumberLength];
-            random.NextBytes(SerialNumber);
-            SerialNumber[0] &= 0x7f;
+            if (!m_presetSerial)
+            {
+                NewSerialNumber(random);
+            }
+            m_presetSerial = false;
 
             // lifetime must be in range of issuer
             if (m_issuerCAKeyCert != null)
@@ -486,34 +500,23 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Get public key parameters from a RSA
+        /// Create a new random serial number.
         /// </summary>
-        private static RsaKeyParameters GetPublicKeyParameter(RSA rsa)
+        private void NewSerialNumber(IRandomGenerator random = null)
         {
-            RSAParameters rsaParams = rsa.ExportParameters(false);
-            return new RsaKeyParameters(
-                false,
-                new BigInteger(1, rsaParams.Modulus),
-                new BigInteger(1, rsaParams.Exponent));
-        }
-
-        private X509BasicConstraintsExtension GetBasicContraints()
-        {
-            // Basic constraints
-            if (!m_isCA && m_issuerCAKeyCert == null)
+            m_serialNumber = new byte[m_serialNumberLength];
+            if (random != null)
             {
-                // self signed
-                return new X509BasicConstraintsExtension(true, true, 0, true);
-            }
-            else if (m_isCA && m_pathLengthConstraint >= 0)
-            {
-                // CA with constraints
-                return new X509BasicConstraintsExtension(true, true, m_pathLengthConstraint, true);
+                random.NextBytes(m_serialNumber);
             }
             else
             {
-                return new X509BasicConstraintsExtension(m_isCA, false, 0, true);
+                using (var tempRandom = new CertificateFactoryRandomGenerator())
+                {
+                    tempRandom.NextBytes(m_serialNumber);
+                }
             }
+            m_serialNumber[0] &= 0x7f;
         }
         #endregion
 
@@ -522,6 +525,7 @@ namespace Opc.Ua.Security.Certificates
         private bool m_isCA;
         private int m_pathLengthConstraint;
         private int m_serialNumberLength;
+        private bool m_presetSerial;
         private RSA m_rsaPublicKey;
         private X509Certificate2 m_issuerCAKeyCert;
         private X509Name m_issuerDN;
@@ -530,8 +534,8 @@ namespace Opc.Ua.Security.Certificates
         private DateTime m_notAfter;
         private byte[] m_serialNumber;
         private HashAlgorithmName m_hashAlgorithmName;
-        private readonly X500DistinguishedName m_subjectName;
-        private readonly X500DistinguishedName m_issuerName;
+        private X500DistinguishedName m_subjectName;
+        private X500DistinguishedName m_issuerName;
         #endregion
     }
 }

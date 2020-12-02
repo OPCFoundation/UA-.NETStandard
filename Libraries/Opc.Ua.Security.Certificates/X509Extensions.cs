@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Data;
 using System.Formats.Asn1;
 using System.Linq;
 using System.Numerics;
@@ -240,6 +239,23 @@ namespace Opc.Ua.Security.Certificates
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteInteger(crlNumber);
             return new X509Extension(Oids.CrlNumber, writer.Encode(), false);
+        }
+
+        /// <summary>
+        /// Patch serial number in a Url. byte version.
+        /// </summary>
+        public static string PatchExtensionUrl(string extensionUrl, byte[] serialNumber)
+        {
+            string serial = BitConverter.ToString(serialNumber).Replace("-", "");
+            return PatchExtensionUrl(extensionUrl, serial);
+        }
+
+        /// <summary>
+        /// Patch serial number in a Url. string version.
+        /// </summary>
+        public static string PatchExtensionUrl(string extensionUrl, string serial)
+        {
+            return extensionUrl.Replace("%serial%", serial.ToLower());
         }
     }
 }

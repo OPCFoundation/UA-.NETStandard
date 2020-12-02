@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             )
         {
 #if NETCOREAPP3_1
-            Assert.Ignore(keyHashPair.HashSize < 256);
+           // Assert.Ignore(keyHashPair.HashSize < 256);
 #endif
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;

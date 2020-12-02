@@ -510,7 +510,6 @@ namespace Opc.Ua.Security.Certificates
             return true;
         }
 
-
         /// <summary>
         /// Creates a certificate from a PKCS #12 store with a private key.
         /// </summary>
