@@ -20,18 +20,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Security.Certificates;
-#if !NETSTANDARD2_1
-using Opc.Ua.Security.Certificates.BouncyCastle;
-using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Operators;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Security;
-using X509Extensions = Opc.Ua.Security.Certificates.X509Extensions;
-using X509Utils = Opc.Ua.Security.Certificates.X509Utils;
-#endif
 
 namespace Opc.Ua
 {
@@ -391,74 +379,9 @@ namespace Opc.Ua
             IList<String> domainNames = null
             )
         {
-            using (var cfrg = new CertificateFactoryRandomGenerator())
-            {
-                SecureRandom random = new SecureRandom(cfrg);
-
-                // try to get signing/private key from certificate passed in
-                AsymmetricKeyParameter signingKey = GetPrivateKeyParameter(certificate);
-                RsaKeyParameters publicKey = GetPublicKeyParameter(certificate);
-
-                ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory(GetRSAHashAlgorithm(DefaultHashSize), signingKey, random);
-
-                Asn1Set attributes = null;
-                var san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
-                X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
-
-                domainNames = domainNames ?? new List<String>();
-                if (alternateName != null)
-                {
-                    foreach (var name in alternateName.DomainNames)
-                    {
-                        if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            domainNames.Add(name);
-                        }
-                    }
-                    foreach (var ipAddress in alternateName.IPAddresses)
-                    {
-                        if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            domainNames.Add(ipAddress);
-                        }
-                    }
-                }
-
-                // build CSR extensions
-                var generalNames = new List<Org.BouncyCastle.Asn1.X509.GeneralName>();
-
-                string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
-                if (applicationUri != null)
-                {
-                    generalNames.Add(new Org.BouncyCastle.Asn1.X509.GeneralName(Org.BouncyCastle.Asn1.X509.GeneralName.UniformResourceIdentifier, applicationUri));
-                }
-
-                if (domainNames.Count > 0)
-                {
-                    generalNames.AddRange(Opc.Ua.Security.Certificates.BouncyCastle.X509Extensions.CreateSubjectAlternateNameDomains(domainNames));
-                }
-
-                if (generalNames.Count > 0)
-                {
-                    IList oids = new ArrayList();
-                    IList values = new ArrayList();
-                    oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
-                    values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
-                        new DerOctetString(new Org.BouncyCastle.Asn1.X509.GeneralNames(generalNames.ToArray()).GetDerEncoded())));
-                    var attribute = new Org.BouncyCastle.Asn1.Pkcs.AttributePkcs(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                        new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
-                    attributes = new DerSet(attribute);
-                }
-
-                Pkcs10CertificationRequest pkcs10CertificationRequest = new Pkcs10CertificationRequest(
-                    signatureFactory,
-                    new CertificateFactoryX509Name(false, certificate.Subject),
-                    publicKey,
-                    attributes);
-
-                return pkcs10CertificationRequest.GetEncoded();
-            }
+            return CertificateBuilder.CreateSigningRequest(
+                certificate,
+                domainNames);
         }
 
         /// <summary>
@@ -536,18 +459,18 @@ namespace Opc.Ua
         /// <returns>The certificate with a private key.</returns>
         [Obsolete("Use the new CreateCertificate methods with CertificateBuilder.")]
         internal static X509Certificate2 CreateCertificate(
-        string applicationUri,
-        string applicationName,
-        string subjectName,
-        IList<String> domainNames,
-        ushort keySize,
-        DateTime startTime,
-        ushort lifetimeInMonths,
-        ushort hashSizeInBits,
-        bool isCA = false,
-        X509Certificate2 issuerCAKeyCert = null,
-        byte[] publicKey = null,
-        int pathLengthConstraint = 0)
+            string applicationUri,
+            string applicationName,
+            string subjectName,
+            IList<String> domainNames,
+            ushort keySize,
+            DateTime startTime,
+            ushort lifetimeInMonths,
+            ushort hashSizeInBits,
+            bool isCA = false,
+            X509Certificate2 issuerCAKeyCert = null,
+            byte[] publicKey = null,
+            int pathLengthConstraint = 0)
         {
             CertificateBuilder builder = null;
             if (isCA)
@@ -590,10 +513,6 @@ namespace Opc.Ua
         /// Sets the parameters to suitable defaults.
         /// </summary>
         private static void SetSuitableDefaults(
-            ref string applicationUri,
-            ref string applicationName,
-            ref string subjectName,
-            ref IList<String> domainNames,
             ref ushort keySize,
             ref ushort lifetimeInMonths)
         {
@@ -613,12 +532,6 @@ namespace Opc.Ua
             {
                 lifetimeInMonths = 1;
             }
-
-            SetSuitableDefaults(
-                ref applicationUri,
-                ref applicationName,
-                ref subjectName,
-                ref domainNames);
         }
 
         /// <summary>
@@ -730,150 +643,6 @@ namespace Opc.Ua
             }
         }
 
-#if !NETSTANDARD2_1
-        /// <summary>
-        /// helper to get the Bouncy Castle hash algorithm name by hash size in bits.
-        /// </summary>
-        /// <param name="hashSizeInBits"></param>
-        private static string GetRSAHashAlgorithm(uint hashSizeInBits)
-        {
-            if (hashSizeInBits <= 160)
-            {
-                return "SHA1WITHRSA";
-            }
-
-            if (hashSizeInBits <= 224)
-            {
-                return "SHA224WITHRSA";
-            }
-            else if (hashSizeInBits <= 256)
-            {
-                return "SHA256WITHRSA";
-            }
-            else if (hashSizeInBits <= 384)
-            {
-                return "SHA384WITHRSA";
-            }
-            else
-            {
-                return "SHA512WITHRSA";
-            }
-        }
-
-        /// <summary>
-        /// Get public key parameters from a X509Certificate2
-        /// </summary>
-        private static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
-        {
-            RSA rsa = null;
-            try
-            {
-                rsa = certificate.GetRSAPublicKey();
-                RSAParameters rsaParams = rsa.ExportParameters(false);
-                return new RsaKeyParameters(
-                    false,
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Modulus),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Exponent));
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
-        }
-
-        /// <summary>
-        /// Get private key parameters from a X509Certificate2.
-        /// The private key must be exportable.
-        /// </summary>
-        private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
-        {
-            RSA rsa = null;
-            try
-            {
-                // try to get signing/private key from certificate passed in
-                rsa = certificate.GetRSAPrivateKey();
-                RSAParameters rsaParams = rsa.ExportParameters(true);
-                var keyParams = new RsaPrivateCrtKeyParameters(
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Modulus),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Exponent),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.D),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.P),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.Q),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.DP),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.DQ),
-                    new Org.BouncyCastle.Math.BigInteger(1, rsaParams.InverseQ));
-                return keyParams;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
-        }
-
-        /// <summary>
-        /// Read the Crl number from a X509Crl.
-        /// </summary>
-        private static Org.BouncyCastle.Math.BigInteger GetCrlNumber(Org.BouncyCastle.X509.X509Crl crl)
-        {
-            Org.BouncyCastle.Math.BigInteger crlNumber = Org.BouncyCastle.Math.BigInteger.One;
-            try
-            {
-                Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
-                if (asn1Object != null)
-                {
-                    crlNumber = Org.BouncyCastle.Asn1.X509.CrlNumber.GetInstance(asn1Object).PositiveValue;
-                }
-            }
-            finally
-            {
-            }
-            return crlNumber;
-        }
-
-        /// <summary>
-        /// Get the value of an extension oid.
-        /// </summary>
-        private static Asn1Object GetExtensionValue(Org.BouncyCastle.X509.IX509Extension extension, DerObjectIdentifier oid)
-        {
-            Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
-            if (asn1Octet != null)
-            {
-                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
-            }
-            return null;
-        }
-
-
-        /// <summary>
-        /// Read the Common Name from a certificate.
-        /// </summary>
-        private static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
-        {
-            var subjectDN = certificate.SubjectDN.GetValueList(Org.BouncyCastle.Asn1.X509.X509Name.CN);
-            if (subjectDN.Count > 0)
-            {
-                return subjectDN[0].ToString();
-            }
-            return string.Empty;
-        }
-
-        private class Password
-            : IPasswordFinder
-        {
-            private readonly char[] password;
-
-            public Password(
-                char[] word)
-            {
-                this.password = (char[])word.Clone();
-            }
-
-            public char[] GetPassword()
-            {
-                return (char[])password.Clone();
-            }
-        }
-#endif
         /// <summary>
         /// Get the hash algorithm from the hash size in bits.
         /// </summary>

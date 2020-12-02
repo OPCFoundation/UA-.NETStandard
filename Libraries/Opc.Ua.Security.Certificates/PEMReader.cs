@@ -32,11 +32,11 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using System.IO;
 using System.Text;
-using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Security;
 
 #if !NETSTANDARD2_1
 using Opc.Ua.Security.Certificates.BouncyCastle;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Pkcs;
