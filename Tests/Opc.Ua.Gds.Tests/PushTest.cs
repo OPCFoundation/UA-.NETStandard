@@ -178,8 +178,8 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(301)]
         public void AddRemoveCert()
         {
-            using (X509Certificate2 trustedCert = CertificateFactory.CreateCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
-            using (X509Certificate2 issuerCert = CertificateFactory.CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
+            using (X509Certificate2 trustedCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TrustedCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
+            using (X509Certificate2 issuerCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "IssuerCert", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
             {
                 ConnectPushClient(true);
                 TrustListDataType beforeTrustList = _pushClient.PushClient.ReadTrustList();
@@ -307,7 +307,7 @@ namespace Opc.Ua.Gds.Tests
         public void UpdateCertificateSelfSignedNoPrivateKey()
         {
             ConnectPushClient(true);
-            using (X509Certificate2 invalidCert = CertificateFactory.CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
+            using (X509Certificate2 invalidCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
             using (X509Certificate2 serverCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate))
             {
                 if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
@@ -432,6 +432,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
+                null, null, null,
                 _applicationRecord.ApplicationUri,
                 _applicationRecord.ApplicationNames[0].Text,
                 _selfSignedServerCert.Subject,
@@ -815,6 +816,7 @@ namespace Opc.Ua.Gds.Tests
 
             string subjectName = "CN=CA Test Cert, O=OPC Foundation";
             X509Certificate2 newCACert = CertificateFactory.CreateCertificate(
+                CertificateStoreType.Directory, tempStorePath, null,
                 null,
                 null,
                 subjectName,
@@ -823,12 +825,7 @@ namespace Opc.Ua.Gds.Tests
                 DateTime.UtcNow,
                 CertificateFactory.DefaultLifeTime,
                 CertificateFactory.DefaultHashSize,
-                true)
-                .AddToStore(
-                    CertificateStoreType.Directory,
-                    tempStorePath,
-                    null
-                );
+                true);
 
             _caCert = newCACert;
 

@@ -29,10 +29,8 @@
 #if NETSTANDARD2_1
 
 using System;
-using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Numerics;
 using System.Linq;
 using System.Collections.Generic;
 

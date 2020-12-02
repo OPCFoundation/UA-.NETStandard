@@ -44,7 +44,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         #region DataPointSources
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(Directory.EnumerateFiles("./Assets", "*.cer")).ToArray();
+        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(Directory.EnumerateFiles("./Assets", "*.?er")).ToArray();
         #endregion
 
         #region Test Methods

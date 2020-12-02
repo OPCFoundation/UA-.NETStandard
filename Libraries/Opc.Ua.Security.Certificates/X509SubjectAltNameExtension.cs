@@ -107,7 +107,6 @@ namespace Opc.Ua.Security.Certificates
             m_decoded = false;
         }
 
-#if NETSTANDARD2_1
         /// <summary>
         /// Build the Subject Alternative name extension (for OPC UA application certs).
         /// </summary>
@@ -123,7 +122,6 @@ namespace Opc.Ua.Security.Certificates
             RawData = Encode();
             m_decoded = true;
         }
-#endif
         #endregion
 
         #region Overridden Methods
@@ -314,6 +312,14 @@ namespace Opc.Ua.Security.Certificates
                     sanBuilder.AddDnsName(generalName);
                 }
             }
+        }
+#else  
+        /// <summary>
+        /// Encode the Subject Alternative name extension.
+        /// </summary>
+        private byte[] Encode()
+        {
+            return BouncyCastle.X509Extensions.BuildSubjectAltNameExtension(m_uris, m_domainNames, m_ipAddresses).RawData;
         }
 #endif
 

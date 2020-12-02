@@ -39,8 +39,6 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="Portable.BouncyCastle" Version="1.8.8" />
-    <PackageReference Include="System.Formats.Asn1" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
@@ -67,11 +65,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-<!--
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\bc-csharp\crypto\src\crypto.csproj" />
-  </ItemGroup>
--->
+  
   <Target Name="GetPackagingOutputs" />
 
 </Project>

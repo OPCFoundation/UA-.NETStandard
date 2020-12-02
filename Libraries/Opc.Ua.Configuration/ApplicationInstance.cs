@@ -661,15 +661,9 @@ namespace Opc.Ua.Configuration
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
                 id.SubjectName,
-                serverDomainNames,
-                keySize,
-                DateTime.UtcNow - TimeSpan.FromDays(1),
-                lifeTimeInMonths,
-                CertificateFactory.DefaultHashSize,
-                false,
-                null,
-                null
-                ).AddToStore(
+                serverDomainNames)
+                .CreateForRSA()
+                .AddToStore(
                     id.StoreType,
                     id.StorePath
                 );

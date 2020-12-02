@@ -130,17 +130,18 @@ namespace Opc.Ua.Gds.Server
         {
             using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
             using (var certificate = CertificateFactory.CreateCertificate(
-                 application.ApplicationUri ?? "urn:ApplicationURI",
-                 application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                 subjectName,
-                 domainNames,
-                 Configuration.DefaultCertificateKeySize,
-                 DateTime.UtcNow.AddDays(-1),
-                 Configuration.DefaultCertificateLifetime,
-                 Configuration.DefaultCertificateHashSize,
-                 false,
-                 signingKey,
-                 null))
+                null, null, null,
+                application.ApplicationUri ?? "urn:ApplicationURI",
+                application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                subjectName,
+                domainNames,
+                Configuration.DefaultCertificateKeySize,
+                DateTime.UtcNow.AddDays(-1),
+                Configuration.DefaultCertificateLifetime,
+                Configuration.DefaultCertificateHashSize,
+                false,
+                signingKey,
+                null))
             {
                 byte[] privateKey;
                 if (privateKeyFormat == "PFX")
@@ -247,6 +248,7 @@ namespace Opc.Ua.Gds.Server
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
                 {
                     return CertificateFactory.CreateCertificate(
+                        null, null, null,
                         application.ApplicationUri ?? "urn:ApplicationURI",
                         application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
                         info.Subject.ToString(),
@@ -277,6 +279,9 @@ namespace Opc.Ua.Gds.Server
         {
             DateTime yesterday = DateTime.UtcNow.AddDays(-1);
             X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
+                m_authoritiesStoreType,
+                m_authoritiesStorePath,
+                null,
                 null,
                 null,
                 subjectName,
@@ -287,11 +292,7 @@ namespace Opc.Ua.Gds.Server
                 Configuration.CACertificateHashSize,
                 true,
                 null,
-                null).AddToStore(
-                    m_authoritiesStoreType,
-                    m_authoritiesStorePath,
-                    null
-                );
+                null);
 
             // save only public key
             Certificate = new X509Certificate2(newCertificate.RawData);
