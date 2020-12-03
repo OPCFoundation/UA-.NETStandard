@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -641,6 +642,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
         }
+
         /// <summary>
         /// Verify the PEM Writer, no password
         /// </summary>
@@ -653,9 +655,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob);
+                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob);
                 // note: password is ignored
-                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, "password");
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob, "password");
                 X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }
@@ -672,10 +674,33 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
+#if NETCOREAPP3_1
+                var exception = Assert.Throws<ArgumentException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
+#endif
             }
         }
 
 #if NETCOREAPP3_1
+        /// <summary>
+        /// Verify the PEM Writer, no password
+        /// </summary>
+        [Test, Order(501)]
+        public void VerifyPemWriterRSAPrivateKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in m_appSelfSignedCerts)
+            {
+                var pemDataBlob = PEMWriter.ExportRSAPrivateKeyAsPEM(appCert);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
+                var cert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob);
+                Assert.NotNull(cert);
+                // note: password is ignored
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob, "password");
+                X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
+            }
+        }
+
         /// <summary>
         /// Verify the PEM Writer, with password
         /// </summary>
@@ -690,8 +715,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert, password);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-                var exception = Assert.Throws<Org.BouncyCastle.OpenSsl.PemException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
                 var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, password);
+                var exception = Assert.Throws<CryptographicException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
                 X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }

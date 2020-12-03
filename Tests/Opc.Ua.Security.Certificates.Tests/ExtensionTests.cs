@@ -149,7 +149,6 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
 
-#if NETSTANDARD2_1
         /// <summary>
         /// Verify encode and decode of authority key identifier.
         /// </summary>
@@ -159,7 +158,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             string applicationUri = "urn:opcfoundation.org";
             string[] domainNames = { "mypc.mydomain.com", "192.168.100.100", "1234:5678::1" };
             TestContext.Out.WriteLine("Encoded:");
-            var san = new X509SubjectAltNameExtension(applicationUri, domainNames.ToList());
+            var san = new X509SubjectAltNameExtension(applicationUri, domainNames);
             TestContext.Out.WriteLine(san.Format(true));
             var decodedsan = new X509SubjectAltNameExtension(san.Oid.Value, san.RawData, san.Critical);
             Assert.NotNull(decodedsan);
@@ -178,7 +177,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(domainNames[1], decodedsan.IPAddresses[0]);
             Assert.AreEqual(domainNames[2], decodedsan.IPAddresses[1]);
         }
-#endif
         #endregion
 
         #region Private Methods

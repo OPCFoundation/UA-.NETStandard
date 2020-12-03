@@ -80,7 +80,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [DatapointSource]
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, 160 }, { 2048, 256 }, { 3072, 384 }/*, { 4096, 512 }*/ }.ToArray();
+#if NETCOREAPP3_1
+        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, 256 }, { 2048, 256 }, { 3072, 384 }, { 4096, 512 } }.ToArray();
+#else
+        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, 160 }, { 2048, 256 }, { 3072, 384 }, { 4096, 512 } }.ToArray();
+#endif
         #endregion
 
         #region Test Setup
@@ -173,9 +177,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             KeyHashPair keyHashPair
             )
         {
-#if NETCOREAPP3_1
-           // Assert.Ignore(keyHashPair.HashSize < 256);
-#endif
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
             var cert = CertificateFactory.CreateCertificate(

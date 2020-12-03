@@ -79,6 +79,21 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Returns a byte array containing the RSA private key in PEM format.
+        /// </summary>
+        public static byte[] ExportRSAPrivateKeyAsPEM(
+            X509Certificate2 certificate)
+        {
+            byte[] exportedRSAPrivateKey = null;
+            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            {
+                // write private key as PKCS#8
+                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
+            }
+            return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
+        }
+
+        /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(

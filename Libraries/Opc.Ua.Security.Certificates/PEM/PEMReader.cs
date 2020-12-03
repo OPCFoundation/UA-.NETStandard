@@ -117,7 +117,61 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             string password = null)
         {
-            throw new NotImplementedException();
+            string[] labels = {
+                "ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"
+                };
+            try
+            {
+                string pemText = Encoding.UTF8.GetString(pemDataBlob);
+                int count = 0;
+                foreach (var label in labels)
+                {
+                    count++;
+                    string beginlabel = $"-----BEGIN {label}-----";
+                    int beginIndex = pemText.IndexOf(beginlabel);
+                    if (beginIndex < 0)
+                    {
+                        continue;
+                    }
+                    string endlabel = $"-----END {label}-----";
+                    int endIndex = pemText.IndexOf(endlabel);
+                    beginIndex += beginlabel.Length;
+                    if (endIndex < 0 || endIndex <= beginIndex)
+                    {
+                        continue;
+                    }
+                    var pemData = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    byte[] pemDecoded = new byte[pemData.Length];
+                    int bytesDecoded;
+                    if (Convert.TryFromBase64Chars(pemData, pemDecoded, out bytesDecoded))
+                    {
+                        RSA rsaPrivateKey = RSA.Create();
+                        int bytesRead;
+                        switch (count)
+                        {
+                            case 1:
+                                if (String.IsNullOrEmpty(password))
+                                {
+                                    throw new ArgumentException("Need password for encrypted private key.");
+                                }
+                                rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), pemDecoded, out bytesRead);
+                                break;
+                            case 2: rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead); break;
+                            case 3: rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead); break;
+                        }
+                        return rsaPrivateKey;
+                    }
+                }
+            }
+            catch (CryptographicException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new CryptographicException("Failed to decode the PEM private key.", ex);
+            }
+            throw new ArgumentException("No private PEM key found.");
         }
 #endif
         #endregion
