@@ -34,6 +34,7 @@ using System.IO;
 using System.Text;
 
 #if !NETSTANDARD2_1
+using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Pkcs;
@@ -105,7 +106,7 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certificate
             )
         {
-            RsaPrivateCrtKeyParameters privateKeyParameter = GetPrivateKeyParameter(certificate);
+            RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
             using (TextWriter textWriter = new StringWriter())
             {
                 // write private key as PKCS#8
@@ -135,31 +136,6 @@ namespace Opc.Ua.Security.Certificates
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-
-#if !NETSTANDARD2_1
-        /// <summary>
-        /// Get private key parameters from a X509Certificate2.
-        /// The private key must be exportable.
-        /// </summary>
-        private static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
-        {
-            // try to get signing/private key from certificate passed in
-            using (RSA rsa = certificate.GetRSAPrivateKey())
-            {
-                RSAParameters rsaParams = rsa.ExportParameters(true);
-                var keyParams = new RsaPrivateCrtKeyParameters(
-                    new BigInteger(1, rsaParams.Modulus),
-                    new BigInteger(1, rsaParams.Exponent),
-                    new BigInteger(1, rsaParams.D),
-                    new BigInteger(1, rsaParams.P),
-                    new BigInteger(1, rsaParams.Q),
-                    new BigInteger(1, rsaParams.DP),
-                    new BigInteger(1, rsaParams.DQ),
-                    new BigInteger(1, rsaParams.InverseQ));
-                return keyParams;
-            }
-        }
-#endif
         #endregion
     }
 }

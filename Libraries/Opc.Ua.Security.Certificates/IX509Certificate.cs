@@ -34,36 +34,53 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
-    public interface ICertificate
+
+    /// <summary>
+    /// Properties of a X.509v3 certificate.
+    /// </summary>
+    public interface IX509Certificate
     {
-        /// <inheritdoc/>
+        /// <summary>
+        /// The subject distinguished name from a certificate.
+        /// </summary>
         X500DistinguishedName SubjectName { get; }
 
-        /// <inheritdoc/>
-        string Subject { get; }
-
-        /// <inheritdoc/>
+        /// <summary>
+        /// The distinguished name of the certificate issuer.
+        /// </summary>
         X500DistinguishedName IssuerName { get; }
 
-        /// <inheritdoc/>
-        string Issuer { get; }
-
-        /// <inheritdoc/>
+        /// <summary>
+        /// The date in UTC time on which a certificate becomes valid.
+        /// </summary>
         DateTime NotBefore { get; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// The date in UTC time after which a certificate is no longer valid.
+        /// </summary>
         DateTime NotAfter { get; }
 
-        /// <inheritdoc/>
-        byte[] SerialNumber { get; }
+        /// <summary>
+        /// The serial number of the certificate
+        /// as a big-endian hexadecimal string.
+        /// </summary>
+        string SerialNumber { get; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// The serial number of the certificate
+        /// as an array of bytes in little-endian order.
+        /// </summary>
+        byte[] GetSerialNumber();
+
+        /// <summary>
+        /// The hash algorithm used to create the signature.
+        /// </summary>
         HashAlgorithmName HashAlgorithmName { get; }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// A collection of X509 extensions.
+        /// </summary>
         IReadOnlyList<X509Extension> Extensions { get; }
-
-        bool HasPublicKey { get; }
     }
 }
 

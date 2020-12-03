@@ -101,7 +101,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 var cert = builder
                 .SetHashAlgorithm(keyHash.HashAlgorithmName)
-                .CreateForRSA(keyHash.KeySize);
+                .SetRSAKeySize(keyHash.KeySize)
+                .CreateForRSA();
                 Assert.NotNull(cert);
                 WriteCertificate(cert, $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature.");
                 Assert.AreEqual(keyHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
@@ -115,7 +116,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert with custom key
             X509Certificate2 cert = new CertificateBuilder(Subject)
-                .CreateForRSA(keyHashPair.KeySize);
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .CreateForRSA();
             WriteCertificate(cert, $"Default RSA {keyHashPair.KeySize} cert");
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
@@ -134,7 +136,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
                 .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }))
-                .CreateForRSA(keyHashPair.KeySize);
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .CreateForRSA();
             Assert.NotNull(cert);
             WriteCertificate(cert, $"Default cert RSA {keyHashPair.KeySize} with modified lifetime and alt name extension");
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
@@ -143,7 +146,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             // set hash algorithm
             cert = new CertificateBuilder(Subject)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
-                .CreateForRSA(keyHashPair.KeySize);
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .CreateForRSA();
             Assert.NotNull(cert);
             WriteCertificate(cert, $"Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} signature.");
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
@@ -152,7 +156,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetCAConstraint(-1)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .AddExtension(X509Extensions.BuildX509CRLDistributionPoints("http://myca/mycert.crl"))
-                .CreateForRSA(keyHashPair.KeySize);
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .CreateForRSA();
             Assert.NotNull(cert);
             WriteCertificate(cert, "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
@@ -212,25 +217,28 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateSelfSignedForECDsaTests(ECCurve eccurve)
         {
             // default cert
-            X509Certificate2 cert = new CertificateBuilder(Subject).CreateForECDsa(eccurve);
+            X509Certificate2 cert = new CertificateBuilder(Subject).SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert, "Default ECDsa cert");
             // set dates
             cert = new CertificateBuilder(Subject)
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
                 .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }))
-                .CreateForECDsa(eccurve);
+                .SetECCurve(eccurve)
+                .CreateForECDsa();
             WriteCertificate(cert, "Default cert with modified lifetime and alt name extension");
             // set hash alg
             cert = new CertificateBuilder(Subject)
                 .SetHashAlgorithm(HashAlgorithmName.SHA512)
-                .CreateForECDsa(eccurve);
+                .SetECCurve(eccurve)
+                .CreateForECDsa();
             WriteCertificate(cert, "Default cert with SHA512 signature.");
             // set CA constraints
             cert = new CertificateBuilder(Subject)
                 .SetCAConstraint(-1)
                 .AddExtension(X509Extensions.BuildX509CRLDistributionPoints("http://myca/mycert.crl"))
-                .CreateForECDsa(eccurve);
+                .SetECCurve(eccurve)
+                .CreateForECDsa();
             WriteCertificate(cert, "Default cert with CA constraints None and CRL distribution points");
         }
 

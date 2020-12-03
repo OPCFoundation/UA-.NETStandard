@@ -194,12 +194,10 @@ namespace Opc.Ua
 
 #if !NETSTANDARD2_1
         /// <summary>
-        /// Create a 
+        /// Create a the RSA certificate.
         /// </summary>
         /// <param name="builder"></param>
-        /// <param name="keySize"></param>
-        /// <returns></returns>
-        public static X509Certificate2 CreateForRSA(this CertificateBuilder builder, int keySize = 0)
+        public static X509Certificate2 CreateForRSA(this CertificateBuilder builder)
         {
             if (builder.HasPublicKey)
             {
@@ -208,7 +206,7 @@ namespace Opc.Ua
             else
             {
                 string passcode = Guid.NewGuid().ToString();
-                return X509Utils.CreateCertificateFromPKCS12(builder.CreatePfxForRSA(passcode, keySize), passcode);
+                return X509Utils.CreateCertificateFromPKCS12(builder.CreatePfxForRSA(passcode), passcode);
             }
         }
 #endif
@@ -504,7 +502,8 @@ namespace Opc.Ua
                     builder.SetIssuer(issuerCAKeyCert);
                 }
             }
-            return builder.CreateForRSA(keySize);
+            builder.SetRSAKeySize(keySize);
+            return builder.CreateForRSA();
         }
         #endregion
 

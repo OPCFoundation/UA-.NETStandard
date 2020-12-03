@@ -19,7 +19,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     /// <summary>
     /// Defines internal helper functions to implement RSA cryptography.
     /// </summary>
-    internal class RsaUtils
+    internal static class RsaUtils
     {
         /// <summary>
         /// Dispose RSA object only if not running on Mono runtime.

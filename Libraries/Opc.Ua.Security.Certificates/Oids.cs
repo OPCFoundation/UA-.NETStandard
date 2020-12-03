@@ -44,7 +44,7 @@ namespace Opc.Ua.Security.Certificates
         public const string RsaOaep = "1.2.840.113549.1.1.7";
         public const string RsaPss = "1.2.840.113549.1.1.10";
 
-        // RSA signatures
+        // RSA PKCS1 signatures
         public const string RsaPkcs1Md5 = "1.2.840.113549.1.1.4";
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
