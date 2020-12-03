@@ -422,6 +422,11 @@ namespace Opc.Ua.Security.Certificates
 
         public CertificateBuilder SetRSAKeySize(int keySize)
         {
+            if (keySize % 1024 != 0 || keySize < Defaults.RSAKeySizeMin || keySize > Defaults.RSAKeySizeMax)
+            {
+                throw new ArgumentException(nameof(keySize), "KeySize must be a multiple of 1024 or is not in the allowed range.");
+            }
+
             m_keySize = keySize;
             return this;
         }
@@ -528,10 +533,6 @@ namespace Opc.Ua.Security.Certificates
                             new Oid(Oids.ServerAuthentication),
                             new Oid(Oids.ClientAuthentication)
                         }, true));
-
-                // Subject Alternative Name
-                // request.CertificateExtensions.Add(new X509SubjectAltNameExtension(applicationUri, domainNames));
-
             }
 
             foreach (var extension in m_extensions)

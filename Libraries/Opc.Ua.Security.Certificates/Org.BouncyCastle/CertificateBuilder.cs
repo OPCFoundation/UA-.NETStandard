@@ -55,7 +55,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public class CertificateBuilder : IX509Certificate
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
@@ -87,9 +87,9 @@ namespace Opc.Ua.Security.Certificates
             m_serialNumberLength = Defaults.SerialNumberLengthMin;
             m_extensions = new List<X509Extension>();
         }
-        #endregion
+#endregion
 
-        #region ICertificate Interface
+#region ICertificate Interface
         /// <inheritdoc/>
         public X500DistinguishedName SubjectName => m_subjectName;
 
@@ -113,9 +113,9 @@ namespace Opc.Ua.Security.Certificates
 
         /// <inheritdoc/>
         public IReadOnlyList<X509Extension> Extensions => m_extensions.AsReadOnly();
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Create the RSA certificate with a given public key.
         /// </summary>
@@ -314,7 +314,10 @@ namespace Opc.Ua.Security.Certificates
 
         public CertificateBuilder SetRSAKeySize(int keySize)
         {
-        // TODO: check valid key size
+            if (keySize % 1024 != 0 || keySize < Defaults.RSAKeySizeMin || keySize > Defaults.RSAKeySizeMax)
+            {
+                throw new ArgumentException(nameof(keySize), "KeySize must be a multiple of 1024 or is not in the allowed range.");
+            }
             m_keySize = keySize;
             return this;
         }
@@ -438,9 +441,9 @@ namespace Opc.Ua.Security.Certificates
                 return pkcs10CertificationRequest.GetEncoded();
             }
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Create a new serial number and validate lifetime.
         /// </summary>
@@ -589,9 +592,9 @@ namespace Opc.Ua.Security.Certificates
             }
             m_serialNumber[0] &= 0x7f;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private List<X509Extension> m_extensions;
         private bool m_isCA;
         private int m_pathLengthConstraint;
@@ -608,7 +611,7 @@ namespace Opc.Ua.Security.Certificates
         private HashAlgorithmName m_hashAlgorithmName;
         private X500DistinguishedName m_subjectName;
         private X500DistinguishedName m_issuerName;
-        #endregion
+#endregion
     }
 }
 #endif

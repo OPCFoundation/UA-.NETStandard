@@ -57,7 +57,7 @@ namespace Opc.Ua.Security.Certificates
         public const string ECDsaWithSha384 = "1.2.840.10045.4.3.3";
         public const string ECDsaWithSha512 = "1.2.840.10045.4.3.4";
 
-
+        // CRL extensions
         public const string CrlNumber = "2.5.29.20";
         public const string CrlReasonCode = "2.5.29.21";
 
@@ -72,6 +72,10 @@ namespace Opc.Ua.Security.Certificates
 
         public const string CRLDistributionPoint = "2.5.29.31";
 
+        /// <summary>
+        /// Get the RSA oid for a hash algorithm signature.
+        /// </summary>
+        /// <param name="hashAlgorithm">The hash algorithm name.</param>
         public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
         {
             if (hashAlgorithm == HashAlgorithmName.MD5)
@@ -100,6 +104,10 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Get the ECDsa oid for a hash algorithm signature.
+        /// </summary>
+        /// <param name="hashAlgorithm">The hash algorithm name.</param>
         public static string GetECDsaOid(HashAlgorithmName hashAlgorithm)
         {
             if (hashAlgorithm == HashAlgorithmName.SHA1)
@@ -124,6 +132,10 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Get the hash algorithm used to sign a certificate.
+        /// </summary>
+        /// <param name="oid">The signature algorithm oid.</param>
         public static HashAlgorithmName GetHashAlgorithmName(string oid)
         {
             switch (oid)

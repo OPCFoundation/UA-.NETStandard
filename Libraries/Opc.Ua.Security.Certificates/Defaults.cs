@@ -43,13 +43,15 @@ namespace Opc.Ua.Security.Certificates
         /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
         /// </remarks>
         public static readonly ushort RSAKeySize = 2048;
+        public static readonly ushort RSAKeySizeMin = 1024;
+        public static readonly ushort RSAKeySizeMax = 4096;
+
         /// <summary>
         /// The default hash algorithm to use for signatures.
         /// </summary>
         /// <remarks>
         /// Supported values are SHA-1(deprecated) or 256, 384 and 512 for SHA-2.
         /// </remarks>
-        public static readonly ushort HashSize = 256;
         public static readonly HashAlgorithmName HashAlgorithmName = HashAlgorithmName.SHA256;
         /// <summary>
         /// The default lifetime of certificates in months.
