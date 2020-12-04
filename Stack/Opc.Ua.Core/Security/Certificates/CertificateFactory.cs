@@ -16,6 +16,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -242,18 +243,25 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Issuer certificate has no private key, cannot revoke certificate.");
             }
 
-            System.Numerics.BigInteger crlSerialNumber = 0;
-            IList<string> serialNumbers = new List<string>();
+            BigInteger crlSerialNumber = 0;
+            var crlRevokedList = new Dictionary<string, RevokedCertificate>();
 
             // merge all existing revocation list
             if (issuerCrls != null)
-            {
+            {   
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
                     var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
                     if (extension?.CrlNumber > crlSerialNumber)
                     {
                         crlSerialNumber = extension.CrlNumber;
+                    }
+                    foreach (var revokedCertificate in issuerCrl.RevokedCertificates)
+                    {
+                        if (!crlRevokedList.ContainsKey(revokedCertificate.SerialNumber))
+                        {
+                            crlRevokedList[revokedCertificate.SerialNumber] = revokedCertificate;
+                        }
                     }
                 }
             }
@@ -263,13 +271,16 @@ namespace Opc.Ua
             {
                 foreach (var cert in revokedCertificates)
                 {
-                    serialNumbers.Add(cert.SerialNumber);
+                    if (!crlRevokedList.ContainsKey(cert.SerialNumber))
+                    {
+                        var entry = new RevokedCertificate(cert.SerialNumber, CRLReason.PrivilegeWithdrawn);
+                        crlRevokedList[cert.SerialNumber] = entry;
+                    }
                 }
             }
 
-            var hashAlgorithmName = Oids.GetHashAlgorithmName(issuerCertificate.SignatureAlgorithm.Value);
-            CrlBuilder crlBuilder = new CrlBuilder(issuerCertificate.SubjectName, hashAlgorithmName)
-                .AddRevokedSerialNumbers(serialNumbers.ToArray(), CRLReason.PrivilegeWithdrawn)
+            CrlBuilder crlBuilder = new CrlBuilder(issuerCertificate.SubjectName)
+                .AddRevokedCertificates(crlRevokedList.Values.ToList())
                 .SetThisUpdate(thisUpdate)
                 .SetNextUpdate(nextUpdate)
                 .AddCRLExtension(X509Extensions.BuildAuthorityKeyIdentifier(issuerCertificate))

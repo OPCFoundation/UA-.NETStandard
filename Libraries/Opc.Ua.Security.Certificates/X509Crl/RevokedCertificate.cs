@@ -102,7 +102,7 @@ namespace Opc.Ua.Security.Certificates
         private RevokedCertificate()
         {
             RevocationDate = DateTime.UtcNow;
-            CrlEntryExtensions = new List<X509Extension>();
+            CrlEntryExtensions = new X509ExtensionCollection();
         }
 
         /// <summary>
@@ -125,6 +125,6 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The list of crl entry extensions.
         /// </summary>
-        public IList<X509Extension> CrlEntryExtensions { get; }
+        public X509ExtensionCollection CrlEntryExtensions { get; }
     }
 }

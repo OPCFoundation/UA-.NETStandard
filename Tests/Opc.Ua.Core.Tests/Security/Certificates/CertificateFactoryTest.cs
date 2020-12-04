@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
@@ -218,29 +220,35 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Utils.VerifySelfSigned(issuerCertificate);
             X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
 
-            var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
-            File.WriteAllBytes("D:\\test2.crl", crl.RawData);
+            var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, null);
             Assert.NotNull(crl);
-            crl.VerifySignature(plainCert, true);
+            Assert.True(crl.VerifySignature(issuerCertificate, true));
+            var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(crl.CrlExtensions);
+            var crlCounter = new BigInteger(1);
+            Assert.AreEqual(crlCounter, extension.CrlNumber);
+            var revokedList = new List<X509CRL>();
+            revokedList.Add(crl);
+            File.WriteAllBytes($"D:\\test{crlCounter}.crl", crl.RawData);
+            foreach (var cert in revokedCerts)
+            {
+                Assert.Throws<CryptographicException>(() => crl.VerifySignature(otherIssuerCertificate, true));
+                Assert.False(crl.IsRevoked(cert));
+                var nextCrl = CertificateFactory.RevokeCertificate(issuerCertificate, revokedList, new X509Certificate2Collection(cert));
+                crlCounter++;
+                Assert.NotNull(nextCrl);
+                File.WriteAllBytes($"D:\\test{crlCounter}.der", cert.RawData);
+                File.WriteAllBytes($"D:\\test{crlCounter}.crl", nextCrl.RawData);
+                Assert.True(nextCrl.IsRevoked(cert));
+                extension = X509Extensions.FindExtension<X509CrlNumberExtension>(nextCrl.CrlExtensions);
+                Assert.AreEqual(crlCounter, extension.CrlNumber);
+                Assert.True(crl.VerifySignature(issuerCertificate, true));
+                revokedList.Add(nextCrl);
+                crl = nextCrl;
+            }
 
-            var crl2 = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts, DateTime.Today.ToUniversalTime(), DateTime.MinValue);
-            File.WriteAllBytes("D:\\test3.crl", crl.RawData);
-            Assert.NotNull(crl2);
-            crl2.VerifySignature(plainCert, true);
-
-            var newcrl = new X509CRL(crl.RawData);
-            newcrl.VerifySignature(plainCert, true);
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl.IsRevoked(cert));
-            }
-
-            var newcrl2 = new X509CRL(crl.RawData);
-            newcrl2.VerifySignature(plainCert, true);
-            Assert.Throws<CryptographicException>(() => newcrl2.VerifySignature(otherIssuerCertificate, true));
-            foreach (var cert in revokedCerts)
-            {
-                Assert.True(crl2.IsRevoked(cert));
             }
         }
         #endregion

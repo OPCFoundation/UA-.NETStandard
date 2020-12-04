@@ -145,6 +145,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
+            if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
             HashAlgorithmName = hashAlgorithmName;
             return this;
         }
@@ -156,6 +157,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="crlReason">The revocation reason</param>
         public CrlBuilder AddRevokedSerialNumbers(string[] serialNumbers, CRLReason crlReason = CRLReason.Unspecified)
         {
+            if (serialNumbers == null) throw new ArgumentNullException(nameof(serialNumbers));
             m_revokedCertificates.AddRange(serialNumbers.Select(s => new RevokedCertificate(s, crlReason)).ToList());
             return this;
         }
@@ -167,6 +169,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="crlReason">The revocation reason</param>
         public CrlBuilder AddRevokedCertificate(X509Certificate2 certificate, CRLReason crlReason = CRLReason.Unspecified)
         {
+            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
             m_revokedCertificates.Add(new RevokedCertificate(certificate.SerialNumber, crlReason));
             return this;
         }
@@ -176,7 +179,18 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder AddRevokedCertificate(RevokedCertificate revokedCertificate)
         {
+            if (revokedCertificate == null) throw new ArgumentNullException(nameof(revokedCertificate));
             m_revokedCertificates.Add(revokedCertificate);
+            return this;
+        }
+
+        /// <summary>
+        /// Add a list of revoked certificate.
+        /// </summary>
+        public CrlBuilder AddRevokedCertificates(IList<RevokedCertificate> revokedCertificates)
+        {
+            if (revokedCertificates == null) throw new ArgumentNullException(nameof(revokedCertificates));
+            m_revokedCertificates.AddRange(revokedCertificates);
             return this;
         }
 

@@ -28,9 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Formats.Asn1;
-using System.Net;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -42,7 +40,6 @@ namespace Opc.Ua.Security.Certificates
     /// The CRL Number extension.
     /// </summary>
     /// <remarks>
-    /// 
     ///    id-ce-cRLNumber OBJECT IDENTIFIER::= { id-ce 20 }
     ///         CRLNumber::= INTEGER(0..MAX)
     /// </remarks>
@@ -122,12 +119,12 @@ namespace Opc.Ua.Security.Certificates
 
         #region Public Properties
         /// <summary>
-        /// The OID for a Subject Alternate Name extension.
+        /// The OID for a CRL Number extension.
         /// </summary>
         public const string CrlNumberOid = "2.5.29.20";
 
         /// <summary>
-        /// Gets the uris.
+        /// Gets the CRL Number.
         /// </summary>
         /// <value>The uris.</value>
         public BigInteger CrlNumber { get; private set; }
