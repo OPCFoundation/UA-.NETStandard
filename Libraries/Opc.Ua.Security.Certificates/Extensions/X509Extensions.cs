@@ -224,7 +224,7 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            writer.WriteOctetString(new byte[] { (byte)UniversalTagNumber.Enumerated, 0x1, (byte)reason });
+            writer.WriteEnumeratedValue<CRLReason>(reason);
             return new X509Extension(Oids.CrlReasonCode, writer.Encode(), false);
         }
 

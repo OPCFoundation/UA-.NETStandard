@@ -79,39 +79,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             }
             return generalNames;
         }
-
-        /// <summary>
-        /// Read the Crl number from a X509Crl.
-        /// </summary>
-        internal static BigInteger GetCrlNumber(X509Crl crl)
-        {
-            BigInteger crlNumber = BigInteger.One;
-            try
-            {
-                Asn1Object asn1Object = GetExtensionValue(crl, Org.BouncyCastle.Asn1.X509.X509Extensions.CrlNumber);
-                if (asn1Object != null)
-                {
-                    crlNumber = CrlNumber.GetInstance(asn1Object).PositiveValue;
-                }
-            }
-            finally
-            {
-            }
-            return crlNumber;
-        }
-
-        /// <summary>
-        /// Get the value of an extension oid.
-        /// </summary>
-        internal static Asn1Object GetExtensionValue(IX509Extension extension, DerObjectIdentifier oid)
-        {
-            Asn1OctetString asn1Octet = extension.GetExtensionValue(oid);
-            if (asn1Octet != null)
-            {
-                return Org.BouncyCastle.X509.Extension.X509ExtensionUtilities.FromExtensionValue(asn1Octet);
-            }
-            return null;
-        }
     }
 }
 #endif
