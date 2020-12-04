@@ -36,7 +36,6 @@ using System.Text;
 #if !NETSTANDARD2_1
 using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Asn1.Pkcs;
 #endif

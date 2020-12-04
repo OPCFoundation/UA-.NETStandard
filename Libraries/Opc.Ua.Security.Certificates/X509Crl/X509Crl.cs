@@ -71,7 +71,11 @@ namespace Opc.Ua.Security.Certificates
             m_thisUpdate = crl.ThisUpdate;
             m_nextUpdate = crl.NextUpdate;
             m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
-            m_crlExtensions = new List<X509Extension>(crl.CrlExtensions);
+            m_crlExtensions = new X509ExtensionCollection();
+            foreach (var extension in crl.CrlExtensions)
+            {
+                m_crlExtensions.Add(extension);
+            }
             RawData = crl.RawData;
         }
 
@@ -84,7 +88,7 @@ namespace Opc.Ua.Security.Certificates
             m_thisUpdate = DateTime.MinValue;
             m_nextUpdate = DateTime.MinValue;
             m_revokedCertificates = new List<RevokedCertificate>();
-            m_crlExtensions = new List<X509Extension>();
+            m_crlExtensions = new X509ExtensionCollection();
         }
         #endregion
 
@@ -143,12 +147,12 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public IList<X509Extension> CrlExtensions
+        public X509ExtensionCollection CrlExtensions
         {
             get
             {
                 EnsureDecoded();
-                return m_crlExtensions.AsReadOnly();
+                return m_crlExtensions;
             }
         }
 
@@ -297,7 +301,7 @@ namespace Opc.Ua.Security.Certificates
                     {
                         var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
                         var optReader = seqReader.ReadSequence(extTag);
-                        var crlExtensionList = new List<X509Extension>();
+                        var crlExtensionList = new X509ExtensionCollection();
                         var crlExtensions = optReader.ReadSequence();
                         while (crlExtensions.HasData)
                         {
@@ -335,7 +339,7 @@ namespace Opc.Ua.Security.Certificates
         private DateTime m_nextUpdate;
         private HashAlgorithmName m_hashAlgorithmName;
         private List<RevokedCertificate> m_revokedCertificates;
-        private List<X509Extension> m_crlExtensions;
+        private X509ExtensionCollection m_crlExtensions;
         #endregion
     }
 }

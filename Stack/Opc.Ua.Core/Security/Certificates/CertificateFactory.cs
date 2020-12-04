@@ -248,20 +248,14 @@ namespace Opc.Ua
             // merge all existing revocation list
             if (issuerCrls != null)
             {
-#if TODO
-                Org.BouncyCastle.X509.X509CrlParser parser = new Org.BouncyCastle.X509.X509CrlParser();
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
-
-                    Org.BouncyCastle.X509.X509Crl crl = parser.ReadCrl(issuerCrl.RawData);
-                    // TODO: add serialnumbers
-                    var crlVersion = new System.Numerics.BigInteger(GetCrlNumber(crl).ToByteArrayUnsigned());
-                    if (crlVersion > crlSerialNumber)
+                    var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
+                    if (extension?.CrlNumber > crlSerialNumber)
                     {
-                        crlSerialNumber = crlVersion;
+                        crlSerialNumber = extension.CrlNumber;
                     }
                 }
-#endif
             }
 
             // add existing serial numbers

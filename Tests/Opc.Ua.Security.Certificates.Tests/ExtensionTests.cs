@@ -29,6 +29,7 @@
 
 
 using System.IO;
+using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 
@@ -177,6 +178,24 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(domainNames[1], decodedsan.IPAddresses[0]);
             Assert.AreEqual(domainNames[2], decodedsan.IPAddresses[1]);
         }
+
+        /// <summary>
+        /// Verify encode and decode of CRL Number.
+        /// </summary>
+        [Test]
+        public void VerifyCRLNumberExtension()
+        {
+            BigInteger crlNumber = 123456789;
+            TestContext.Out.WriteLine("Encoded:");
+            var number = new X509CrlNumberExtension(crlNumber);
+            TestContext.Out.WriteLine(number.Format(true));
+            var decodednumber = new X509CrlNumberExtension(number.Oid.Value, number.RawData, number.Critical);
+            Assert.NotNull(decodednumber);
+            TestContext.Out.WriteLine("Decoded:");
+            TestContext.Out.WriteLine(decodednumber.Format(true));
+            Assert.AreEqual(crlNumber, decodednumber.CrlNumber);
+        }
+
         #endregion
 
         #region Private Methods

@@ -72,7 +72,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The X509Extensions of the CRL.
         /// </summary>
-        IList<X509Extension> CrlExtensions { get; }
+        X509ExtensionCollection CrlExtensions { get; }
 
         /// <summary>
         /// The raw data for the CRL.

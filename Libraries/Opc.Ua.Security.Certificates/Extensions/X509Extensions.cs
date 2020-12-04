@@ -80,6 +80,17 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
+            if (typeof(T) == typeof(X509CrlNumberExtension))
+            {
+                var extension = extensions.Cast<X509Extension>().Where(e => (
+                    e.Oid.Value == X509CrlNumberExtension.CrlNumberOid)
+                ).FirstOrDefault();
+                if (extension != null)
+                {
+                    return new X509CrlNumberExtension(extension, extension.Critical) as T;
+                }
+            }
+
             // search builtin extension
             return extensions.OfType<T>().FirstOrDefault();
         }

@@ -55,7 +55,11 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = crl.NextUpdate;
             RawData = crl.RawData;
             m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
-            m_crlExtensions = new List<X509Extension>(crl.CrlExtensions);
+            m_crlExtensions = new X509ExtensionCollection();
+            foreach (var extension in crl.CrlExtensions)
+            {
+                m_crlExtensions.Add(extension);
+            }
         }
 
         /// <summary>
@@ -87,7 +91,7 @@ namespace Opc.Ua.Security.Certificates
             ThisUpdate = DateTime.UtcNow;
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = new List<RevokedCertificate>();
-            m_crlExtensions = new List<X509Extension>();
+            m_crlExtensions = new X509ExtensionCollection();
         }
         #endregion
 
@@ -111,7 +115,7 @@ namespace Opc.Ua.Security.Certificates
         public IList<RevokedCertificate> RevokedCertificates => m_revokedCertificates;
 
         /// <inheritdoc/>
-        public IList<X509Extension> CrlExtensions => m_crlExtensions;
+        public X509ExtensionCollection CrlExtensions => m_crlExtensions;
 
         /// <inheritdoc/>
         public byte[] RawData { get; private set; }
@@ -343,7 +347,7 @@ namespace Opc.Ua.Security.Certificates
 
         #region Private Fields
         private List<RevokedCertificate> m_revokedCertificates;
-        private List<X509Extension> m_crlExtensions;
+        private X509ExtensionCollection m_crlExtensions;
         #endregion
     }
 }
