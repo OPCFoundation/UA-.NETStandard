@@ -780,6 +780,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
             Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
         }
+
+        [Test, Order(602)]
+        public void CertificateValidatorAssignableFromAppConfig() => Assert.DoesNotThrow(() => {
+            var appConfig = new ApplicationConfiguration() {
+                CertificateValidator = new CertificateValidator()
+            };
+        });
+
         #endregion
 
         #region Private Methods
