@@ -499,11 +499,8 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-#if !NETSTANDARD2_1
-                //TODO
-                Org.BouncyCastle.X509.X509Certificate bcCert = new Org.BouncyCastle.X509.X509CertificateParser().ReadCertificate(cert.RawData);
-                bcCert.Verify(bcCert.GetPublicKey());
-#endif
+                var signature = new X509Signature(cert.RawData);
+                return signature.Verify(cert);
             }
             catch
             {

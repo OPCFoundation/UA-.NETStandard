@@ -102,6 +102,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             VerifyApplicationCert(app, plainCert);
             X509Utils.VerifySelfSigned(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert);
+            Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
         /// <summary>
@@ -169,6 +170,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifySelfSigned(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert);
+            Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
         /// <summary>
@@ -187,6 +189,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetHashAlgorithm((keyHashPair.HashAlgorithmName == HashAlgorithmName.SHA1) ? HashAlgorithmName.SHA256 : keyHashPair.HashAlgorithmName)
                 .SetCAConstraint(pathLengthConstraint)
                 .CreateForRSA();
+            Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
 
             var otherIssuerCertificate = CertificateFactory.CreateCertificate(subject)
                 .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
@@ -194,6 +197,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetCAConstraint(pathLengthConstraint)
                 .CreateForRSA();
+            Assert.True(X509Utils.VerifySelfSigned(otherIssuerCertificate));
 
             X509Certificate2Collection revokedCerts = new X509Certificate2Collection();
             for (int i = 0; i < 10; i++)
@@ -203,6 +207,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetIssuer(issuerCertificate)
                     .CreateForRSA();
                 revokedCerts.Add(cert);
+                Assert.False(X509Utils.VerifySelfSigned(cert));
             }
 
             Assert.NotNull(issuerCertificate);
