@@ -195,7 +195,7 @@ namespace Opc.Ua.Security.Certificates
             var tbsRawData = Encode();
             var signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
             byte[] signature = generator.SignData(tbsRawData, HashAlgorithmName);
-            var crlSigner = new X509Signature(tbsRawData, signature, HashAlgorithmName);
+            var crlSigner = new X509Signature(tbsRawData, signature, generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName));
             RawData = crlSigner.Encode();
             return this;
         }

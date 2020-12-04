@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -37,6 +39,8 @@ namespace Opc.Ua.Security.Certificates
     {
         public byte[] Tbs { get; private set; }
         public byte[] Signature { get; private set; }
+        public byte[] SignatureAlgorithmIdentifier { get; private set; }
+        public string SignatureAlgorithm { get; private set; }
         public HashAlgorithmName Name { get; private set; }
 
         public X509Signature(byte[] signedBlob)
@@ -44,11 +48,13 @@ namespace Opc.Ua.Security.Certificates
             Decode(signedBlob);
         }
 
-        public X509Signature(byte[] tbs, byte[] signature, HashAlgorithmName name)
+        public X509Signature(byte[] tbs, byte[] signature, byte[] signatureAlgorithmIdentifier)
         {
             Tbs = tbs;
             Signature = signature;
-            Name = name;
+            SignatureAlgorithmIdentifier = signatureAlgorithmIdentifier;
+            SignatureAlgorithm = DecodeAlgorithm(signatureAlgorithmIdentifier);
+            Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
         }
 
         /// <summary>
@@ -66,11 +72,18 @@ namespace Opc.Ua.Security.Certificates
             writer.WriteEncodedValue(Tbs);
 
             // Signature Algorithm Identifier
-            writer.PushSequence();
-            string signatureAlgorithm = Oids.GetRSAOid(Name);
-            writer.WriteObjectIdentifier(signatureAlgorithm);
-            writer.WriteNull();
-            writer.PopSequence();
+            if (SignatureAlgorithmIdentifier != null)
+            {
+                writer.WriteEncodedValue(SignatureAlgorithmIdentifier);
+            }
+            else
+            {
+                writer.PushSequence();
+                string signatureAlgorithmIdentifier = Oids.GetRSAOid(Name);
+                writer.WriteObjectIdentifier(signatureAlgorithmIdentifier);
+                writer.WriteNull();
+                writer.PopSequence();
+            }
 
             // Add signature
             writer.WriteBitString(Signature);
@@ -95,14 +108,17 @@ namespace Opc.Ua.Security.Certificates
 
                         // Signature Algorithm Identifier
                         var sigOid = seqReader.ReadSequence();
-                        var signatureAlgorithm = sigOid.ReadObjectIdentifier();
-                        Name = Oids.GetHashAlgorithmName(signatureAlgorithm);
+                        SignatureAlgorithm = sigOid.ReadObjectIdentifier();
+                        Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
 
                         // Signature
                         int unusedBitCount;
                         Signature = seqReader.ReadBitString(out unusedBitCount);
+                        Debug.Assert(unusedBitCount == 0, "Unexpected unused bit count.");
+                        return;
                     }
                 }
+                throw new CryptographicException("No valid data in the X509 signature.");
             }
             catch (AsnContentException ace)
             {
@@ -111,10 +127,66 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Verify the signature with the public key of the signer.
+        /// </summary>
+        /// <param name="certificate"></param>
+        /// <returns>true if the signature is valid.</returns>
+        public bool Verify(X509Certificate2 certificate)
+        {
+            switch (SignatureAlgorithm)
+            {
+                case Oids.RsaPkcs1Md5: 
+                case Oids.RsaPkcs1Sha1: 
+                case Oids.RsaPkcs1Sha256: 
+                case Oids.RsaPkcs1Sha384: 
+                case Oids.RsaPkcs1Sha512:
+                    return VerifyForRSA(certificate, RSASignaturePadding.Pkcs1);
+
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha512:
+                    return VerifyForECDsa(certificate);
+
+                default:
+                    throw new CryptographicException("Failed to verify signature due to unknown signature algorithm.");
+            }
+        }
+
+        /// <summary>
+        /// Verify the signature with the RSA public key of the signer.
+        /// </summary>
+        private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
+        {
+            using (RSA rsa = certificate.GetRSAPublicKey())
+            {
+                return rsa.VerifyData(Tbs, Signature, Name, padding);
+            }
+        }
+
+        /// <summary>
+        /// Verify the signature with the ECC public key of the signer.
+        /// </summary>
+        private bool VerifyForECDsa(X509Certificate2 certificate)
+        {
+            using (ECDsa key = certificate.GetECDsaPublicKey())
+            {
+                return key.VerifyData(Tbs, Signature, Name);
+            }
+        }
+
+        private string DecodeAlgorithm(byte [] oid)
+        {
+            var seqReader = new AsnReader(oid, AsnEncodingRules.DER);
+            var sigOid = seqReader.ReadSequence();
+            return sigOid.ReadObjectIdentifier();
+        }
+
+        /// <summary>
         /// Encode a ECDSA signature as ASN.1
         /// </summary>
         /// <param name="signature"></param>
-        public static byte[] EncodeECDSA(byte[] signature)
+        private static byte[] EncodeECDSA(byte[] signature)
         {
             // Encode from IEEE signature format to ASN1 DER encoded 
             // signature format for ecdsa certificates.

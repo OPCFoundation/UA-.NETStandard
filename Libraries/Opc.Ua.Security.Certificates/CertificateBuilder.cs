@@ -41,7 +41,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public class CertificateBuilder : IX509Certificate
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
@@ -75,9 +75,9 @@ namespace Opc.Ua.Security.Certificates
             m_serialNumberLength = Defaults.SerialNumberLengthMin;
             m_extensions = new List<X509Extension>();
         }
-        #endregion
+#endregion
 
-        #region ICertificate Interface
+#region ICertificate Interface
         /// <inheritdoc/>
         public X500DistinguishedName SubjectName => m_subjectName;
 
@@ -104,9 +104,9 @@ namespace Opc.Ua.Security.Certificates
 
         /// <inheritdoc/>
         public bool HasPublicKey => m_rsaPublicKey != null;
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Create the RSA certificate with signature.
         /// </summary>
@@ -349,6 +349,12 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
+        public CertificateBuilder SetLifeTime(TimeSpan lifeTime)
+        {
+            m_notAfter = m_notBefore.Add(lifeTime);
+            return this;
+        }
+
         public CertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
             if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
@@ -451,9 +457,9 @@ namespace Opc.Ua.Security.Certificates
             m_extensions.Add(extension);
             return this;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         private void CreateDefaults()
         {
             if (!m_presetSerial)
@@ -570,9 +576,9 @@ namespace Opc.Ua.Security.Certificates
             RandomNumberGenerator.Fill(m_serialNumber);
             m_serialNumber[0] &= 0x7F;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private List<X509Extension> m_extensions;
         private bool m_isCA;
         private int m_pathLengthConstraint;
@@ -589,7 +595,7 @@ namespace Opc.Ua.Security.Certificates
         private HashAlgorithmName m_hashAlgorithmName;
         private X500DistinguishedName m_subjectName;
         private X500DistinguishedName m_issuerName;
-        #endregion
+#endregion
     }
 }
 #endif

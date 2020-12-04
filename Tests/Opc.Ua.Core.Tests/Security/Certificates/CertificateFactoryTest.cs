@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -48,18 +49,35 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #region DataPointSources
         public class KeyHashPair : IFormattable
         {
-            public KeyHashPair(ushort keySize, ushort hashSize)
+            public KeyHashPair(ushort keySize, HashAlgorithmName hashAlgorithmName)
             {
                 KeySize = keySize;
-                HashSize = hashSize;
+                HashAlgorithmName = hashAlgorithmName;
+                if (hashAlgorithmName == HashAlgorithmName.SHA1)
+                {
+                    HashSize = 160;
+                }
+                else if (hashAlgorithmName == HashAlgorithmName.SHA256)
+                {
+                    HashSize = 256;
+                }
+                else if (hashAlgorithmName == HashAlgorithmName.SHA384)
+                {
+                    HashSize = 384;
+                }
+                else if (hashAlgorithmName == HashAlgorithmName.SHA512)
+                {
+                    HashSize = 512;
+                }
             }
 
             public ushort KeySize;
             public ushort HashSize;
+            public HashAlgorithmName HashAlgorithmName;
 
             public string ToString(string format, IFormatProvider formatProvider)
             {
-                return $"{KeySize}-{HashSize}";
+                return $"{KeySize}-{HashAlgorithmName}";
             }
         }
 
@@ -73,17 +91,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 return values != null ? new KeyHashPairCollection(values) : new KeyHashPairCollection();
             }
 
-            public void Add(ushort keySize, ushort hashSize)
+            public void Add(ushort keySize, HashAlgorithmName hashAlgorithmName)
             {
-                Add(new KeyHashPair(keySize, hashSize));
+                Add(new KeyHashPair(keySize, hashAlgorithmName));
             }
         }
 
         [DatapointSource]
 #if NETCOREAPP3_1
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, 256 }, { 2048, 256 }, { 3072, 384 }, { 4096, 512 } }.ToArray();
+        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, HashAlgorithmName.SHA256 }, { 2048, HashAlgorithmName.SHA256 }, { 3072, HashAlgorithmName.SHA384 }, { 4096, HashAlgorithmName.SHA512 } }.ToArray();
 #else
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, 160 }, { 2048, 256 }, { 3072, 384 }, { 4096, 512 } }.ToArray();
+        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, HashAlgorithmName.SHA1 }, { 2048, HashAlgorithmName.SHA256 }, { 3072, HashAlgorithmName.SHA384 }, { 4096, HashAlgorithmName.SHA512 } }.ToArray();
 #endif
         #endregion
 
@@ -116,13 +134,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
-            var cert = CertificateFactory.CreateCertificate(
-                app.ApplicationUri, app.ApplicationName, app.Subject,
-                app.DomainNames, keyHashPair.KeySize, DateTime.UtcNow,
-                CertificateFactory.DefaultLifeTime, keyHashPair.HashSize);
+            var cert = CertificateFactory.CreateCertificate(app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
+                .CreateForRSA();
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
+            using (RSA rsa = cert.GetRSAPrivateKey())
+            {
+                rsa.ExportParameters(true);
+            }
             var plainCert = new X509Certificate2(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyApplicationCert(app, plainCert);
@@ -197,36 +219,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Utils.VerifyRSAKeyPair(cert, cert);
         }
 
-        // TODO: finalize
         /// <summary>
         /// Verify CRL for CA signed app certs.
         /// </summary>
-        [Test]
+        [Theory]
         public void VerifyCrlCerts(
+            KeyHashPair keyHashPair
             )
         {
-            KeyHashPair keyHashPair = new KeyHashPair(2048, 256);
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = 1;
-            var issuerCertificate = CertificateFactory.CreateCertificate(
-                null, null, subject,
-                null, keyHashPair.KeySize,
-                DateTime.UtcNow, 25 * 12,
-                keyHashPair.HashSize,
-                isCA: true,
-                pathLengthConstraint: pathLengthConstraint);
+            var issuerCertificate = CertificateFactory.CreateCertificate(subject)
+                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
+                .SetLifeTime(TimeSpan.FromDays(180))
+                .SetHashAlgorithm((keyHashPair.HashAlgorithmName == HashAlgorithmName.SHA1) ? HashAlgorithmName.SHA256 : keyHashPair.HashAlgorithmName)
+                .SetCAConstraint(pathLengthConstraint)
+                .CreateForRSA();
+
+            var otherIssuerCertificate = CertificateFactory.CreateCertificate(subject)
+                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
+                .SetLifeTime(TimeSpan.FromDays(180))
+                .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
+                .SetCAConstraint(pathLengthConstraint)
+                .CreateForRSA();
 
             X509Certificate2Collection revokedCerts = new X509Certificate2Collection();
             for (int i = 0; i < 10; i++)
             {
-                var cert = CertificateFactory.CreateCertificate(
-                    null, null, $"CN=Test Cert {i}",
-                    null, keyHashPair.KeySize,
-                    DateTime.UtcNow, 2 * 12,
-                    keyHashPair.HashSize,
-                    isCA: false,
-                    issuerCAKeyCert: issuerCertificate,
-                    pathLengthConstraint: pathLengthConstraint);
+                var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}")
+                    .SetRSAKeySize(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048)
+                    .SetIssuer(issuerCertificate)
+                    .CreateForRSA();
                 revokedCerts.Add(cert);
             }
 
@@ -244,35 +267,27 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifySelfSigned(issuerCertificate);
             X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
-#if mist
-            var crlLegacy = Opc.Ua.Legacy.CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
-            Assert.NotNull(crlLegacy);
-            File.WriteAllBytes("D:\\test1.crl", crlLegacy.RawData);
-            crlLegacy.VerifySignature(issuerCertificate, true);
-#endif
+
             var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts);
             File.WriteAllBytes("D:\\test2.crl", crl.RawData);
             Assert.NotNull(crl);
+            crl.VerifySignature(plainCert, true);
 
-            var crl2 = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts, DateTime.UtcNow, DateTime.MinValue);
+            var crl2 = CertificateFactory.RevokeCertificate(issuerCertificate, null, revokedCerts, DateTime.Today.ToUniversalTime(), DateTime.MinValue);
             File.WriteAllBytes("D:\\test3.crl", crl.RawData);
             Assert.NotNull(crl2);
-#if mist
-            X509CrlParser parser = new X509CrlParser();
-            X509Crl crlbcLegacy = parser.ReadCrl(crlLegacy.RawData);
-            var crlVersionLegacy = CertificateFactory.GetCrlNumber(crlbcLegacy);
-            X509Crl crlbc2 = parser.ReadCrl(crl.RawData);
-            var crlVersion = CertificateFactory.GetCrlNumber(crlbc2);
-#endif
+            crl2.VerifySignature(plainCert, true);
+
             var newcrl = new X509CRL(crl.RawData);
-            crl.VerifySignature(issuerCertificate, true);
+            newcrl.VerifySignature(plainCert, true);
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl.IsRevoked(cert));
             }
 
             var newcrl2 = new X509CRL(crl.RawData);
-            crl2.VerifySignature(issuerCertificate, true);
+            newcrl2.VerifySignature(plainCert, true);
+            Assert.Throws<CryptographicException>(() => newcrl2.VerifySignature(otherIssuerCertificate, true));
             foreach (var cert in revokedCerts)
             {
                 Assert.True(crl2.IsRevoked(cert));

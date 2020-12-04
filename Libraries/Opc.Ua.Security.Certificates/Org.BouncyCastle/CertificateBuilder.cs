@@ -267,6 +267,12 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
+        public CertificateBuilder SetLifeTime(TimeSpan lifeTime)
+        {
+            m_notAfter = m_notBefore.Add(lifeTime);
+            return this;
+        }
+
         public CertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
             if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));

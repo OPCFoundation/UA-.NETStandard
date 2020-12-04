@@ -162,24 +162,21 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public bool VerifySignature(X509Certificate2 issuer, bool throwOnError)
         {
+            bool result;
             try
             {
-                // todo: only decode signature
-                EnsureDecoded();
-#if TODO
-                Org.BouncyCastle.X509.X509Certificate bccert = new X509CertificateParser().ReadCertificate(issuer.RawData);
-                m_crl.Verify(bccert.GetPublicKey());
-#endif
+                var signature = new X509Signature(RawData);
+                result = signature.Verify(issuer);
             }
             catch (Exception)
             {
-                if (throwOnError)
-                {
-                    throw new CryptographicException("Could not verify signature on CRL.");
-                }
-                return false;
+                result = false;
             }
-            return true;
+            if (!result && throwOnError)
+            {
+                throw new CryptographicException("Could not verify signature on CRL.");
+            }
+            return result;
         }
 
         /// <summary>
