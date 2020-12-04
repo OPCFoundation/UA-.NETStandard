@@ -28,13 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Security.Certificates.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -47,56 +47,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public class CertificateFactoryTest
     {
         #region DataPointSources
-        public class KeyHashPair : IFormattable
-        {
-            public KeyHashPair(ushort keySize, HashAlgorithmName hashAlgorithmName)
-            {
-                KeySize = keySize;
-                HashAlgorithmName = hashAlgorithmName;
-                if (hashAlgorithmName == HashAlgorithmName.SHA1)
-                {
-                    HashSize = 160;
-                }
-                else if (hashAlgorithmName == HashAlgorithmName.SHA256)
-                {
-                    HashSize = 256;
-                }
-                else if (hashAlgorithmName == HashAlgorithmName.SHA384)
-                {
-                    HashSize = 384;
-                }
-                else if (hashAlgorithmName == HashAlgorithmName.SHA512)
-                {
-                    HashSize = 512;
-                }
-            }
-
-            public ushort KeySize;
-            public ushort HashSize;
-            public HashAlgorithmName HashAlgorithmName;
-
-            public string ToString(string format, IFormatProvider formatProvider)
-            {
-                return $"{KeySize}-{HashAlgorithmName}";
-            }
-        }
-
-        public class KeyHashPairCollection : List<KeyHashPair>
-        {
-            public KeyHashPairCollection() { }
-            public KeyHashPairCollection(IEnumerable<KeyHashPair> collection) : base(collection) { }
-            public KeyHashPairCollection(int capacity) : base(capacity) { }
-            public static KeyHashPairCollection ToJsonValidationDataCollection(KeyHashPair[] values)
-            {
-                return values != null ? new KeyHashPairCollection(values) : new KeyHashPairCollection();
-            }
-
-            public void Add(ushort keySize, HashAlgorithmName hashAlgorithmName)
-            {
-                Add(new KeyHashPair(keySize, hashAlgorithmName));
-            }
-        }
-
         [DatapointSource]
 #if NETCOREAPP3_1
         public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, HashAlgorithmName.SHA256 }, { 2048, HashAlgorithmName.SHA256 }, { 3072, HashAlgorithmName.SHA384 }, { 4096, HashAlgorithmName.SHA512 } }.ToArray();

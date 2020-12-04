@@ -34,7 +34,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -45,9 +44,26 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             KeySize = keySize;
             HashAlgorithmName = hashAlgorithmName;
+            if (hashAlgorithmName == HashAlgorithmName.SHA1)
+            {
+                HashSize = 160;
+            }
+            else if (hashAlgorithmName == HashAlgorithmName.SHA256)
+            {
+                HashSize = 256;
+            }
+            else if (hashAlgorithmName == HashAlgorithmName.SHA384)
+            {
+                HashSize = 384;
+            }
+            else if (hashAlgorithmName == HashAlgorithmName.SHA512)
+            {
+                HashSize = 512;
+            }
         }
 
         public ushort KeySize;
+        public ushort HashSize;
         public HashAlgorithmName HashAlgorithmName;
 
         public string ToString(string format, IFormatProvider formatProvider)
@@ -88,19 +104,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         public string Path;
         public byte[] Crl;
-        public X509Crl X509Crl;
 
         public void Initialize(byte[] crl, string path)
         {
             Path = path;
             Crl = crl;
-            try
-            {
-                X509CrlParser parser = new X509CrlParser();
-                X509Crl = parser.ReadCrl(crl);
-            }
-            catch
-            { }
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
@@ -197,21 +205,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                 stringBuilder.AppendLine($"{extension.Format(false)}");
             }
             return stringBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Helper to convert a bouncy castle DN.
-        /// </summary>
-        public static string GetIssuer(X509Crl crl)
-        {
-            // a few conversions to match System.Security conventions
-            string issuerDN = crl.IssuerDN.ToString();
-            // replace state ST= with S= 
-            issuerDN = issuerDN.Replace("ST=", "S=");
-            // reverse DN order to match System.Security
-            List<string> issuerList = X509Utils.ParseDistinguishedName(issuerDN);
-            issuerList.Reverse();
-            return string.Join(", ", issuerList);
         }
         #endregion
     }

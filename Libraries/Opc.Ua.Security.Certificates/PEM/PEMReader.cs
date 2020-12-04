@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using System.IO;
 using System.Text;
@@ -38,9 +37,6 @@ using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Math;
-using Org.BouncyCastle.Pkcs;
-using Org.BouncyCastle.Asn1.Pkcs;
 #endif
 
 namespace Opc.Ua.Security.Certificates
@@ -57,17 +53,17 @@ namespace Opc.Ua.Security.Certificates
             string password = null)
         {
             RSA rsaPrivateKey = null;
-            PemReader pemReader;
+            Org.BouncyCastle.OpenSsl.PemReader pemReader;
             using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
                 if (String.IsNullOrEmpty(password))
                 {
-                    pemReader = new PemReader(pemStreamReader);
+                    pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader);
                 }
                 else
                 {
                     Password pwFinder = new Password(password.ToCharArray());
-                    pemReader = new PemReader(pemStreamReader, pwFinder);
+                    pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
                 }
                 try
                 {

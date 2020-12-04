@@ -43,9 +43,11 @@ namespace Opc.Ua.Security.Certificates
         /// Supported values are 1024(deprecated), 2048, 3072 or 4096.
         /// </remarks>
         public static readonly ushort RSAKeySize = 2048;
+        /// <summary>
+        /// The min and max size for a RSA key.
+        /// </summary>
         public static readonly ushort RSAKeySizeMin = 1024;
         public static readonly ushort RSAKeySizeMax = 4096;
-
         /// <summary>
         /// The default hash algorithm to use for signatures.
         /// </summary>
@@ -60,7 +62,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The recommended min and max serial numbers length.
         /// </summary>
-        public const int SerialNumberLengthMin = 10;
-        public const int SerialNumberLengthMax = 20;
+        public static readonly int SerialNumberLengthMin = 10;
+        public static readonly int SerialNumberLengthMax = 20;
     }
 }

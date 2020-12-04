@@ -35,7 +35,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using NUnit.Framework;
-using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -81,13 +80,47 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             var x509Crl = new X509CRL(crlAsset.Crl);
             Assert.NotNull(x509Crl);
-            TestContext.Out.WriteLine($"CRLAsset:   {GetIssuer(crlAsset.X509Crl)}");
+            TestContext.Out.WriteLine($"CRLAsset:   {x509Crl.Issuer}");
             var crlInfo = WriteCRL(x509Crl);
             TestContext.Out.WriteLine(crlInfo);
         }
 
         /// <summary>
         /// Validate a CRL Builder and decoder pass.
+        /// </summary>
+        [Test]
+        public void CrlInternalBuilderTest()
+        {
+            var dname = new X500DistinguishedName("CN=Test");
+            var hash = HashAlgorithmName.SHA256;
+            var crlBuilder = new CrlBuilder(dname, hash)
+                .SetNextUpdate(DateTime.Today.AddDays(30));
+            byte[] serial = new byte[] { 4, 5, 6, 7 };
+            var revokedarray = new RevokedCertificate(serial);
+            crlBuilder.RevokedCertificates.Add(revokedarray);
+            string serstring = "45678910";
+            var revokedstring = new RevokedCertificate(serstring);
+            crlBuilder.RevokedCertificates.Add(revokedstring);
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(123));
+            var crlEncoded = crlBuilder.Encode();
+            Assert.NotNull(crlEncoded);
+            var x509Crl = new X509CRL();
+            x509Crl.DecodeCrl(crlEncoded);
+            Assert.NotNull(x509Crl);
+            Assert.NotNull(x509Crl.CrlExtensions);
+            Assert.NotNull(x509Crl.RevokedCertificates);
+            Assert.AreEqual(dname.RawData, x509Crl.IssuerName.RawData);
+            //Assert.AreEqual(crlBuilder.ThisUpdate, x509Crl.ThisUpdate);
+            //Assert.AreEqual(crlBuilder.NextUpdate, x509Crl.NextUpdate);
+            Assert.AreEqual(2, x509Crl.RevokedCertificates.Count);
+            Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
+            Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
+            Assert.AreEqual(1, x509Crl.CrlExtensions.Count);
+            Assert.AreEqual(hash, x509Crl.HashAlgorithmName);
+        }
+
+        /// <summary>
+        /// Validate the internal CRL encoder and decoder pass.
         /// </summary>
         [Test]
         public void CrlBuilderTest()
@@ -119,6 +152,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(1, x509Crl.CrlExtensions.Count);
             Assert.AreEqual(hash, x509Crl.HashAlgorithmName);
         }
+
         #endregion
 
         #region Private Methods
@@ -144,18 +178,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                 stringBuilder.AppendLine($"{extension.Format(false)}");
             }
             return stringBuilder.ToString();
-        }
-
-        private static string GetIssuer(X509Crl crl)
-        {
-            // a few conversions to match System.Security conventions
-            string issuerDN = crl.IssuerDN.ToString();
-            // replace state ST= with S= 
-            issuerDN = issuerDN.Replace("ST=", "S=");
-            // reverse DN order to match System.Security
-            List<string> issuerList = X509Utils.ParseDistinguishedName(issuerDN);
-            issuerList.Reverse();
-            return string.Join(", ", issuerList);
         }
         #endregion
 

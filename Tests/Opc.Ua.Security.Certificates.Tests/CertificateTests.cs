@@ -86,7 +86,6 @@ namespace Opc.Ua.Security.Certificates.Tests
         #endregion
 
         #region Test Methods
-#if NETCOREAPP3_1
         /// <summary>
         /// Verify self signed app certs.
         /// </summary>
@@ -213,6 +212,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
+#if NETCOREAPP3_1
         [Theory]
         public void CreateSelfSignedForECDsaTests(ECCurve eccurve)
         {
@@ -241,7 +241,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForECDsa();
             WriteCertificate(cert, "Default cert with CA constraints None and CRL distribution points");
         }
-
 #endif
         #endregion
 
