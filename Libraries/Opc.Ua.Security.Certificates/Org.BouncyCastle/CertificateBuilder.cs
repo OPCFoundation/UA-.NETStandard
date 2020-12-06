@@ -423,13 +423,11 @@ namespace Opc.Ua.Security.Certificates
                 X509V3CertificateGenerator cg = new X509V3CertificateGenerator();
                 CreateMandatoryFields(cg);
 
-                // set Private/Public Key
-                var keyGenerationParameters = new KeyGenerationParameters(random, m_keySize == 0 ? Defaults.RSAKeySize : m_keySize);
-                var keyPairGenerator = new RsaKeyPairGenerator();
-                keyPairGenerator.Init(keyGenerationParameters);
-                AsymmetricCipherKeyPair subjectKeyPair = keyPairGenerator.GenerateKeyPair();
-                AsymmetricKeyParameter subjectPublicKey = subjectKeyPair.Public;
-                AsymmetricKeyParameter subjectPrivateKey = subjectKeyPair.Private;
+                // create Private/Public Keypair
+                var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? Defaults.RSAKeySize : m_keySize);
+                AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(rsa);
+                AsymmetricKeyParameter subjectPrivateKey = X509Utils.GetPrivateKeyParameter(rsa);
+
                 cg.SetPublicKey(subjectPublicKey);
 
                 CreateExtensions(cg, subjectPublicKey);
@@ -472,12 +470,12 @@ namespace Opc.Ua.Security.Certificates
                 NewSerialNumber(random);
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private X509Name m_issuerDN;
         private X509Name m_subjectDN;
-        #endregion
+#endregion
     }
 }
 #endif
