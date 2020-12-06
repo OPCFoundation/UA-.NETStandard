@@ -12,9 +12,7 @@
 
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -192,25 +190,6 @@ namespace Opc.Ua
                 isCA, issuerCAKeyCert, publicKey, pathLengthConstraint)
                 .AddToStore(storeType, storePath, password);
         }
-
-#if !NETSTANDARD2_1
-        /// <summary>
-        /// Create a the RSA certificate.
-        /// </summary>
-        /// <param name="builder"></param>
-        public static X509Certificate2 CreateForRSA(this CertificateBuilder builder)
-        {
-            if (builder.HasPublicKey)
-            {
-                return builder.CreateForRSAWithPublicKey();
-            }
-            else
-            {
-                string passcode = Guid.NewGuid().ToString();
-                return X509Utils.CreateCertificateFromPKCS12(builder.CreatePfxForRSA(passcode), passcode);
-            }
-        }
-#endif
 
         /// <summary>
         /// Revoke the certificate. 
@@ -525,31 +504,6 @@ namespace Opc.Ua
         /// Sets the parameters to suitable defaults.
         /// </summary>
         private static void SetSuitableDefaults(
-            ref ushort keySize,
-            ref ushort lifetimeInMonths)
-        {
-            // enforce recommended keysize unless lower value is enforced.
-            if (keySize < 1024)
-            {
-                keySize = DefaultKeySize;
-            }
-
-            if (keySize % 1024 != 0)
-            {
-                throw new ArgumentNullException(nameof(keySize), "KeySize must be a multiple of 1024.");
-            }
-
-            // enforce minimum lifetime.
-            if (lifetimeInMonths < 1)
-            {
-                lifetimeInMonths = 1;
-            }
-        }
-
-        /// <summary>
-        /// Sets the parameters to suitable defaults.
-        /// </summary>
-        private static void SetSuitableDefaults(
             ref string applicationUri,
             ref string applicationName,
             ref string subjectName,
@@ -659,7 +613,6 @@ namespace Opc.Ua
         /// Get the hash algorithm from the hash size in bits.
         /// </summary>
         /// <param name="hashSizeInBits"></param>
-        /// <returns></returns>
         private static HashAlgorithmName GetRSAHashAlgorithmName(uint hashSizeInBits)
         {
             if (hashSizeInBits <= 160)

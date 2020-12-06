@@ -88,6 +88,7 @@ namespace Opc.Ua.Security.Certificates
             CreateExtensions(request);
 
             X509Certificate2 signedCert;
+            var serialNumber = m_serialNumber.Reverse().ToArray();
             if (m_issuerCAKeyCert != null)
             {
                 var issuerSubjectName = m_issuerCAKeyCert.SubjectName;
@@ -98,7 +99,7 @@ namespace Opc.Ua.Security.Certificates
                         X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
                         NotBefore,
                         NotAfter,
-                        m_serialNumber
+                        serialNumber
                         );
                 }
             }
@@ -109,7 +110,7 @@ namespace Opc.Ua.Security.Certificates
                     X509SignatureGenerator.CreateForRSA(rsaKeyPair, padding),
                     NotBefore,
                     NotAfter,
-                    m_serialNumber
+                    serialNumber
                     );
             }
 
@@ -150,7 +151,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 m_notBefore,
                 m_notAfter,
-                m_serialNumber
+                m_serialNumber.Reverse().ToArray()
                 );
 
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
@@ -186,6 +187,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateExtensions(request);
 
+            var serialNumber = m_serialNumber.Reverse().ToArray();
             if (m_issuerCAKeyCert != null)
             {
                 using (ECDsa issuerKey = m_issuerCAKeyCert.GetECDsaPrivateKey())
@@ -195,7 +197,7 @@ namespace Opc.Ua.Security.Certificates
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
                         m_notBefore,
                         m_notAfter,
-                        m_serialNumber
+                        serialNumber
                         );
                 }
             }
@@ -206,7 +208,7 @@ namespace Opc.Ua.Security.Certificates
                     X509SignatureGenerator.CreateForECDsa(key),
                     m_notBefore,
                     m_notAfter,
-                    m_serialNumber
+                    serialNumber
                     )
                     .CopyWithPrivateKey(key);
             }
@@ -247,7 +249,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 m_notBefore,
                 m_notAfter,
-                m_serialNumber
+                m_serialNumber.Reverse().ToArray()
                 );
 
             // return a X509Certificate2
@@ -329,7 +331,7 @@ namespace Opc.Ua.Security.Certificates
                 : new X509AuthorityKeyIdentifierExtension(
                     ski.SubjectKeyIdentifier.FromHexString(),
                     m_subjectName,
-                    m_serialNumber.Reverse().ToArray()
+                    m_serialNumber
                     );
             request.CertificateExtensions.Add(authorityKeyIdentifier);
 
@@ -400,7 +402,7 @@ namespace Opc.Ua.Security.Certificates
             // new serial number
             m_serialNumber = new byte[m_serialNumberLength];
             RandomNumberGenerator.Fill(m_serialNumber);
-            m_serialNumber[0] &= 0x7F;
+            m_serialNumber[m_serialNumberLength - 1] &= 0x7F;
         }
         #endregion
 

@@ -172,9 +172,10 @@ namespace Opc.Ua.Security.Certificates
             {
                 throw new ArgumentOutOfRangeException("SerialNumber array exceeds supported length.");
             }
-            serialNumber[0] &= 0x7f;
-            m_serialNumber = serialNumber;
             m_serialNumberLength = serialNumber.Length;
+            m_serialNumber = new byte[serialNumber.Length];
+            Array.Copy(serialNumber, m_serialNumber, serialNumber.Length);
+            m_serialNumber[m_serialNumberLength - 1] &= 0x7f;
             m_presetSerial = true;
             return this;
         }

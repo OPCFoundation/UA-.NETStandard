@@ -18,8 +18,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Security.Certificates
+namespace Opc.Ua
 {
     public static class X509Utils
     {
@@ -446,50 +447,7 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
         {
-            bool result = false;
-            RSA rsaPrivateKey = null;
-            RSA rsaPublicKey = null;
-            try
-            {
-                // verify the public and private key match
-                rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-#if NETSTANDARD2_1
-                // on .NET Core 3 
-                rsaPrivateKey.ExportParameters(true);
-#endif
-                rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
-                X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
-                {
-                    result = RsaUtils.VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                }
-                else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                {
-                    result = RsaUtils.VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
-                }
-                else
-                {
-                    throw new CryptographicException("Don't know how to verify the public/private key pair.");
-                }
-            }
-            catch (Exception)
-            {
-                if (throwOnError)
-                {
-                    throwOnError = false;
-                    throw;
-                }
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPrivateKey);
-                RsaUtils.RSADispose(rsaPublicKey);
-                if (!result && throwOnError)
-                {
-                    throw new CryptographicException("The public/private key pair in the certficates do not match.");
-                }
-            }
-            return result;
+            return X509PfxUtils.VerifyRSAKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
         }
 
         /// <summary>
@@ -519,6 +477,8 @@ namespace Opc.Ua.Security.Certificates
             string password
             )
         {
+            return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password);
+#if mist
             Exception ex = null;
             int flagsRetryCounter = 0;
             X509Certificate2 certificate = null;
@@ -561,6 +521,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             return certificate;
+#endif
         }
 
         /// <summary>
