@@ -8,7 +8,11 @@
 // original code is located here:
 // https://github.com/dotnet/runtime/blob/master/src/libraries/System.Security.Cryptography.X509Certificates/src/System/Security/Cryptography/X509Certificates/X509SignatureGenerator.cs
 
-namespace System.Security.Cryptography.X509Certificates
+using System;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+
+namespace Opc.Ua.Security.Certificates
 {
     public abstract class X509SignatureGenerator
     {

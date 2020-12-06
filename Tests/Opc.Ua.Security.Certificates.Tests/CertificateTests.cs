@@ -99,9 +99,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             foreach (var keyHash in KeyHashPairs)
             {
                 var cert = builder
-                .SetHashAlgorithm(keyHash.HashAlgorithmName)
-                .SetRSAKeySize(keyHash.KeySize)
-                .CreateForRSA();
+                    .SetHashAlgorithm(keyHash.HashAlgorithmName)
+                    .SetRSAKeySize(keyHash.KeySize)
+                    .CreateForRSA();
                 Assert.NotNull(cert);
                 WriteCertificate(cert, $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature.");
                 Assert.AreEqual(keyHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
@@ -292,6 +292,30 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert, "Default cert with CA constraints None and CRL distribution points");
         }
 #endif
+
+        [Test]
+        public void CreateForRSAWithGeneratorTest(
+            //KeyHashPair keyHashPair
+            )
+        {
+            // default cert with custom key
+            X509Certificate2 signingCert = new CertificateBuilder(Subject)
+                .SetCAConstraint()
+                .CreateForRSA();
+            WriteCertificate(signingCert, $"Signing RSA {signingCert.GetRSAPublicKey().KeySize} cert");
+
+            using (RSA rsa = signingCert.GetRSAPrivateKey())
+            {
+                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                var cert = new CertificateBuilder("CN=App Cert")
+                    .CreateForRSA(generator);
+                Assert.NotNull(cert);
+                WriteCertificate(cert, $"Default signed RSA cert");
+            }
+
+            //Assert.AreEqual(Defaults.RSAKeySize, cert.GetRSAPublicKey().KeySize);
+            //Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+        }
         #endregion
 
         #region Private Methods

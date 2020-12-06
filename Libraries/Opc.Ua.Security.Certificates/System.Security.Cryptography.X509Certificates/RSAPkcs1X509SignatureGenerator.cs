@@ -8,11 +8,13 @@
 // original code is located here:
 // https://github.com/dotnet/runtime/blob/master/src/libraries/System.Security.Cryptography.X509Certificates/src/System/Security/Cryptography/X509Certificates/RSAPkcs1X509SignatureGenerator.cs
 
+using System;
 using System.Diagnostics;
 using System.Formats.Asn1;
-using Opc.Ua.Security.Certificates;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
-namespace System.Security.Cryptography.X509Certificates
+namespace Opc.Ua.Security.Certificates
 {
     internal sealed class RSAPkcs1X509SignatureGenerator : X509SignatureGenerator
     {
