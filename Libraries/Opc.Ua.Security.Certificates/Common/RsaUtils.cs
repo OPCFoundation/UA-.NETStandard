@@ -10,11 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if !NETSTANDARD2_1
 using System;
 using System.Security.Cryptography;
 
-namespace Opc.Ua.Security.Certificates.BouncyCastle
+namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
     /// Defines internal helper functions to implement RSA cryptography.
@@ -56,4 +55,3 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
     }
 }
-#endif

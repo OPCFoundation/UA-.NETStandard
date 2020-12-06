@@ -133,7 +133,7 @@ namespace Opc.Ua
         /// Return the Certificate builder with X509 Subject Alt Name extension
         /// to create the certificate.
         /// </returns>
-        public static CertificateBuilder CreateCertificate(
+        public static ICertificateBuilder CreateCertificate(
             string applicationUri,
             string applicationName,
             string subjectName,
@@ -227,9 +227,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Revoke the certificate. 
-        /// The CRL number is increased by one and the new CRL is returned.
+        /// Revoke the certificates. 
         /// </summary>
+        /// <remarks>
+        /// Merge all existing revoked certificates from CRL list.
+        /// Add serialnumbers of new revoked certificates.
+        /// The CRL number is increased by one and the new CRL is returned.
+        /// </remarks>
         public static X509CRL RevokeCertificate(
             X509Certificate2 issuerCertificate,
             List<X509CRL> issuerCrls,
@@ -410,7 +414,7 @@ namespace Opc.Ua
             try
             {
                 rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
-                byte[] pfxData = CertificateBuilder.CreatePfxWithPrivateKey(
+                byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
                     certificate, certificate.FriendlyName, rsaPrivateKey, passcode);
                 return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
             }
@@ -436,7 +440,7 @@ namespace Opc.Ua
             }
 
             string passcode = Guid.NewGuid().ToString();
-            byte[] pfxData = CertificateBuilder.CreatePfxWithPrivateKey(
+            byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
                 certificate, certificate.FriendlyName, privateKey, passcode);
             return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
         }
@@ -475,7 +479,7 @@ namespace Opc.Ua
             byte[] publicKey = null,
             int pathLengthConstraint = 0)
         {
-            CertificateBuilder builder = null;
+            ICertificateBuilder builder = null;
             if (isCA)
             {
                 builder = CreateCertificate(subjectName);
@@ -495,20 +499,24 @@ namespace Opc.Ua
             {
                 builder.SetCAConstraint(pathLengthConstraint);
             }
+            ICertificateBuilderCreateForRSA createBuilder;
             if (issuerCAKeyCert != null)
             {
+                var issuerBuilder = builder.SetIssuer(issuerCAKeyCert);
                 if (publicKey != null)
                 {
-                    builder.SetIssuer(issuerCAKeyCert);
-                    builder.SetRSAPublicKey(publicKey);
+                    createBuilder = issuerBuilder.SetRSAPublicKey(publicKey);
                 }
                 else
                 {
-                    builder.SetIssuer(issuerCAKeyCert);
+                    createBuilder = issuerBuilder.SetRSAKeySize(keySize);
                 }
             }
-            builder.SetRSAKeySize(keySize);
-            return builder.CreateForRSA();
+            else
+            {
+                createBuilder = builder.SetRSAKeySize(keySize);
+            }
+            return createBuilder.CreateForRSA();
         }
         #endregion
 

@@ -461,17 +461,8 @@ namespace Opc.Ua.Configuration
             {
                 string message = Utils.Format(
                     "Error validating certificate. Exception: {0}. Use certificate anyway?", ex.Message);
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -485,17 +476,8 @@ namespace Opc.Ua.Configuration
                     keySize,
                     minimumKeySize);
 
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -515,18 +497,8 @@ namespace Opc.Ua.Configuration
             if (String.IsNullOrEmpty(applicationUri))
             {
                 string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
-
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -606,17 +578,12 @@ namespace Opc.Ua.Configuration
 
                 valid = false;
 
-                if (!silent && MessageDlg != null)
+                if (await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (await MessageDlg.ShowAsync())
-                    {
-                        valid = true;
-                        continue;
-                    }
+                    valid = true;
+                    continue;
                 }
 
-                Utils.Trace(message);
                 break;
             }
 
@@ -662,6 +629,8 @@ namespace Opc.Ua.Configuration
                 configuration.ApplicationName,
                 id.SubjectName,
                 serverDomainNames)
+                .SetLifeTime(lifeTimeInMonths)
+                .SetRSAKeySize(keySize)
                 .CreateForRSA()
                 .AddToStore(
                     id.StoreType,
@@ -806,6 +775,26 @@ namespace Opc.Ua.Configuration
             catch (Exception e)
             {
                 Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
+            }
+        }
+
+        /// <summary>
+        /// Show a message for approval and return result.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="silent"></param>
+        /// <returns>True if approved, false otherwise.</returns>
+        private static async Task<bool> ApproveMessage(string message, bool silent)
+        {
+            if (!silent && MessageDlg != null)
+            {
+                MessageDlg.Message(message, true);
+                return await MessageDlg.ShowAsync();
+            }
+            else
+            {
+                Utils.Trace(message);
+                return false;
             }
         }
         #endregion

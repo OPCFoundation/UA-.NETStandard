@@ -76,15 +76,11 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
                     {
-                        using (RSA rsa = certificate.GetRSAPublicKey())
+                        if (X509Utils.GetRSAPublicKeySize(certificate) != Configuration.CACertificateKeySize)
                         {
-                            if (rsa.KeySize != Configuration.CACertificateKeySize)
-                            {
-                                continue;
-                            }
-
-                            // TODO check hash size
+                            continue;
                         }
+                        // TODO check hash size
 
                         if (Certificate != null)
                         {

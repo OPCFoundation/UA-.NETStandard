@@ -87,8 +87,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             var cert = CertificateFactory.CreateCertificate(app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
-                .SetRSAKeySize(keyHashPair.KeySize)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
+                .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
@@ -184,18 +184,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = 1;
             var issuerCertificate = CertificateFactory.CreateCertificate(subject)
-                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
                 .SetLifeTime(TimeSpan.FromDays(180))
                 .SetHashAlgorithm((keyHashPair.HashAlgorithmName == HashAlgorithmName.SHA1) ? HashAlgorithmName.SHA256 : keyHashPair.HashAlgorithmName)
                 .SetCAConstraint(pathLengthConstraint)
+                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
                 .CreateForRSA();
             Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
 
             var otherIssuerCertificate = CertificateFactory.CreateCertificate(subject)
-                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
                 .SetLifeTime(TimeSpan.FromDays(180))
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetCAConstraint(pathLengthConstraint)
+                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
                 .CreateForRSA();
             Assert.True(X509Utils.VerifySelfSigned(otherIssuerCertificate));
 
@@ -203,8 +203,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             for (int i = 0; i < 10; i++)
             {
                 var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}")
-                    .SetRSAKeySize(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048)
                     .SetIssuer(issuerCertificate)
+                    .SetRSAKeySize(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048)
                     .CreateForRSA();
                 revokedCerts.Add(cert);
                 Assert.False(X509Utils.VerifySelfSigned(cert));

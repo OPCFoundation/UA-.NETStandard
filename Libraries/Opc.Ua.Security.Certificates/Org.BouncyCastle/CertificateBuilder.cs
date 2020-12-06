@@ -53,14 +53,14 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Builds a Certificate.
     /// </summary>
-    public class CertificateBuilder : IX509Certificate
+    public class CertificateBuilder : CertificateBuilderBase
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
         public CertificateBuilder(X500DistinguishedName subjectName)
-            : this()
+            : base(subjectName)
         {
             m_subjectName = subjectName;
         }
@@ -69,53 +69,13 @@ namespace Opc.Ua.Security.Certificates
         /// Initialize a Certificate builder.
         /// </summary>
         public CertificateBuilder(string subjectName)
-            : this()
+            : base(subjectName)
         {
             m_subjectName = new X500DistinguishedName(subjectName);
         }
+        #endregion
 
-        /// <summary>
-        /// Default constructor.
-        /// </summary>
-        private CertificateBuilder()
-        {
-            m_keySize = 0;
-            m_rsaPublicKey = null;
-            m_notBefore = DateTime.UtcNow.AddDays(-1).Date;
-            m_notAfter = NotBefore.AddMonths(Defaults.LifeTime);
-            m_hashAlgorithmName = Defaults.HashAlgorithmName;
-            m_serialNumberLength = Defaults.SerialNumberLengthMin;
-            m_extensions = new List<X509Extension>();
-        }
-#endregion
-
-#region ICertificate Interface
-        /// <inheritdoc/>
-        public X500DistinguishedName SubjectName => m_subjectName;
-
-        /// <inheritdoc/>
-        public X500DistinguishedName IssuerName => m_issuerName;
-
-        /// <inheritdoc/>
-        public DateTime NotBefore => m_notBefore;
-
-        /// <inheritdoc/>
-        public DateTime NotAfter => m_notAfter;
-
-        /// <inheritdoc/>
-        public string SerialNumber => m_serialNumber.ToHexString(true);
-
-        /// <inheritdoc/>
-        public byte[] GetSerialNumber() { return m_serialNumber; }
-
-        /// <inheritdoc/>
-        public HashAlgorithmName HashAlgorithmName => m_hashAlgorithmName;
-
-        /// <inheritdoc/>
-        public IReadOnlyList<X509Extension> Extensions => m_extensions.AsReadOnly();
-#endregion
-
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// Create the RSA certificate with a given public key.
         /// </summary>
@@ -218,77 +178,31 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        public override X509Certificate2 CreateForRSA()
+        {
+            if (HasPublicKey)
+            {
+                return CreateForRSAWithPublicKey();
+            }
+            else
+            {
+                string passcode = Guid.NewGuid().ToString();
+                return null; // X509Utils.CreateCertificateFromPKCS12(builder.CreatePfxForRSA(passcode), passcode);
+            }
+        }
+
+        public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Provide the information if a public key has been set.
         /// </summary>
         public bool HasPublicKey => m_rsaPublicKey != null;
 
-        public CertificateBuilder SetSerialNumberLength(int length)
-        {
-            if (length > Defaults.SerialNumberLengthMax || length == 0)
-            {
-                throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
-            }
-            m_serialNumberLength = length;
-            m_presetSerial = false;
-            return this;
-        }
 
-        public CertificateBuilder SetSerialNumber(byte[] serialNumber)
-        {
-            if (serialNumber.Length > Defaults.SerialNumberLengthMax ||
-                serialNumber.Length == 0)
-            {
-                throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
-            }
-            serialNumber[0] &= 0x7f;
-            m_serialNumber = serialNumber;
-            m_serialNumberLength = serialNumber.Length;
-            m_presetSerial = true;
-            return this;
-        }
-
-        public CertificateBuilder CreateSerialNumber()
-        {
-            NewSerialNumber();
-            m_presetSerial = true;
-            return this;
-        }
-
-        public CertificateBuilder SetNotBefore(DateTime notBefore)
-        {
-            m_notBefore = notBefore;
-            return this;
-        }
-
-        public CertificateBuilder SetNotAfter(DateTime notAfter)
-        {
-            m_notAfter = notAfter;
-            return this;
-        }
-
-        public CertificateBuilder SetLifeTime(TimeSpan lifeTime)
-        {
-            m_notAfter = m_notBefore.Add(lifeTime);
-            return this;
-        }
-
-        public CertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
-        {
-            if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
-            m_hashAlgorithmName = hashAlgorithmName;
-            return this;
-        }
-
-        public CertificateBuilder SetCAConstraint(int pathLengthConstraint = -1)
-        {
-            m_isCA = true;
-            m_pathLengthConstraint = pathLengthConstraint;
-            m_serialNumberLength = Defaults.SerialNumberLengthMax;
-            return this;
-        }
-
-        public CertificateBuilder SetRSAPublicKey(byte[] publicKey)
+        public override ICertificateBuilderCreateForRSA SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             try
@@ -305,42 +219,16 @@ namespace Opc.Ua.Security.Certificates
             }
             catch (Exception e)
             {
-                m_rsaPublicKey = null;
                 throw new ArgumentException("Failed to decode and import the public key.", e);
             }
             return this;
         }
 
-        public CertificateBuilder SetRSAPublicKey(RSA publicKey)
-        {
-            if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
-            m_rsaPublicKey = publicKey;
-            return this;
-        }
-
-        public CertificateBuilder SetRSAKeySize(int keySize)
-        {
-            if (keySize % 1024 != 0 || keySize < Defaults.RSAKeySizeMin || keySize > Defaults.RSAKeySizeMax)
-            {
-                throw new ArgumentException(nameof(keySize), "KeySize must be a multiple of 1024 or is not in the allowed range.");
-            }
-            m_keySize = keySize;
-            return this;
-        }
-
-        public CertificateBuilder SetIssuer(X509Certificate2 issuerCertificate)
+        public override ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
             if (issuerCertificate == null) throw new ArgumentNullException(nameof(issuerCertificate));
             m_issuerCAKeyCert = issuerCertificate;
             m_issuerName = issuerCertificate.SubjectName;
-            // the issuer may have a different key algorithm, enforce to create a new public key
-            m_rsaPublicKey = null;
-            return this;
-        }
-
-        public CertificateBuilder AddExtension(X509Extension extension)
-        {
-            m_extensions.Add(extension);
             return this;
         }
 
@@ -348,7 +236,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create a Pfx with a private key by combining 
         /// an existing X509Certificate2 and a RSA private key.
         /// </summary>
-        public static byte[] CreatePfxWithPrivateKey(
+        public static byte[] CreatePfxWithRSAPrivateKey(
             X509Certificate2 certificate,
             string friendlyName,
             RSA privateKey,
@@ -447,9 +335,9 @@ namespace Opc.Ua.Security.Certificates
                 return pkcs10CertificationRequest.GetEncoded();
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Create a new serial number and validate lifetime.
         /// </summary>
@@ -462,18 +350,7 @@ namespace Opc.Ua.Security.Certificates
             }
             m_presetSerial = false;
 
-            // lifetime must be in range of issuer
-            if (m_issuerCAKeyCert != null)
-            {
-                if (NotAfter > m_issuerCAKeyCert.NotAfter)
-                {
-                    m_notAfter = m_issuerCAKeyCert.NotAfter;
-                }
-                if (NotBefore < m_issuerCAKeyCert.NotBefore)
-                {
-                    m_notBefore = m_issuerCAKeyCert.NotBefore;
-                }
-            }
+            ValidateSettings();
         }
 
         /// <summary>
@@ -582,42 +459,26 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create a new random serial number.
         /// </summary>
-        private void NewSerialNumber(IRandomGenerator random = null)
+        private void NewSerialNumber(IRandomGenerator random)
         {
             m_serialNumber = new byte[m_serialNumberLength];
-            if (random != null)
-            {
-                random.NextBytes(m_serialNumber);
-            }
-            else
-            {
-                using (var tempRandom = new CertificateFactoryRandomGenerator())
-                {
-                    tempRandom.NextBytes(m_serialNumber);
-                }
-            }
+            random.NextBytes(m_serialNumber);
             m_serialNumber[0] &= 0x7f;
         }
-#endregion
 
-#region Private Fields
-        private List<X509Extension> m_extensions;
-        private bool m_isCA;
-        private int m_pathLengthConstraint;
-        private int m_serialNumberLength;
-        private bool m_presetSerial;
-        private RSA m_rsaPublicKey;
-        private int m_keySize;
-        private X509Certificate2 m_issuerCAKeyCert;
+        protected override void NewSerialNumber()
+        {
+            using (var random = new CertificateFactoryRandomGenerator())
+            {
+                NewSerialNumber(random);
+            }
+        }
+        #endregion
+
+        #region Private Fields
         private X509Name m_issuerDN;
         private X509Name m_subjectDN;
-        private DateTime m_notBefore;
-        private DateTime m_notAfter;
-        private byte[] m_serialNumber;
-        private HashAlgorithmName m_hashAlgorithmName;
-        private X500DistinguishedName m_subjectName;
-        private X500DistinguishedName m_issuerName;
-#endregion
+        #endregion
     }
 }
 #endif

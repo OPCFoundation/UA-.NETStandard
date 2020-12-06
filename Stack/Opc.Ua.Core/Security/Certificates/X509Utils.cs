@@ -506,7 +506,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 return false;
             }
-            return true;
         }
 
         /// <summary>

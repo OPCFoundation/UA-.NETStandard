@@ -30,7 +30,6 @@
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -80,7 +79,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// A collection of X509 extensions.
         /// </summary>
-        IReadOnlyList<X509Extension> Extensions { get; }
+        X509ExtensionCollection Extensions { get; }
     }
 }
 
