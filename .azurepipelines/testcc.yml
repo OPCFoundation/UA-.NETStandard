@@ -39,7 +39,7 @@ jobs:
       projects: '**/*.Tests.csproj'
       arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
-      bash <(curl -s https://codecov.io/bash) -v
+      bash <(curl -s https://codecov.io/bash)
 
     continueOnError: true
     condition: ne( variables['CODECOV_TOKEN'], '')
