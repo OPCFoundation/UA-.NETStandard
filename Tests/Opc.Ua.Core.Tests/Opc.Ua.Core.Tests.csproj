@@ -26,12 +26,4 @@
     <ProjectReference Include="..\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="Portable.BouncyCastle" Version="1.8.8" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
-    <PackageReference Include="Portable.BouncyCastle" Version="1.8.8" />
-  </ItemGroup>
-
 </Project>
