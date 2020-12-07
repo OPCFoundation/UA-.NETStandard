@@ -35,19 +35,46 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
+    /// <summary>
+    /// Describes the three required fields of a X509 Certificate and CRL.
+    /// </summary>
     public class X509Signature
     {
+        /// <summary>
+        /// The field contains the ASN.1 data to be signed.
+        /// </summary>
         public byte[] Tbs { get; private set; }
+        /// <summary>
+        /// The signature of the data.
+        /// </summary>
         public byte[] Signature { get; private set; }
+        /// <summary>
+        /// The encoded signature algorithm that was used for signing.
+        /// </summary>
         public byte[] SignatureAlgorithmIdentifier { get; private set; }
+        /// <summary>
+        /// The signature algorithm as Oid string.
+        /// </summary>
         public string SignatureAlgorithm { get; private set; }
+        /// <summary>
+        /// The hash algorithm used for signing.
+        /// </summary>
         public HashAlgorithmName Name { get; private set; }
-
+        /// <summary>
+        /// Initialize and decode the sequence with binary ASN.1 encoded CRL or certificate.
+        /// </summary>
+        /// <param name="signedBlob"></param>
         public X509Signature(byte[] signedBlob)
         {
             Decode(signedBlob);
         }
 
+        /// <summary>
+        /// Initialize the X509 signature values.
+        /// </summary>
+        /// <param name="tbs">The data to be signed.</param>
+        /// <param name="signature">The signature of the data.</param>
+        /// <param name="signatureAlgorithmIdentifier">The algorithm used to create the signature.</param>
         public X509Signature(byte[] tbs, byte[] signature, byte[] signatureAlgorithmIdentifier)
         {
             Tbs = tbs;
@@ -93,6 +120,10 @@ namespace Opc.Ua.Security.Certificates
             return writer.Encode();
         }
 
+        /// <summary>
+        /// Decoder for the signature sequence.
+        /// </summary>
+        /// <param name="crl">The encoded CRL or certificate sequence.</param>
         private void Decode(byte[] crl)
         {
             try
@@ -180,6 +211,11 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Decode the algorithm that was used for encoding.
+        /// </summary>
+        /// <param name="oid">The ASN.1 encoded algorithm oid.</param>
+        /// <returns></returns>
         private string DecodeAlgorithm(byte [] oid)
         {
             var seqReader = new AsnReader(oid, AsnEncodingRules.DER);
@@ -188,7 +224,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Encode a ECDSA signature as ASN.1
+        /// Encode a ECDSA signature as ASN.1.
         /// </summary>
         /// <param name="signature"></param>
         private static byte[] EncodeECDSA(byte[] signature)

@@ -52,7 +52,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public const string Subject = "CN=Test Cert Subject";
 
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(Directory.EnumerateFiles("./Assets", "*.der")).ToArray();
+        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
 
         [DatapointSource]
         public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
@@ -130,7 +130,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(Defaults.RSAKeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
 
-            // set dates
+            // set dates and extension
             cert = CertificateBuilder.Create(Subject)
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
@@ -142,8 +142,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
 
-            // set hash algorithm
+            // set hash algorithm and extensions
             cert = CertificateBuilder.Create(Subject)
+                .SetLifeTime(TimeSpan.FromDays(1000))
+                .SetSerialNumberLength(Defaults.SerialNumberLengthMax - 1)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
@@ -151,6 +153,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert, $"Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} signature.");
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+
+            // create a CA cert
             cert = CertificateBuilder.Create(Subject)
                 .SetCAConstraint(-1)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)

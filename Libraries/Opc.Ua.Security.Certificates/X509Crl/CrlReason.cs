@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#pragma warning disable CS1591 // self describing enum values, suppress warning
+
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
