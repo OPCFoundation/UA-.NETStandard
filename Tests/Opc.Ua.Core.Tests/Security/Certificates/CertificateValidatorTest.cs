@@ -37,7 +37,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -665,7 +664,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify the PEM Writer, no password
         /// </summary>
-        [Test, Order(502)]
+        [Test, Order(520)]
         public void VerifyPemWriterPublicKeys()
         {
             // all app certs are trusted
@@ -684,7 +683,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify the PEM Writer, no password
         /// </summary>
-        [Test, Order(501)]
+        [Test, Order(530)]
         public void VerifyPemWriterRSAPrivateKeys()
         {
             // all app certs are trusted
@@ -704,7 +703,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify the PEM Writer, with password
         /// </summary>
-        [Test, Order(501)]
+        [Test, Order(540)]
         public void VerifyPemWriterPasswordPrivateKeys()
         {
             // all app certs are trusted
@@ -810,12 +809,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             TestUtils.CleanupTrustList(m_issuerStore, false);
             TestUtils.CleanupTrustList(m_trustedStore, false);
-        }
-
-        private byte[] GetPublicKey(X509Certificate2 certificate)
-        {
-            var rootBCCert = new X509CertificateParser().ReadCertificate(certificate.RawData);
-            return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(rootBCCert.GetPublicKey()).GetDerEncoded();
         }
         #endregion
 
