@@ -19,10 +19,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
-
+  
   <ItemGroup>
+    <PackageReference Include="Portable.BouncyCastle" Version="1.8.8" />
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj" />
   </ItemGroup>
 
 </Project>

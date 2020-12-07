@@ -19,7 +19,7 @@ jobs:
   steps:
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.4.x'
+      versionSpec: '>=5.8.x'
   - task: PowerShell@2
     displayName: Versioning
     inputs:
@@ -39,7 +39,7 @@ jobs:
       projects: '**/*.Tests.csproj'
       arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
-      bash <(curl -s https://codecov.io/bash)
+      bash <(curl -s https://codecov.io/bash) -v
 
     continueOnError: true
     condition: ne( variables['CODECOV_TOKEN'], '')

@@ -30,11 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Org.BouncyCastle.X509;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
@@ -82,7 +84,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             DateTime rootCABaseTime = DateTime.UtcNow;
             rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1);
             var rootCert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, "CN=Root CA Test Cert",
                 null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
                 pathLengthConstraint: -1);
@@ -90,7 +91,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_caChain[0] = rootCert;
             m_crlChain[0] = CertificateFactory.RevokeCertificate(rootCert, null, null);
             m_caDupeChain[0] = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, "CN=Root CA Test Cert",
                 null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
                 pathLengthConstraint: -1);
@@ -106,7 +106,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (hashSize > 256) { hashSize -= 128; }
                 var subject = $"CN=Sub CA {i} Test Cert";
                 var subCACert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     null, null, subject,
                     null, keySize, subCABaseTime, 5 * 12, hashSize, true,
                     signingCert, pathLengthConstraint: kCaChainCount - 1 - i);
@@ -114,7 +113,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 m_crlChain[i] = CertificateFactory.RevokeCertificate(subCACert, null, null, subCABaseTime, subCABaseTime + TimeSpan.FromDays(10));
                 var subCADupeCert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     null, null, subject,
                     null, keySize, subCABaseTime, 5 * 12, hashSize, true,
                     signingCert, pathLengthConstraint: kCaChainCount - 1 - i);
@@ -139,7 +137,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var subject = app.Subject;
                 var appCert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     app.ApplicationUri,
                     app.ApplicationName,
                     subject,
@@ -154,7 +151,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var subject = app.Subject;
                 var appCert = CertificateFactory.CreateCertificate(
-                    null, null, null,
                     app.ApplicationUri,
                     app.ApplicationName,
                     subject,
@@ -188,6 +184,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
         }
         #endregion
+
         #region Test Methods
         /// <summary>
         /// Verify self signed app certs are not trusted.
@@ -217,12 +214,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (i == kCaChainCount / 2)
                 {
-                    await m_trustedStore.Add(m_caChain[i]);
+                    await m_trustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                     m_trustedStore.AddCRL(m_crlChain[i]);
                 }
                 else
                 {
-                    await m_issuerStore.Add(m_caChain[i]);
+                    await m_issuerStore.Add(m_caChain[i]).ConfigureAwait(false);
                     m_issuerStore.AddCRL(m_crlChain[i]);
                 }
             }
@@ -247,8 +244,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CleanupValidatorAndStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    await m_issuerStore.Add(cert);
+                    await m_issuerStore.Add(cert).ConfigureAwait(false);
                 }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, m_issuerStore.Enumerate().Result.Count);
                 var certValidator = InitValidatorWithStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
@@ -260,8 +258,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CleanupValidatorAndStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    await m_trustedStore.Add(cert);
+                    await m_trustedStore.Add(cert).ConfigureAwait(false);
                 }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, m_trustedStore.Enumerate().Result.Count);
                 certValidator = InitValidatorWithStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
@@ -272,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CleanupValidatorAndStores();
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    await m_trustedStore.Add(cert);
+                    await m_trustedStore.Add(cert).ConfigureAwait(false);
                     await m_issuerStore.Add(cert);
                 }
                 certValidator = InitValidatorWithStores();
@@ -643,6 +642,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
         }
+
         /// <summary>
         /// Verify the PEM Writer, no password
         /// </summary>
@@ -652,12 +652,75 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // all app certs are trusted
             foreach (var appCert in m_appSelfSignedCerts)
             {
-                var pemDataBlob = CertificateFactory.ExportPrivateKeyAsPEM(appCert);
+                var pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
-                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob);
-                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, "password");
+                TestContext.Out.WriteLine(pemString);
+                CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob);
+                // note: password is ignored
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob, "password");
+                X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
             }
         }
+
+        /// <summary>
+        /// Verify the PEM Writer, no password
+        /// </summary>
+        [Test, Order(502)]
+        public void VerifyPemWriterPublicKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in m_appSelfSignedCerts)
+            {
+                var pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
+#if NETCOREAPP3_1
+                var exception = Assert.Throws<ArgumentException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
+#endif
+            }
+        }
+
+#if NETCOREAPP3_1
+        /// <summary>
+        /// Verify the PEM Writer, no password
+        /// </summary>
+        [Test, Order(501)]
+        public void VerifyPemWriterRSAPrivateKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in m_appSelfSignedCerts)
+            {
+                var pemDataBlob = PEMWriter.ExportRSAPrivateKeyAsPEM(appCert);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
+                var cert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob);
+                Assert.NotNull(cert);
+                // note: password is ignored
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert.RawData), pemDataBlob, "password");
+                X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
+            }
+        }
+
+        /// <summary>
+        /// Verify the PEM Writer, with password
+        /// </summary>
+        [Test, Order(501)]
+        public void VerifyPemWriterPasswordPrivateKeys()
+        {
+            // all app certs are trusted
+            foreach (var appCert in m_appSelfSignedCerts)
+            {
+                var password = Guid.NewGuid().ToString().Substring(0, 8);
+                TestContext.Out.WriteLine("Password: {0}", password);
+                var pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert, password);
+                var pemString = Encoding.UTF8.GetString(pemDataBlob);
+                TestContext.Out.WriteLine(pemString);
+                var newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob, password);
+                var exception = Assert.Throws<CryptographicException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
+                X509Utils.VerifyRSAKeyPair(newCert, newCert, true);
+            }
+        }
+#endif
 
         /// <summary>
         /// Verify self signed certs, not yet valid.
@@ -666,7 +729,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyNotBeforeInvalid(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, "App Test Cert", null,
                 null, CertificateFactory.DefaultKeySize,
                 DateTime.UtcNow + TimeSpan.FromDays(14), 12,
@@ -674,7 +736,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
             CleanupValidatorAndStores();
             if (trusted)
             {
@@ -696,15 +758,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task VerifyNotAfterInvalid(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(
-                null, null, null,
                 null, null, "CN=App Test Cert",
                 null, CertificateFactory.DefaultKeySize,
                 new DateTime(2010, 1, 1), 12,
                 CertificateFactory.DefaultHashSize);
+            TestContext.Out.WriteLine($"{cert}:");
             Assert.NotNull(cert);
             cert = new X509Certificate2(cert);
             Assert.NotNull(cert);
-            Assert.True(Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
+            Assert.True(X509Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
             CleanupValidatorAndStores();
             if (trusted)
             {
@@ -727,6 +789,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         });
 
         #endregion
+
         #region Private Methods
         private CertificateValidator InitValidatorWithStores()
         {
@@ -755,6 +818,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(rootBCCert.GetPublicKey()).GetDerEncoded();
         }
         #endregion
+
         #region Private Fields
         private const int kCaChainCount = 4;
         private const int kGoodApplicationsTestCount = 10;

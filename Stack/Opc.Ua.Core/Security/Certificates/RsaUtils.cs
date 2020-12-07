@@ -41,6 +41,7 @@ namespace Opc.Ua
             throw new ServiceResultException("Invalid Padding");
         }
         #endregion
+
         #region Public Methods
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
@@ -383,7 +384,6 @@ namespace Opc.Ua
                 return false;
             }
         }
-
         /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
@@ -417,6 +417,6 @@ namespace Opc.Ua
                 rsa.Dispose();
             }
         }
-        #endregion
+#endregion
     }
 }

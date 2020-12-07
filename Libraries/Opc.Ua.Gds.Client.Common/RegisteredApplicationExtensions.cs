@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -151,7 +152,7 @@ namespace Opc.Ua.Gds.Client
 
             if (certificate != null)
             {
-                var names = Utils.GetDomainsFromCertficate(certificate);
+                var names = X509Utils.GetDomainsFromCertficate(certificate);
 
                 if (names != null && names.Count > 0)
                 {
@@ -159,7 +160,7 @@ namespace Opc.Ua.Gds.Client
                     return domainNames;
                 }
 
-                var fields = Utils.ParseDistinguishedName(certificate.Subject);
+                var fields = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                 string name = null;
 

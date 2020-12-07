@@ -37,6 +37,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 using OpcUa = Opc.Ua;
 
@@ -77,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
             RegisterPushServerApplication(_pushClient.PushClient.EndpointUrl);
 
             _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
-            _domainNames = Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
+            _domainNames = X509Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
 
             CreateCATestCerts(_pushClient.TempStorePath);
         }
@@ -205,7 +207,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
             Assert.Greater(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
-            Assert.That(() => { _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, false); }, Throws.Exception);
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, false); });
+            Assert.AreEqual(StatusCodes.BadInvalidArgument, serviceResultException.StatusCode, serviceResultException.Message);
             TrustListDataType afterRemoveTrustList = _pushClient.PushClient.ReadTrustList();
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
             _pushClient.PushClient.RemoveCertificate(_caCert.Thumbprint, true);
@@ -256,6 +259,9 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(402)]
         public void CreateSigningRequestRsaMinNullParms()
         {
+#if NETSTANDARD2_1
+            Assert.Ignore("SHA1 not supported on .NET Standard 2.1.");
+#endif
             ConnectPushClient(true);
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType, null, false, null); }, Throws.Exception);
         }
@@ -304,7 +310,7 @@ namespace Opc.Ua.Gds.Tests
             using (X509Certificate2 invalidCert = CertificateFactory.CreateCertificate(null, null, null, "uri:x:y:z", "TestApp", "CN=Push Server Test", null, 2048, DateTime.UtcNow, 1, 256))
             using (X509Certificate2 serverCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate))
             {
-                if (!Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
+                if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
                 {
                     Assert.Ignore("Server has no self signed cert in use.");
                 }
@@ -426,9 +432,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             X509Certificate2 newCert = CertificateFactory.CreateCertificate(
-                null,
-                null,
-                null,
+                null, null, null,
                 _applicationRecord.ApplicationUri,
                 _applicationRecord.ApplicationNames[0].Text,
                 _selfSignedServerCert.Subject,
@@ -447,7 +451,7 @@ namespace Opc.Ua.Gds.Tests
             else if (keyFormat == "PEM")
             {
                 Assert.IsTrue(newCert.HasPrivateKey);
-                privateKey = CertificateFactory.ExportPrivateKeyAsPEM(newCert);
+                privateKey = PEMWriter.ExportPrivateKeyAsPEM(newCert);
             }
             else
             {
@@ -812,9 +816,7 @@ namespace Opc.Ua.Gds.Tests
 
             string subjectName = "CN=CA Test Cert, O=OPC Foundation";
             X509Certificate2 newCACert = CertificateFactory.CreateCertificate(
-                CertificateStoreType.Directory,
-                tempStorePath,
-                null,
+                CertificateStoreType.Directory, tempStorePath, null,
                 null,
                 null,
                 subjectName,
@@ -823,14 +825,12 @@ namespace Opc.Ua.Gds.Tests
                 DateTime.UtcNow,
                 CertificateFactory.DefaultLifeTime,
                 CertificateFactory.DefaultHashSize,
-                true,
-                null,
-                null);
+                true);
 
             _caCert = newCACert;
 
             // initialize cert revocation list (CRL)
-            X509CRL newCACrl = CertificateFactory.RevokeCertificateAsync(tempStorePath, newCACert).Result;
+            X509CRL newCACrl = CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert).Result;
 
             _caCrl = newCACrl;
         }
