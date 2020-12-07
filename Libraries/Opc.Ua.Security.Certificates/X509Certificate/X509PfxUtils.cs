@@ -18,9 +18,16 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
+    /// <summary>
+    /// Utilities to create a Pfx.
+    /// </summary>
     public static class X509PfxUtils
     {
+        /// <summary>
+        /// The size of the block used to test a sign or encrypt operation.
+        /// </summary>
         public const int TestBlockSize = 0x20;
+
         /// <summary>
         /// Return the key usage flags of a certificate.
         /// </summary>

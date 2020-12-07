@@ -7,6 +7,7 @@
 // a gap in the .NET 4.6 and the .NET Core 2.x runtime implementations.
 // original code is located here:
 // https://github.com/dotnet/runtime/blob/master/src/libraries/System.Security.Cryptography.X509Certificates/src/System/Security/Cryptography/X509Certificates/X509SignatureGenerator.cs
+#pragma warning disable CS1591 // Suppress missing XML comments to preserve original code
 
 using System;
 using System.Security.Cryptography;

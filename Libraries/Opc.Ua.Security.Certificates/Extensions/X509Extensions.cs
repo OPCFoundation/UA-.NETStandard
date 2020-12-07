@@ -36,6 +36,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
+    /// <summary>
+    /// Supporting functions for X509 extensions.
+    /// </summary>
     public static class X509Extensions
     {
         /// <summary>

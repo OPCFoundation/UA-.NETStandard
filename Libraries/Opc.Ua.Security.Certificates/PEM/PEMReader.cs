@@ -41,6 +41,9 @@ using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Opc.Ua.Security.Certificates
 {
+    /// <summary>
+    /// Methods or read PEM data.
+    /// </summary>
     public static class PEMReader
     {
         #region Public Methods

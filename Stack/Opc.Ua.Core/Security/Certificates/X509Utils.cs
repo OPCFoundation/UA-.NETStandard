@@ -22,6 +22,9 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Utility functions for X509 certificates.
+    /// </summary>
     public static class X509Utils
     {
         /// <summary>

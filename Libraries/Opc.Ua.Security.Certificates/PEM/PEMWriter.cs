@@ -42,6 +42,9 @@ using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace Opc.Ua.Security.Certificates
 {
+    /// <summary>
+    /// Write certificate data in PEM format.
+    /// </summary>
     public static class PEMWriter
     {
         #region Public Methods

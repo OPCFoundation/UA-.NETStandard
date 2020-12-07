@@ -42,7 +42,7 @@ namespace Opc.Ua.Security.Certificates
     {
         #region Constructors
         /// <summary>
-        /// Initialize a Certificate builder.
+        /// Create a Certificate builder.
         /// </summary>
         public static ICertificateBuilder Create(X500DistinguishedName subjectName)
         {
@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Initialize a Certificate builder.
+        /// Create a Certificate builder.
         /// </summary>
         public static ICertificateBuilder Create(string subjectName)
         {
@@ -58,7 +58,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Initialize a Certificate builder.
+        /// Constructor of a Certificate builder.
         /// </summary>
         private CertificateBuilder(X500DistinguishedName subjectName)
             : base(subjectName)
@@ -66,7 +66,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Initialize a Certificate builder.
+        /// Constructor of a Certificate builder.
         /// </summary>
         private CertificateBuilder(string subjectName)
             : base(subjectName)
@@ -75,10 +75,7 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Create the RSA certificate with signature.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
 
@@ -101,7 +98,7 @@ namespace Opc.Ua.Security.Certificates
             var padding = RSASignaturePadding.Pkcs1;
             var request = new CertificateRequest(SubjectName, rsaPublicKey, HashAlgorithmName, padding);
 
-            CreateExtensions(request);
+            CreateX509Extensions(request);
 
             X509Certificate2 signedCert;
             var serialNumber = m_serialNumber.Reverse().ToArray();
@@ -133,10 +130,7 @@ namespace Opc.Ua.Security.Certificates
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
         }
 
-        /// <summary>
-        /// Create the RSA certificate with signature.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
         {
 
@@ -157,7 +151,7 @@ namespace Opc.Ua.Security.Certificates
 
             var request = new CertificateRequest(SubjectName, rsaPublicKey, HashAlgorithmName, RSASignaturePadding.Pkcs1);
 
-            CreateExtensions(request);
+            CreateX509Extensions(request);
 
             X509Certificate2 signedCert;
 
@@ -173,10 +167,7 @@ namespace Opc.Ua.Security.Certificates
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
         }
 
-        /// <summary>
-        /// Create the RSA certificate with signature.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public override X509Certificate2 CreateForECDsa()
         {
             if (m_ecdsaPublicKey != null && m_issuerCAKeyCert == null)
@@ -201,7 +192,7 @@ namespace Opc.Ua.Security.Certificates
 
             var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
 
-            CreateExtensions(request);
+            CreateX509Extensions(request);
 
             var serialNumber = m_serialNumber.Reverse().ToArray();
             if (m_issuerCAKeyCert != null)
@@ -230,10 +221,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        /// <summary>
-        /// Create the ECC certificate with signature using an external generator.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public override X509Certificate2 CreateForECDsa(X509SignatureGenerator generator)
         {
             if (m_issuerCAKeyCert == null)
@@ -258,7 +246,7 @@ namespace Opc.Ua.Security.Certificates
 
             var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
 
-            CreateExtensions(request);
+            CreateX509Extensions(request);
 
             X509Certificate2 signedCert = request.Create(
                 m_issuerCAKeyCert.SubjectName,
@@ -272,6 +260,7 @@ namespace Opc.Ua.Security.Certificates
             return (key == null) ? signedCert : signedCert.CopyWithPrivateKey(key);
         }
 
+        /// <inheritdoc/>
         public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
@@ -293,6 +282,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
+        /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
@@ -316,6 +306,9 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Create some defaults needed to build the certificate.
+        /// </summary>
         private void CreateDefaults()
         {
             if (!m_presetSerial)
@@ -327,7 +320,11 @@ namespace Opc.Ua.Security.Certificates
             ValidateSettings();
         }
 
-        private void CreateExtensions(CertificateRequest request)
+        /// <summary>
+        /// Create the X509 extensions to build the certificate.
+        /// </summary>
+        /// <param name="request"></param>
+        private void CreateX509Extensions(CertificateRequest request)
         {
 
             // Basic Constraints
@@ -391,6 +388,9 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Set the basic constraints for various cases.
+        /// </summary>
         private X509BasicConstraintsExtension GetBasicContraints()
         {
             // Basic constraints
@@ -409,7 +409,6 @@ namespace Opc.Ua.Security.Certificates
                 return new X509BasicConstraintsExtension(m_isCA, false, 0, true);
             }
         }
-
         #endregion
 
         #region Private Fields

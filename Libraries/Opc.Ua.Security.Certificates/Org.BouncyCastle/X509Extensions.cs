@@ -39,6 +39,9 @@ using X509Extension = System.Security.Cryptography.X509Certificates.X509Extensio
 
 namespace Opc.Ua.Security.Certificates.BouncyCastle
 {
+    /// <summary>
+    /// Helper functions for X509 extensions using Org.BouncyCastle.
+    /// </summary>
     public static class X509Extensions
     {
         /// <summary>

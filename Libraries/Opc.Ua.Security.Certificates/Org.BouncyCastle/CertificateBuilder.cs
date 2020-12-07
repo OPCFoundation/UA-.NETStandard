@@ -56,7 +56,7 @@ namespace Opc.Ua.Security.Certificates
     {
         #region Constructors
         /// <summary>
-        /// Initialize a Certificate builder.
+        /// Create a Certificate builder.
         /// </summary>
         public static ICertificateBuilder Create(X500DistinguishedName subjectName)
         {
@@ -64,7 +64,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Initialize a Certificate builder.
+        /// Create a Certificate builder.
         /// </summary>
         public static ICertificateBuilder Create(string subjectName)
         {
@@ -91,6 +91,7 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Public Methods
+        /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
             if (m_rsaPublicKey != null)
@@ -104,6 +105,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
+        /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
         {
             if (generator == null) throw new ArgumentNullException(nameof(generator));
@@ -119,7 +121,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-
+        /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
@@ -142,6 +144,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
+        /// <inheritdoc/>
         public override ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
             if (issuerCertificate == null) throw new ArgumentNullException(nameof(issuerCertificate));
@@ -303,8 +306,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create the extensions.
         /// </summary>
-        /// <param name="cg"></param>
-        /// <param name="subjectPublicKey"></param>
+        /// <param name="cg">The cert generator.</param>
+        /// <param name="subjectPublicKey">The public key to use for the extensions.</param>
         private void CreateExtensions(X509V3CertificateGenerator cg, AsymmetricKeyParameter subjectPublicKey)
         {
             // Subject key identifier

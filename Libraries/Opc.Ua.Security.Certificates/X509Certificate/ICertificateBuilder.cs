@@ -33,7 +33,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
-
+    /// <summary>
+    /// The certificate builder interface.
+    /// </summary>
     public interface ICertificateBuilder
         : ICertificateBuilderConfig
         , ICertificateBuilderSetIssuer

@@ -44,9 +44,12 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         public static readonly ushort RSAKeySize = 2048;
         /// <summary>
-        /// The min and max size for a RSA key.
+        /// The min supported size for a RSA key.
         /// </summary>
         public static readonly ushort RSAKeySizeMin = 1024;
+        /// <summary>
+        /// The max supported size for a RSA key.
+        /// </summary>
         public static readonly ushort RSAKeySizeMax = 4096;
         /// <summary>
         /// The default hash algorithm to use for signatures.
