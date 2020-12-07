@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -176,13 +177,19 @@ namespace Opc.Ua.Security.Certificates.Tests
     }
     #endregion
 
+    #region TestUtils
     /// <summary>
     /// Test helpers.
     /// </summary>
-    public static class Utils
+    public static class TestUtils
     {
 
-        #region Public Methods
+        public static string[] EnumerateTestAssets(string searchPattern)
+        {
+            var assetsPath = Opc.Ua.Utils.GetAbsoluteDirectoryPath("Assets", true, false, false);
+            return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
+        }
+
         public static string WriteCRL(X509CRL x509Crl)
         {
             var stringBuilder = new StringBuilder();
@@ -206,7 +213,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
             return stringBuilder.ToString();
         }
-        #endregion
     }
-
+    #endregion
 }

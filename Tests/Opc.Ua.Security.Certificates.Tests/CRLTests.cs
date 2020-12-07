@@ -48,7 +48,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         #region DataPointSources
         [DatapointSource]
-        public CRLAsset[] CRLTestCases = new AssetCollection<CRLAsset>(Directory.EnumerateFiles("./Assets", "*.crl")).ToArray();
+        public CRLAsset[] CRLTestCases = new AssetCollection<CRLAsset>(TestUtils.EnumerateTestAssets("*.crl")).ToArray();
         #endregion
 
         #region Test Setup

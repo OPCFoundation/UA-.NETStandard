@@ -814,6 +814,18 @@ namespace Opc.Ua
                         if (!directory.Exists)
                         {
                             directory = new DirectoryInfo(Utils.Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, dirPath));
+#if NETFRAMEWORK
+                            if (!directory.Exists)
+                            {
+                                var directory2 = new DirectoryInfo(Utils.Format("{0}{1}{2}",
+                                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                                    Path.DirectorySeparatorChar, dirPath));
+                                if (directory2.Exists)
+                                {
+                                    directory = directory2;
+                                }
+                            }
+#endif
                         }
                     }
 
