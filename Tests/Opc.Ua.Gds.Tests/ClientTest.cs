@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -111,9 +112,20 @@ namespace Opc.Ua.Gds.Tests
 
         #region Test Methods
         /// <summary>
+        /// Connect to the GDS server using all available security profiles.
+        /// </summary>
+        [Theory, Order(10)]
+        public void ConnectToServer(ConnectionProfile connectionProfile)
+        {
+            ConnectGDS(false, connectionProfile.SecurityProfileUri, connectionProfile.MessageSecurityMode);
+            Thread.Sleep(1000);
+            DisconnectGDS();
+        }
+
+        /// <summary>
         /// Clean the app database from application Uri used during test.
         /// </summary>
-        [Test, Order(10)]
+        [Test, Order(99)]
         public void CleanGoodApplications()
         {
             ConnectGDS(true);
@@ -1019,6 +1031,47 @@ namespace Opc.Ua.Gds.Tests
             _gdsClient.GDSClient.Disconnect();
         }
 
+        private static Uri GetDiscoveryUrl(string discoveryUrl)
+        {
+            // needs to add the '/discovery' back onto non-UA TCP URLs.
+            if (discoveryUrl.StartsWith(Utils.UriSchemeHttp))
+            {
+                if (!discoveryUrl.EndsWith("/discovery"))
+                {
+                    discoveryUrl += "/discovery";
+                }
+            }
+
+            // parse the selected URL.
+            return new Uri(discoveryUrl);
+        }
+
+        private void ConnectGDS(bool admin, string securityProfileUri, MessageSecurityMode securityMode)
+        {
+            var url = GetDiscoveryUrl(_gdsClient.GDSClient.EndpointUrl);
+
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            // Connect to the server's discovery endpoint and find the available configuration.
+            EndpointDescriptionCollection endpoints;
+            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
+            {
+                endpoints = client.GetEndpoints(null);
+            }
+            var endpointDescription = endpoints.Where(profile => (
+                profile.SecurityPolicyUri == securityProfileUri &&
+                profile.SecurityMode == securityMode)).FirstOrDefault();
+            if (endpointDescription == null)
+            {
+                Assert.Ignore($"The security profile {securityProfileUri}, {securityMode} is not supported by the GDS server.");
+            }
+            endpointConfiguration = EndpointConfiguration.Create(_gdsClient.Config);
+            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+            _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
+            _gdsClient.GDSClient.Connect(endpoint).Wait();
+        }
+
         private void AssertIgnoreTestWithoutGoodRegistration()
         {
             if (!_goodRegistrationOk)
@@ -1062,7 +1115,7 @@ namespace Opc.Ua.Gds.Tests
         private bool _goodRegistrationOk;
         private bool _invalidRegistrationOk;
         private bool _goodNewKeyPairRequestOk;
-        #endregion
+#endregion
     }
 
 }
