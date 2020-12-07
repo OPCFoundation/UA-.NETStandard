@@ -45,6 +45,7 @@ using Org.BouncyCastle.X509;
 using Opc.Ua.Security.Certificates.BouncyCastle;
 using System.Collections;
 using Org.BouncyCastle.Pkcs;
+using System.Diagnostics;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -57,7 +58,23 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilder(X500DistinguishedName subjectName)
+        public static ICertificateBuilder Create(X500DistinguishedName subjectName)
+        {
+            return new CertificateBuilder(subjectName);
+        }
+
+        /// <summary>
+        /// Initialize a Certificate builder.
+        /// </summary>
+        public static ICertificateBuilder Create(string subjectName)
+        {
+            return new CertificateBuilder(subjectName);
+        }
+
+        /// <summary>
+        /// Initialize a Certificate builder.
+        /// </summary>
+        private CertificateBuilder(X500DistinguishedName subjectName)
             : base(subjectName)
         {
             m_subjectName = subjectName;
@@ -66,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilder(string subjectName)
+        private CertificateBuilder(string subjectName)
             : base(subjectName)
         {
             m_subjectName = new X500DistinguishedName(subjectName);
@@ -76,7 +93,7 @@ namespace Opc.Ua.Security.Certificates
         #region Public Methods
         public override X509Certificate2 CreateForRSA()
         {
-            if (HasPublicKey)
+            if (m_rsaPublicKey != null)
             {
                 return CreateForRSAWithPublicKey();
             }
@@ -89,16 +106,21 @@ namespace Opc.Ua.Security.Certificates
 
         public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
         {
-            throw new NotImplementedException();
+            if (generator == null) throw new ArgumentNullException(nameof(generator));
+            ISignatureFactory signatureFactory = new X509SignatureFactory(HashAlgorithmName, generator);
+            if (m_rsaPublicKey != null)
+            {
+                return CreateForRSAWithPublicKey(signatureFactory);
+            }
+            else
+            {
+                string passcode = Guid.NewGuid().ToString();
+                return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode, signatureFactory), passcode);
+            }
         }
 
-        /// <summary>
-        /// Provide the information if a public key has been set.
-        /// </summary>
-        public bool HasPublicKey => m_rsaPublicKey != null;
 
-
-        public override ICertificateBuilderCreateForRSA SetRSAPublicKey(byte[] publicKey)
+        public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             try
@@ -238,7 +260,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create a new serial number and validate lifetime.
         /// </summary>
         /// <param name="random"></param>
-        private void CreateDefaults(IRandomGenerator random)
+        private void CreateDefaults(IRandomGenerator random = null)
         {
             if (!m_presetSerial)
             {
@@ -356,43 +378,37 @@ namespace Opc.Ua.Security.Certificates
         /// Create the RSA certificate with a given public key.
         /// </summary>
         /// <returns>The signed certificate.</returns>
-        private X509Certificate2 CreateForRSAWithPublicKey()
+        private X509Certificate2 CreateForRSAWithPublicKey(ISignatureFactory signatureFactory = null)
         {
-            if (m_rsaPublicKey == null)
+            Debug.Assert(m_rsaPublicKey != null, "Need a public key for the certificate.");
+            Debug.Assert(m_issuerCAKeyCert != null, "Need a issuer certificate to sign.");
+            if (!m_issuerCAKeyCert.HasPrivateKey && signatureFactory == null)
             {
-                throw new ArgumentException("Need a public key for the certificate.");
+                throw new ArgumentException("Need an issuer certificate with a private key or a signature generator.");
             }
 
-            if (m_issuerCAKeyCert == null || !m_issuerCAKeyCert.HasPrivateKey)
+            // cert generators
+            CreateDefaults();
+
+            var cg = new X509V3CertificateGenerator();
+            CreateMandatoryFields(cg);
+
+            // set public key
+            AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(m_rsaPublicKey);
+            cg.SetPublicKey(subjectPublicKey);
+
+            CreateExtensions(cg, subjectPublicKey);
+
+            // sign certificate by issuer
+            if (signatureFactory == null)
             {
-                throw new NotSupportedException("Cannot create cert with public key without a issuer certificate and a private key.");
-            }
-
-            using (var cfrg = new CertificateFactoryRandomGenerator())
-            {
-                // cert generators
-                CreateDefaults(cfrg);
-
-                var cg = new X509V3CertificateGenerator();
-                CreateMandatoryFields(cg);
-
-                // set public key
-                AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(m_rsaPublicKey);
-                cg.SetPublicKey(subjectPublicKey);
-
-                CreateExtensions(cg, subjectPublicKey);
-
-                // sign certificate by issuer
                 AsymmetricKeyParameter signingKey = X509Utils.GetPrivateKeyParameter(m_issuerCAKeyCert);
-
-                SecureRandom random = new SecureRandom(cfrg);
-                ISignatureFactory signatureFactory =
-                            new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey, random);
-                Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
-
-                // create the signed cert
-                return new X509Certificate2(x509.GetEncoded());
+                signatureFactory = new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey);
             }
+            Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
+
+            // create the signed cert
+            return new X509Certificate2(x509.GetEncoded());
         }
 
         /// <summary>
@@ -401,15 +417,19 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>
         /// Returns the Pfx with certificate and private key.
         /// </returns>
-        private byte[] CreatePfxForRSA(string passcode)
+        private byte[] CreatePfxForRSA(string passcode, ISignatureFactory signatureFactory = null)
         {
-            if (m_rsaPublicKey != null)
+            Debug.Assert(m_rsaPublicKey == null, "A public key is not supported for the certificate.");
+
+            if (signatureFactory != null && m_issuerCAKeyCert == null)
             {
-                throw new ArgumentException("Cannot use a public key without a issuer certificate with a private key.");
+                throw new ArgumentException("Need an issuer certificate for a signature generator.");
             }
-            if (m_issuerCAKeyCert != null && !m_issuerCAKeyCert.HasPrivateKey)
+
+            if (m_issuerCAKeyCert != null &&
+                (!m_issuerCAKeyCert.HasPrivateKey && signatureFactory == null))
             {
-                throw new ArgumentException("Need a issuer certificate with a private key.");
+                throw new ArgumentException("Need an issuer certificate with a private key or a signature generator.");
             }
 
             using (var cfrg = new CertificateFactoryRandomGenerator())
@@ -432,19 +452,22 @@ namespace Opc.Ua.Security.Certificates
                 CreateExtensions(cg, subjectPublicKey);
 
                 // sign certificate
-                AsymmetricKeyParameter signingKey;
-                if (m_issuerCAKeyCert != null)
+                if (signatureFactory == null)
                 {
-                    // signed by issuer
-                    signingKey = X509Utils.GetPrivateKeyParameter(m_issuerCAKeyCert);
+                    AsymmetricKeyParameter signingKey;
+                    if (m_issuerCAKeyCert != null)
+                    {
+                        // signed by issuer
+                        signingKey = X509Utils.GetPrivateKeyParameter(m_issuerCAKeyCert);
+                    }
+                    else
+                    {
+                        // self signed
+                        signingKey = subjectPrivateKey;
+                    }
+                    signatureFactory = new Asn1SignatureFactory(
+                        X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey, random);
                 }
-                else
-                {
-                    // self signed
-                    signingKey = subjectPrivateKey;
-                }
-                ISignatureFactory signatureFactory =
-                            new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey, random);
                 Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
 
                 // note: this Pfx has a private key!
@@ -457,24 +480,23 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void NewSerialNumber(IRandomGenerator random)
         {
-            m_serialNumber = new byte[m_serialNumberLength];
-            random.NextBytes(m_serialNumber);
-            m_serialNumber[m_serialNumberLength - 1] &= 0x7f;
-        }
-
-        protected override void NewSerialNumber()
-        {
-            using (var random = new CertificateFactoryRandomGenerator())
+            if (random == null)
             {
-                NewSerialNumber(random);
+                NewSerialNumber();
+            }
+            else
+            {
+                m_serialNumber = new byte[m_serialNumberLength];
+                random.NextBytes(m_serialNumber);
+                m_serialNumber[m_serialNumberLength - 1] &= 0x7f;
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private X509Name m_issuerDN;
         private X509Name m_subjectDN;
-#endregion
+        #endregion
     }
 }
 #endif

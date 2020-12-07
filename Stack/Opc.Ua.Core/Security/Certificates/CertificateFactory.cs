@@ -115,9 +115,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="subjectName">The subject of the certificate</param>
         /// <returns>Return the Certificate builder.</returns>
-        public static CertificateBuilder CreateCertificate(string subjectName)
+        public static ICertificateBuilder CreateCertificate(string subjectName)
         {
-            return new CertificateBuilder(subjectName);
+            return CertificateBuilder.Create(subjectName);
         }
 
         /// <summary>
@@ -143,7 +143,7 @@ namespace Opc.Ua
                 ref subjectName,
                 ref domainNames);
 
-            return new CertificateBuilder(subjectName)
+            return CertificateBuilder.Create(subjectName)
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames));
         }
 

@@ -49,10 +49,12 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderPublicKey
         , ICertificateBuilderRSAPublicKey
         , ICertificateBuilderCreateForRSA
+        , ICertificateBuilderCreateForRSAAny
 #if NETSTANDARD2_1
         , ICertificateBuilderCreateForECDsa
         , ICertificateBuilderECDsaPublicKey
         , ICertificateBuilderECCParameter
+        , ICertificateBuilderCreateForECDsaAny
 #endif
     {
         #region Constructors
@@ -226,7 +228,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        public virtual ICertificateBuilderCreateForRSA SetRSAKeySize(int keySize)
+        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize)
         {
             if (keySize == 0)
             {
@@ -250,24 +252,24 @@ namespace Opc.Ua.Security.Certificates
         }
 
 #if NETSTANDARD2_1
-        public virtual ICertificateBuilderCreateForECDsa SetECCurve(ECCurve curve)
+        public virtual ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve)
         {
             m_curve = curve;
             return this;
         }
 
-        public abstract ICertificateBuilderCreateForECDsa SetECDsaPublicKey(byte[] publicKey);
+        public abstract ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey);
 
-        public virtual ICertificateBuilderCreateForECDsa SetECDsaPublicKey(ECDsa publicKey)
+        public virtual ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(ECDsa publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             m_ecdsaPublicKey = publicKey;
             return this;
         }
 #endif
-        public abstract ICertificateBuilderCreateForRSA SetRSAPublicKey(byte[] publicKey);
+        public abstract ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey);
 
-        public virtual ICertificateBuilderCreateForRSA SetRSAPublicKey(RSA publicKey)
+        public virtual ICertificateBuilderCreateForRSAAny SetRSAPublicKey(RSA publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             m_rsaPublicKey = publicKey;
@@ -307,7 +309,14 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        protected abstract void NewSerialNumber();
+        protected virtual void NewSerialNumber()
+        {
+            // new serial number
+            var rnd = RandomNumberGenerator.Create();
+            m_serialNumber = new byte[m_serialNumberLength];
+            rnd.GetBytes(m_serialNumber);
+            m_serialNumber[m_serialNumberLength - 1] &= 0x7F;
+        }
         #endregion
 
         #region Protected Fields

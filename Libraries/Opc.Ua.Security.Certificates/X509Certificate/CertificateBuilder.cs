@@ -44,7 +44,23 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilder(X500DistinguishedName subjectName)
+        public static ICertificateBuilder Create(X500DistinguishedName subjectName)
+        {
+            return new CertificateBuilder(subjectName);
+        }
+
+        /// <summary>
+        /// Initialize a Certificate builder.
+        /// </summary>
+        public static ICertificateBuilder Create(string subjectName)
+        {
+            return new CertificateBuilder(subjectName);
+        }
+
+        /// <summary>
+        /// Initialize a Certificate builder.
+        /// </summary>
+        private CertificateBuilder(X500DistinguishedName subjectName)
             : base(subjectName)
         {
         }
@@ -52,7 +68,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilder(string subjectName)
+        private CertificateBuilder(string subjectName)
             : base(subjectName)
         {
         }
@@ -256,7 +272,7 @@ namespace Opc.Ua.Security.Certificates
             return (key == null) ? signedCert : signedCert.CopyWithPrivateKey(key);
         }
 
-        public override ICertificateBuilderCreateForECDsa SetECDsaPublicKey(byte[] publicKey)
+        public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             int bytes;
@@ -277,7 +293,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        public override ICertificateBuilderCreateForRSA SetRSAPublicKey(byte[] publicKey)
+        public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
             int bytes;
@@ -394,16 +410,6 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        /// <summary>
-        /// Create a new random serial number.
-        /// </summary>
-        protected override void NewSerialNumber()
-        {
-            // new serial number
-            m_serialNumber = new byte[m_serialNumberLength];
-            RandomNumberGenerator.Fill(m_serialNumber);
-            m_serialNumber[m_serialNumberLength - 1] &= 0x7F;
-        }
         #endregion
 
         #region Private Fields
