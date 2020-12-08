@@ -4,12 +4,13 @@
 parameters:
   configuration: 'Release'
   framework: 'netcoreapp3.1'
+  secondframework: 'netcoreapp2.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
   jobnamesuffix: 'netcore31'
 jobs:
 - job: testcc${{ parameters.jobnamesuffix }}
-  displayName: Run Code Coverage for ${{ parameters.agent }} (${{ parameters.framework }})
+  displayName: Coverage ${{ parameters.agent }} ${{ parameters.configuration }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -26,18 +27,31 @@ jobs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
-    displayName: Restore ${{ parameters.configuration }}
+    displayName: Restore ${{ parameters.framework }}
     inputs:
       command: restore
       projects: '**/*.Tests.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
-    displayName: Test ${{ parameters.configuration }}
+    displayName: Test ${{ parameters.framework }}
     timeoutInMinutes: 20
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
       arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+  - task: DotNetCoreCLI@2
+    displayName: Restore ${{ parameters.secondframework }}
+    inputs:
+      command: restore
+      projects: '**/*.Tests.csproj'
+      arguments: '--framework ${{ parameters.secondframework }} --configuration ${{ parameters.configuration }}'
+  - task: DotNetCoreCLI@2
+    displayName: Test ${{ parameters.secondframework }}
+    timeoutInMinutes: 20
+    inputs:
+      command: test
+      projects: '**/*.Tests.csproj'
+      arguments: '--no-restore --framework ${{ parameters.secondframework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 

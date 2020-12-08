@@ -355,8 +355,6 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                         .SetRSAKeySize(keyHashPair.KeySize)
                         .CreateForRSA(generator);
-                    Assert.NotNull(cert);
-                    WriteCertificate(cert, $"Default signed RSA cert");
                 }
             });
         }
