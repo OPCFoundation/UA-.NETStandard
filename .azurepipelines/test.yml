@@ -46,7 +46,7 @@ jobs:
     inputs:
       command: restore
       projects: '**/*.Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
+      arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20
