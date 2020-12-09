@@ -262,7 +262,7 @@ namespace Opc.Ua
                 }
             }
 
-            CrlBuilder crlBuilder = new CrlBuilder(issuerCertificate.SubjectName)
+            CrlBuilder crlBuilder = CrlBuilder.Create(issuerCertificate.SubjectName)
                 .AddRevokedCertificates(crlRevokedList.Values.ToList())
                 .SetThisUpdate(thisUpdate)
                 .SetNextUpdate(nextUpdate)

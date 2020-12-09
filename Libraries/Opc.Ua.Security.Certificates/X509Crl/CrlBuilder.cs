@@ -47,7 +47,35 @@ namespace Opc.Ua.Security.Certificates
         /// Create a CRL builder initialized with a decoded CRL.
         /// </summary>
         /// <param name="crl">The decoded CRL</param>
-        public CrlBuilder(IX509CRL crl)
+        public static CrlBuilder Create(IX509CRL crl)
+        {
+            return new CrlBuilder(crl);
+        }
+
+        /// <summary>
+        /// Initialize the CRL builder with Issuer.
+        /// </summary>
+        /// <param name="issuerSubjectName">Issuer name</param>
+        public static CrlBuilder Create(X500DistinguishedName issuerSubjectName)
+        {
+            return new CrlBuilder(issuerSubjectName);
+        }
+
+        /// <summary>
+        /// Initialize the CRL builder with Issuer and hash algorithm.
+        /// </summary>
+        /// <param name="issuerSubjectName">Issuer distinguished name</param>
+        /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
+        public static CrlBuilder Create(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        {
+            return new CrlBuilder(issuerSubjectName, hashAlgorithmName);
+        }
+
+        /// <summary>
+        /// Create a CRL builder initialized with a decoded CRL.
+        /// </summary>
+        /// <param name="crl">The decoded CRL</param>
+        private CrlBuilder(IX509CRL crl)
         {
             IssuerName = crl.IssuerName;
             HashAlgorithmName = crl.HashAlgorithmName;
@@ -66,7 +94,7 @@ namespace Opc.Ua.Security.Certificates
         /// Initialize the CRL builder with Issuer.
         /// </summary>
         /// <param name="issuerSubjectName">Issuer name</param>
-        public CrlBuilder(X500DistinguishedName issuerSubjectName)
+        private CrlBuilder(X500DistinguishedName issuerSubjectName)
             : this(issuerSubjectName, Defaults.HashAlgorithmName)
         {
         }
@@ -76,7 +104,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerSubjectName">Issuer distinguished name</param>
         /// <param name="hashAlgorithmName">The signing algorithm to use.</param>
-        public CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
+        private CrlBuilder(X500DistinguishedName issuerSubjectName, HashAlgorithmName hashAlgorithmName)
             : this()
         {
             IssuerName = issuerSubjectName;
@@ -208,7 +236,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="generator">The RSA or ECDsa signature generator to use.</param>
         /// <returns>The signed CRL.</returns>
-        public IX509CRL Create(X509SignatureGenerator generator)
+        public IX509CRL CreateSignature(X509SignatureGenerator generator)
         {
             var tbsRawData = Encode();
             var signatureAlgorithm = generator.GetSignatureAlgorithmIdentifier(HashAlgorithmName);
@@ -227,7 +255,7 @@ namespace Opc.Ua.Security.Certificates
             using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                return Create(generator);
+                return CreateSignature(generator);
             }
         }
 
@@ -241,7 +269,7 @@ namespace Opc.Ua.Security.Certificates
             using (ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
-                return Create(generator);
+                return CreateSignature(generator);
             }
         }
 #endif
