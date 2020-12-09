@@ -59,6 +59,25 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
+        /// Convert to and from little endian hex string.
+        /// </summary>
+        [Test]
+        public void ToHexEndianessValidation()
+        {
+            // definition as big endian 64,206(0xFACE) 
+            var bigEndian = new byte[] { 64206 / 256, 64206 % 256 };
+            // big endian is written as FA CE.
+            Assert.AreEqual("FACE", Utils.ToHexString(bigEndian, false));
+            // In Little Endian it's written as CE FA
+            Assert.AreEqual("CEFA", Utils.ToHexString(bigEndian, true));
+            // definition as little endian 64,206(0xFACE) 
+            var littleEndian = new byte[] { 64206 & 0xff, 64206 >> 8 };
+            // big endian is written as FA CE.
+            Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
+            // In Little Endian it's written as CE FA
+            Assert.AreEqual("CEFA", Utils.ToHexString(littleEndian, false));        }
+
+        /// <summary>
         /// Convert to big endian hex string.
         /// </summary>
         public void ToHexBigEndian()

@@ -175,7 +175,8 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Creates a certificate signing request from an existing certificate.
+        /// Creates a certificate signing request from an
+        /// existing certificate with a private key.
         /// </summary>
         public static byte[] CreateSigningRequest(
             X509Certificate2 certificate,
@@ -383,11 +384,12 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed certificate.</returns>
         private X509Certificate2 CreateForRSAWithPublicKey(ISignatureFactory signatureFactory = null)
         {
+            // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey != null, "Need a public key for the certificate.");
             Debug.Assert(m_issuerCAKeyCert != null, "Need a issuer certificate to sign.");
             if (!m_issuerCAKeyCert.HasPrivateKey && signatureFactory == null)
             {
-                throw new ArgumentException("Need an issuer certificate with a private key or a signature generator.");
+                throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }
 
             // cert generators
@@ -415,24 +417,25 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Create the RSA certificate as Pfx with private key.
+        /// Create the RSA certificate as Pfx byte array with a private key.
         /// </summary>
         /// <returns>
         /// Returns the Pfx with certificate and private key.
         /// </returns>
         private byte[] CreatePfxForRSA(string passcode, ISignatureFactory signatureFactory = null)
         {
+            // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey == null, "A public key is not supported for the certificate.");
 
             if (signatureFactory != null && m_issuerCAKeyCert == null)
             {
-                throw new ArgumentException("Need an issuer certificate for a signature generator.");
+                throw new NotSupportedException("Need an issuer certificate for a signature generator.");
             }
 
             if (m_issuerCAKeyCert != null &&
                 (!m_issuerCAKeyCert.HasPrivateKey && signatureFactory == null))
             {
-                throw new ArgumentException("Need an issuer certificate with a private key or a signature generator.");
+                throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }
 
             using (var cfrg = new CertificateFactoryRandomGenerator())

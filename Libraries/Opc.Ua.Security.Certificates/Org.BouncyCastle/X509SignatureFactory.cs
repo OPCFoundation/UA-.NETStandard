@@ -30,7 +30,6 @@
 
 using System;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using System.IO;

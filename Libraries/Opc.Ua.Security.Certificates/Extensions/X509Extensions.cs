@@ -260,8 +260,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static string PatchExtensionUrl(string extensionUrl, byte[] serialNumber)
         {
-            string serial = BitConverter.ToString(serialNumber).Replace("-", "");
-            return PatchExtensionUrl(extensionUrl, serial);
+            return PatchExtensionUrl(extensionUrl, serialNumber.ToHexString());
         }
 
         /// <summary>

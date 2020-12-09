@@ -58,7 +58,7 @@ namespace Opc.Ua
         /// <summary>
         /// The URI schemes which are supported in the core server. 
         /// </summary>
-        public static readonly string[] DefaultUriSchemes = new string []
+        public static readonly string[] DefaultUriSchemes = new string[]
         {
             Utils.UriSchemeOpcTcp,
             Utils.UriSchemeHttps
@@ -1334,7 +1334,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-        public static string ToHexString(byte[] buffer, bool bigEndian = false)
+        public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
@@ -1343,9 +1343,9 @@ namespace Opc.Ua
 
             StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            if (bigEndian)
+            if (invertEndian)
             {
-                for (int ii = buffer.Length-1; ii >= 0; ii--)
+                for (int ii = buffer.Length - 1; ii >= 0; ii--)
                 {
                     builder.AppendFormat("{0:X2}", buffer[ii]);
                 }
@@ -2179,170 +2179,170 @@ namespace Opc.Ua
                 {
                     // match zero or more char.
                     case '*':
+                    {
+                        while (tIndex < target.Length)
                         {
-                            while (tIndex < target.Length)
+                            if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
                             {
-                                if (Match(target.Substring(tIndex++), pattern.Substring(pIndex), caseSensitive))
-                                {
-                                    return true;
-                                }
+                                return true;
                             }
-
-                            return Match(target, pattern.Substring(pIndex), caseSensitive);
                         }
+
+                        return Match(target, pattern.Substring(pIndex), caseSensitive);
+                    }
 
                     // match any one char.
                     case '?':
+                    {
+                        // check if end of string when looking for a single character.
+                        if (tIndex >= target.Length)
                         {
-                            // check if end of string when looking for a single character.
-                            if (tIndex >= target.Length)
-                            {
-                                return false;
-                            }
-
-                            // check if end of pattern and still string data left.
-                            if (pIndex >= pattern.Length && tIndex < target.Length - 1)
-                            {
-                                return false;
-                            }
-
-                            tIndex++;
-                            break;
+                            return false;
                         }
+
+                        // check if end of pattern and still string data left.
+                        if (pIndex >= pattern.Length && tIndex < target.Length - 1)
+                        {
+                            return false;
+                        }
+
+                        tIndex++;
+                        break;
+                    }
 
                     // match char set 
                     case '[':
+                    {
+                        c = ConvertCase(target[tIndex++], caseSensitive);
+
+                        if (tIndex > target.Length)
                         {
-                            c = ConvertCase(target[tIndex++], caseSensitive);
-
-                            if (tIndex > target.Length)
-                            {
-                                return false; // syntax 
-                            }
-
-                            l = '\0';
-
-                            // match a char if NOT in set []
-                            if (pattern[pIndex] == '!')
-                            {
-                                ++pIndex;
-
-                                p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                                while (pIndex < pattern.Length)
-                                {
-                                    if (p == ']') // if end of char set, then 
-                                    {
-                                        break; // no match found 
-                                    }
-
-                                    if (p == '-')
-                                    {
-                                        // check a range of chars? 
-                                        p = ConvertCase(pattern[pIndex], caseSensitive);
-
-                                        // get high limit of range 
-                                        if (pIndex > pattern.Length || p == ']')
-                                        {
-                                            return false; // syntax 
-                                        }
-
-                                        if (c >= l && c <= p)
-                                        {
-                                            return false; // if in range, return false
-                                        }
-                                    }
-
-                                    l = p;
-
-                                    if (c == p) // if char matches this element 
-                                    {
-                                        return false; // return false 
-                                    }
-
-                                    p = ConvertCase(pattern[pIndex++], caseSensitive);
-                                }
-                            }
-
-                            // match if char is in set []
-                            else
-                            {
-                                p = ConvertCase(pattern[pIndex++], caseSensitive);
-
-                                while (pIndex < pattern.Length)
-                                {
-                                    if (p == ']') // if end of char set, then no match found 
-                                    {
-                                        return false;
-                                    }
-
-                                    if (p == '-')
-                                    {
-                                        // check a range of chars? 
-                                        p = ConvertCase(pattern[pIndex], caseSensitive);
-
-                                        // get high limit of range 
-                                        if (pIndex > pattern.Length || p == ']')
-                                        {
-                                            return false; // syntax 
-                                        }
-
-                                        if (c >= l && c <= p)
-                                        {
-                                            break; // if in range, move on 
-                                        }
-                                    }
-
-                                    l = p;
-
-                                    if (c == p) // if char matches this element move on 
-                                    {
-                                        break;
-                                    }
-
-                                    p = ConvertCase(pattern[pIndex++], caseSensitive);
-                                }
-
-                                while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
-                                {
-                                    p = pattern[pIndex++];
-                                }
-                            }
-
-                            break;
+                            return false; // syntax 
                         }
+
+                        l = '\0';
+
+                        // match a char if NOT in set []
+                        if (pattern[pIndex] == '!')
+                        {
+                            ++pIndex;
+
+                            p = ConvertCase(pattern[pIndex++], caseSensitive);
+
+                            while (pIndex < pattern.Length)
+                            {
+                                if (p == ']') // if end of char set, then 
+                                {
+                                    break; // no match found 
+                                }
+
+                                if (p == '-')
+                                {
+                                    // check a range of chars? 
+                                    p = ConvertCase(pattern[pIndex], caseSensitive);
+
+                                    // get high limit of range 
+                                    if (pIndex > pattern.Length || p == ']')
+                                    {
+                                        return false; // syntax 
+                                    }
+
+                                    if (c >= l && c <= p)
+                                    {
+                                        return false; // if in range, return false
+                                    }
+                                }
+
+                                l = p;
+
+                                if (c == p) // if char matches this element 
+                                {
+                                    return false; // return false 
+                                }
+
+                                p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            }
+                        }
+
+                        // match if char is in set []
+                        else
+                        {
+                            p = ConvertCase(pattern[pIndex++], caseSensitive);
+
+                            while (pIndex < pattern.Length)
+                            {
+                                if (p == ']') // if end of char set, then no match found 
+                                {
+                                    return false;
+                                }
+
+                                if (p == '-')
+                                {
+                                    // check a range of chars? 
+                                    p = ConvertCase(pattern[pIndex], caseSensitive);
+
+                                    // get high limit of range 
+                                    if (pIndex > pattern.Length || p == ']')
+                                    {
+                                        return false; // syntax 
+                                    }
+
+                                    if (c >= l && c <= p)
+                                    {
+                                        break; // if in range, move on 
+                                    }
+                                }
+
+                                l = p;
+
+                                if (c == p) // if char matches this element move on 
+                                {
+                                    break;
+                                }
+
+                                p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            }
+
+                            while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
+                            {
+                                p = pattern[pIndex++];
+                            }
+                        }
+
+                        break;
+                    }
 
                     // match digit.
                     case '#':
+                    {
+                        c = target[tIndex++];
+
+                        if (!Char.IsDigit(c))
                         {
-                            c = target[tIndex++];
-
-                            if (!Char.IsDigit(c))
-                            {
-                                return false; // not a digit
-                            }
-
-                            break;
+                            return false; // not a digit
                         }
+
+                        break;
+                    }
 
                     // match exact char.
                     default:
+                    {
+                        c = ConvertCase(target[tIndex++], caseSensitive);
+
+                        if (c != p) // check for exact char
                         {
-                            c = ConvertCase(target[tIndex++], caseSensitive);
-
-                            if (c != p) // check for exact char
-                            {
-                                return false; // not a match
-                            }
-
-                            // check if end of pattern and still string data left.
-                            if (pIndex >= pattern.Length && tIndex < target.Length - 1)
-                            {
-                                return false;
-                            }
-
-                            break;
+                            return false; // not a match
                         }
+
+                        // check if end of pattern and still string data left.
+                        if (pIndex >= pattern.Length && tIndex < target.Length - 1)
+                        {
+                            return false;
+                        }
+
+                        break;
+                    }
                 }
             }
 
@@ -2747,23 +2747,23 @@ namespace Opc.Ua
                 switch (securityPolicyUri)
                 {
                     case SecurityPolicies.Basic128Rsa15:
-                        {
-                            return 16;
-                        }
+                    {
+                        return 16;
+                    }
 
                     case SecurityPolicies.Basic256:
                     case SecurityPolicies.Basic256Sha256:
                     case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     case SecurityPolicies.Aes256_Sha256_RsaPss:
-                        {
-                            return 32;
-                        }
+                    {
+                        return 32;
+                    }
 
                     default:
                     case SecurityPolicies.None:
-                        {
-                            return 0;
-                        }
+                    {
+                        return 0;
+                    }
                 }
             }
 
@@ -2930,8 +2930,7 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
-        private static readonly Lazy<bool> IsRunningOnMonoValue = new Lazy<bool>(() =>
-        {
+        private static readonly Lazy<bool> IsRunningOnMonoValue = new Lazy<bool>(() => {
             return Type.GetType("Mono.Runtime") != null;
         });
 

@@ -814,7 +814,7 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ICertificateValidator GetChannelValidator()
         {
-            return this as ICertificateValidator;
+            return this;
         }
         #endregion
 
@@ -906,7 +906,7 @@ namespace Opc.Ua
 
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateIssuerTimeInvalid,
-                        "Certificate issuer validatity time is expired or not yet valid. {0}: {1}",
+                        "Issuer Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }
@@ -921,7 +921,7 @@ namespace Opc.Ua
 
                     return ServiceResult.Create(
                         (isIssuer) ? StatusCodes.BadCertificateIssuerTimeInvalid : StatusCodes.BadCertificateTimeInvalid,
-                        "Certificate has is expired or not yet valid. {0}: {1}",
+                        "Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }

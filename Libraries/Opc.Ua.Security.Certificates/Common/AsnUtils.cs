@@ -38,7 +38,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-        internal static string ToHexString(this byte[] buffer, bool bigEndian = false)
+        internal static string ToHexString(this byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
             {
@@ -47,7 +47,7 @@ namespace Opc.Ua.Security.Certificates
 
             StringBuilder builder = new StringBuilder(buffer.Length * 2);
 
-            if (bigEndian)
+            if (invertEndian)
             {
                 for (int ii = buffer.Length - 1; ii >= 0; ii--)
                 {
