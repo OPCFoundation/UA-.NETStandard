@@ -964,7 +964,7 @@ namespace Opc.Ua
 
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateIssuerTimeInvalid,
-                        "Certificate issuer validatity time does not overhas is expired or not yet valid. {0}: {1}",
+                        "Certificate issuer validatity time has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }
@@ -978,7 +978,7 @@ namespace Opc.Ua
 
                     return ServiceResult.Create(
                         (isIssuer) ? StatusCodes.BadCertificateIssuerTimeInvalid : StatusCodes.BadCertificateTimeInvalid,
-                        "Certificate has is expired or not yet valid. {0}: {1}",
+                        "Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }
