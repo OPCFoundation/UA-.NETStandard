@@ -1,0 +1,38 @@
+#
+# Build all solutions on windows
+#
+jobs:
+- job: buildallsln
+  displayName: Build Solutions 
+  pool:
+    vmImage: 'windows-2019'
+  steps:
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '>=5.4.x'
+  - task: NuGetCommand@2
+    displayName: Restore Release
+    inputs:
+      command: restore
+      restoreSolution: '**/*.sln'
+      configuration: 'Release'
+  - task: MSBuild@1
+    displayName: MS Build Release
+    inputs:
+      solution: '**/*.sln' 
+      configuration: 'Release'
+      platform: 'Any CPU'
+      msbuildArguments: 
+  - task: NuGetCommand@2
+    displayName: Restore Debug
+    inputs:
+      command: restore
+      restoreSolution: '**/*.sln'
+      configuration: 'Debug'
+  - task: MSBuild@1
+    displayName: MS Build Debug
+    inputs:
+      solution: '**/*.sln'
+      configuration: 'Debug'
+      platform: 'Any CPU'
+      msbuildArguments: 

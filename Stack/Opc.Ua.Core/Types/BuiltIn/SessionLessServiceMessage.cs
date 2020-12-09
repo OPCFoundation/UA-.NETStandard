@@ -14,28 +14,12 @@ using System;
 
 namespace Opc.Ua
 {
-    public struct SessionLessServiceMessage : IEncodeable
+
+    public class SessionLessServiceMessage 
     {
         public NamespaceTable NamespaceUris;
-
         public StringTable ServerUris;
-
         public IEncodeable Message;
-
-        public ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.SessionlessInvokeRequestType; }
-        }
-
-        public ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultBinary; }
-        }
-
-        public ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml; }
-        }
 
         public void Encode(IEncoder encoder)
         {
@@ -129,16 +113,6 @@ namespace Opc.Ua
 
                 Message = decoder.ReadEncodeable("Body", systemType);
             }
-        }
-
-        public bool IsEqual(IEncodeable encodeable)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object Clone()
-        {
-            throw new NotImplementedException();
         }
     }
 

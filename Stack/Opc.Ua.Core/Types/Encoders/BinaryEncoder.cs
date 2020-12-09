@@ -454,7 +454,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTime(string fieldName, DateTime value)
         {
-            value = Utils.NormalizeToUniversalTime(value);
+            value = Utils.ToOpcUaUniversalTime(value);
 
             long ticks = value.Ticks;
 
@@ -1762,7 +1762,6 @@ namespace Opc.Ua
 
             // encode enums as int32.
             byte encodingByte = (byte)value.TypeInfo.BuiltInType;
-
             if (value.TypeInfo.BuiltInType == BuiltInType.Enumeration)
             {
                 encodingByte = (byte)BuiltInType.Int32;
@@ -1851,16 +1850,26 @@ namespace Opc.Ua
 
                     case BuiltInType.Enumeration:
                     {
-                        Enum[] enums = valueToEncode as Enum[];
-                        int[] ints = new int[enums.Length];
-
-                        for (int ii = 0; ii < enums.Length; ii++)
+                        // Check whether the value to encode is int array.
+                        int[] ints = valueToEncode as int[];
+                        if (ints == null)
                         {
-                            ints[ii] = (int)(object)enums[ii];
+                            Enum[] enums = valueToEncode as Enum[];
+                            if (enums == null)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadEncodingError,
+                                    Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                            }
+                            ints = new int[enums.Length];
+                            for (int ii = 0; ii < enums.Length; ii++)
+                            {
+                                ints[ii] = (int)(object)enums[ii];
+                            }
                         }
 
                         WriteInt32Array(null, ints);
-                        return;
+                        break;
                     }
 
                     case BuiltInType.Variant:

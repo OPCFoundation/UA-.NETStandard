@@ -27,7 +27,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
-using Microsoft.Extensions.Logging;
 using System;
 using System.IdentityModel.Selectors;
 using System.IO;
@@ -35,10 +34,6 @@ using System.Net;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-
-#if NETSTANDARD2_0
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-#endif
 
 
 namespace Opc.Ua.Bindings
@@ -49,8 +44,7 @@ namespace Opc.Ua.Bindings
 
         public void Configure(IApplicationBuilder appBuilder)
         {
-            appBuilder.Run(async context =>
-            {
+            appBuilder.Run(async context => {
                 if (context.Request.Method != "POST")
                 {
                     context.Response.ContentLength = 0;
@@ -97,6 +91,8 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
+                ConnectionStatusChanged = null;
+                ConnectionWaiting = null;
                 Utils.SilentDispose(m_host);
                 m_host = null;
             }
@@ -105,6 +101,11 @@ namespace Opc.Ua.Bindings
 
         #region ITransportListener Members
         /// <summary>
+        /// The URI scheme handled by the listener.
+        /// </summary>
+        public string UriScheme => Utils.UriSchemeHttps;
+
+        /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
         /// <param name="baseAddress">The base address.</param>
@@ -112,7 +113,10 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(Uri baseAddress, TransportListenerSettings settings, ITransportListenerCallback callback)
+        public void Open(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
             m_listenerId = Guid.NewGuid().ToString();
@@ -123,7 +127,6 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
-
             m_quotas.MaxBufferSize = configuration.MaxBufferSize;
             m_quotas.MaxMessageSize = configuration.MaxMessageSize;
             m_quotas.ChannelLifetime = configuration.ChannelLifetime;
@@ -158,6 +161,30 @@ namespace Opc.Ua.Bindings
         {
             Stop();
         }
+
+        /// <summary>
+        /// Raised when a new connection is waiting for a client.
+        /// </summary>
+        public event EventHandler<ConnectionWaitingEventArgs> ConnectionWaiting;
+
+        /// <summary>
+        /// Raised when a monitored connection's status changed.
+        /// </summary>
+        public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Reverse connect for the https transport listener is not implemeted.
+        /// </remarks>
+        public void CreateReverseConnection(Uri url, int timeout)
+        {
+            // suppress warnings
+            ConnectionWaiting = null;
+            ConnectionWaiting?.Invoke(null,null);
+            ConnectionStatusChanged = null;
+            ConnectionStatusChanged?.Invoke(null, null);
+            throw new NotImplementedException();
+        }
         #endregion
 
         #region Public Methods
@@ -165,10 +192,7 @@ namespace Opc.Ua.Bindings
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl
-        {
-            get { return m_uri; }
-        }
+        public Uri EndpointUrl => m_uri;
 
         /// <summary>
         /// Starts listening at the specified port.
@@ -177,32 +201,19 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-#if NETSTANDARD2_0 || NETSTANDARD2_1
+
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            m_hostBuilder.UseKestrel(options =>
-            {              
-                options.Listen(IPAddress.Any, m_uri.Port, listenOptions =>
-                {
+            m_hostBuilder.UseKestrel(options => {
+                options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
                     listenOptions.NoDelay = true;
                     listenOptions.UseHttps(httpsOptions);
                 });
             });
-#else
-            HttpsConnectionFilterOptions httpsOptions = new HttpsConnectionFilterOptions();
-            httpsOptions.CheckCertificateRevocation = false;
-            httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            httpsOptions.ServerCertificate = m_serverCert;
-            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
-            m_hostBuilder.UseKestrel(options =>
-            {
-                options.NoDelay = true;
-                options.UseHttps(httpsOptions);
-            });
-#endif
+
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
             m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
@@ -245,7 +256,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                int length = (int) context.Request.ContentLength;
+                int length = (int)context.Request.ContentLength;
                 byte[] buffer = await ReadBodyAsync(context.Request);
 
                 if (buffer.Length != length)
@@ -318,8 +329,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
-        internal void CertificateUpdate(
-            X509CertificateValidator validator,
+        public void CertificateUpdate(
+            ICertificateValidator validator,
             X509Certificate2 serverCertificate,
             X509Certificate2Collection serverCertificateChain)
         {
@@ -358,7 +369,7 @@ namespace Opc.Ua.Bindings
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
         private X509Certificate2 m_serverCert;
-#endregion
+        #endregion
     }
 }
 

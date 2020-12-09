@@ -10,19 +10,16 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Xml;
 using System.Collections.Generic;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
-	/// <summary>
-	/// Defines methods used to encode and decode objects.
-	/// </summary>
-	public interface IEncodeable
-	{
+    /// <summary>
+    /// Defines methods used to encode and decode objects.
+    /// </summary>
+    public interface IEncodeable
+    {
         /// <summary>
         /// Returns the UA type identifier for the encodable type.
         /// </summary>
@@ -45,13 +42,13 @@ namespace Opc.Ua
         /// Encodes the object in a stream.
         /// </summary>
         /// <param name="encoder">The encoder to be used for encoding the current value.</param>
-		    void Encode(IEncoder encoder);
+        void Encode(IEncoder encoder);
 
         /// <summary>
         /// Decodes the object from a stream.
         /// </summary>
         /// <param name="decoder">The decoder to be used for decoding the current value..</param>
-		    void Decode(IDecoder decoder);
+        void Decode(IDecoder decoder);
 
         /// <summary>
         /// Checks if the value is equal to the another encodeable object.
@@ -60,9 +57,9 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if the specified instance of the <see cref="IEncodeable"/> type is equal; otherwise <c>false</c>.
         /// </returns>
-	      bool IsEqual(IEncodeable encodeable);
+        bool IsEqual(IEncodeable encodeable);
     }
-        
+
     #region IEncodeableCollection
     /// <summary>
     /// A collection of encodeable objects.
@@ -82,7 +79,7 @@ namespace Opc.Ua
         /// <exception cref="T:System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public IEncodeableCollection(IEnumerable<IEncodeable> collection) : base(collection) {}
+        public IEncodeableCollection(IEnumerable<IEncodeable> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.

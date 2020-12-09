@@ -59,7 +59,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validator to use when handling certificates.
         /// </summary>
-        public X509CertificateValidator CertificateValidator
+        public ICertificateValidator CertificateValidator
         {
             get
             {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
         private ServiceMessageContext m_messageContext;
-        private X509CertificateValidator m_certificateValidator;
+        private ICertificateValidator m_certificateValidator;
         #endregion
     }
 }

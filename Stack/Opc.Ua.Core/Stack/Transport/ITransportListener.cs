@@ -11,8 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -21,6 +20,11 @@ namespace Opc.Ua
     /// </summary>
     public interface ITransportListener : IDisposable
     {
+        /// <summary>
+        /// The protocol supported by the listener.
+        /// </summary>
+        string UriScheme { get; }
+
         /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
@@ -32,12 +36,65 @@ namespace Opc.Ua
         void Open(
             Uri baseAddress,
             TransportListenerSettings settings,
-            ITransportListenerCallback callback);
+            ITransportListenerCallback callback
+            );
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
         /// </summary>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         void Close();
+
+        /// <summary>
+        /// Updates the application certificate for a listener.
+        /// </summary>
+        void CertificateUpdate(
+            ICertificateValidator validator,
+            X509Certificate2 serverCertificate,
+            X509Certificate2Collection serverCertificateChain);
+
+        /// <summary>
+        /// Raised when a new connection is waiting for a client.
+        /// </summary>
+        event EventHandler<ConnectionWaitingEventArgs> ConnectionWaiting;
+
+        /// <summary>
+        /// Raised when a monitored connection's status changed.
+        /// </summary>
+        event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+
+        /// <summary>
+        /// Creates a reverse connection to a client. 
+        /// </summary>
+        void CreateReverseConnection(Uri url, int timeout);
+
+    }
+
+    /// <summary>
+    /// The arguments passed to the ConnectionWaiting event.
+    /// </summary>
+    /// <remarks>
+    /// An object which implements this interface can be used
+    /// to create a session using the reverse connect handshake.
+    /// </remarks>
+    public interface ITransportWaitingConnection
+    {
+        /// <summary>
+        /// The application Uri of the server in the
+        /// reverse hello message.
+        /// </summary>
+        string ServerUri { get; }
+
+        /// <summary>
+        /// The endpoint of the server in the
+        /// reverse hello message.
+        /// </summary>
+        Uri EndpointUrl { get; }
+
+        /// <summary>
+        /// A handle to a message socket that can be used
+        /// to connect to the server.
+        /// </summary>
+        object Handle { get; }
     }
 }

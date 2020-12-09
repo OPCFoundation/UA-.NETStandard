@@ -7,7 +7,7 @@
     xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
 >
   <xs:import namespace="http://opcfoundation.org/UA/2008/02/Types.xsd" schemaLocation="./Opc.Ua.Types.xsd"/>
-  
+
   <xs:complexType name="ApplicationConfiguration">
     <xs:sequence>
       <xs:element name="ApplicationName" type="xs:string" />
@@ -60,13 +60,13 @@
       <xs:element name="SuppressNonceValidationErrors" type="xs:boolean" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="ListOfTransportConfiguration">
     <xs:sequence>
       <xs:element name="TransportConfiguration" type="TransportConfiguration" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="TransportConfiguration">
     <xs:sequence>
       <xs:element name="UriScheme" type="xs:string" />
@@ -103,7 +103,7 @@
       <xs:element name="ServerSecurityPolicy" type="ServerSecurityPolicy" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="ServerSecurityPolicy">
     <xs:sequence>
       <xs:element name="SecurityMode" type="ua:MessageSecurityMode" minOccurs="0" />
@@ -124,7 +124,7 @@
       <xs:element name="Count" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="ServerConfiguration">
     <xs:complexContent mixed="false">
       <xs:extension base="ServerBaseConfiguration">
@@ -160,9 +160,33 @@
           <xs:element name="SupportedPrivateKeyFormats" type="ua:ListOfString" minOccurs="0" nillable="true" />
           <xs:element name="MaxTrustListSize" type="xs:int" minOccurs="0" />
           <xs:element name="MultiCastDnsEnabled" type="xs:boolean" minOccurs="0" />
+          <xs:element name="ReverseConnect" type="ReverseConnectServerConfiguration" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="ReverseConnectServerConfiguration">
+    <xs:sequence>
+      <xs:element name="Clients" type="ListOfReverseConnectClient" minOccurs="0" nillable="true" />
+      <xs:element name="ConnectInterval" type="xs:int" minOccurs="0" />
+      <xs:element name="ConnectTimeout" type="xs:int" minOccurs="0" />
+      <xs:element name="RejectTimeout" type="xs:int" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfReverseConnectClient">
+    <xs:sequence>
+      <xs:element name="ReverseConnectClient" type="ReverseConnectClient" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ReverseConnectClient">
+    <xs:sequence>
+      <xs:element name="EndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Timeout" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxSessionCount" type="xs:int" minOccurs="0" />
+    </xs:sequence>
   </xs:complexType>
 
   <xs:complexType name="DiscoveryServerConfiguration">
@@ -176,20 +200,20 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-  
+
   <xs:complexType name="ListOfServerRegistration">
     <xs:sequence>
       <xs:element name="ServerRegistration" type="ServerRegistration" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="ServerRegistration">
     <xs:sequence>
       <xs:element name="ApplicationUri" type="xs:string" minOccurs="0" />
       <xs:element name="AlternateDiscoveryUrls" type="ua:ListOfString" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="ClientConfiguration">
     <xs:sequence>
       <xs:element name="DefaultSessionTimeout" type="xs:int" minOccurs="0" />
@@ -197,9 +221,28 @@
       <xs:element name="DiscoveryServers" type="ua:ListOfEndpointDescription" minOccurs="0" />
       <xs:element name="EndpointCacheFilePath" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="MinSubscriptionLifetime" type="xs:int" minOccurs="0" />
+      <xs:element name="ReverseConnect" type="ReverseConnectClientConfiguration" minOccurs="0" />	  
     </xs:sequence>
   </xs:complexType>
-  
+
+  <xs:complexType name="ReverseConnectClientConfiguration">
+    <xs:sequence>
+      <xs:element name="ClientEndpoints" type="ListOfReverseConnectClientEndpoint" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ListOfReverseConnectClientEndpoint">
+    <xs:sequence>
+      <xs:element name="ClientEndpoint" type="ReverseConnectClientEndpoint" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ReverseConnectClientEndpoint">
+    <xs:sequence>
+      <xs:element name="EndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+
   <xs:complexType name="TraceConfiguration">
     <xs:sequence>
       <xs:element name="OutputFilePath" type="xs:string" minOccurs="0" nillable="true" />
@@ -207,7 +250,7 @@
       <xs:element name="TraceMasks" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="CertificateIdentifier">
     <xs:sequence>
       <xs:element name="StoreType" type="xs:string" minOccurs="0" />
@@ -232,7 +275,7 @@
       <xs:element name="CertificateIdentifier" type="CertificateIdentifier"  minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="CertificateStoreIdentifier">
     <xs:sequence>
       <xs:element name="StoreType" type="xs:string" minOccurs="0" />
@@ -248,7 +291,7 @@
       </xs:element>
     </xs:sequence>
   </xs:complexType>
-  
+
   <xs:complexType name="CertificateTrustList">
     <xs:complexContent mixed="false">
       <xs:extension base="CertificateStoreIdentifier">
@@ -283,6 +326,7 @@
       <xs:element name="SelectedUserTokenPolicy" type="xs:int" minOccurs="0" />
       <xs:element name="UserIdentity" type="ua:UserIdentityToken" minOccurs="0" />
       <xs:element name="ComIdentity" type="EndpointComIdentity" minOccurs="0" />
+	    <xs:element name="ReverseConnect" type="ReverseConnectEndpoint" minOccurs="0" />
       <xs:element name="Extensions" type="ua:ListOfXmlElement" minOccurs="0"  />
     </xs:sequence>
   </xs:complexType>
@@ -294,6 +338,14 @@
       <xs:enumeration value="None" />
     </xs:restriction>
   </xs:simpleType>
+
+  <xs:complexType name="ReverseConnectEndpoint">
+    <xs:sequence>
+      <xs:element name="Enabled" type="xs:boolean" minOccurs="0" />
+      <xs:element name="ServerUri" type="xs:string" minOccurs="0" />
+      <xs:element name="Thumbprint" type="xs:string" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
 
   <xs:complexType name="EndpointComIdentity">
     <xs:sequence>

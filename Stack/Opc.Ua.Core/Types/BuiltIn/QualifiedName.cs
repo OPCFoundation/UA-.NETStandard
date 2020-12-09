@@ -12,17 +12,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.ServiceModel;
-using System.Runtime.Serialization;
 using System.Reflection;
-using System.Globalization;
+using System.Runtime.Serialization;
+using System.Text;
 
 namespace Opc.Ua
 {
-	  /// <summary>
-	  /// A name qualified with a namespace.
-	  /// </summary>
+    /// <summary>
+    /// A name qualified with a namespace.
+    /// </summary>
     /// <remarks>
     /// <para>
     /// The QualifiedName is defined in <b>Part 3 - Address Space Model, Section 7.3</b>, titled 
@@ -43,7 +41,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-	public class QualifiedName : IFormattable, IComparable
+    public class QualifiedName : IFormattable, IComparable
     {
         #region Constructors
         /// <summary>
@@ -55,9 +53,9 @@ namespace Opc.Ua
         internal QualifiedName()
         {
             m_namespaceIndex = 0;
-            m_name           = null;
+            m_name = null;
         }
-                
+
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
@@ -67,7 +65,7 @@ namespace Opc.Ua
         /// <param name="value">The qualified name to copy</param>
         /// <exception cref="ArgumentNullException">Thrown if the provided value is null</exception>
         public QualifiedName(QualifiedName value)
-        {            
+        {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
             m_name = value.m_name;
@@ -84,9 +82,9 @@ namespace Opc.Ua
         public QualifiedName(string name)
         {
             m_namespaceIndex = 0;
-            m_name           = name;
+            m_name = name;
         }
-        
+
         /// <summary>
         /// Initializes the object with a name and a namespace index.
         /// </summary>
@@ -98,7 +96,7 @@ namespace Opc.Ua
         public QualifiedName(string name, ushort namespaceIndex)
         {
             m_namespaceIndex = namespaceIndex;
-            m_name           = name;
+            m_name = name;
         }
         #endregion
 
@@ -109,16 +107,13 @@ namespace Opc.Ua
         /// <remarks>
         /// The index of the namespace that qualifies the name.
         /// </remarks>
-        public ushort NamespaceIndex
-        {
-            get { return m_namespaceIndex; }
-        }
-        
+        public ushort NamespaceIndex => m_namespaceIndex;
+
         /// <summary cref="QualifiedName.NamespaceIndex" />
         [DataMember(Name = "NamespaceIndex", Order = 1)]
         internal ushort XmlEncodedNamespaceIndex
         {
-            get { return m_namespaceIndex;  }
+            get { return m_namespaceIndex; }
             set { m_namespaceIndex = value; }
         }
 
@@ -128,10 +123,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The unqualified name.
         /// </remarks>
-        public string Name
-        {
-            get { return m_name; }
-        }
+        public string Name => m_name;
 
         /// <summary>
         /// 
@@ -139,11 +131,11 @@ namespace Opc.Ua
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName
         {
-            get { return m_name;  }
+            get { return m_name; }
             set { m_name = value; }
         }
         #endregion
-        
+
         #region IComparable Members
         /// <summary>
         /// Compares two QualifiedNames.
@@ -155,7 +147,7 @@ namespace Opc.Ua
         /// Greater than zero if the instance is greater than the object.
         /// </returns>
         public int CompareTo(object obj)
-        {            
+        {
             if (Object.ReferenceEquals(obj, null))
             {
                 return -1;
@@ -177,12 +169,12 @@ namespace Opc.Ua
             {
                 return m_namespaceIndex.CompareTo(qname.m_namespaceIndex);
             }
-            
+
             if (m_name != null)
             {
                 return String.CompareOrdinal(m_name, qname.m_name);
             }
-            
+
             return 0;
         }
 
@@ -266,7 +258,7 @@ namespace Opc.Ua
 
             return qname.m_name == m_name;
         }
-        
+
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -275,7 +267,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
-        public static bool operator==(QualifiedName value1, QualifiedName value2)
+        public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
             if (!Object.ReferenceEquals(value1, null))
             {
@@ -293,7 +285,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
-        public static bool operator!=(QualifiedName value1, QualifiedName value2)
+        public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
             if (!Object.ReferenceEquals(value1, null))
             {
@@ -329,9 +321,9 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                int capacity = (m_name != null)?m_name.Length:0;
+                int capacity = (m_name != null) ? m_name.Length : 0;
 
-                StringBuilder builder = new StringBuilder(capacity+10);
+                StringBuilder builder = new StringBuilder(capacity + 10);
 
                 if (this.m_namespaceIndex == 0)
                 {
@@ -359,7 +351,7 @@ namespace Opc.Ua
 
                 return builder.ToString();
             }
-        
+
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
         #endregion
@@ -409,7 +401,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(StatusCodes.BadBrowseNameInvalid, "NamespaceUri ({0}) is not in the NamespaceTable.", namespaceUri);
             }
-            
+
             // return the name.
             return new QualifiedName(name, (ushort)namespaceIndex);
         }
@@ -434,7 +426,7 @@ namespace Opc.Ua
                     return false;
                 }
             }
-                
+
             return true;
         }
 
@@ -461,7 +453,7 @@ namespace Opc.Ua
 
                 if (ch == ':')
                 {
-                    start = ii+1;
+                    start = ii + 1;
                     break;
                 }
 
@@ -480,7 +472,7 @@ namespace Opc.Ua
 
             return new QualifiedName(text.Substring(start), namespaceIndex);
         }
-        
+
         /// <summary>
         /// Returns true if the value is null.
         /// </summary>
@@ -509,7 +501,7 @@ namespace Opc.Ua
         {
             return new QualifiedName(value);
         }
-        
+
         /// <summary>
         /// Converts a string to a qualified name.
         /// </summary>
@@ -525,10 +517,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of a null QualifiedName.
         /// </summary>
-        public static QualifiedName Null 
-        {
-            get { return s_Null; }
-        }
+        public static QualifiedName Null => s_Null;
 
         private static readonly QualifiedName s_Null = new QualifiedName();
         #endregion
@@ -555,8 +544,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes an empty collection.
         /// </remarks>
-        public QualifiedNameCollection() {}
-        
+        public QualifiedNameCollection() { }
+
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
@@ -564,7 +553,7 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The enumerated collection of qualified names to add to this new collection</param>
-        public QualifiedNameCollection(IEnumerable<QualifiedName> collection) : base(collection) {}
+        public QualifiedNameCollection(IEnumerable<QualifiedName> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -573,8 +562,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">Max capacity of this collection</param>
-        public QualifiedNameCollection(int capacity) : base(capacity) {}
-        
+        public QualifiedNameCollection(int capacity) : base(capacity) { }
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -591,7 +580,7 @@ namespace Opc.Ua
 
             return new QualifiedNameCollection();
         }
-        
+
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -603,7 +592,7 @@ namespace Opc.Ua
         {
             return ToQualifiedNameCollection(values);
         }
-        
+
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>

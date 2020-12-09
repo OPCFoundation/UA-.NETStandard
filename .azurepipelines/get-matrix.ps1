@@ -17,12 +17,16 @@
 
  .PARAMETER JobPrefix
     Optional name prefix for each job
+
+ .PARAMETER AgentTable
+    Table of agents for matrix
 #>
 
 Param(
     [string] $BuildRoot = $null,
     [string] $FileName = $null,
-    [string] $JobPrefix = ""
+    [string] $JobPrefix = "",
+    [hashtable] $AgentTable = $null
 )
 
 if ([string]::IsNullOrEmpty($BuildRoot)) {
@@ -36,10 +40,16 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
     $JobPrefix = "$($JobPrefix)-"
 }
 
-$agents = @{
-    linux = "ubuntu-latest"
-    windows = "windows-latest"
-    mac = "macOS-latest"
+if ($AgentTable -eq $null -or $AgentTable.Count -eq 0)
+{
+    $agents = @{
+        windows = "vs2017-win2016"
+        linux = "ubuntu-18.04"
+        mac = "macOS-10.15"
+    }
+}
+else {
+    $agents = $AgentTable
 }
 
 $jobMatrix = @{}
@@ -52,8 +62,13 @@ Get-ChildItem $BuildRoot -Recurse `
     $fullFolder = $_.DirectoryName.Replace("\", "/")
     $folder = $_.DirectoryName.Replace($BuildRoot, "").Replace("\", "/").TrimStart("/")
     $file = $_.FullName.Replace($BuildRoot, "").Replace("\", "/").TrimStart("/")
+    $postFix = ""
     if ([string]::IsNullOrEmpty($folder)) {
-        $postFix = ""
+        if (-not $file.contains(".yml"))
+        {
+            $postFix = $file.Replace(".", "-")
+            $postFix = "$($postFix)-"
+        }
     }
     else {
         $postFix = $folder.Replace("/", "-")
@@ -66,6 +81,7 @@ Get-ChildItem $BuildRoot -Recurse `
             "folder" = $folder 
             "fullFolder" = $fullFolder 
             "file" = $file 
+            "agent" = $($_)
         })
     }
 }

@@ -154,6 +154,12 @@ namespace Opc.Ua
         /// </summary>
         DiagnosticInfo = 25,
 
+        /// <remarks>
+        /// The following BuiltInTypes are for coding convenience
+        /// internally used in the .NET Standard library.
+        /// The types can not be used for encoding/decoding.
+        /// </remarks>
+
         /// <summary>
         /// Any numeric value.
         /// </summary>
@@ -514,8 +520,40 @@ namespace Opc.Ua
                 case DataTypes.Number: { return typeof(Variant); }
                 case DataTypes.Integer: { return typeof(Variant); }
                 case DataTypes.UInteger: { return typeof(Variant); }
-                case DataTypes.UtcTime: { return typeof(DateTime); }
                 case DataTypes.Enumeration: { return typeof(Int32); }
+
+                // subtype of DateTime
+                case DataTypes.Date: 
+                case DataTypes.UtcTime: goto case DataTypes.DateTime;
+                // subtype of ByteString
+                case DataTypes.ApplicationInstanceCertificate:
+                case DataTypes.AudioDataType:
+                case DataTypes.ContinuationPoint:
+                case DataTypes.Image:
+                case DataTypes.ImageBMP:
+                case DataTypes.ImageGIF:
+                case DataTypes.ImageJPG:
+                case DataTypes.ImagePNG: goto case DataTypes.ByteString;
+                // subtype of NodeId
+                case DataTypes.SessionAuthenticationToken: goto case DataTypes.NodeId;
+                // subtype of Double
+                case DataTypes.Duration: goto case DataTypes.Double;
+                // subtype of UInt32
+                case DataTypes.IntegerId:
+                case DataTypes.Index:
+                case DataTypes.VersionTime:
+                case DataTypes.Counter: goto case DataTypes.UInt32;
+                // subtype of UInt64
+                case DataTypes.BitFieldMaskDataType: goto case DataTypes.UInt64;
+                // subtype of String
+                case DataTypes.DateString:
+                case DataTypes.DecimalString:
+                case DataTypes.DurationString:
+                case DataTypes.LocaleId:
+                case DataTypes.NormalizedString:
+                case DataTypes.NumericRange:
+                case DataTypes.Time:
+                case DataTypes.TimeString: goto case DataTypes.String;
             }
 
             return factory.GetSystemType(datatypeId);
@@ -902,16 +940,20 @@ namespace Opc.Ua
             if (BuiltInType == BuiltInType.ExtensionObject)
             {
                 IEncodeable encodeable = value as IEncodeable;
-
                 if (encodeable != null)
                 {
                     return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
                 }
 
                 ExtensionObject extension = value as ExtensionObject;
-
                 if (extension != null)
                 {
+                    encodeable = extension.Body as IEncodeable;
+                    if (encodeable != null)
+                    {
+                        return ExpandedNodeId.ToNodeId(encodeable.TypeId, namespaceUris);
+                    }
+
                     return typeTree.FindDataTypeId(extension.TypeId);
                 }
 
@@ -1139,7 +1181,7 @@ namespace Opc.Ua
                 {
                     Type[] argTypes = systemType.GetGenericArguments();
 
-                    if (argTypes != null || argTypes.Length == 1)
+                    if (argTypes != null && argTypes.Length == 1)
                     {
                         TypeInfo typeInfo = Construct(argTypes[0]);
 
@@ -2989,6 +3031,39 @@ namespace Opc.Ua
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+        }
+        #endregion
+
+        #region Overridden Methods
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// </summary>
+        /// <remarks>
+        /// Determines if the specified object is equal to the object.
+        /// </remarks>
+        public override bool Equals(object obj)
+        {
+            if (Object.ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            TypeInfo typeInfo = obj as TypeInfo;
+            if (typeInfo != null)
+            {
+                return (m_builtInType == typeInfo.BuiltInType &&
+                    m_valueRank == typeInfo.ValueRank);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns a suitable hash code.
+        /// </summary>
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
         }
         #endregion
     }
