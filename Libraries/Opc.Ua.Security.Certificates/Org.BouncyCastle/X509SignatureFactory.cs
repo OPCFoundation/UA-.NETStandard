@@ -86,67 +86,67 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             return new X509StreamCalculator(_generator, _hashAlgorithm);
         }
-    }
-
-    /// <summary>
-    /// Signs a Bouncy Castle digest stream with the .Net X509SignatureGenerator.
-    /// </summary>
-    class X509StreamCalculator : IStreamCalculator
-    {
-        private X509SignatureGenerator _generator;
-        private readonly HashAlgorithmName _hashAlgorithm;
 
         /// <summary>
-        /// Ctor for the stream calculator. 
+        /// Signs a Bouncy Castle digest stream with the .Net X509SignatureGenerator.
         /// </summary>
-        /// <param name="generator">The X509SignatureGenerator to sign the digest.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use for the signature.</param>
-        public X509StreamCalculator(
-            X509SignatureGenerator generator,
-            HashAlgorithmName hashAlgorithm)
+        class X509StreamCalculator : IStreamCalculator
         {
-            Stream = new MemoryStream();
-            _generator = generator;
-            _hashAlgorithm = hashAlgorithm;
+            private X509SignatureGenerator _generator;
+            private readonly HashAlgorithmName _hashAlgorithm;
+
+            /// <summary>
+            /// Ctor for the stream calculator. 
+            /// </summary>
+            /// <param name="generator">The X509SignatureGenerator to sign the digest.</param>
+            /// <param name="hashAlgorithm">The hash algorithm to use for the signature.</param>
+            public X509StreamCalculator(
+                X509SignatureGenerator generator,
+                HashAlgorithmName hashAlgorithm)
+            {
+                Stream = new MemoryStream();
+                _generator = generator;
+                _hashAlgorithm = hashAlgorithm;
+            }
+
+            /// <summary>
+            /// The digest stream (MemoryStream).
+            /// </summary>
+            public Stream Stream { get; }
+
+            /// <summary>
+            /// Callback signs the digest with X509SignatureGenerator.
+            /// </summary>
+            public object GetResult()
+            {
+                var memStream = Stream as MemoryStream;
+                var digest = memStream.ToArray();
+                var signature = _generator.SignData(digest, _hashAlgorithm);
+                return new MemoryBlockResult(signature);
+            }
         }
 
         /// <summary>
-        /// The digest stream (MemoryStream).
+        /// Helper for Bouncy Castle signing operation to store the result in a memory block.
         /// </summary>
-        public Stream Stream { get; }
-
-        /// <summary>
-        /// Callback signs the digest with X509SignatureGenerator.
-        /// </summary>
-        public object GetResult()
+        class MemoryBlockResult : IBlockResult
         {
-            var memStream = Stream as MemoryStream;
-            var digest = memStream.ToArray();
-            var signature = _generator.SignData(digest, _hashAlgorithm);
-            return new MemoryBlockResult(signature);
-        }
-    }
-
-    /// <summary>
-    /// Helper for Bouncy Castle signing operation to store the result in a memory block.
-    /// </summary>
-    class MemoryBlockResult : IBlockResult
-    {
-        private readonly byte[] _data;
-        /// <inheritdoc/>
-        public MemoryBlockResult(byte[] data)
-        {
-            _data = data;
-        }
-        /// <inheritdoc/>
-        public byte[] Collect()
-        {
-            return _data;
-        }
-        /// <inheritdoc/>
-        public int Collect(byte[] destination, int offset)
-        {
-            throw new NotImplementedException();
+            private readonly byte[] _data;
+            /// <inheritdoc/>
+            public MemoryBlockResult(byte[] data)
+            {
+                _data = data;
+            }
+            /// <inheritdoc/>
+            public byte[] Collect()
+            {
+                return _data;
+            }
+            /// <inheritdoc/>
+            public int Collect(byte[] destination, int offset)
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }

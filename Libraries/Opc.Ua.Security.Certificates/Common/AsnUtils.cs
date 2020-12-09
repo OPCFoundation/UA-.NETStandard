@@ -121,6 +121,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Writer for Public Key parameters.
         /// </summary>
+        /// <remarks>
+        /// https://www.itu.int/rec/T-REC-X.690-201508-I/en
+        /// section 8.3 (Encoding of an integer value).
+        /// </remarks>
         /// <param name="writer">The writer</param>
         /// <param name="integer">The key parameter</param>
         internal static void WriteKeyParameterInteger(this AsnWriter writer, ReadOnlySpan<byte> integer)

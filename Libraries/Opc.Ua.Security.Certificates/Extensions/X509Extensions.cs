@@ -114,39 +114,36 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(caIssuerUrls), "One CA Issuer Url or OCSP responder is required for the extension.");
             }
 
-            var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
             Asn1Tag generalNameUriChoice = new Asn1Tag(TagClass.ContextSpecific, 6);
+            AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+            writer.PushSequence();
+            if (caIssuerUrls != null)
             {
-                AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-                writer.PushSequence();
-                if (caIssuerUrls != null)
-                {
-                    foreach (var caIssuerUrl in caIssuerUrls)
-                    {
-                        writer.PushSequence();
-                        writer.WriteObjectIdentifier(Oids.CertificateAuthorityIssuers);
-                        writer.WriteCharacterString(
-                            UniversalTagNumber.IA5String,
-                            caIssuerUrl,
-                            generalNameUriChoice
-                            );
-                        writer.PopSequence();
-                    }
-                }
-                if (!String.IsNullOrEmpty(ocspResponder))
+                foreach (var caIssuerUrl in caIssuerUrls)
                 {
                     writer.PushSequence();
-                    writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);
+                    writer.WriteObjectIdentifier(Oids.CertificateAuthorityIssuers);
                     writer.WriteCharacterString(
                         UniversalTagNumber.IA5String,
-                        ocspResponder,
+                        caIssuerUrl,
                         generalNameUriChoice
                         );
                     writer.PopSequence();
                 }
-                writer.PopSequence();
-                return new X509Extension(Oids.AuthorityInfoAccess, writer.Encode(), false);
             }
+            if (!String.IsNullOrEmpty(ocspResponder))
+            {
+                writer.PushSequence();
+                writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);
+                writer.WriteCharacterString(
+                    UniversalTagNumber.IA5String,
+                    ocspResponder,
+                    generalNameUriChoice
+                    );
+                writer.PopSequence();
+            }
+            writer.PopSequence();
+            return new X509Extension(Oids.AuthorityInfoAccess, writer.Encode(), false);
         }
 
         /// <summary>

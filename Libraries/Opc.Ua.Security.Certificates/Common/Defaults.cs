@@ -63,9 +63,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static readonly ushort LifeTime = 24;
         /// <summary>
-        /// The recommended min and max serial numbers length.
+        /// The recommended min serial numbers length in octets.
         /// </summary>
         public static readonly int SerialNumberLengthMin = 10;
+        /// <summary>
+        /// The max serial numbers length in octets.
+        /// </summary>
         public static readonly int SerialNumberLengthMax = 20;
     }
 }
