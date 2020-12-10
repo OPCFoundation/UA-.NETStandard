@@ -259,7 +259,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         /// <summary>
         /// Create the CRL with signature for ECDsa.
         /// </summary>

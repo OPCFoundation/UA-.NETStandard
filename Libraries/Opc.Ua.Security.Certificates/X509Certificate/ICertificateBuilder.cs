@@ -53,28 +53,28 @@ namespace Opc.Ua.Security.Certificates
 
     public interface ICertificateBuilderPublicKey
         : ICertificateBuilderRSAPublicKey
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         , ICertificateBuilderECDsaPublicKey
 #endif
     { }
 
     public interface ICertificateBuilderParameter
         : ICertificateBuilderRSAParameter
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         , ICertificateBuilderECCParameter
 #endif
     { }
 
     public interface ICertificateBuilderCreate
         : ICertificateBuilderCreateForRSA
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         , ICertificateBuilderCreateForECDsa
 #endif
     { }
 
     public interface ICertificateBuilderCreateGenerator
         : ICertificateBuilderCreateForRSAGenerator
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         , ICertificateBuilderCreateForECDsaGenerator
 #endif
     { }
@@ -84,7 +84,7 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderCreateForRSAGenerator
     { }
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
     public interface ICertificateBuilderCreateForECDsaAny
         : ICertificateBuilderCreateForECDsa
         , ICertificateBuilderCreateForECDsaGenerator
@@ -144,7 +144,7 @@ namespace Opc.Ua.Security.Certificates
         ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize);
     }
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
     public interface ICertificateBuilderECCParameter
     {
         ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve);
@@ -158,7 +158,7 @@ namespace Opc.Ua.Security.Certificates
         ICertificateBuilderCreateForRSAAny SetRSAPublicKey(RSA publicKey);
     }
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
     public interface ICertificateBuilderECDsaPublicKey
     {
         ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey);
@@ -185,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
         X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
     }
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
     public interface ICertificateBuilderCreateForECDsa
     {
         /// <summary>

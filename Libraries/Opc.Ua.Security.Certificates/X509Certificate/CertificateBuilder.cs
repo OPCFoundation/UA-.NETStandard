@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
 #if NETSTANDARD2_1
 
 using System;
@@ -167,6 +168,7 @@ namespace Opc.Ua.Security.Certificates
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
         }
 
+#if ECC_SUPPORT
         /// <inheritdoc/>
         public override X509Certificate2 CreateForECDsa()
         {
@@ -281,6 +283,7 @@ namespace Opc.Ua.Security.Certificates
             }
             return this;
         }
+#endif
 
         /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)

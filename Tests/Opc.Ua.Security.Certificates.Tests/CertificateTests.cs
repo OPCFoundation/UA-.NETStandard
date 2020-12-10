@@ -308,7 +308,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
 
-#if NETCOREAPP3_1
+#if ECC_SUPPORT
         [Theory]
         public void CreateSelfSignedForECDsaTests(ECCurve eccurve)
         {

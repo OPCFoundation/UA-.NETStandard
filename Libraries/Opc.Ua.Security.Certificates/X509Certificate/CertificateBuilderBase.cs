@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderRSAPublicKey
         , ICertificateBuilderCreateForRSA
         , ICertificateBuilderCreateForRSAAny
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         , ICertificateBuilderCreateForECDsa
         , ICertificateBuilderECDsaPublicKey
         , ICertificateBuilderECCParameter
@@ -128,7 +128,7 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed certificate.</returns>
         public abstract X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         /// <summary>
         /// Create the ECC certificate based on selected parameters.
         /// </summary>
@@ -223,7 +223,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Set the lifetime of the certificate using Timespan.
         /// </summary>
-        /// <param name="lifeTime">The lifetime as <see cref="Timespan"/>.</param>
+        /// <param name="lifeTime">The lifetime as <see cref="System.Timespan"/>.</param>
         public ICertificateBuilder SetLifeTime(TimeSpan lifeTime)
         {
             m_notAfter = m_notBefore.Add(lifeTime);
@@ -310,7 +310,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
         /// <summary>
         /// Set the ECC curve to use for the certificate.
         /// </summary>
