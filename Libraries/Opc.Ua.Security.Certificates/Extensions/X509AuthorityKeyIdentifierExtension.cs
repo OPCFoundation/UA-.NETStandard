@@ -94,9 +94,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Build the X509 Authority Key extension.
         /// </summary>
-        /// <param name="subjectKeyIdentifier">The subject key identifier</param>
-        /// <param name="authorityName">The distinguished name of the issuer</param>
-        /// <param name="serialNumber">The serial number of the issuer certificate</param>
+        /// <param name="subjectKeyIdentifier">The subject key identifier as a byte array.</param>
+        /// <param name="authorityName">The distinguished name of the issuer.</param>
+        /// <param name="serialNumber">The serial number of the issuer certificate as little endian byte array.</param>
         public X509AuthorityKeyIdentifierExtension(
             byte[] subjectKeyIdentifier,
             X500DistinguishedName authorityName,
@@ -139,7 +139,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     if (multiLine)
                     {
-                        buffer.Append("\r\n");
+                        buffer.AppendLine();
                     }
                     else
                     {
@@ -156,7 +156,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (multiLine)
                 {
-                    buffer.Append("\r\n");
+                    buffer.AppendLine();
                 }
                 else
                 {
@@ -252,6 +252,10 @@ namespace Opc.Ua.Security.Certificates
                 writer.PushSequence(issuerNameTag);
 
                 // Add the issuer to constructed context-specific 4 (GeneralName.directoryName)
+                // NOTE: rewrite using sequence
+                // X.680 2015-08 31.2.7: "The tagging construction specifies explicit tagging if any of the following holds:
+                // ... (c) ... the type defined by "Type" is an untagged choice type, ... "
+                // Since this is a Context-Specific tag the output is the same
                 Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
                 writer.PushSetOf(directoryNameTag);
                 writer.WriteEncodedValue(m_issuer.RawData);
@@ -279,27 +283,30 @@ namespace Opc.Ua.Security.Certificates
                 try
                 {
                     AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
-                    var akiReader = dataReader?.ReadSequence();
+                    var akiReader = dataReader.ReadSequence();
+                    dataReader.ThrowIfNotEmpty();
                     if (akiReader != null)
                     {
                         Asn1Tag keyIdTag = new Asn1Tag(TagClass.ContextSpecific, 0);
+                        Asn1Tag dnameSequencyTag = new Asn1Tag(TagClass.ContextSpecific, 1, true);
                         Asn1Tag serialNumberTag = new Asn1Tag(TagClass.ContextSpecific, 2);
                         while (akiReader.HasData)
                         {
                             Asn1Tag peekTag = akiReader.PeekTag();
-                            if (akiReader.PeekTag() == keyIdTag)
+                            if (peekTag == keyIdTag)
                             {
                                 m_keyIdentifier = akiReader.ReadOctetString(keyIdTag);
                                 continue;
                             }
 
-                            if (peekTag == new Asn1Tag(TagClass.ContextSpecific, 1, true))
+                            if (peekTag == dnameSequencyTag)
                             {
                                 AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
                                 if (issuerReader != null)
                                 {
                                     Asn1Tag directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
                                     m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                                    issuerReader.ThrowIfNotEmpty();
                                 }
                                 continue;
                             }
@@ -309,10 +316,12 @@ namespace Opc.Ua.Security.Certificates
                                 m_serialNumber = akiReader.ReadInteger(serialNumberTag).ToByteArray();
                                 continue;
                             }
-                            break;
+                            throw new AsnContentException("Unknown tag in sequence.");
                         }
+                        akiReader.ThrowIfNotEmpty();
                         return;
                     }
+                    throw new CryptographicException("No valid data in the extension.");
                 }
                 catch (AsnContentException ace)
                 {

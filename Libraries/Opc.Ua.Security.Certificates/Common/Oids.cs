@@ -45,7 +45,6 @@ namespace Opc.Ua.Security.Certificates
         public const string RsaPss = "1.2.840.113549.1.1.10";
 
         // RSA PKCS1 signatures
-        public const string RsaPkcs1Md5 = "1.2.840.113549.1.1.4";
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
         public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
@@ -78,11 +77,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="hashAlgorithm">The hash algorithm name.</param>
         public static string GetRSAOid(HashAlgorithmName hashAlgorithm)
         {
-            if (hashAlgorithm == HashAlgorithmName.MD5)
-            {
-                return Oids.RsaPkcs1Md5;
-            }
-            else if (hashAlgorithm == HashAlgorithmName.SHA1)
+            if (hashAlgorithm == HashAlgorithmName.SHA1)
             {
                 return Oids.RsaPkcs1Sha1;
             }
@@ -140,17 +135,20 @@ namespace Opc.Ua.Security.Certificates
         {
             switch (oid)
             {
-                case Oids.RsaPkcs1Md5: return HashAlgorithmName.MD5;
                 case Oids.ECDsaWithSha1:
-                case Oids.RsaPkcs1Sha1: return HashAlgorithmName.SHA1;
+                case Oids.RsaPkcs1Sha1:
+                    return HashAlgorithmName.SHA1;
                 case Oids.ECDsaWithSha256:
-                case Oids.RsaPkcs1Sha256: return HashAlgorithmName.SHA256;
+                case Oids.RsaPkcs1Sha256:
+                    return HashAlgorithmName.SHA256;
                 case Oids.ECDsaWithSha384:
-                case Oids.RsaPkcs1Sha384: return HashAlgorithmName.SHA384;
+                case Oids.RsaPkcs1Sha384:
+                    return HashAlgorithmName.SHA384;
                 case Oids.ECDsaWithSha512:
-                case Oids.RsaPkcs1Sha512: return HashAlgorithmName.SHA512;
+                case Oids.RsaPkcs1Sha512:
+                    return HashAlgorithmName.SHA512;
             }
-            throw new NotSupportedException($"Unknown hash algorithm {oid} is not supported. ");
+            throw new NotSupportedException($"Hash algorithm {oid} is not supported. ");
         }
 
     }

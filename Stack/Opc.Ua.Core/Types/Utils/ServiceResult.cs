@@ -745,21 +745,21 @@ namespace Opc.Ua
 
             if (!String.IsNullOrEmpty(m_symbolicId))
             {
-                buffer.Append("\r\n");
+                buffer.AppendLine();
                 buffer.Append("SymbolicId: ");
                 buffer.Append(m_symbolicId);
             }
 
             if (!LocalizedText.IsNullOrEmpty(m_localizedText))
             {
-                buffer.Append("\r\n");
+                buffer.AppendLine();
                 buffer.Append("Description: ");
                 buffer.Append(m_localizedText);
             }
 
             if (AdditionalInfo != null && AdditionalInfo.Length > 0)
             {
-                buffer.Append("\r\n");
+                buffer.AppendLine();
                 buffer.Append(AdditionalInfo);
             }
 
@@ -767,7 +767,9 @@ namespace Opc.Ua
 
             if (innerResult != null)
             {
-                buffer.Append("\r\n===\r\n");
+                buffer.AppendLine();
+                buffer.Append("===");
+                buffer.AppendLine();
                 buffer.Append(innerResult.ToLongString());
             }
 

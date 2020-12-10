@@ -114,7 +114,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="domainNames">The domain names. DNS Hostnames, IPv4 or IPv6 addresses</param>
         public X509SubjectAltNameExtension(
             string applicationUri,
-            IList<string> domainNames)
+            IEnumerable<string> domainNames)
         {
             Oid = new Oid(SubjectAltName2Oid, kFriendlyName);
             Critical = false;
@@ -138,7 +138,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     if (multiLine)
                     {
-                        buffer.Append("\r\n");
+                        buffer.AppendLine();
                     }
                     else
                     {
@@ -157,7 +157,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     if (multiLine)
                     {
-                        buffer.Append("\r\n");
+                        buffer.AppendLine();
                     }
                     else
                     {
@@ -176,7 +176,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     if (multiLine)
                     {
-                        buffer.Append("\r\n");
+                        buffer.AppendLine();
                     }
                     else
                     {
@@ -350,31 +350,31 @@ namespace Opc.Ua.Security.Certificates
                     List<string> uris = new List<string>();
                     List<string> domainNames = new List<string>();
                     List<string> ipAddresses = new List<string>();
-                    Asn1Tag uriTag = new Asn1Tag(TagClass.ContextSpecific, 6);
-                    Asn1Tag dnsTag = new Asn1Tag(TagClass.ContextSpecific, 2);
-                    Asn1Tag ipTag = new Asn1Tag(TagClass.ContextSpecific, 7);
                     AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
-                    var akiReader = dataReader?.ReadSequence();
+                    var akiReader = dataReader.ReadSequence();
+                    dataReader.ThrowIfNotEmpty();
                     if (akiReader != null)
                     {
+                        Asn1Tag uriTag = new Asn1Tag(TagClass.ContextSpecific, 6);
+                        Asn1Tag dnsTag = new Asn1Tag(TagClass.ContextSpecific, 2);
+                        Asn1Tag ipTag = new Asn1Tag(TagClass.ContextSpecific, 7);
+
                         while (akiReader.HasData)
                         {
                             Asn1Tag peekTag = akiReader.PeekTag();
                             if (peekTag == uriTag)
                             {
-                                var uri = akiReader.ReadCharacterString(UniversalTagNumber.IA5String,
-                                    new Asn1Tag(TagClass.ContextSpecific, 6));
+                                var uri = akiReader.ReadCharacterString(UniversalTagNumber.IA5String, uriTag);
                                 uris.Add(uri);
                             }
                             else if (peekTag == dnsTag)
                             {
-                                var dnsName = akiReader.ReadCharacterString(UniversalTagNumber.IA5String,
-                                    new Asn1Tag(TagClass.ContextSpecific, 2));
+                                var dnsName = akiReader.ReadCharacterString(UniversalTagNumber.IA5String, dnsTag);
                                 domainNames.Add(dnsName);
                             }
                             else if (peekTag == ipTag)
                             {
-                                var ip = akiReader.ReadOctetString(new Asn1Tag(TagClass.ContextSpecific, 7));
+                                var ip = akiReader.ReadOctetString(ipTag);
                                 ipAddresses.Add(IPAddressToString(ip));
                             }
                             else  // skip over
@@ -382,21 +382,21 @@ namespace Opc.Ua.Security.Certificates
                                 akiReader.ReadEncodedValue();
                             }
                         }
+                        akiReader.ThrowIfNotEmpty();
+                        m_uris = uris;
+                        m_domainNames = domainNames;
+                        m_ipAddresses = ipAddresses;
+                        m_decoded = true;
+                        return;
                     }
-                    m_uris = uris;
-                    m_domainNames = domainNames;
-                    m_ipAddresses = ipAddresses;
-                    m_decoded = true;
+                    throw new CryptographicException("No valid data in the X509 signature.");
                 }
                 catch (AsnContentException ace)
                 {
                     throw new CryptographicException("Failed to decode the SubjectAltName extension.", ace);
                 }
             }
-            else
-            {
-                throw new CryptographicException("Invalid SubjectAltNameOid.");
-            }
+            throw new CryptographicException("Invalid SubjectAltNameOid.");
         }
 
         /// <summary>
@@ -404,7 +404,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="applicationUri">The application Uri</param>
         /// <param name="generalNames">The general names. DNS Hostnames, IPv4 or IPv6 addresses</param>
-        private void Initialize(string applicationUri, IList<string> generalNames)
+        private void Initialize(string applicationUri, IEnumerable<string> generalNames)
         {
             List<string> uris = new List<string>();
             List<string> domainNames = new List<string>();

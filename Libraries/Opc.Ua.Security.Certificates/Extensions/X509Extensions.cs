@@ -193,6 +193,7 @@ namespace Opc.Ua.Security.Certificates
                     critical = extReader.ReadBoolean();
                 }
                 var data = extReader.ReadOctetString();
+                extReader.ThrowIfNotEmpty();
                 return new X509Extension(new Oid(extOid), data, critical);
             }
             return null;

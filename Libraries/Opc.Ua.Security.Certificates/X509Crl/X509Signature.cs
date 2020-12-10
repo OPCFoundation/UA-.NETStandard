@@ -129,25 +129,26 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 AsnReader crlReader = new AsnReader(crl, AsnEncodingRules.DER);
+                var seqReader = crlReader.ReadSequence(Asn1Tag.Sequence);
+                if (seqReader != null)
                 {
-                    var tag = Asn1Tag.Sequence;
-                    var seqReader = crlReader?.ReadSequence(tag);
-                    if (seqReader != null)
+                    // Tbs encoded data
+                    Tbs = seqReader.ReadEncodedValue().ToArray();
+
+                    // Signature Algorithm Identifier
+                    var sigOid = seqReader.ReadSequence();
+                    SignatureAlgorithm = sigOid.ReadObjectIdentifier();
+                    Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
+
+                    // Signature
+                    int unusedBitCount;
+                    Signature = seqReader.ReadBitString(out unusedBitCount);
+                    if (unusedBitCount != 0)
                     {
-                        // Tbs encoded data
-                        Tbs = seqReader.ReadEncodedValue().ToArray();
-
-                        // Signature Algorithm Identifier
-                        var sigOid = seqReader.ReadSequence();
-                        SignatureAlgorithm = sigOid.ReadObjectIdentifier();
-                        Name = Oids.GetHashAlgorithmName(SignatureAlgorithm);
-
-                        // Signature
-                        int unusedBitCount;
-                        Signature = seqReader.ReadBitString(out unusedBitCount);
-                        Debug.Assert(unusedBitCount == 0, "Unexpected unused bit count.");
-                        return;
+                        throw new AsnContentException("Unexpected data in signature.");
                     }
+                    seqReader.ThrowIfNotEmpty();
+                    return;
                 }
                 throw new CryptographicException("No valid data in the X509 signature.");
             }
@@ -166,10 +167,9 @@ namespace Opc.Ua.Security.Certificates
         {
             switch (SignatureAlgorithm)
             {
-                case Oids.RsaPkcs1Md5: 
-                case Oids.RsaPkcs1Sha1: 
-                case Oids.RsaPkcs1Sha256: 
-                case Oids.RsaPkcs1Sha384: 
+                case Oids.RsaPkcs1Sha1:
+                case Oids.RsaPkcs1Sha256:
+                case Oids.RsaPkcs1Sha384:
                 case Oids.RsaPkcs1Sha512:
                     return VerifyForRSA(certificate, RSASignaturePadding.Pkcs1);
 
@@ -190,7 +190,8 @@ namespace Opc.Ua.Security.Certificates
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
             RSA rsa = null;
-            try {
+            try
+            {
                 rsa = certificate.GetRSAPublicKey();
                 return rsa.VerifyData(Tbs, Signature, Name, padding);
             }
@@ -216,11 +217,14 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="oid">The ASN.1 encoded algorithm oid.</param>
         /// <returns></returns>
-        private string DecodeAlgorithm(byte [] oid)
+        private string DecodeAlgorithm(byte[] oid)
         {
             var seqReader = new AsnReader(oid, AsnEncodingRules.DER);
             var sigOid = seqReader.ReadSequence();
-            return sigOid.ReadObjectIdentifier();
+            seqReader.ThrowIfNotEmpty();
+            var result = sigOid.ReadObjectIdentifier();
+            sigOid.ThrowIfNotEmpty();
+            return result;
         }
 
         /// <summary>

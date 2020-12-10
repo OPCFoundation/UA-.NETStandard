@@ -228,7 +228,8 @@ namespace Opc.Ua.Security.Certificates
             {
                 AsnReader crlReader = new AsnReader(tbs, AsnEncodingRules.DER);
                 var tag = Asn1Tag.Sequence;
-                var seqReader = crlReader?.ReadSequence(tag);
+                var seqReader = crlReader.ReadSequence(tag);
+                crlReader.ThrowIfNotEmpty();
                 if (seqReader != null)
                 {
                     // Version is OPTIONAL
@@ -250,6 +251,11 @@ namespace Opc.Ua.Security.Certificates
                     var sigReader = seqReader.ReadSequence();
                     var oid = sigReader.ReadObjectIdentifier();
                     m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
+                    if (sigReader.HasData)
+                    {
+                        sigReader.ReadNull();
+                    }
+                    sigReader.ThrowIfNotEmpty();
 
                     // Issuer
                     m_issuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
@@ -270,7 +276,6 @@ namespace Opc.Ua.Security.Certificates
                     if (peekTag == seqTag)
                     {
                         // revoked certificates
-                        var boolTag = new Asn1Tag(UniversalTagNumber.Boolean);
                         var revReader = seqReader.ReadSequence(tag);
                         var revokedCertificates = new List<RevokedCertificate>();
                         while (revReader.HasData)
@@ -289,9 +294,12 @@ namespace Opc.Ua.Security.Certificates
                                     var extension = crlEntryExtensions.ReadExtension();
                                     revokedCertificate.CrlEntryExtensions.Add(extension);
                                 }
+                                crlEntryExtensions.ThrowIfNotEmpty();
                             }
+                            crlEntry.ThrowIfNotEmpty();
                             revokedCertificates.Add(revokedCertificate);
                         }
+                        revReader.ThrowIfNotEmpty();
                         m_revokedCertificates = revokedCertificates;
                     }
 
@@ -310,12 +318,15 @@ namespace Opc.Ua.Security.Certificates
                         }
                         m_crlExtensions = crlExtensionList;
                     }
+                    seqReader.ThrowIfNotEmpty();
+                    m_decoded = true;
+                    return;
                 }
-                m_decoded = true;
+                throw new CryptographicException("The CRL contains ivalid data.");
             }
-            catch (Exception ex)
+            catch (AsnContentException ace)
             {
-                throw new CryptographicException("Failed to decode the CRL.", ex);
+                throw new CryptographicException("Failed to decode the CRL.", ace);
             }
         }
 

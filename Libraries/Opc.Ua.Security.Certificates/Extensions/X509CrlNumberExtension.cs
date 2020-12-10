@@ -152,6 +152,7 @@ namespace Opc.Ua.Security.Certificates
                 {
                     AsnReader dataReader = new AsnReader(data, AsnEncodingRules.DER);
                     CrlNumber = dataReader.ReadInteger();
+                    dataReader.ThrowIfNotEmpty();
                 }
                 catch (AsnContentException ace)
                 {

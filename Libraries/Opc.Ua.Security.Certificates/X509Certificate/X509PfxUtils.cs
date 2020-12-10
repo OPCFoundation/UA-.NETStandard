@@ -57,7 +57,7 @@ namespace Opc.Ua.Security.Certificates
                 // verify the public and private key match
                 rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
 #if NETSTANDARD2_1
-                // on .NET Core 3 
+                // on .NET Core 3 ensure the private keys are also exportable
                 rsaPrivateKey.ExportParameters(true);
 #endif
                 rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
