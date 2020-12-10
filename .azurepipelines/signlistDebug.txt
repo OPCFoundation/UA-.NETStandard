@@ -11,7 +11,7 @@ Libraries\Opc.Ua.Client\bin\Debug\net462\Opc.Ua.Client.dll
 Libraries\Opc.Ua.Client\bin\Debug\netstandard2.0\Opc.Ua.Client.dll
 Libraries\Opc.Ua.Client\bin\Debug\netstandard2.1\Opc.Ua.Client.dll
 Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\netstandard2.1\Opc.Ua.Client.ComplexTypes.dll
-Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.0\Opc.Ua.Client.ComplexTypes.dll
+Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\netcoreapp2.1\Opc.Ua.Client.ComplexTypes.dll
 Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.dll
 Libraries\Opc.Ua.Configuration\bin\Debug\netstandard2.1\Opc.Ua.Configuration.dll
 Libraries\Opc.Ua.Configuration\bin\Debug\netstandard2.0\Opc.Ua.Configuration.dll
