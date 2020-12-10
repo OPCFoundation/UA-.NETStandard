@@ -81,7 +81,7 @@ namespace Opc.Ua.Gds.Tests
             _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             _domainNames = X509Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
 
-            CreateCATestCerts(_pushClient.TempStorePath);
+            await CreateCATestCerts(_pushClient.TempStorePath);
         }
 
         /// <summary>
@@ -388,7 +388,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     else
                     {
-                        throw sre;
+                        throw;
                     }
                 }
             } while (certificate == null);
@@ -810,7 +810,7 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Create CA test certificates.
         /// </summary>
-        private void CreateCATestCerts(string tempStorePath)
+        private async Task CreateCATestCerts(string tempStorePath)
         {
             Assert.IsTrue(EraseStore(tempStorePath));
 
@@ -830,7 +830,7 @@ namespace Opc.Ua.Gds.Tests
             _caCert = newCACert;
 
             // initialize cert revocation list (CRL)
-            X509CRL newCACrl = CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert).Result;
+            X509CRL newCACrl = await CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert);
 
             _caCrl = newCACrl;
         }
