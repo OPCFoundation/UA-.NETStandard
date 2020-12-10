@@ -61,7 +61,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             { 3072, HashAlgorithmName.SHA384 },
             { 4096, HashAlgorithmName.SHA512 } }.ToArray();
 
-#if !NET462
+#if ECC_SUPPORT
         [DatapointSource]
         public ECCurve[] NamedCurves = typeof(ECCurve.NamedCurves).GetProperties(BindingFlags.Public | BindingFlags.Static).Select(x => ECCurve.CreateFromFriendlyName(x.Name)).ToArray();
 #endif
@@ -300,7 +300,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var cert2 = builder.CreateForRSA();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
-            Assert.AreEqual(Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
+            Assert.GreaterOrEqual(Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
             Assert.AreEqual(cert1.SerialNumber.Length, cert2.SerialNumber.Length);
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }

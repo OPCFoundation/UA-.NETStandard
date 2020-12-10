@@ -60,8 +60,14 @@ namespace Opc.Ua.Gds.Tests
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true);
             TestUtils.PatchBaseAddressesPorts(config, basePort);
 
+            config.SecurityConfiguration.ApplicationCertificate.StorePath += basePort;
+            config.SecurityConfiguration.TrustedIssuerCertificates.StorePath += basePort;
+            config.SecurityConfiguration.TrustedPeerCertificates.StorePath += basePort;
+            config.SecurityConfiguration.RejectedCertificateStore.StorePath += basePort;
+
             if (clean)
             {
+
                 string thumbprint = config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
@@ -112,7 +118,7 @@ namespace Opc.Ua.Gds.Tests
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration = config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-            string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
+            string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath).Replace(".json", basePort + ".json");
 
             if (clean)
             {
