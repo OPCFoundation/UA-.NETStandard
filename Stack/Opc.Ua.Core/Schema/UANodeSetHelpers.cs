@@ -674,6 +674,14 @@ namespace Opc.Ua.Export
                 }
             }
 
+            string parentNodeId = (node as UAInstance)?.ParentNodeId;
+
+            if (!String.IsNullOrEmpty(parentNodeId))
+            {
+                // set parent NodeId in Handle property.
+                importedNode.Handle = ImportNodeId(parentNodeId, context.NamespaceUris, true);
+            }
+
             return importedNode;
         }
 
