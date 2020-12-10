@@ -223,6 +223,10 @@ namespace Opc.Ua.Security.Certificates
             var sigOid = seqReader.ReadSequence();
             seqReader.ThrowIfNotEmpty();
             var result = sigOid.ReadObjectIdentifier();
+            if (sigOid.HasData)
+            {
+                sigOid.ReadNull();
+            }
             sigOid.ThrowIfNotEmpty();
             return result;
         }
