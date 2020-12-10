@@ -481,50 +481,6 @@ namespace Opc.Ua
             )
         {
             return X509PfxUtils.CreateCertificateFromPKCS12(rawData, password);
-#if mist
-            Exception ex = null;
-            int flagsRetryCounter = 0;
-            X509Certificate2 certificate = null;
-
-            // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
-            X509KeyStorageFlags[] storageFlags = {
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.MachineKeySet,
-                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet
-            };
-
-            // try some combinations of storage flags, support is platform dependent
-            while (certificate == null &&
-                flagsRetryCounter < storageFlags.Length)
-            {
-                try
-                {
-                    // merge first cert with private key into X509Certificate2
-                    certificate = new X509Certificate2(
-                        rawData,
-                        password ?? String.Empty,
-                        storageFlags[flagsRetryCounter]);
-                    // can we really access the private key?
-                    if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
-                    {
-                        return certificate;
-                    }
-                }
-                catch (Exception e)
-                {
-                    ex = e;
-                    certificate?.Dispose();
-                    certificate = null;
-                }
-                flagsRetryCounter++;
-            }
-
-            if (certificate == null)
-            {
-                throw new NotSupportedException("Creating X509Certificate from PKCS #12 store failed", ex);
-            }
-
-            return certificate;
-#endif
         }
 
         /// <summary>

@@ -290,21 +290,19 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serial, builder.GetSerialNumber());
             var cert1 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
+            TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
+            Assert.AreEqual(serial, cert1.GetSerialNumber());
+            Assert.AreEqual(Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
 
             // clear sign bit
-            builder.SetSerialNumber(serial);
-            Assert.AreEqual(serial, builder.GetSerialNumber());
+            builder.SetSerialNumberLength(Defaults.SerialNumberLengthMax);
 
             var cert2 = builder.CreateForRSA();
             WriteCertificate(cert2, "Cert2 with max length serial number");
-            TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
-
-            Assert.AreEqual(Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
-            Assert.AreEqual(cert1.SerialNumber.Length, cert2.SerialNumber.Length);
-            Assert.AreEqual(cert1.SerialNumber, cert2.SerialNumber);
+            TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
             Assert.AreEqual(Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
-            Assert.AreEqual(serial, cert1.GetSerialNumber());
-            Assert.AreEqual(serial, cert2.GetSerialNumber());
+            Assert.AreEqual(cert1.SerialNumber.Length, cert2.SerialNumber.Length);
+            Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
 
