@@ -4,7 +4,6 @@
 parameters:
   configuration: 'Release'
   framework: 'netcoreapp3.1'
-  secondframework: 'netcoreapp2.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
   jobnamesuffix: 'netcore31'
@@ -39,19 +38,6 @@ jobs:
       command: test
       projects: '**/*.Tests.csproj'
       arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
-  - task: DotNetCoreCLI@2
-    displayName: Restore ${{ parameters.secondframework }}
-    inputs:
-      command: restore
-      projects: '**/*.Tests.csproj'
-      arguments: '--framework ${{ parameters.secondframework }} --configuration ${{ parameters.configuration }}'
-  - task: DotNetCoreCLI@2
-    displayName: Test ${{ parameters.secondframework }}
-    timeoutInMinutes: 20
-    inputs:
-      command: test
-      projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --framework ${{ parameters.secondframework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 
