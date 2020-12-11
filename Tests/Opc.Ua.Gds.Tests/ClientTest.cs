@@ -1033,14 +1033,14 @@ namespace Opc.Ua.Gds.Tests
         public void ClientLogResult()
         {
             var log = _gdsClient.ReadLogFile();
-            TestContext.Out.WriteLine(log);
+            TestContext.Progress.WriteLine(log);
         }
 
         [Test, Order(9999)]
         public void ServerLogResult()
         {
             var log = _server.ReadLogFile();
-            TestContext.Out.WriteLine(log);
+            TestContext.Progress.WriteLine(log);
         }
         #endregion
 
