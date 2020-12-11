@@ -42,8 +42,9 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Test GDS Registration and Client Pull.
     /// </summary>
-    [TestFixture, Category("GDSRegistrationAndPull")]
+    [TestFixture, Category("GDSRegistrationAndPull"), Category("GDS")]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
     public class ClientTest
     {
         #region Test Setup

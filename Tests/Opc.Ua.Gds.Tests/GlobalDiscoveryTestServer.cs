@@ -56,32 +56,7 @@ namespace Opc.Ua.Gds.Tests
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
             };
 
-            // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true);
-            TestUtils.PatchBaseAddressesPorts(config, basePort);
-
-            config.SecurityConfiguration.ApplicationCertificate.StorePath += basePort;
-            config.SecurityConfiguration.TrustedIssuerCertificates.StorePath += basePort;
-            config.SecurityConfiguration.TrustedPeerCertificates.StorePath += basePort;
-            config.SecurityConfiguration.RejectedCertificateStore.StorePath += basePort;
-
-            if (clean)
-            {
-
-                string thumbprint = config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
-                if (thumbprint != null)
-                {
-                    using (var store = config.SecurityConfiguration.ApplicationCertificate.OpenStore())
-                    {
-                        await store.Delete(thumbprint);
-                    }
-                }
-
-                // always start with clean cert store
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
-            }
+            ApplicationConfiguration config = await Load(application, basePort);
 
             if (clean)
             {
@@ -99,10 +74,9 @@ namespace Opc.Ua.Gds.Tests
                 TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
                 TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
                 TestUtils.CleanupTrustList(config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
-                config = await application.LoadApplicationConfiguration(false);
-            }
 
-            TestUtils.PatchBaseAddressesPorts(config, basePort);
+                config = await Load(application, basePort);
+            }
 
             // check the application certificate.
             bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0);
@@ -118,7 +92,7 @@ namespace Opc.Ua.Gds.Tests
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration = config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-            string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath).Replace(".json", basePort + ".json");
+            string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
 
             if (clean)
             {
@@ -184,6 +158,14 @@ namespace Opc.Ua.Gds.Tests
                     Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
                 }
             }
+        }
+
+        private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
+        {
+            // load the application configuration.
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true);
+            TestUtils.PatchBaseAddressesPorts(config, basePort);
+            return config;
         }
 
         private GlobalDiscoverySampleServer m_server;

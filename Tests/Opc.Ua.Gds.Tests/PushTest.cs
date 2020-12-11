@@ -45,8 +45,9 @@ using OpcUa = Opc.Ua;
 namespace Opc.Ua.Gds.Tests
 {
 
-    [TestFixture, Category("GDSPush")]
+    [TestFixture, Category("GDSPush"), Category("GDS")]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
     public class PushTest
     {
         #region Test Setup
@@ -107,8 +108,8 @@ namespace Opc.Ua.Gds.Tests
             DisconnectGDSClient();
             DisconnectPushClient();
         }
-
         #endregion
+
         #region Test Methods
         [Test, Order(100)]
         public void GetSupportedKeyFormats()

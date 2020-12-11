@@ -253,9 +253,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             var cert2 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
-            Assert.AreEqual(Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
-            Assert.AreEqual(cert1.SerialNumber.Length, cert2.SerialNumber.Length);
-            Assert.AreEqual(cert1.GetSerialNumber().Length, cert2.GetSerialNumber().Length);
+            Assert.GreaterOrEqual(Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
+            Assert.GreaterOrEqual(Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
