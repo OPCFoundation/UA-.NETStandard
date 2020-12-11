@@ -85,6 +85,7 @@ namespace Opc.Ua.Bindings
                 ITransportListener listener = this.Create();
                 if (listener != null)
                 {
+                    EndpointDescriptionCollection listenerEndpoints = new EndpointDescriptionCollection();
                     uris.Add(uri.Uri);
 
                     foreach (ServerSecurityPolicy policy in securityPolicies)
@@ -123,12 +124,14 @@ namespace Opc.Ua.Bindings
                             }
                         }
 
-                        endpoints.Add(description);
+                        listenerEndpoints.Add(description);
                     }
 
-                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
+                    serverBase.CreateServiceHostEndpoint(uri.Uri, listenerEndpoints, endpointConfiguration, listener,
                         configuration.CertificateValidator.GetChannelValidator()
                         );
+
+                    endpoints.AddRange(listenerEndpoints);
                 }
                 else
                 {

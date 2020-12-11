@@ -72,10 +72,32 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUp()
         {
-            // work around travis issue by selecting different ports on every run
-            int testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
-            _server = new GlobalDiscoveryTestServer(true);
-            await _server.StartServer(true, testPort);
+            int testPort = 0;
+            bool retryStartServer;
+            int serverStartRetries = 10;
+            do
+            {
+                retryStartServer = false;
+                try
+                {
+                    // work around travis issue by selecting different ports on every run
+                    testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
+                    _server = new GlobalDiscoveryTestServer(true);
+                    await _server.StartServer(true, testPort);
+                }
+                catch (ServiceResultException sre)
+                {
+                    serverStartRetries--;
+                    if (serverStartRetries == 0 ||
+                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    {
+                        throw;
+                    }
+                    retryStartServer = true;
+                }
+                await Task.Delay(1000);
+            }
+            while (retryStartServer);
 
             // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);
@@ -1010,15 +1032,21 @@ namespace Opc.Ua.Gds.Tests
         #endregion
 
         #region Private Methods
-        private void ConnectGDS(bool admin)
+        private void ConnectGDS(bool admin,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
-            _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
+            _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).Wait();
+            TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
-        private void DisconnectGDS()
+        private void DisconnectGDS(
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _gdsClient.GDSClient.Disconnect();
+            TestContext.Progress.WriteLine($"GDS Client disconnected -- {memberName}");
         }
 
         private void AssertIgnoreTestWithoutGoodRegistration()

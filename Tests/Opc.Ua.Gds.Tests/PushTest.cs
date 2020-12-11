@@ -58,13 +58,36 @@ namespace Opc.Ua.Gds.Tests
         protected async Task OneTimeSetUp()
         {
             // make sure all servers started in travis use a different port, or test will fail
-            int testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
+            int testPort = 0;
+            bool retryStartServer;
+            int serverStartRetries = 10;
+            do
+            {
+                retryStartServer = false;
+                try
+                {
+                    // work around travis issue by selecting different ports on every run
+                    testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
+                    _server = new GlobalDiscoveryTestServer(true);
+                    await _server.StartServer(true, testPort);
+                }
+                catch (ServiceResultException sre)
+                {
+                    serverStartRetries--;
+                    if (serverStartRetries == 0 ||
+                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    {
+                        throw;
+                    }
+                    retryStartServer = true;
+                }
+                await Task.Delay(1000);
+            }
+            while (retryStartServer);
+
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
             _dataGenerator = new DataGenerator(_randomSource);
-            _server = new GlobalDiscoveryTestServer(true);
-            await _server.StartServer(true, testPort);
-            await Task.Delay(1000);
 
             // load clients
             _gdsClient = new GlobalDiscoveryTestClient(true);
@@ -347,11 +370,12 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(510)]
+        [Test, Order(510), NonParallelizable]
         public void UpdateCertificateCASigned()
         {
             ConnectPushClient(true);
             ConnectGDSClient(true);
+            TestContext.Out.WriteLine("Create Signing Request");
             byte[] csr = _pushClient.PushClient.CreateSigningRequest(
                 null,
                 _pushClient.PushClient.ApplicationCertificateType,
@@ -359,6 +383,7 @@ namespace Opc.Ua.Gds.Tests
                 false,
                 null);
             Assert.IsNotNull(csr);
+            TestContext.Out.WriteLine("Start Signing Request");
             NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
                 _applicationRecord.ApplicationId,
                 null,
@@ -373,6 +398,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 try
                 {
+                    TestContext.Out.WriteLine("Finish Signing Request");
                     certificate = _gdsClient.GDSClient.FinishRequest(
                         _applicationRecord.ApplicationId,
                         requestId,
@@ -396,6 +422,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(issuerCertificates);
             Assert.IsNull(privateKey);
             DisconnectGDSClient();
+            TestContext.Out.WriteLine("Update Certificate");
             bool success = _pushClient.PushClient.UpdateCertificate(
                 null,
                 _pushClient.PushClient.ApplicationCertificateType,
@@ -405,8 +432,10 @@ namespace Opc.Ua.Gds.Tests
                 issuerCertificates);
             if (success)
             {
+                TestContext.Out.WriteLine("Apply Changes");
                 _pushClient.PushClient.ApplyChanges();
             }
+            TestContext.Out.WriteLine("Verify Cert Update");
             VerifyNewPushServerCert(certificate);
         }
 
@@ -578,26 +607,38 @@ namespace Opc.Ua.Gds.Tests
         }
         #endregion
         #region Private Methods
-        private void ConnectPushClient(bool sysAdmin)
+        private void ConnectPushClient(bool sysAdmin,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _pushClient.PushClient.AdminCredentials = sysAdmin ? _pushClient.SysAdminUser : _pushClient.AppUser;
             _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl).Wait();
+            TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
-        private void DisconnectPushClient()
+        private void DisconnectPushClient(
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _pushClient.PushClient.Disconnect();
+            TestContext.Progress.WriteLine($"GDS Push disconnected -- {memberName}");
         }
 
-        private void ConnectGDSClient(bool admin)
+        private void ConnectGDSClient(bool admin,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
             _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).Wait();
+            TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
-        private void DisconnectGDSClient()
+        private void DisconnectGDSClient(
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _gdsClient.GDSClient.Disconnect();
+            TestContext.Progress.WriteLine($"GDS Client disconnected -- {memberName}");
         }
 
         private X509Certificate2Collection CreateCertCollection(ByteStringCollection certList)

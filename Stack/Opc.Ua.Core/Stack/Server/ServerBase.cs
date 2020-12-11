@@ -743,6 +743,7 @@ namespace Opc.Ua
                     message += (" " + e.InnerException.Message);
                 }
                 Utils.Trace(e, message);
+                throw;
             }
         }
 
