@@ -324,28 +324,30 @@ namespace Opc.Ua
                     filePath.Append(Path.DirectorySeparatorChar);
                     filePath.Append(fileRoot);
 
+                    X509KeyStorageFlags[] storageFlags = {
+                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
+                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
+                    };
+
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
                     password = password ?? String.Empty;
-                    try
+                    foreach (var flag in storageFlags)
                     {
-                        certificate = new X509Certificate2(
-                            privateKeyFile.FullName,
-                            password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
-                        if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                        try
                         {
-                            return certificate;
+                            certificate = new X509Certificate2(
+                                privateKeyFile.FullName,
+                                password,
+                                flag);
+                            if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                            {
+                                return certificate;
+                            }
                         }
-                    }
-                    catch (Exception)
-                    {
-                        certificate = new X509Certificate2(
-                            privateKeyFile.FullName,
-                            password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
-                        if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                        catch (Exception)
                         {
-                            return certificate;
+                            certificate?.Dispose();
+                            certificate = null;
                         }
                     }
                 }

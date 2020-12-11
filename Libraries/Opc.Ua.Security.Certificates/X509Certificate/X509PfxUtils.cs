@@ -56,10 +56,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 // verify the public and private key match
                 rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-#if NETSTANDARD2_1
-                // on .NET Core 3 ensure the private keys are also exportable
-                rsaPrivateKey.ExportParameters(true);
-#endif
                 rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
                 X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                 if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
@@ -107,7 +103,6 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             Exception ex = null;
-            int flagsRetryCounter = 0;
             X509Certificate2 certificate = null;
 
             // We need to try MachineKeySet first as UserKeySet in combination with PersistKeySet hangs ASP.Net WebApps on Azure
@@ -117,8 +112,7 @@ namespace Opc.Ua.Security.Certificates
             };
 
             // try some combinations of storage flags, support is platform dependent
-            while (certificate == null &&
-                flagsRetryCounter < storageFlags.Length)
+            foreach (var flag in storageFlags)
             {
                 try
                 {
@@ -126,7 +120,7 @@ namespace Opc.Ua.Security.Certificates
                     certificate = new X509Certificate2(
                         rawData,
                         password ?? String.Empty,
-                        storageFlags[flagsRetryCounter]);
+                        flag);
                     // can we really access the private key?
                     if (VerifyRSAKeyPair(certificate, certificate, true))
                     {
@@ -139,7 +133,6 @@ namespace Opc.Ua.Security.Certificates
                     certificate?.Dispose();
                     certificate = null;
                 }
-                flagsRetryCounter++;
             }
 
             if (certificate == null)
