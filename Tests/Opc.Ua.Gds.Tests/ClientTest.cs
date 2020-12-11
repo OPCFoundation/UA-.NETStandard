@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Tests
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected async Task OneTimeSetUp()
+        protected void OneTimeSetUp()
         {
             int testPort = 0;
             bool retryStartServer;
@@ -83,7 +83,7 @@ namespace Opc.Ua.Gds.Tests
                     // work around travis issue by selecting different ports on every run
                     testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
                     _server = new GlobalDiscoveryTestServer(true);
-                    await _server.StartServer(true, testPort);
+                    _server.StartServer(true, testPort).GetAwaiter().GetResult();
                 }
                 catch (ServiceResultException sre)
                 {
@@ -95,13 +95,13 @@ namespace Opc.Ua.Gds.Tests
                     }
                     retryStartServer = true;
                 }
-                await Task.Delay(1000);
+                Thread.Sleep(1000);
             }
             while (retryStartServer);
 
             // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            await _gdsClient.LoadClientConfiguration(testPort);
+            _gdsClient.LoadClientConfiguration(testPort).GetAwaiter().GetResult();
 
             // good applications test set
             _appTestDataGenerator = new ApplicationTestDataGenerator(1);
@@ -1029,6 +1029,19 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        [Test, Order(9998)]
+        public void ClientLogResult()
+        {
+            var log = _gdsClient.ReadLogFile();
+            TestContext.Out.WriteLine(log);
+        }
+
+        [Test, Order(9999)]
+        public void ServerLogResult()
+        {
+            var log = _server.ReadLogFile();
+            TestContext.Out.WriteLine(log);
+        }
         #endregion
 
         #region Private Methods

@@ -89,7 +89,7 @@
 
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC/Logs/ServerConfigurationPushTestClient.log.txt</OutputFilePath>
-    <DeleteOnLoad>false</DeleteOnLoad>
+    <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

@@ -370,7 +370,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test, Order(510), NonParallelizable]
+        [Test, Order(510)]
         public void UpdateCertificateCASigned()
         {
             ConnectPushClient(true);
@@ -605,7 +605,29 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
+
+        [Test, Order(9997)]
+        public void PushClientLogResult()
+        {
+            var log = _pushClient.ReadLogFile();
+            TestContext.Out.WriteLine(log);
+        }
+
+        [Test, Order(9998)]
+        public void ClientLogResult()
+        {
+            var log = _gdsClient.ReadLogFile();
+            TestContext.Out.WriteLine(log);
+        }
+
+        [Test, Order(9999)]
+        public void ServerLogResult()
+        {
+            var log = _server.ReadLogFile();
+            TestContext.Out.WriteLine(log);
+        }
         #endregion
+
         #region Private Methods
         private void ConnectPushClient(bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""

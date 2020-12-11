@@ -41,6 +41,9 @@ namespace Opc.Ua.Gds.Tests
     public class GlobalDiscoveryTestServer
     {
         public GlobalDiscoverySampleServer Server => m_server;
+        public ApplicationInstance Application { get; private set; }
+        public ApplicationConfiguration Config { get; private set; }
+        
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
         {
@@ -50,48 +53,48 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartServer(bool clean, int basePort = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance {
+            Application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
             };
 
-            ApplicationConfiguration config = await Load(application, basePort);
+            Config = await Load(Application, basePort);
 
             if (clean)
             {
-                string thumbprint = config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
+                string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using (var store = config.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    using (var store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     {
                         await store.Delete(thumbprint);
                     }
                 }
 
                 // always start with clean cert store
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.ApplicationCertificate.OpenStore());
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
-                TestUtils.CleanupTrustList(config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
+                TestUtils.CleanupTrustList(Config.SecurityConfiguration.ApplicationCertificate.OpenStore());
+                TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore());
+                TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
+                TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
 
-                config = await Load(application, basePort);
+                Config = await Load(Application, basePort);
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0);
+            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(true, 0);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
-                config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+                Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
 
             // get the DatabaseStorePath configuration parameter.
-            GlobalDiscoveryServerConfiguration gdsConfiguration = config.ParseExtension<GlobalDiscoveryServerConfiguration>();
+            GlobalDiscoveryServerConfiguration gdsConfiguration = Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
             string databaseStorePath = Utils.ReplaceSpecialFolderNames(gdsConfiguration.DatabaseStorePath);
 
             if (clean)
@@ -118,7 +121,7 @@ namespace Opc.Ua.Gds.Tests
                 database,
                 database,
                 new CertificateGroup());
-            await application.Start(m_server);
+            await Application.Start(m_server);
 
             ServerState serverState = Server.GetStatus().State;
             if ((serverState = Server.GetStatus().State) != ServerState.Running)
@@ -142,6 +145,11 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
 
+        }
+
+        public string ReadLogFile()
+        {
+            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
