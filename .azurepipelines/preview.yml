@@ -99,7 +99,6 @@ jobs:
     inputs:
       command: 'pack'
       packagesToPack: '**/Opc.*.nuspec'
-     
       versioningScheme: 'byEnvVar'
       versionEnvVar: 'nugetpreviewversion'
   - task: NuGetCommand@2

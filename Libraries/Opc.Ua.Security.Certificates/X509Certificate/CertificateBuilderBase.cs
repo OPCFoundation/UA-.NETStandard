@@ -82,9 +82,9 @@ namespace Opc.Ua.Security.Certificates
         protected virtual void Initialize()
         {
             m_notBefore = DateTime.UtcNow.AddDays(-1).Date;
-            m_notAfter = NotBefore.AddMonths(Defaults.LifeTime);
-            m_hashAlgorithmName = Defaults.HashAlgorithmName;
-            m_serialNumberLength = Defaults.SerialNumberLengthMin;
+            m_notAfter = NotBefore.AddMonths(X509Defaults.LifeTime);
+            m_hashAlgorithmName = X509Defaults.HashAlgorithmName;
+            m_serialNumberLength = X509Defaults.SerialNumberLengthMin;
             m_extensions = new X509ExtensionCollection();
         }
         #endregion
@@ -146,12 +146,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <remarks>
         /// The length of the serial number shall
-        /// not exceed <see cref="Defaults.SerialNumberLengthMax"/> octets.
+        /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
         /// </remarks>
         /// <param name="length">The length of the serial number in octets.</param>
         public ICertificateBuilder SetSerialNumberLength(int length)
         {
-            if (length > Defaults.SerialNumberLengthMax || length == 0)
+            if (length > X509Defaults.SerialNumberLengthMax || length == 0)
             {
                 throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
             }
@@ -166,12 +166,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <remarks>
         /// The length of the serial number shall
-        /// not exceed <see cref="Defaults.SerialNumberLengthMax"/> octets.
+        /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
         /// </remarks>
         /// <param name="serialNumber">The serial number as an array of bytes in little endian order.</param>
         public ICertificateBuilder SetSerialNumber(byte[] serialNumber)
         {
-            if (serialNumber.Length > Defaults.SerialNumberLengthMax ||
+            if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
                 serialNumber.Length == 0)
             {
                 throw new ArgumentOutOfRangeException("SerialNumber array exceeds supported length.");
@@ -236,7 +236,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="months">The lifetime in month.</param>
         public ICertificateBuilder SetLifeTime(ushort months)
         {
-            m_notAfter = m_notBefore.AddMonths(months == 0 ? Defaults.LifeTime : (int)months);
+            m_notAfter = m_notBefore.AddMonths(months == 0 ? X509Defaults.LifeTime : (int)months);
             return this;
         }
 
@@ -262,7 +262,7 @@ namespace Opc.Ua.Security.Certificates
         {
             m_isCA = true;
             m_pathLengthConstraint = pathLengthConstraint;
-            m_serialNumberLength = Defaults.SerialNumberLengthMax;
+            m_serialNumberLength = X509Defaults.SerialNumberLengthMax;
             return this;
         }
 
@@ -275,10 +275,10 @@ namespace Opc.Ua.Security.Certificates
         {
             if (keySize == 0)
             {
-                keySize = Defaults.RSAKeySize;
+                keySize = X509Defaults.RSAKeySize;
             }
 
-            if (keySize % 1024 != 0 || keySize < Defaults.RSAKeySizeMin || keySize > Defaults.RSAKeySizeMax)
+            if (keySize % 1024 != 0 || keySize < X509Defaults.RSAKeySizeMin || keySize > X509Defaults.RSAKeySizeMax)
             {
                 throw new ArgumentException(nameof(keySize), "KeySize must be a multiple of 1024 or is not in the allowed range.");
             }

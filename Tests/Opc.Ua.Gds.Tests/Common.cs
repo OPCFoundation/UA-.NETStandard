@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -342,6 +343,37 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
             return url;
+        }
+
+        public static async Task<GlobalDiscoveryTestServer> StartGDS()
+        {
+            GlobalDiscoveryTestServer server = null;
+            int testPort = 0;
+            bool retryStartServer = false;
+            int serverStartRetries = 10;
+            do
+            {
+                try
+                {
+                    // work around travis issue by selecting different ports on every run
+                    testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
+                    server = new GlobalDiscoveryTestServer(true);
+                    await server.StartServer(true, testPort);
+                }
+                catch (ServiceResultException sre)
+                {
+                    serverStartRetries--;
+                    if (serverStartRetries == 0 ||
+                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    {
+                        throw;
+                    }
+                    retryStartServer = true;
+                }
+                await Task.Delay(1000);
+            } while (retryStartServer);
+
+            return server;
         }
     }
 }

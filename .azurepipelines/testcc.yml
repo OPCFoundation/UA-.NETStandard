@@ -37,14 +37,7 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --filter "TestCategory!=GDS" --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
-  - task: DotNetCoreCLI@2
-    displayName: Test GDS ${{ parameters.framework }}
-    timeoutInMinutes: 20
-    inputs:
-      command: test
-      projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --filter "TestCategory=GDS" --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 

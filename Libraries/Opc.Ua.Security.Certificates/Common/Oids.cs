@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System;
 using System.Security.Cryptography;
 

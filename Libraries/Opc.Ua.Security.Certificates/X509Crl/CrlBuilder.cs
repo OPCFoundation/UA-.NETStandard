@@ -95,7 +95,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerSubjectName">Issuer name</param>
         private CrlBuilder(X500DistinguishedName issuerSubjectName)
-            : this(issuerSubjectName, Defaults.HashAlgorithmName)
+            : this(issuerSubjectName, X509Defaults.HashAlgorithmName)
         {
         }
 

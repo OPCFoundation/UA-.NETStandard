@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,38 +71,14 @@ namespace Opc.Ua.Gds.Tests
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
+        protected async Task OneTimeSetUp()
         {
-            int testPort = 0;
-            bool retryStartServer;
-            int serverStartRetries = 10;
-            do
-            {
-                retryStartServer = false;
-                try
-                {
-                    // work around travis issue by selecting different ports on every run
-                    testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
-                    _server = new GlobalDiscoveryTestServer(true);
-                    _server.StartServer(true, testPort).GetAwaiter().GetResult();
-                }
-                catch (ServiceResultException sre)
-                {
-                    serverStartRetries--;
-                    if (serverStartRetries == 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
-                    {
-                        throw;
-                    }
-                    retryStartServer = true;
-                }
-                Thread.Sleep(1000);
-            }
-            while (retryStartServer);
+            // start GDS
+            _server = await TestUtils.StartGDS();
 
             // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            _gdsClient.LoadClientConfiguration(testPort).GetAwaiter().GetResult();
+            await _gdsClient.LoadClientConfiguration(_server.BasePort);
 
             // good applications test set
             _appTestDataGenerator = new ApplicationTestDataGenerator(1);
@@ -1029,6 +1006,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+#if DEVOPS_LOG
         [Test, Order(9998)]
         public void ClientLogResult()
         {
@@ -1042,6 +1020,7 @@ namespace Opc.Ua.Gds.Tests
             var log = _server.ReadLogFile();
             TestContext.Progress.WriteLine(log);
         }
+#endif
         #endregion
 
         #region Private Methods

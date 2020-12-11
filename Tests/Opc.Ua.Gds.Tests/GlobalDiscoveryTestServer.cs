@@ -43,11 +43,12 @@ namespace Opc.Ua.Gds.Tests
         public GlobalDiscoverySampleServer Server => m_server;
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
-        
+        public int BasePort { get; private set; }
+
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
         {
-            autoAccept = _autoAccept;
+            m_autoAccept = _autoAccept;
         }
 
         public async Task StartServer(bool clean, int basePort = -1)
@@ -59,6 +60,7 @@ namespace Opc.Ua.Gds.Tests
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
             };
 
+            BasePort = basePort;
             Config = await Load(Application, basePort);
 
             if (clean)
@@ -156,8 +158,8 @@ namespace Opc.Ua.Gds.Tests
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = autoAccept;
-                if (autoAccept)
+                e.Accept = m_autoAccept;
+                if (m_autoAccept)
                 {
                     Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
                 }
@@ -177,6 +179,6 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private GlobalDiscoverySampleServer m_server;
-        private static bool autoAccept = false;
+        private static bool m_autoAccept = false;
     }
 }

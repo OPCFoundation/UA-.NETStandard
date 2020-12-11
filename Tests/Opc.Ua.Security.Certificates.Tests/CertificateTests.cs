@@ -124,10 +124,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(cert.GetRSAPrivateKey());
             var publicKey = cert.GetRSAPublicKey();
             Assert.NotNull(publicKey);
-            Assert.AreEqual(Defaults.RSAKeySize, publicKey.KeySize);
-            Assert.AreEqual(Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.AreEqual(X509Defaults.RSAKeySize, publicKey.KeySize);
+            Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             Assert.AreEqual(DateTime.UtcNow.AddDays(-1).Date, cert.NotBefore.ToUniversalTime());
-            Assert.AreEqual(cert.NotBefore.ToUniversalTime().AddMonths(Defaults.LifeTime), cert.NotAfter.ToUniversalTime());
+            Assert.AreEqual(cert.NotBefore.ToUniversalTime().AddMonths(X509Defaults.LifeTime), cert.NotAfter.ToUniversalTime());
             var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
             Assert.NotNull(basicConstraintsExtension);
             Assert.True(basicConstraintsExtension.CertificateAuthority);
@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert, $"Default RSA {keyHashPair.KeySize} cert");
             Assert.AreEqual(Subject, cert.Subject);
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
-            Assert.AreEqual(Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+            Assert.AreEqual(X509Defaults.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
             Assert.NotNull(basicConstraintsExtension);
             Assert.True(basicConstraintsExtension.CertificateAuthority);
@@ -167,7 +167,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.NotNull(cert);
             WriteCertificate(cert, $"Default RSA {keyHashPair.HashAlgorithmName} cert");
             Assert.AreEqual(Subject, cert.Subject);
-            Assert.AreEqual(Defaults.RSAKeySize, cert.GetRSAPublicKey().KeySize);
+            Assert.AreEqual(X509Defaults.RSAKeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
             var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(cert.Extensions);
             Assert.NotNull(basicConstraintsExtension);
@@ -241,20 +241,20 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
                     var cert = CertificateBuilder.Create(Subject)
-                    .SetSerialNumberLength(Defaults.SerialNumberLengthMax + 1)
+                    .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                     .CreateForRSA();
                 }
             );
             var builder = CertificateBuilder.Create(Subject)
-                .SetSerialNumberLength(Defaults.SerialNumberLengthMax);
+                .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
             // ensure every cert has a different serial number
             var cert1 = builder.CreateForRSA();
             var cert2 = builder.CreateForRSA();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
-            Assert.GreaterOrEqual(Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
-            Assert.GreaterOrEqual(Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
+            Assert.GreaterOrEqual(X509Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
+            Assert.GreaterOrEqual(X509Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
@@ -272,11 +272,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
                     var cert = CertificateBuilder.Create(Subject)
-                    .SetSerialNumber(new byte[Defaults.SerialNumberLengthMax + 1])
+                    .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .CreateForRSA();
                 }
             );
-            var serial = new byte[Defaults.SerialNumberLengthMax];
+            var serial = new byte[X509Defaults.SerialNumberLengthMax];
             for (int i = 0; i < serial.Length; i++)
             {
                 serial[i] = (byte)((i + 1) | 0x80);
@@ -291,15 +291,15 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
             Assert.AreEqual(serial, cert1.GetSerialNumber());
-            Assert.AreEqual(Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
+            Assert.AreEqual(X509Defaults.SerialNumberLengthMax, cert1.GetSerialNumber().Length);
 
             // clear sign bit
-            builder.SetSerialNumberLength(Defaults.SerialNumberLengthMax);
+            builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
             var cert2 = builder.CreateForRSA();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
-            Assert.GreaterOrEqual(Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
+            Assert.GreaterOrEqual(X509Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
             Assert.AreEqual(cert1.SerialNumber.Length, cert2.SerialNumber.Length);
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }

@@ -92,7 +92,7 @@ namespace Opc.Ua.Security.Certificates
             RSA rsaPublicKey = m_rsaPublicKey;
             if (rsaPublicKey == null)
             {
-                rsaKeyPair = RSA.Create(m_keySize == 0 ? Defaults.RSAKeySize : m_keySize);
+                rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
                 rsaPublicKey = rsaKeyPair;
             }
 
@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
             RSA rsaPublicKey = m_rsaPublicKey;
             if (rsaPublicKey == null)
             {
-                rsaKeyPair = RSA.Create(m_keySize == 0 ? Defaults.RSAKeySize : m_keySize);
+                rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
                 rsaPublicKey = rsaKeyPair;
             }
 

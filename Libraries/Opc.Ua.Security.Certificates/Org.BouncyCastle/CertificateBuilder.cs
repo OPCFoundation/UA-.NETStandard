@@ -193,7 +193,7 @@ namespace Opc.Ua.Security.Certificates
                 RsaKeyParameters publicKey = X509Utils.GetPublicKeyParameter(certificate);
 
                 ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(Defaults.HashAlgorithmName), signingKey, random);
+                    new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName), signingKey, random);
 
                 Asn1Set attributes = null;
                 var san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
@@ -449,7 +449,7 @@ namespace Opc.Ua.Security.Certificates
                 CreateMandatoryFields(cg);
 
                 // create Private/Public Keypair
-                var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? Defaults.RSAKeySize : m_keySize);
+                var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
                 AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(rsa);
                 AsymmetricKeyParameter subjectPrivateKey = X509Utils.GetPrivateKeyParameter(rsa);
 

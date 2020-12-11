@@ -102,7 +102,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <remarks>
         /// The length of the serial number shall
-        /// not exceed <see cref="Defaults.SerialNumberLengthMax"/> octets.
+        /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
         /// </remarks>
         /// <param name="length"></param>
         ICertificateBuilder SetSerialNumberLength(int length);
@@ -112,7 +112,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <remarks>
         /// The length of the serial number shall
-        /// not exceed <see cref="Defaults.SerialNumberLengthMax"/> octets.
+        /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
         /// </remarks>
         /// <param name="serialNumber">The serial number as an array of bytes in little endian order.</param>
         ICertificateBuilder SetSerialNumber(byte[] serialNumber);
@@ -179,7 +179,7 @@ namespace Opc.Ua.Security.Certificates
     public interface ICertificateBuilderCreateForRSAGenerator
     {
         /// <summary>
-        /// Create the RSA certificate with signature.
+        /// Create the RSA certificate with signature using an external generator.
         /// </summary>
         /// <returns>The signed certificate.</returns>
         X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Security.Certificates
     public interface ICertificateBuilderCreateForECDsa
     {
         /// <summary>
-        /// Create the RSA certificate with signature.
+        /// Create the ECC certificate with signature.
         /// </summary>
         /// <returns>The signed certificate.</returns>
         X509Certificate2 CreateForECDsa();

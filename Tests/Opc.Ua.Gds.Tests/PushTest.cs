@@ -57,33 +57,8 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUp()
         {
-            // make sure all servers started in travis use a different port, or test will fail
-            int testPort = 0;
-            bool retryStartServer;
-            int serverStartRetries = 10;
-            do
-            {
-                retryStartServer = false;
-                try
-                {
-                    // work around travis issue by selecting different ports on every run
-                    testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
-                    _server = new GlobalDiscoveryTestServer(true);
-                    await _server.StartServer(true, testPort);
-                }
-                catch (ServiceResultException sre)
-                {
-                    serverStartRetries--;
-                    if (serverStartRetries == 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
-                    {
-                        throw;
-                    }
-                    retryStartServer = true;
-                }
-                await Task.Delay(1000);
-            }
-            while (retryStartServer);
+            // start GDS
+            _server = await TestUtils.StartGDS();
 
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
@@ -91,9 +66,9 @@ namespace Opc.Ua.Gds.Tests
 
             // load clients
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            await _gdsClient.LoadClientConfiguration(testPort);
+            await _gdsClient.LoadClientConfiguration(_server.BasePort);
             _pushClient = new ServerConfigurationPushTestClient(true);
-            await _pushClient.LoadClientConfiguration(testPort);
+            await _pushClient.LoadClientConfiguration(_server.BasePort);
 
             // connect once
             await _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl);
@@ -606,6 +581,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
 
+#if DEVOPS_OUTPUT
         [Test, Order(9997)]
         public void PushClientLogResult()
         {
@@ -626,6 +602,7 @@ namespace Opc.Ua.Gds.Tests
             var log = _server.ReadLogFile();
             TestContext.Out.WriteLine(log);
         }
+#endif
         #endregion
 
         #region Private Methods
@@ -638,12 +615,9 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
-        private void DisconnectPushClient(
-            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        private void DisconnectPushClient()
         {
             _pushClient.PushClient.Disconnect();
-            TestContext.Progress.WriteLine($"GDS Push disconnected -- {memberName}");
         }
 
         private void ConnectGDSClient(bool admin,
@@ -655,12 +629,9 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
-        private void DisconnectGDSClient(
-            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        private void DisconnectGDSClient()
         {
             _gdsClient.GDSClient.Disconnect();
-            TestContext.Progress.WriteLine($"GDS Client disconnected -- {memberName}");
         }
 
         private X509Certificate2Collection CreateCertCollection(ByteStringCollection certList)
@@ -930,8 +901,8 @@ namespace Opc.Ua.Gds.Tests
             }
             return result;
         }
-
         #endregion
+
         #region Private Fields
         private const int randomStart = 1;
         private RandomSource _randomSource;

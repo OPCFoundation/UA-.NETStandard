@@ -53,11 +53,4 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --filter "TestCategory!=GDS" --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
-  - task: DotNetCoreCLI@2
-    displayName: GDS ${{ parameters.configuration }}
-    timeoutInMinutes: 20
-    inputs:
-      command: test
-      projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --filter "TestCategory=GDS" --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
