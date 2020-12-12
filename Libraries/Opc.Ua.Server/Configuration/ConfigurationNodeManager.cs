@@ -561,6 +561,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception ex)
                             {
+                                Utils.Trace((int)Utils.TraceMasks.Security, ex.StackTrace);
                                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to update certificate.", ex);
                             }
                         }
