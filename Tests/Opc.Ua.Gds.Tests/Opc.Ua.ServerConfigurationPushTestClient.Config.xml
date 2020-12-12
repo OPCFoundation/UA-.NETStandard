@@ -88,8 +88,8 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC/Logs/ServerConfigurationPushTestClient.log.txt</OutputFilePath>
-    <DeleteOnLoad>true</DeleteOnLoad>
+    <OutputFilePath>%LocalApplicationData%/OPC/Logs/Opc.Ua.Gds.Tests.log.txt</OutputFilePath>
+    <DeleteOnLoad>false</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

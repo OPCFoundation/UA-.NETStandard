@@ -49,11 +49,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     {
         #region DataPointSources
         [DatapointSource]
-#if NETCOREAPP3_1
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, HashAlgorithmName.SHA256 }, { 2048, HashAlgorithmName.SHA256 }, { 3072, HashAlgorithmName.SHA384 }, { 4096, HashAlgorithmName.SHA512 } }.ToArray();
-#else
-        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection { { 1024, HashAlgorithmName.SHA1 }, { 2048, HashAlgorithmName.SHA256 }, { 3072, HashAlgorithmName.SHA384 }, { 4096, HashAlgorithmName.SHA512 } }.ToArray();
-#endif
+        public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
+            { 2048, HashAlgorithmName.SHA256 },
+            { 3072, HashAlgorithmName.SHA384 },
+            { 4096, HashAlgorithmName.SHA512 }
+        }.ToArray();
         #endregion
 
         #region Test Setup
@@ -136,10 +136,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
-            var plainCert = new X509Certificate2(cert.RawData);
-            Assert.NotNull(plainCert);
-            VerifyApplicationCert(app, plainCert, caCert);
-            X509Utils.VerifyRSAKeyPair(cert, caCert);
+            using (var plainCert = new X509Certificate2(cert.RawData))
+            {
+                Assert.NotNull(plainCert);
+                VerifyApplicationCert(app, plainCert, caCert);
+                X509Utils.VerifyRSAKeyPair(cert, caCert);
+            }
         }
 
 
@@ -213,10 +215,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.NotNull(rsa);
             }
 
-            var plainCert = new X509Certificate2(issuerCertificate.RawData);
-            Assert.NotNull(plainCert);
-
-            VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
+            using (var plainCert = new X509Certificate2(issuerCertificate.RawData))
+            {
+                Assert.NotNull(plainCert);
+                VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
+            }
             X509Utils.VerifySelfSigned(issuerCertificate);
             X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
 

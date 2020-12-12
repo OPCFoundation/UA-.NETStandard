@@ -152,7 +152,7 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC/Logs/GlobalDiscoveryTestServer.log.txt</OutputFilePath>
+    <OutputFilePath>%LocalApplicationData%/OPC/Logs/Opc.Ua.Gds.Tests.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->

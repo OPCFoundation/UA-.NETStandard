@@ -56,7 +56,6 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         [DatapointSource]
         public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
-            { 1024, HashAlgorithmName.SHA256 /* SHA-1 is deprecated HashAlgorithmName.SHA1*/ },
             { 2048, HashAlgorithmName.SHA256 },
             { 3072, HashAlgorithmName.SHA384 },
             { 4096, HashAlgorithmName.SHA512 } }.ToArray();
@@ -233,14 +232,14 @@ namespace Opc.Ua.Security.Certificates.Tests
             // default cert
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
-                    var cert = CertificateBuilder.Create(Subject)
+                    CertificateBuilder.Create(Subject)
                     .SetSerialNumberLength(0)
                     .CreateForRSA();
                 }
             );
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
-                    var cert = CertificateBuilder.Create(Subject)
+                    CertificateBuilder.Create(Subject)
                     .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                     .CreateForRSA();
                 }
@@ -264,14 +263,14 @@ namespace Opc.Ua.Security.Certificates.Tests
             // default cert
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
-                    var cert = CertificateBuilder.Create(Subject)
+                    CertificateBuilder.Create(Subject)
                     .SetSerialNumber(new byte[0])
                     .CreateForRSA();
                 }
             );
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
-                    var cert = CertificateBuilder.Create(Subject)
+                    CertificateBuilder.Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .CreateForRSA();
                 }

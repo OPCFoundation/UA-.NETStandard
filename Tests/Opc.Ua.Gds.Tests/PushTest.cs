@@ -89,15 +89,26 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            ConnectGDSClient(true);
-            UnRegisterPushServerApplication();
-            _gdsClient.DisconnectClient();
-            _gdsClient = null;
-            _pushClient.DisconnectClient();
-            _pushClient = null;
-            _server.StopServer();
-            _server = null;
+            try
+            {
+                ConnectGDSClient(true);
+                UnRegisterPushServerApplication();
+                _gdsClient.DisconnectClient();
+                _pushClient.DisconnectClient();
+                _server.StopServer();
+            } catch { }
+
             Thread.Sleep(1000);
+
+            try
+            {
+                var log = _server.ReadLogFile();
+                TestContext.Progress.WriteLine(log);
+            }
+            catch { }
+            _gdsClient = null;
+            _pushClient = null;
+            _server = null;
         }
 
         [TearDown]
@@ -106,9 +117,9 @@ namespace Opc.Ua.Gds.Tests
             DisconnectGDSClient();
             DisconnectPushClient();
         }
-        #endregion
+#endregion
 
-        #region Test Methods
+#region Test Methods
         [Test, Order(100)]
         public void GetSupportedKeyFormats()
         {
@@ -580,32 +591,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
+#endregion
 
-#if DEVOPS_OUTPUT
-        [Test, Order(9997)]
-        public void PushClientLogResult()
-        {
-            var log = _pushClient.ReadLogFile();
-            TestContext.Out.WriteLine(log);
-        }
-
-        [Test, Order(9998)]
-        public void ClientLogResult()
-        {
-            var log = _gdsClient.ReadLogFile();
-            TestContext.Out.WriteLine(log);
-        }
-
-        [Test, Order(9999)]
-        public void ServerLogResult()
-        {
-            var log = _server.ReadLogFile();
-            TestContext.Out.WriteLine(log);
-        }
-#endif
-        #endregion
-
-        #region Private Methods
+#region Private Methods
         private void ConnectPushClient(bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
             )
@@ -901,9 +889,9 @@ namespace Opc.Ua.Gds.Tests
             }
             return result;
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private const int randomStart = 1;
         private RandomSource _randomSource;
         private DataGenerator _dataGenerator;
@@ -916,6 +904,6 @@ namespace Opc.Ua.Gds.Tests
         private string[] _domainNames;
         private X509Certificate2 _caCert;
         private X509CRL _caCrl;
-        #endregion
+#endregion
     }
 }

@@ -57,7 +57,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             {
                 sigOid = Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Sha1WithRsaEncryption;
             }
-            if (hashAlgorithm == HashAlgorithmName.SHA256)
+            else if (hashAlgorithm == HashAlgorithmName.SHA256)
             {
                 sigOid = Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Sha256WithRsaEncryption;
             }
@@ -120,6 +120,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             public object GetResult()
             {
                 var memStream = Stream as MemoryStream;
+                if (memStream == null) throw new ArgumentNullException(nameof(Stream));
                 var digest = memStream.ToArray();
                 var signature = _generator.SignData(digest, _hashAlgorithm);
                 return new MemoryBlockResult(signature);
