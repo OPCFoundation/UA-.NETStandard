@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -64,6 +63,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
+            m_rootCACertificate = new Dictionary<int, X509Certificate2>();
         }
 
         /// <summary>
@@ -97,6 +97,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 rsa.ExportParameters(true);
             }
+            using (RSA rsa = cert.GetRSAPublicKey())
+            {
+                rsa.ExportParameters(false);
+            }
             var plainCert = new X509Certificate2(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyApplicationCert(app, plainCert);
@@ -106,34 +110,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Verify self signed OPC UA app certs.
+        /// Verify signed OPC UA app certs.
         /// </summary>
-        [Theory]
+        [Theory, Order(500)]
         public void VerifySignedAppCerts(
             KeyHashPair keyHashPair
             )
         {
-            var subject = "CN=CA Test Cert";
-            int pathLengthConstraint = -1;
-            var caCert = CertificateFactory.CreateCertificate(
-                null, null, subject,
-                null, keyHashPair.KeySize,
-                DateTime.UtcNow, 25 * 12,
-                keyHashPair.HashSize,
-                isCA: true,
-                pathLengthConstraint: pathLengthConstraint);
+            X509Certificate2 caCert;
+            if (!m_rootCACertificate.TryGetValue(keyHashPair.KeySize, out caCert))
+            {
+                Assert.Ignore($"Could not load Root CA.");
+            }
             Assert.NotNull(caCert);
             Assert.NotNull(caCert.RawData);
             Assert.True(caCert.HasPrivateKey);
-
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             var cert = CertificateFactory.CreateCertificate(
-                app.ApplicationUri, app.ApplicationName, app.Subject,
-                app.DomainNames, keyHashPair.KeySize, DateTime.UtcNow,
-                CertificateFactory.DefaultLifeTime, keyHashPair.HashSize,
-                issuerCAKeyCert: caCert
-                );
+                app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
+                .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
+                .SetIssuer(caCert)
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .CreateForRSA();
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
@@ -147,21 +146,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify CA signed app certs.
         /// </summary>
-        [Theory]
+        [Theory, Order(100)]
         public void VerifyCACerts(
             KeyHashPair keyHashPair
             )
         {
             var subject = "CN=CA Test Cert";
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
-            var cert = CertificateFactory.CreateCertificate(
-                null, null, subject,
-                null, keyHashPair.KeySize,
-                DateTime.UtcNow, 25 * 12,
-                keyHashPair.HashSize,
-                isCA: true,
-                pathLengthConstraint: pathLengthConstraint);
-
+            var cert = CertificateFactory.CreateCertificate(subject)
+                .SetLifeTime(25 * 12)
+                .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
+                .SetCAConstraint(pathLengthConstraint)
+                .SetRSAKeySize(keyHashPair.KeySize)
+                .CreateForRSA();
             Assert.NotNull(cert);
             Assert.NotNull(cert.RawData);
             Assert.True(cert.HasPrivateKey);
@@ -171,31 +168,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Utils.VerifySelfSigned(cert);
             X509Utils.VerifyRSAKeyPair(cert, cert);
             Assert.True(X509Utils.VerifySelfSigned(cert));
+            m_rootCACertificate[keyHashPair.KeySize] = cert;
         }
 
         /// <summary>
         /// Verify CRL for CA signed app certs.
         /// </summary>
-        [Theory]
+        [Theory, Order(400)]
         public void VerifyCrlCerts(
             KeyHashPair keyHashPair
             )
         {
-            var subject = "CN=CA Test Cert";
-            int pathLengthConstraint = 1;
-            var issuerCertificate = CertificateFactory.CreateCertificate(subject)
-                .SetLifeTime(TimeSpan.FromDays(180))
-                .SetHashAlgorithm((keyHashPair.HashAlgorithmName == HashAlgorithmName.SHA1) ? HashAlgorithmName.SHA256 : keyHashPair.HashAlgorithmName)
-                .SetCAConstraint(pathLengthConstraint)
-                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
-                .CreateForRSA();
+            int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
+            X509Certificate2 issuerCertificate;
+            if (!m_rootCACertificate.TryGetValue(keyHashPair.KeySize, out issuerCertificate))
+            {
+                Assert.Ignore($"Could not load Issuer Cert.");
+            }
             Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
 
-            var otherIssuerCertificate = CertificateFactory.CreateCertificate(subject)
+            var otherIssuerCertificate = CertificateFactory.CreateCertificate(issuerCertificate.Subject)
                 .SetLifeTime(TimeSpan.FromDays(180))
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetCAConstraint(pathLengthConstraint)
-                .SetRSAKeySize(keyHashPair.KeySize >= 2048 ? keyHashPair.KeySize : 2048)
                 .CreateForRSA();
             Assert.True(X509Utils.VerifySelfSigned(otherIssuerCertificate));
 
@@ -221,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var plainCert = new X509Certificate2(issuerCertificate.RawData);
             Assert.NotNull(plainCert);
 
-            VerifyCACert(plainCert, subject, pathLengthConstraint);
+            VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
             X509Utils.VerifySelfSigned(issuerCertificate);
             X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
 
@@ -233,7 +228,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.AreEqual(crlCounter, extension.CrlNumber);
             var revokedList = new List<X509CRL>();
             revokedList.Add(crl);
-            File.WriteAllBytes($"D:\\test{crlCounter}.crl", crl.RawData);
             foreach (var cert in revokedCerts)
             {
                 Assert.Throws<CryptographicException>(() => crl.VerifySignature(otherIssuerCertificate, true));
@@ -241,8 +235,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var nextCrl = CertificateFactory.RevokeCertificate(issuerCertificate, revokedList, new X509Certificate2Collection(cert));
                 crlCounter++;
                 Assert.NotNull(nextCrl);
-                File.WriteAllBytes($"D:\\test{crlCounter}.der", cert.RawData);
-                File.WriteAllBytes($"D:\\test{crlCounter}.crl", nextCrl.RawData);
                 Assert.True(nextCrl.IsRevoked(cert));
                 extension = X509Extensions.FindExtension<X509CrlNumberExtension>(nextCrl.CrlExtensions);
                 Assert.AreEqual(crlCounter, extension.CrlNumber);
@@ -430,6 +422,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #endregion
 
         #region Private Fields
+        private Dictionary<int, X509Certificate2> m_rootCACertificate;
         #endregion
     }
 

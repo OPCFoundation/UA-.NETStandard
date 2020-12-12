@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -48,7 +49,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateValidatorTest
     {
+
         #region Test Setup
+        public const string RootCASubject = "CN=Root CA Test Cert";
+
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
@@ -73,7 +77,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // create all certs and CRL
             m_caChain = new X509Certificate2[kCaChainCount];
             m_caDupeChain = new X509Certificate2[kCaChainCount];
-            m_caAllSameIssuerChain = new X509Certificate2[kCaChainCount];
             m_crlChain = new X509CRL[kCaChainCount];
             m_crlDupeChain = new X509CRL[kCaChainCount];
             m_crlRevokedChain = new X509CRL[kCaChainCount];
@@ -82,39 +85,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             DateTime rootCABaseTime = DateTime.UtcNow;
             rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1);
-            var rootCert = CertificateFactory.CreateCertificate(
-                null, null, "CN=Root CA Test Cert",
-                null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
-                pathLengthConstraint: -1);
+            var rootCert = CertificateFactory.CreateCertificate(RootCASubject)
+                .SetNotBefore(rootCABaseTime)
+                .SetLifeTime(25 * 12)
+                .SetCAConstraint()
+                .SetHashAlgorithm(CertificateFactory.GetRSAHashAlgorithmName(hashSize))
+                .SetRSAKeySize(keySize)
+                .CreateForRSA();
 
             m_caChain[0] = rootCert;
             m_crlChain[0] = CertificateFactory.RevokeCertificate(rootCert, null, null);
-            m_caDupeChain[0] = CertificateFactory.CreateCertificate(
-                null, null, "CN=Root CA Test Cert",
-                null, keySize, rootCABaseTime, 25 * 12, hashSize, true,
-                pathLengthConstraint: -1);
+
+            // to save time, the dupe chain uses just the default key size/hash
+            m_caDupeChain[0] = CertificateFactory.CreateCertificate(RootCASubject)
+                .SetNotBefore(rootCABaseTime)
+                .SetLifeTime(25 * 12)
+                .SetCAConstraint()
+                .CreateForRSA();
+
             m_crlDupeChain[0] = CertificateFactory.RevokeCertificate(m_caDupeChain[0], null, null);
             m_crlRevokedChain[0] = null;
 
             var signingCert = rootCert;
             DateTime subCABaseTime = DateTime.UtcNow;
-            subCABaseTime = new DateTime(subCABaseTime.Year, subCABaseTime.Month, subCABaseTime.Day);
+            subCABaseTime = new DateTime(subCABaseTime.Year, subCABaseTime.Month, subCABaseTime.Day, 0, 0, 0, DateTimeKind.Utc);
             for (int i = 1; i < kCaChainCount; i++)
             {
                 if (keySize > 2048) { keySize -= 1024; }
                 if (hashSize > 256) { hashSize -= 128; }
                 var subject = $"CN=Sub CA {i} Test Cert";
-                var subCACert = CertificateFactory.CreateCertificate(
-                    null, null, subject,
-                    null, keySize, subCABaseTime, 5 * 12, hashSize, true,
-                    signingCert, pathLengthConstraint: kCaChainCount - 1 - i);
+                var subCACert = CertificateFactory.CreateCertificate(subject)
+                    .SetNotBefore(subCABaseTime)
+                    .SetLifeTime(5 * 12)
+                    .SetHashAlgorithm(CertificateFactory.GetRSAHashAlgorithmName(hashSize))
+                    .SetCAConstraint(kCaChainCount - 1 - i)
+                    .SetIssuer(signingCert)
+                    .SetRSAKeySize(keySize)
+                    .CreateForRSA();
                 m_caChain[i] = subCACert;
-
                 m_crlChain[i] = CertificateFactory.RevokeCertificate(subCACert, null, null, subCABaseTime, subCABaseTime + TimeSpan.FromDays(10));
-                var subCADupeCert = CertificateFactory.CreateCertificate(
-                    null, null, subject,
-                    null, keySize, subCABaseTime, 5 * 12, hashSize, true,
-                    signingCert, pathLengthConstraint: kCaChainCount - 1 - i);
+                var subCADupeCert = CertificateFactory.CreateCertificate(subject)
+                    .SetNotBefore(subCABaseTime)
+                    .SetLifeTime(5 * 12)
+                    .SetCAConstraint(kCaChainCount - 1 - i)
+                    .SetIssuer(signingCert)
+                    .CreateForRSA();
                 m_caDupeChain[i] = subCADupeCert;
                 m_crlDupeChain[i] = CertificateFactory.RevokeCertificate(subCADupeCert, null, null, subCABaseTime, subCABaseTime + TimeSpan.FromDays(10));
                 m_crlRevokedChain[i] = null;
@@ -131,7 +146,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // create self signed app certs
-            DateTime appBaseTime = DateTime.UtcNow - TimeSpan.FromDays(1);
             foreach (var app in m_goodApplicationTestSet)
             {
                 var subject = app.Subject;
@@ -139,9 +153,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     app.ApplicationUri,
                     app.ApplicationName,
                     subject,
-                    app.DomainNames,
-                    CertificateFactory.DefaultKeySize, appBaseTime, 2 * 12,
-                    CertificateFactory.DefaultHashSize);
+                    app.DomainNames)
+                    .CreateForRSA();
                 m_appSelfSignedCerts.Add(appCert);
             }
 
@@ -153,9 +166,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     app.ApplicationUri,
                     app.ApplicationName,
                     subject,
-                    app.DomainNames,
-                    CertificateFactory.DefaultKeySize, appBaseTime, 2 * 12,
-                    CertificateFactory.DefaultHashSize, false, signingCert);
+                    app.DomainNames)
+                    .SetIssuer(signingCert)
+                    .CreateForRSA();
                 app.Certificate = appCert.RawData;
                 m_appCerts.Add(appCert);
             }
@@ -282,29 +295,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-
         /// <summary>
         /// Verify signed app certs validate. One of all trusted.
         /// </summary>
         [Test, Order(200)]
         public async Task VerifyAppChainsOneTrusted()
         {
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
+                long start = stopWatch.ElapsedMilliseconds;
+                TestContext.Out.WriteLine($"Chain Number {v}, Total Elapsed: {start}");
                 CleanupValidatorAndStores();
+                TestContext.Out.WriteLine($"Cleanup: {stopWatch.ElapsedMilliseconds-start}");
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store = i == v ? m_trustedStore : m_issuerStore;
                     await store.Add(m_caChain[i]);
                     store.AddCRL(m_crlChain[i]);
                 }
+                TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
                 var certValidator = InitValidatorWithStores();
+                TestContext.Out.WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (var app in m_goodApplicationTestSet)
                 {
                     certValidator.Validate(new X509Certificate2(app.Certificate));
                 }
+                TestContext.Out.WriteLine($"Validation: {stopWatch.ElapsedMilliseconds - start}");
             }
+            TestContext.Out.WriteLine($"Total: {stopWatch.ElapsedMilliseconds}");
         }
 
         /// <summary>
@@ -786,7 +807,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateValidator = new CertificateValidator()
             };
         });
-
         #endregion
 
         #region Private Methods
@@ -813,15 +833,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #endregion
 
         #region Private Fields
-        private const int kCaChainCount = 4;
-        private const int kGoodApplicationsTestCount = 10;
+        private const int kCaChainCount = 3;
+        private const int kGoodApplicationsTestCount = 3;
         private string m_pkiRoot;
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
         private IList<ApplicationTestData> m_goodApplicationTestSet;
         private X509Certificate2[] m_caChain;
         private X509Certificate2[] m_caDupeChain;
-        private X509Certificate2[] m_caAllSameIssuerChain;
         private X509CRL[] m_crlChain;
         private X509CRL[] m_crlDupeChain;
         private X509CRL[] m_crlRevokedChain;
