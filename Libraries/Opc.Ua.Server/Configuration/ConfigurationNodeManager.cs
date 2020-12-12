@@ -534,10 +534,10 @@ namespace Opc.Ua.Server
                             {
                                 using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
                                 {
-                                    Utils.Trace((int)Utils.TraceMasks.Security, $"Delete App Cert {certificateGroup.ApplicationCertificate.Thumbprint}");
-                                    appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).GetAwaiter().GetResult();
                                     Utils.Trace((int)Utils.TraceMasks.Security, $"Add new App Cert {updateCertificate.CertificateWithPrivateKey}");
                                     appStore.Add(updateCertificate.CertificateWithPrivateKey).GetAwaiter().GetResult();
+                                    Utils.Trace((int)Utils.TraceMasks.Security, $"Delete App Cert {certificateGroup.ApplicationCertificate.Thumbprint}");
+                                    appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).GetAwaiter().GetResult();
                                     updateCertificate.CertificateWithPrivateKey = null;
                                     Utils.Trace((int)Utils.TraceMasks.Security, "App Cert updated.");
                                 }
