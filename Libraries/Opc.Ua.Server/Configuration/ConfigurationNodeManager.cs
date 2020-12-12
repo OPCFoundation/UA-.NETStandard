@@ -507,7 +507,8 @@ namespace Opc.Ua.Server
 
             string password = String.Empty;
             X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(password).Result;
-            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
+            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey,
+                X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
             return ServiceResult.Good;
         }
 
@@ -532,7 +533,9 @@ namespace Opc.Ua.Server
                         {
                             using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
                             {
+                                Utils.Trace((int)Utils.TraceMasks.Security, $"Delete App Cert {certificateGroup.ApplicationCertificate.Thumbprint}");
                                 appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
+                                Utils.Trace((int)Utils.TraceMasks.Security, $"Add new App Cert {updateCertificate.CertificateWithPrivateKey}");
                                 appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
                                 updateCertificate.CertificateWithPrivateKey = null;
                             }
@@ -542,6 +545,7 @@ namespace Opc.Ua.Server
                                 {
                                     try
                                     {
+                                        Utils.Trace((int)Utils.TraceMasks.Security, $"Add Issuer Cert {issuer}");
                                         issuerStore.Add(issuer).Wait();
                                     }
                                     catch (ArgumentException)
@@ -569,6 +573,7 @@ namespace Opc.Ua.Server
                         // give the client some time to receive the response
                         // before the certificate update may disconnect all sessions
                         await Task.Delay(1000).ConfigureAwait(false);
+                        Utils.Trace((int)Utils.TraceMasks.Security, "UpdateCertificate");
                         await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration);
                     }
                 );
