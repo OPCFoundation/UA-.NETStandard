@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Opc.Ua.Security.Certificates;
@@ -534,10 +535,11 @@ namespace Opc.Ua.Server
                             {
                                 using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
                                 {
-                                    Utils.Trace((int)Utils.TraceMasks.Security, $"Add new App Cert {updateCertificate.CertificateWithPrivateKey}");
-                                    appStore.Add(updateCertificate.CertificateWithPrivateKey).GetAwaiter().GetResult();
                                     Utils.Trace((int)Utils.TraceMasks.Security, $"Delete App Cert {certificateGroup.ApplicationCertificate.Thumbprint}");
                                     appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).GetAwaiter().GetResult();
+                                    Thread.Sleep(1000);
+                                    Utils.Trace((int)Utils.TraceMasks.Security, $"Add new App Cert {updateCertificate.CertificateWithPrivateKey}");
+                                    appStore.Add(updateCertificate.CertificateWithPrivateKey).GetAwaiter().GetResult();
                                     updateCertificate.CertificateWithPrivateKey = null;
                                     Utils.Trace((int)Utils.TraceMasks.Security, "App Cert updated.");
                                 }
