@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration
 {
@@ -460,23 +461,14 @@ namespace Opc.Ua.Configuration
             {
                 string message = Utils.Format(
                     "Error validating certificate. Exception: {0}. Use certificate anyway?", ex.Message);
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
 
             // check key size.
-            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
             if (minimumKeySize > keySize)
             {
                 string message = Utils.Format(
@@ -484,17 +476,8 @@ namespace Opc.Ua.Configuration
                     keySize,
                     minimumKeySize);
 
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -509,23 +492,13 @@ namespace Opc.Ua.Configuration
             }
 
             // check uri.
-            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             if (String.IsNullOrEmpty(applicationUri))
             {
                 string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
-
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -552,7 +525,7 @@ namespace Opc.Ua.Configuration
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
 
             // get computer name.
             string computerName = Utils.GetHostName();
@@ -605,17 +578,12 @@ namespace Opc.Ua.Configuration
 
                 valid = false;
 
-                if (!silent && MessageDlg != null)
+                if (await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (await MessageDlg.ShowAsync())
-                    {
-                        valid = true;
-                        continue;
-                    }
+                    valid = true;
+                    continue;
                 }
 
-                Utils.Trace(message);
                 break;
             }
 
@@ -657,20 +625,16 @@ namespace Opc.Ua.Configuration
             }
 
             X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                id.StoreType,
-                id.StorePath,
-                null,
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
                 id.SubjectName,
-                serverDomainNames,
-                keySize,
-                DateTime.UtcNow - TimeSpan.FromDays(1),
-                lifeTimeInMonths,
-                CertificateFactory.DefaultHashSize,
-                false,
-                null,
-                null
+                serverDomainNames)
+                .SetLifeTime(lifeTimeInMonths)
+                .SetRSAKeySize(keySize)
+                .CreateForRSA()
+                .AddToStore(
+                    id.StoreType,
+                    id.StorePath
                 );
 
             id.Certificate = certificate;
@@ -780,14 +744,14 @@ namespace Opc.Ua.Configuration
 
                     Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to trusted peer store. StorePath={0}", storePath);
 
-                    List<string> subjectName = Utils.ParseDistinguishedName(certificate.Subject);
+                    List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                     // check for old certificate.
                     X509Certificate2Collection certificates = await store.Enumerate();
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
-                        if (Utils.CompareDistinguishedName(certificates[ii], subjectName))
+                        if (X509Utils.CompareDistinguishedName(certificates[ii], subjectName))
                         {
                             if (certificates[ii].Thumbprint == certificate.Thumbprint)
                             {
@@ -811,6 +775,26 @@ namespace Opc.Ua.Configuration
             catch (Exception e)
             {
                 Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
+            }
+        }
+
+        /// <summary>
+        /// Show a message for approval and return result.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="silent"></param>
+        /// <returns>True if approved, false otherwise.</returns>
+        private static async Task<bool> ApproveMessage(string message, bool silent)
+        {
+            if (!silent && MessageDlg != null)
+            {
+                MessageDlg.Message(message, true);
+                return await MessageDlg.ShowAsync();
+            }
+            else
+            {
+                Utils.Trace(message);
+                return false;
             }
         }
         #endregion

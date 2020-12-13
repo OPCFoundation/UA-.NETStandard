@@ -16,6 +16,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -316,9 +317,9 @@ namespace Opc.Ua
                             return certificate;
                         }
 
-                        List<string> subjectName2 = Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
-                        if (Utils.CompareDistinguishedName(certificate, subjectName2))
+                        if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
                             return certificate;
                         }
@@ -330,11 +331,11 @@ namespace Opc.Ua
             // find by subject name.
             if (!String.IsNullOrEmpty(subjectName))
             {
-                List<string> subjectName2 = Utils.ParseDistinguishedName(subjectName);
+                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (Utils.CompareDistinguishedName(certificate, subjectName2))
+                    if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {

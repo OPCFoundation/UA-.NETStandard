@@ -152,8 +152,8 @@
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>%LocalApplicationData%/OPC/Logs/GlobalDiscoveryTestServer.log.txt</OutputFilePath>
-    <DeleteOnLoad>false</DeleteOnLoad>
+    <OutputFilePath>%LocalApplicationData%/OPC/Logs/Opc.Ua.Gds.Tests.log.txt</OutputFilePath>
+    <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
     <!-- Show Only Security and Errors -->

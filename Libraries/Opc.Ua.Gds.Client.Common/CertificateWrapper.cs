@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -209,7 +210,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return Utils.GetApplicationUriFromCertificate(Certificate);
+                        return X509Utils.GetApplicationUriFromCertificate(Certificate);
                     }
                     catch (Exception e)
                     {
@@ -232,7 +233,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     try
                     {
-                        return Utils.GetDomainsFromCertficate(Certificate);
+                        return X509Utils.GetDomainsFromCertficate(Certificate);
                     }
                     catch (Exception e)
                     {
