@@ -364,13 +364,12 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(510)]
         public void UpdateCertificateCASigned()
         {
-#if mist
 #if NETCOREAPP3_1
+            // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Update issue on devops test.");
+                Assert.Ignore("Update CA signed certifcate fails on mac OS.");
             }
-#endif
 #endif
             ConnectPushClient(true);
             ConnectGDSClient(true);
