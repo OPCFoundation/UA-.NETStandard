@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Opc.Ua.Security.Certificates;
@@ -507,8 +506,7 @@ namespace Opc.Ua.Server
 
             string password = String.Empty;
             X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(password).Result;
-            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey,
-                X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
+            certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
             return ServiceResult.Good;
         }
 
@@ -533,15 +531,12 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
+
                                 using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
                                 {
-                                    Utils.Trace((int)Utils.TraceMasks.Security, $"Delete App Cert {certificateGroup.ApplicationCertificate.Thumbprint}");
-                                    appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).GetAwaiter().GetResult();
-                                    Thread.Sleep(1000);
-                                    Utils.Trace((int)Utils.TraceMasks.Security, $"Add new App Cert {updateCertificate.CertificateWithPrivateKey}");
-                                    appStore.Add(updateCertificate.CertificateWithPrivateKey).GetAwaiter().GetResult();
+                                    appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
+                                    appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
                                     updateCertificate.CertificateWithPrivateKey = null;
-                                    Utils.Trace((int)Utils.TraceMasks.Security, "App Cert updated.");
                                 }
                                 using (ICertificateStore issuerStore = CertificateStoreIdentifier.OpenStore(certificateGroup.IssuerStorePath))
                                 {
@@ -549,8 +544,7 @@ namespace Opc.Ua.Server
                                     {
                                         try
                                         {
-                                            Utils.Trace((int)Utils.TraceMasks.Security, $"Add Issuer Cert {issuer}");
-                                            issuerStore.Add(issuer).GetAwaiter().GetResult();
+                                            issuerStore.Add(issuer).Wait();
                                         }
                                         catch (ArgumentException)
                                         {
@@ -566,10 +560,10 @@ namespace Opc.Ua.Server
                                 Utils.Trace((int)Utils.TraceMasks.Security, ex.StackTrace);
                                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to update certificate.", ex);
                             }
-                        }
-                    }
 
-                }
+                        }
+
+                    }
                 finally
                 {
                     certificateGroup.UpdateCertificate = null;
@@ -582,7 +576,6 @@ namespace Opc.Ua.Server
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
-                    Utils.Trace((int)Utils.TraceMasks.Security, "UpdateCertificate");
                     await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration);
                 }
                 );
