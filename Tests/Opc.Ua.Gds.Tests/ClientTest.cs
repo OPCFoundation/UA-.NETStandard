@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Tests
         protected async Task OneTimeSetUp()
         {
             // start GDS
-            _server = await TestUtils.StartGDS();
+            _server = await TestUtils.StartGDS(true);
 
             // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);

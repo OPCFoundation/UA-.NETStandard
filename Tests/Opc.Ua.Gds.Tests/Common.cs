@@ -345,10 +345,11 @@ namespace Opc.Ua.Gds.Tests
             return url;
         }
 
-        public static async Task<GlobalDiscoveryTestServer> StartGDS()
+        public static async Task<GlobalDiscoveryTestServer> StartGDS(bool clean)
         {
             GlobalDiscoveryTestServer server = null;
-            int testPort = 0;
+            Random random = new Random();
+            int testPort;
             bool retryStartServer = false;
             int serverStartRetries = 10;
             do
@@ -356,9 +357,9 @@ namespace Opc.Ua.Gds.Tests
                 try
                 {
                     // work around travis issue by selecting different ports on every run
-                    testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
+                    testPort = random.Next(50000, 60000);
                     server = new GlobalDiscoveryTestServer(true);
-                    await server.StartServer(true, testPort);
+                    await server.StartServer(clean, testPort);
                 }
                 catch (ServiceResultException sre)
                 {

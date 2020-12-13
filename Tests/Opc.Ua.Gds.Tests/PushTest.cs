@@ -58,8 +58,12 @@ namespace Opc.Ua.Gds.Tests
         [OneTimeSetUp]
         protected async Task OneTimeSetUp()
         {
-            // start GDS
-            _server = await TestUtils.StartGDS();
+            // start GDS first clean, then restart server
+            // to ensure the application cert is not 'fresh'
+            _server = await TestUtils.StartGDS(true);
+            _server.StopServer();
+            await Task.Delay(1000);
+            _server = await TestUtils.StartGDS(false);
 
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
@@ -360,11 +364,13 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(510)]
         public void UpdateCertificateCASigned()
         {
+#if mist
 #if NETCOREAPP3_1
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 Assert.Ignore("Update issue on devops test.");
             }
+#endif
 #endif
             ConnectPushClient(true);
             ConnectGDSClient(true);

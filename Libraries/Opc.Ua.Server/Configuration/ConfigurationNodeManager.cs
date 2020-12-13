@@ -407,7 +407,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Certificate data is invalid.");
             }
 
-            // load existing application cert and private key
+            // validate new subject matches the previous subject
             if (!X509Utils.CompareDistinguishedName(certificateGroup.ApplicationCertificate.SubjectName, newCert.SubjectName.Name))
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Subject Name of new certificate doesn't match the application.");
@@ -478,6 +478,44 @@ namespace Opc.Ua.Server
             certificateGroup.UpdateCertificate = updateCertificate;
             applyChangesRequired = true;
 
+            if (updateCertificate != null)
+            {
+                try
+                {
+                    using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
+                    {
+                        Utils.Trace((int)Utils.TraceMasks.Security, $"Delete application certificate {certificateGroup.ApplicationCertificate.Thumbprint}");
+                        appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
+                        Utils.Trace((int)Utils.TraceMasks.Security, $"Add new application certificate {updateCertificate.CertificateWithPrivateKey}");
+                        appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
+                        // keep only track of cert without private key
+                        var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
+                        updateCertificate.CertificateWithPrivateKey.Dispose();
+                        updateCertificate.CertificateWithPrivateKey = certOnly;
+                    }
+                    using (ICertificateStore issuerStore = CertificateStoreIdentifier.OpenStore(certificateGroup.IssuerStorePath))
+                    {
+                        foreach (var issuer in updateCertificate.IssuerCollection)
+                        {
+                            try
+                            {
+                                Utils.Trace((int)Utils.TraceMasks.Security, $"Add new issuer certificate {issuer}");
+                                issuerStore.Add(issuer).Wait();
+                            }
+                            catch (ArgumentException)
+                            {
+                                // ignore error if issuer cert already exists
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utils.Trace((int)Utils.TraceMasks.Security, ex.StackTrace);
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to update certificate.", ex);
+                }
+            }
+
             return ServiceResult.Good;
         }
 
@@ -527,43 +565,10 @@ namespace Opc.Ua.Server
                     var updateCertificate = certificateGroup.UpdateCertificate;
                     if (updateCertificate != null)
                     {
-                        if (certificateGroup.UpdateCertificate.SessionId == context.SessionId)
-                        {
-                            try
-                            {
-
-                                using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
-                                {
-                                    appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
-                                    appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
-                                    updateCertificate.CertificateWithPrivateKey = null;
-                                }
-                                using (ICertificateStore issuerStore = CertificateStoreIdentifier.OpenStore(certificateGroup.IssuerStorePath))
-                                {
-                                    foreach (var issuer in updateCertificate.IssuerCollection)
-                                    {
-                                        try
-                                        {
-                                            issuerStore.Add(issuer).Wait();
-                                        }
-                                        catch (ArgumentException)
-                                        {
-                                            // ignore error if issuer cert already exists
-                                        }
-                                    }
-                                }
-
-                                disconnectSessions = true;
-                            }
-                            catch (Exception ex)
-                            {
-                                Utils.Trace((int)Utils.TraceMasks.Security, ex.StackTrace);
-                                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to update certificate.", ex);
-                            }
-
-                        }
-
+                        disconnectSessions = true;
+                        Utils.Trace((int)Utils.TraceMasks.Security, $"Apply Changes for certificate {updateCertificate.CertificateWithPrivateKey}");
                     }
+                }
                 finally
                 {
                     certificateGroup.UpdateCertificate = null;
@@ -573,6 +578,7 @@ namespace Opc.Ua.Server
             if (disconnectSessions)
             {
                 Task.Run(async () => {
+                    Utils.Trace((int)Utils.TraceMasks.Security, $"Apply Changes for application certificate update.");
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
@@ -732,9 +738,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private class UpdateCertificateData
         {
             public NodeId SessionId;
@@ -759,6 +765,6 @@ namespace Opc.Ua.Server
         private IList<ServerCertificateGroup> m_certificateGroups;
         private readonly string m_rejectedStorePath;
         private Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = new Dictionary<string, NamespaceMetadataState>();
-        #endregion
+#endregion
     }
 }
