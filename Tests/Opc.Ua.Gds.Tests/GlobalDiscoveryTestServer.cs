@@ -154,6 +154,22 @@ namespace Opc.Ua.Gds.Tests
             return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
+        public bool ResetLogFile()
+        {
+            try
+            {
+                File.Delete(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+                return true;
+            }
+            catch { }
+            return false;
+        }
+
+        public string GetLogFilePath()
+        {
+            return Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath);
+        }
+
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)

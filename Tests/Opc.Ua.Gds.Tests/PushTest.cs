@@ -101,14 +101,6 @@ namespace Opc.Ua.Gds.Tests
                 _gdsClient.DisconnectClient();
                 _pushClient.DisconnectClient();
                 _server.StopServer();
-            } catch { }
-
-            Thread.Sleep(1000);
-
-            try
-            {
-                var log = _server.ReadLogFile();
-                TestContext.Progress.WriteLine(log);
             }
             catch { }
             _gdsClient = null;
@@ -116,15 +108,27 @@ namespace Opc.Ua.Gds.Tests
             _server = null;
         }
 
+        [SetUp]
+        protected void SetUp()
+        {
+            _server.ResetLogFile();
+        }
+
         [TearDown]
         protected void TearDown()
         {
             DisconnectGDSClient();
             DisconnectPushClient();
-        }
-#endregion
+            try
+            {
+                TestContext.AddTestAttachment(_server.GetLogFilePath(), "GDS Client and Server logs");
+            }
+            catch { }
 
-#region Test Methods
+        }
+        #endregion
+
+        #region Test Methods
         [Test, Order(100)]
         public void GetSupportedKeyFormats()
         {
@@ -603,9 +607,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(() => { _pushClient.PushClient.CreateSigningRequest(null, null, null, false, null); }, Throws.Exception);
             Assert.That(() => { _pushClient.PushClient.ReadTrustList(); }, Throws.Exception);
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         private void ConnectPushClient(bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
             )
@@ -901,9 +905,9 @@ namespace Opc.Ua.Gds.Tests
             }
             return result;
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private const int randomStart = 1;
         private RandomSource _randomSource;
         private DataGenerator _dataGenerator;
@@ -916,6 +920,6 @@ namespace Opc.Ua.Gds.Tests
         private string[] _domainNames;
         private X509Certificate2 _caCert;
         private X509CRL _caCrl;
-#endregion
+        #endregion
     }
 }

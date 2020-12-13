@@ -103,10 +103,21 @@ namespace Opc.Ua.Gds.Tests
             Thread.Sleep(1000);
         }
 
+        [SetUp]
+        protected void SetUp()
+        {
+            _server.ResetLogFile();
+        }
+
         [TearDown]
         protected void TearDown()
         {
             DisconnectGDS();
+            try
+            {
+                TestContext.AddTestAttachment(_server.GetLogFilePath(), "GDS Client and Server logs");
+            }
+            catch { }
         }
         #endregion
 
