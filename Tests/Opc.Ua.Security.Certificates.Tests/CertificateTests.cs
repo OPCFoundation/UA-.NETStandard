@@ -299,7 +299,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
             Assert.GreaterOrEqual(X509Defaults.SerialNumberLengthMax, cert2.GetSerialNumber().Length);
-            Assert.AreEqual(cert1.SerialNumber.Length, cert2.SerialNumber.Length);
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
