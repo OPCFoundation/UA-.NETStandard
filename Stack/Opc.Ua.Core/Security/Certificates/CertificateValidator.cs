@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -393,66 +394,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the authority key identifier in the certificate.
-        /// </summary>
-        private X509AuthorityKeyIdentifierExtension FindAuthorityKeyIdentifier(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509Extension extension = certificate.Extensions[ii];
-
-                switch (extension.Oid.Value)
-                {
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid:
-                    case X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid:
-                    {
-                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical);
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Determines whether the certificate is allowed to be an issuer.
-        /// </summary>
-        private bool IsIssuerAllowed(X509Certificate2 certificate)
-        {
-            X509BasicConstraintsExtension constraints = new X509BasicConstraintsExtension();
-
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                constraints = certificate.Extensions[ii] as X509BasicConstraintsExtension;
-
-                if (constraints != null)
-                {
-                    return constraints.CertificateAuthority;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Returns the subject key identifier in the certificate.
-        /// </summary>
-        private X509SubjectKeyIdentifierExtension FindSubjectKeyIdentifierExtension(X509Certificate2 certificate)
-        {
-            for (int ii = 0; ii < certificate.Extensions.Count; ii++)
-            {
-                X509SubjectKeyIdentifierExtension extension = certificate.Extensions[ii] as X509SubjectKeyIdentifierExtension;
-
-                if (extension != null)
-                {
-                    return extension;
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Returns true if the certificate matches the criteria.
         /// </summary>
         private bool Match(
@@ -468,7 +409,7 @@ namespace Opc.Ua
             }
 
             // check for subject name match.
-            if (!Utils.CompareDistinguishedName(certificate.SubjectName.Name, subjectName))
+            if (!X509Utils.CompareDistinguishedName(certificate.SubjectName.Name, subjectName))
             {
                 return false;
             }
@@ -485,7 +426,7 @@ namespace Opc.Ua
             // check for authority key id match.
             if (!String.IsNullOrEmpty(authorityKeyId))
             {
-                X509SubjectKeyIdentifierExtension subjectKeyId = FindSubjectKeyIdentifierExtension(certificate);
+                X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(certificate);
 
                 if (subjectKeyId != null)
                 {
@@ -539,7 +480,7 @@ namespace Opc.Ua
                     certificate = await issuer.Find(false);
 
                     // check for root.
-                    if (Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+                    if (X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
                     {
                         break;
                     }
@@ -571,7 +512,7 @@ namespace Opc.Ua
             bool checkRecovationStatus)
         {
             // check if self-signed.
-            if (Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+            if (X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
             {
                 return null;
             }
@@ -581,11 +522,11 @@ namespace Opc.Ua
             string serialNumber = null;
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = FindAuthorityKeyIdentifier(certificate);
+            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
 
             if (authority != null)
             {
-                keyId = authority.KeyId;
+                keyId = authority.KeyIdentifier;
                 serialNumber = authority.SerialNumber;
             }
 
@@ -598,7 +539,7 @@ namespace Opc.Ua
 
                     if (issuer != null)
                     {
-                        if (!IsIssuerAllowed(issuer))
+                        if (!X509Utils.IsIssuerAllowed(issuer))
                         {
                             continue;
                         }
@@ -627,7 +568,7 @@ namespace Opc.Ua
 
                         if (issuer != null)
                         {
-                            if (!IsIssuerAllowed(issuer))
+                            if (!X509Utils.IsIssuerAllowed(issuer))
                             {
                                 continue;
                             }
@@ -647,7 +588,7 @@ namespace Opc.Ua
                                     {
                                         if (status == StatusCodes.BadCertificateRevocationUnknown)
                                         {
-                                            if (CertificateFactory.IsCertificateAuthority(certificate))
+                                            if (X509Utils.IsCertificateAuthority(certificate))
                                             {
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
@@ -792,12 +733,12 @@ namespace Opc.Ua
             }
 
             // check whether the chain is complete (if there is a chain)
-            bool issuedByCA = !Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
+            bool issuedByCA = !X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer);
             bool chainIncomplete = false;
             if (issuers.Count > 0)
             {
                 var rootCertificate = issuers[issuers.Count - 1].Certificate;
-                if (!Utils.CompareDistinguishedName(rootCertificate.Subject, rootCertificate.Issuer))
+                if (!X509Utils.CompareDistinguishedName(rootCertificate.Subject, rootCertificate.Issuer))
                 {
                     chainIncomplete = true;
                 }
@@ -847,7 +788,7 @@ namespace Opc.Ua
             }
 
             // check if certificate is valid for use as app/sw or user cert
-            X509KeyUsageFlags certificateKeyUsage = CertificateFactory.GetKeyUsage(certificate);
+            X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
 
             if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
@@ -860,7 +801,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "SHA1 signed certificates are not trusted");
             }
 
-            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
             if (keySize < m_minimumCertificateKeySize)
             {
                 throw new ServiceResultException(StatusCodes.BadCertificatePolicyCheckFailed, "Certificate doesn't meet minimum key length requirement");
@@ -873,7 +814,7 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ICertificateValidator GetChannelValidator()
         {
-            return this as ICertificateValidator;
+            return this;
         }
         #endregion
 
@@ -909,7 +850,7 @@ namespace Opc.Ua
                     // .Net Core ChainStatus returns NotSignatureValid only on Windows, 
                     // so we have to do the extra cert signature check on all platforms
                     if (issuer == null && !isIssuer &&
-                        id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Issuer))
+                        id.Certificate != null && X509Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Issuer))
                     {
                         if (!IsSignatureValid(id.Certificate))
                         {
@@ -934,7 +875,7 @@ namespace Opc.Ua
                     }
 
                     // check for meaning less errors for self-signed certificates.
-                    if (id.Certificate != null && Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
+                    if (id.Certificate != null && X509Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Subject))
                     {
                         break;
                     }
@@ -959,12 +900,13 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
+                        // TODO: add logging
                         break;
                     }
 
                     return ServiceResult.Create(
                         StatusCodes.BadCertificateIssuerTimeInvalid,
-                        "Certificate issuer validatity time does not overhas is expired or not yet valid. {0}: {1}",
+                        "Issuer Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }
@@ -973,12 +915,13 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
+                        // TODO: add logging
                         break;
                     }
 
                     return ServiceResult.Create(
                         (isIssuer) ? StatusCodes.BadCertificateIssuerTimeInvalid : StatusCodes.BadCertificateTimeInvalid,
-                        "Certificate has is expired or not yet valid. {0}: {1}",
+                        "Certificate has expired or is not yet valid. {0}: {1}",
                         status.Status,
                         status.StatusInformation);
                 }
@@ -1019,7 +962,7 @@ namespace Opc.Ua
         /// </summary>
         private static bool IsSignatureValid(X509Certificate2 cert)
         {
-            return CertificateFactory.VerifySelfSigned(cert);
+            return X509Utils.VerifySelfSigned(cert);
         }
         #endregion
 
