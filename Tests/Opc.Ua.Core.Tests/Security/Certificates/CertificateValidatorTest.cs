@@ -686,7 +686,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = InitValidatorWithStores();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
-            Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+            if (trusted)
+            {
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+            }
+            else
+            {                
+                Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+            }
         }
 
         /// <summary>
@@ -716,7 +723,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = InitValidatorWithStores();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
-            Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+            if (trusted)
+            {
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+            }
+            else
+            {
+                Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+            }
         }
 
         [Test, Order(602)]

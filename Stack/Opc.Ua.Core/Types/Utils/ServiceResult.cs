@@ -54,6 +54,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Copy constructor taking an inner result as second argument, to build chains of service results.
+        /// </summary>
+        /// <param name="outerResult"></param>
+        /// <param name="innerResult"></param>
+        public ServiceResult(
+            ServiceResult outerResult,
+            ServiceResult innerResult = null)
+            :
+            this(outerResult.Code, outerResult.SymbolicId, outerResult.NamespaceUri, outerResult.LocalizedText, outerResult.AdditionalInfo, innerResult)
+        {
+        }
+
+        /// <summary>
         /// Constructs a object by specifying each property.
         /// </summary>
         public ServiceResult(
