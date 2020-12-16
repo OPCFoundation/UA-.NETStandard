@@ -1582,6 +1582,10 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     ((DataSetWriterDataType)configurationObject).Enabled = configurationObjectEnabled;
                 }
+                else if (configurationObject is ReaderGroupDataType)
+                {
+                    ((ReaderGroupDataType)configurationObject).Enabled = configurationObjectEnabled;
+                }
                 else if (configurationObject is DataSetReaderDataType)
                 {
                     ((DataSetReaderDataType)configurationObject).Enabled = configurationObjectEnabled;
