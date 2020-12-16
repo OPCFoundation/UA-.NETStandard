@@ -732,8 +732,7 @@ namespace Opc.Ua.Bindings
                     message.AppendLine("ExpectedSignature={4}");
                     message.AppendLine("ActualSignature={5}");
                     Utils.Trace(message.ToString(), token.ChannelId, token.TokenId,
-                        messageType, messageLength, expectedSignature, actualSignature)
-                        );
+                        messageType, messageLength, expectedSignature, actualSignature);
 
                     return false;
                 }
