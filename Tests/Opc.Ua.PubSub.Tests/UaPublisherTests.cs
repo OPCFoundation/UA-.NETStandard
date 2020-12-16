@@ -33,7 +33,7 @@ using System.Threading;
 using Moq;
 using NUnit.Framework;
 
-namespace Opc.Ua.PubSub.Testst
+namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture(Description ="Tests for UAPublisher class")]
     public class UaPublisherTests

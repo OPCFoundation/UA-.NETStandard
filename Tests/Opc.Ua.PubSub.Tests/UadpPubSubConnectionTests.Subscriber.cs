@@ -45,8 +45,7 @@ namespace Opc.Ua.PubSub.Tests
         private byte[] m_sentBytes;
 
         [Test(Description = "Validate subscriber data on first nic;" +
-                            "Subscriber unicast ip - Publisher unicast ip" +
-                            "In order to activate the subscriber for this test add 'UnitTests' to conditional compilations symbols of Softing.Opc.Ua.PubSub_2017.csproj")]
+                            "Subscriber unicast ip - Publisher unicast ip")]
         public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromUnicast()
         {
             // Arrange
@@ -108,8 +107,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate subscriber data on first nic;" +
-                            "Subscriber unicast ip - Publisher broadcast ip" +
-                            "In order to activate the subscriber for this test add 'UnitTests' to conditional compilations symbols of Softing.Opc.Ua.PubSub_2017.csproj")]
+                            "Subscriber unicast ip - Publisher broadcast ip")]
         public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromBroadcast()
         {
             // Arrange
@@ -172,8 +170,7 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber multicast ip - Publisher multicast ip;" +
-                            "Setting Subscriber as unicast or broadcast not functional. Just multicast to multicast works fine;" +
-                            "In order to activate the subscriber for this test add 'UnitTests' to conditional compilations symbols of Softing.Opc.Ua.PubSub_2017.csproj")]
+                            "Setting Subscriber as unicast or broadcast not functional. Just multicast to multicast works fine;")]
         public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromMulticast()
         {
             // Arrange
