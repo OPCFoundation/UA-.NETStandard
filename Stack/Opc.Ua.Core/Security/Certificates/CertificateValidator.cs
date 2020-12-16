@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -264,14 +265,16 @@ namespace Opc.Ua
                     case StatusCodes.BadCertificateUseNotAllowed:
                     case StatusCodes.BadCertificateUntrusted:
                     {
-                        Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                        Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}",
+                            certificate.Subject, (StatusCode)se.StatusCode);
                         break;
                     }
 
                     default:
                     {
                         // write the invalid certificate to rejected store if specified.
-                        Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                        Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
+                            certificate.Subject, (StatusCode)se.StatusCode);
                         SaveCertificate(certificate);
 
                         throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -754,11 +757,13 @@ namespace Opc.Ua
 
             if (issuedByCA && (!chainStatusChecked || chainIncomplete))
             {
+                var message = new StringBuilder();
+                message.AppendLine("Certificate chain validation incomplete.");
+                message.AppendLine("Subject:{0}");
+                message.AppendLine("Issuer:{1}");
                 throw ServiceResultException.Create(
-                    StatusCodes.BadCertificateChainIncomplete,
-                    "Certificate chain validation incomplete.\r\nSubjectName: {0}\r\nIssuerName: {1}",
-                    certificate.SubjectName.Name,
-                    certificate.IssuerName.Name);
+                    StatusCodes.BadCertificateChainIncomplete, message.ToString(),
+                    certificate.SubjectName.Name, certificate.IssuerName.Name);
             }
 
             // check if certificate issuer is trusted.
@@ -766,11 +771,13 @@ namespace Opc.Ua
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
+                    var message = new StringBuilder();
+                    message.AppendLine("Certificate issuer is not trusted.");
+                    message.AppendLine("Subject:{0}");
+                    message.AppendLine("Issuer:{1}");
                     throw ServiceResultException.Create(
-                        StatusCodes.BadCertificateUntrusted,
-                        "Certificate issuer is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
-                        certificate.SubjectName.Name,
-                        certificate.IssuerName.Name);
+                        StatusCodes.BadCertificateUntrusted, message.ToString(),
+                        certificate.SubjectName.Name, certificate.IssuerName.Name);
                 }
             }
 
@@ -779,11 +786,13 @@ namespace Opc.Ua
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
+                    var message = new StringBuilder();
+                    message.AppendLine("Certificate is not trusted.");
+                    message.AppendLine("Subject:{0}");
+                    message.AppendLine("Issuer:{1}");
                     throw ServiceResultException.Create(
-                        StatusCodes.BadCertificateUntrusted,
-                        "Certificate is not trusted.\r\nSubjectName: {0}\r\nIssuerName: {1}",
-                        certificate.SubjectName.Name,
-                        certificate.IssuerName.Name);
+                        StatusCodes.BadCertificateUntrusted, message.ToString(),
+                        certificate.SubjectName.Name, certificate.IssuerName.Name);
                 }
             }
 

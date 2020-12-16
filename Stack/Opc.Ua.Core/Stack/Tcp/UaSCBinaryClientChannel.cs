@@ -1422,6 +1422,8 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                // log a callstack to get a hint on where the decoder failed.
+                Utils.Trace(e, "Unexpected error processing response.");
                 operation.Fault(true, e, StatusCodes.BadUnknownResponse, "Unexpected error processing response.");
                 return true;
             }

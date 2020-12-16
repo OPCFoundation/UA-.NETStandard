@@ -35,7 +35,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -340,7 +339,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error initializing certificateGroup: " + certificateGroupConfiguration.Id + "\r\n" + e.StackTrace);
+                        var message = new StringBuilder();
+                        message.AppendLine("Unexpected error initializing certificateGroup: {0}");
+                        message.AppendLine("{1}");
+                        Utils.Trace(e, message.ToString(),
+                            certificateGroupConfiguration.Id,
+                            ServiceResult.BuildExceptionTrace(e));
                         // make sure gds server doesn't start without cert groups!
                         throw;
                     }
@@ -391,54 +395,54 @@ namespace Opc.Ua.Gds.Server
             switch ((uint)typeId.Identifier)
             {
                 case Opc.Ua.Gds.ObjectTypes.CertificateDirectoryType:
+                {
+                    if (passiveNode is Opc.Ua.Gds.CertificateDirectoryState)
                     {
-                        if (passiveNode is Opc.Ua.Gds.CertificateDirectoryState)
-                        {
-                            break;
-                        }
-
-                        Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
-
-                        activeNode.Create(context, passiveNode);
-                        activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
-                        activeNode.QueryApplications.OnCall = new QueryApplicationsMethodStateMethodCallHandler(OnQueryApplications);
-                        activeNode.RegisterApplication.OnCall = new RegisterApplicationMethodStateMethodCallHandler(OnRegisterApplication);
-                        activeNode.UpdateApplication.OnCall = new UpdateApplicationMethodStateMethodCallHandler(OnUpdateApplication);
-                        activeNode.UnregisterApplication.OnCall = new UnregisterApplicationMethodStateMethodCallHandler(OnUnregisterApplication);
-                        activeNode.FindApplications.OnCall = new FindApplicationsMethodStateMethodCallHandler(OnFindApplications);
-                        activeNode.GetApplication.OnCall = new GetApplicationMethodStateMethodCallHandler(OnGetApplication);
-                        activeNode.StartNewKeyPairRequest.OnCall = new StartNewKeyPairRequestMethodStateMethodCallHandler(OnStartNewKeyPairRequest);
-                        activeNode.FinishRequest.OnCall = new FinishRequestMethodStateMethodCallHandler(OnFinishRequest);
-                        activeNode.GetCertificateGroups.OnCall = new GetCertificateGroupsMethodStateMethodCallHandler(OnGetCertificateGroups);
-                        activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
-                        activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
-                        activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
-                        // TODO
-                        //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
-
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
-                        activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
-                        activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value = false;
-                        activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value = false;
-
-                        activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.HttpsCertificateType };
-                        activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
-                        activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value = false;
-                        activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value = false;
-
-                        activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.UserCredentialCertificateType };
-                        activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
-                        activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value = false;
-                        activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value = false;
-
-                        // replace the node in the parent.
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
-
-                        return activeNode;
+                        break;
                     }
+
+                    Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
+
+                    activeNode.Create(context, passiveNode);
+                    activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
+                    activeNode.QueryApplications.OnCall = new QueryApplicationsMethodStateMethodCallHandler(OnQueryApplications);
+                    activeNode.RegisterApplication.OnCall = new RegisterApplicationMethodStateMethodCallHandler(OnRegisterApplication);
+                    activeNode.UpdateApplication.OnCall = new UpdateApplicationMethodStateMethodCallHandler(OnUpdateApplication);
+                    activeNode.UnregisterApplication.OnCall = new UnregisterApplicationMethodStateMethodCallHandler(OnUnregisterApplication);
+                    activeNode.FindApplications.OnCall = new FindApplicationsMethodStateMethodCallHandler(OnFindApplications);
+                    activeNode.GetApplication.OnCall = new GetApplicationMethodStateMethodCallHandler(OnGetApplication);
+                    activeNode.StartNewKeyPairRequest.OnCall = new StartNewKeyPairRequestMethodStateMethodCallHandler(OnStartNewKeyPairRequest);
+                    activeNode.FinishRequest.OnCall = new FinishRequestMethodStateMethodCallHandler(OnFinishRequest);
+                    activeNode.GetCertificateGroups.OnCall = new GetCertificateGroupsMethodStateMethodCallHandler(OnGetCertificateGroups);
+                    activeNode.GetTrustList.OnCall = new GetTrustListMethodStateMethodCallHandler(OnGetTrustList);
+                    activeNode.GetCertificateStatus.OnCall = new GetCertificateStatusMethodStateMethodCallHandler(OnGetCertificateStatus);
+                    activeNode.StartSigningRequest.OnCall = new StartSigningRequestMethodStateMethodCallHandler(OnStartSigningRequest);
+                    // TODO
+                    //activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
+
+                    activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType };
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value = false;
+                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value = false;
+
+                    activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.HttpsCertificateType };
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value = false;
+                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value = false;
+
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.UserCredentialCertificateType };
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value = false;
+                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value = false;
+
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
@@ -1054,13 +1058,14 @@ namespace Opc.Ua.Gds.Server
                     catch (Exception e)
                     {
                         StringBuilder error = new StringBuilder();
-
-                        error.Append("Error Generating Certificate=" + e.Message);
-                        error.Append("\r\nApplicationId=" + applicationId.ToString());
-                        error.Append("\r\nApplicationUri=" + application.ApplicationUri);
-                        error.Append("\r\nApplicationName=" + application.ApplicationNames[0].Text);
-
-                        return new ServiceResult(StatusCodes.BadConfigurationError, error.ToString());
+                        error.AppendLine("Error Generating Certificate={0}");
+                        error.AppendLine("ApplicationId={1}");
+                        error.AppendLine("ApplicationUri={2}");
+                        error.AppendLine("ApplicationName={3}");
+                        return ServiceResult.Create(StatusCodes.BadConfigurationError, error.ToString(),
+                            e.Message , applicationId.ToString(), application.ApplicationUri,
+                            application.ApplicationNames[0].Text
+                            );
                     }
                 }
                 else
@@ -1078,12 +1083,11 @@ namespace Opc.Ua.Gds.Server
                     catch (Exception e)
                     {
                         StringBuilder error = new StringBuilder();
-
-                        error.Append("Error Generating New Key Pair Certificate=" + e.Message);
-                        error.Append("\r\nApplicationId=" + applicationId.ToString());
-                        error.Append("\r\nApplicationUri=" + application.ApplicationUri);
-
-                        return new ServiceResult(StatusCodes.BadConfigurationError, error.ToString());
+                        error.AppendLine("Error Generating New Key Pair Certificate={0}");
+                        error.AppendLine("ApplicationId={1}");
+                        error.AppendLine("ApplicationUri={2}");
+                        return ServiceResult.Create(StatusCodes.BadConfigurationError, error.ToString(),
+                             e.Message, applicationId.ToString(), application.ApplicationUri);
                     }
 
                     certificate = newKeyPair.Certificate;
@@ -1340,7 +1344,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                throw new NotImplementedException("Unknown certificate type {certificateGroup.Configuration.CertificateType}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
+                throw new NotImplementedException($"Unknown certificate type {certificateGroup.Configuration.CertificateType}. Use ApplicationCertificateType, HttpsCertificateType or UserCredentialCertificateType");
             }
 
             if (certificateGroup.DefaultTrustList != null)

@@ -311,21 +311,6 @@ namespace Opc.Ua
         {
         }
 
-        private static string GetDefaultMessage(Exception exception)
-        {
-            if (exception != null && exception.Message != null)
-            {
-                if (exception.Message.StartsWith("[") || exception is ServiceResultException)
-                {
-                    return exception.Message;
-                }
-
-                return String.Format(CultureInfo.InvariantCulture, "[{0}] {1}", exception.GetType().Name, exception.Message);
-            }
-
-            return String.Empty;
-        }
-
         /// <summary>
         /// Constructs a object from an exception.
         /// </summary>
@@ -617,20 +602,21 @@ namespace Opc.Ua
             {
                 if (buffer.Length > 0)
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n");
+                    buffer.AppendLine();
+                    buffer.AppendLine();
                 }
 
                 buffer.AppendFormat(CultureInfo.InvariantCulture, ">>> {0}", exception.Message);
 
                 if (!String.IsNullOrEmpty(exception.StackTrace))
                 {
-                    string[] trace = exception.StackTrace.Split(new char[] { '\r', '\n' });
-
+                    string[] trace = exception.StackTrace.Split(Environment.NewLine.ToCharArray());
                     for (int ii = 0; ii < trace.Length; ii++)
                     {
                         if (trace[ii] != null && trace[ii].Length > 0)
                         {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n--- {0}", trace[ii]);
+                            buffer.AppendLine();
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
                         }
                     }
                 }
@@ -749,7 +735,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a formatted string with the contents of exeception.
+        /// Returns a formatted string with the contents of exception.
         /// </summary>
         public string ToLongString()
         {
@@ -804,6 +790,26 @@ namespace Opc.Ua
             }
 
             return stringTable[index];
+        }
+
+        /// <summary>
+        /// Extract a default message from an exception.
+        /// </summary>
+        /// <param name="exception"></param>
+        /// <returns></returns>
+        private static string GetDefaultMessage(Exception exception)
+        {
+            if (exception != null && exception.Message != null)
+            {
+                if (exception.Message.StartsWith("[") || exception is ServiceResultException)
+                {
+                    return exception.Message;
+                }
+
+                return String.Format(CultureInfo.InvariantCulture, "[{0}] {1}", exception.GetType().Name, exception.Message);
+            }
+
+            return String.Empty;
         }
         #endregion
 

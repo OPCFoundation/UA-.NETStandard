@@ -37,7 +37,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}\r\n", url.Scheme);
+                    "Unsupported transport profile for scheme {0}.", url.Scheme);
             }
 
             m_listener = listener;

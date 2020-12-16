@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration
 {
@@ -330,7 +330,8 @@ namespace Opc.Ua.Configuration
 
             if (id == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Configuration file does not specify a certificate.");
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "Configuration file does not specify a certificate.");
             }
 
             X509Certificate2 certificate = await id.Find(true);
@@ -347,7 +348,8 @@ namespace Opc.Ua.Configuration
 
                 if (certificate != null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Cannot access certificate private key. Subject={0}", certificate.Subject);
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        "Cannot access certificate private key. Subject={0}", certificate.Subject);
                 }
 
                 // check for missing thumbprint.
@@ -359,27 +361,29 @@ namespace Opc.Ua.Configuration
                         id2.StoreType = id.StoreType;
                         id2.StorePath = id.StorePath;
                         id2.SubjectName = id.SubjectName;
-
                         certificate = await id2.Find(true);
                     }
 
                     if (certificate != null)
                     {
-                        string message = Utils.Format(
-                            "Thumbprint was explicitly specified in the configuration." +
-                            "\r\nAnother certificate with the same subject name was found." +
-                            "\r\nUse it instead?\r\n" +
-                            "\r\nRequested: {0}" +
-                            "\r\nFound: {1}",
-                            id.SubjectName,
-                            certificate.Subject);
-
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                        var message = new StringBuilder();
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration.");
+                        message.AppendLine("Another certificate with the same subject name was found.");
+                        message.AppendLine("Use it instead?");
+                        message.AppendLine("Requested: {0}");
+                        message.AppendLine("Found: {1}");
+                        if (!await ApproveMessage(String.Format(message.ToString(), id.SubjectName, certificate.Subject), silent))
+                        {
+                            throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                                message.ToString(), id.SubjectName, certificate.Subject);
+                        }
                     }
                     else
                     {
-                        string message = Utils.Format("Thumbprint was explicitly specified in the configuration. Cannot generate a new certificate.");
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                        var message = new StringBuilder();
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration. ");
+                        message.AppendLine("Cannot generate a new certificate.");
+                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message.ToString());
                     }
                 }
             }
@@ -391,14 +395,14 @@ namespace Opc.Ua.Configuration
 
                 if (certificate == null)
                 {
-                    string message = Utils.Format(
-                        "There is no cert with subject {0} in the configuration." +
-                        "\r\n Please generate a cert for your application,",
-                        "\r\n then copy the new cert to this location:" +
-                        "\r\n{1}",
-                        id.SubjectName,
-                        id.StorePath);
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                    var message = new StringBuilder();
+                    message.AppendLine("There is no cert with subject {0} in the configuration.");
+                    message.AppendLine(" Please generate a cert for your application,");
+                    message.AppendLine(" then copy the new cert to this location:");
+                    message.AppendLine(" {1}");
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        message.ToString(), id.SubjectName, id.StorePath
+                        );
                 }
             }
             else
