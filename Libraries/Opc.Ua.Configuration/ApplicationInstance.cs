@@ -198,6 +198,12 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Static Methods
+        /// <summary>
+        /// Helper to replace localhost with the hostname
+        /// in the application uri and base adresses of the
+        /// configuration.
+        /// </summary>
+        /// <param name="configuration"></param>
         public static ApplicationConfiguration FixupAppConfig(
             ApplicationConfiguration configuration)
         {
