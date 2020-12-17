@@ -245,3 +245,4 @@ OPC\ Foundation/
 /Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll
 /Microsoft.CodeDom.Providers.DotNetCompilerPlatform.xml
 /SampleApplications/Samples/OPCOutput
+!**/Assets/*.*

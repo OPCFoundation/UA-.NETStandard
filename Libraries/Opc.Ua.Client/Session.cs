@@ -37,7 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using static Opc.Ua.Utils;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -67,44 +67,31 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint use to initialize the channel.</param>
+        /// <param name="endpoint">The endpoint used to initialize the channel.</param>
         /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none is provided.
         /// The clientCertificate must have the private key. This will require that the certificate
         /// be loaded from a certicate store. Converting a DER encoded blob to a X509Certificate2
         /// will not include a private key.
+        /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are used to validate
+        /// that the list of EndpointDescriptions returned at GetEndpoints matches the list returned at CreateSession.
         /// </remarks>
         public Session(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate)
-        :
-            base(channel)
-        {
-            Initialize(channel, configuration, endpoint, clientCertificate);
-        }
-
-        /// <summary>
-        /// Constructs a new instance of the <see cref="Session"/> class.
-        /// </summary>
-        /// <param name="channel">The channel used to communicate with the server.</param>
-        /// <param name="configuration">The configuration for the client application.</param>
-        /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        /// <param name="clientCertificate">The certificate to use for the client.</param>
-        /// <param name="availableEndpoints">A collection of available endpoints to connect to the server.</param>
-        public Session(
-            ITransportChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
-            EndpointDescriptionCollection availableEndpoints)
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null)
             :
                 base(channel)
         {
             Initialize(channel, configuration, endpoint, clientCertificate);
-            m_expectedServerEndpoints = availableEndpoints;
+            m_discoveryServerEndpoints = availableEndpoints;
+            m_discoveryProfileUris = discoveryProfileUris;
         }
 
         /// <summary>
@@ -337,7 +324,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -351,7 +338,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -368,7 +355,7 @@ namespace Opc.Ua.Client
             X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
 
             // check the certificate domains.
-            IList<string> domains = Utils.GetDomainsFromCertficate(serverCertificate);
+            IList<string> domains = X509Utils.GetDomainsFromCertficate(serverCertificate);
 
             if (domains != null)
             {
@@ -2585,20 +2572,41 @@ namespace Opc.Ua.Client
                     //    "Server signature is null or empty.");
                 }
 
-                if (m_expectedServerEndpoints != null && m_expectedServerEndpoints.Count > 0)
+                if (m_discoveryServerEndpoints != null && m_discoveryServerEndpoints.Count > 0)
                 {
-                    // verify that the list of endpoints returned by CreateSession matches the list returned at GetEndpoints.
-                    if (m_expectedServerEndpoints.Count != serverEndpoints.Count)
+                    // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
+                    EndpointDescriptionCollection expectedServerEndpoints = null;
+
+                    if (m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
+                    {
+                        // Select EndpointDescriptions with a transportProfileUri that matches the
+                        // profileUris specified in the original GetEndpoints() request.
+                        expectedServerEndpoints = new EndpointDescriptionCollection();
+
+                        foreach (EndpointDescription serverEndpoint in serverEndpoints)
+                        {
+                            if (m_discoveryProfileUris.Contains(serverEndpoint.TransportProfileUri))
+                            {
+                                expectedServerEndpoints.Add(serverEndpoint);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        expectedServerEndpoints = serverEndpoints;
+                    }
+
+                    if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadSecurityChecksFailed,
                             "Server did not return a number of ServerEndpoints that matches the one from GetEndpoints.");
                     }
 
-                    for (int ii = 0; ii < serverEndpoints.Count; ii++)
+                    for (int ii = 0; ii < expectedServerEndpoints.Count; ii++)
                     {
-                        EndpointDescription serverEndpoint = serverEndpoints[ii];
-                        EndpointDescription expectedServerEndpoint = m_expectedServerEndpoints[ii];
+                        EndpointDescription serverEndpoint = expectedServerEndpoints[ii];
+                        EndpointDescription expectedServerEndpoint = m_discoveryServerEndpoints[ii];
 
                         if (serverEndpoint.SecurityMode != expectedServerEndpoint.SecurityMode ||
                             serverEndpoint.SecurityPolicyUri != expectedServerEndpoint.SecurityPolicyUri ||
@@ -4679,7 +4687,8 @@ namespace Opc.Ua.Client
         private bool m_reconnecting;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
 
-        private EndpointDescriptionCollection m_expectedServerEndpoints;
+        private EndpointDescriptionCollection m_discoveryServerEndpoints;
+        private StringCollection m_discoveryProfileUris;
 
         private class AsyncRequestState
         {

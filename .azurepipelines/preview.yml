@@ -52,7 +52,7 @@ jobs:
     displayName: Install NuGetKeyVaultSignTool
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.4.x'
+      versionSpec: '>=5.8.x'
   - task: PowerShell@2
     displayName: Versioning
     inputs:
@@ -70,6 +70,14 @@ jobs:
       command: build
       projects: 'UA Core Library.sln'
       arguments: '--no-incremental --configuration ${{parameters.config}} ${{ variables.msbuildversion }} ${{ variables.msbuildsign }}'
+  - task: CmdLine@2
+    displayName: 'List of assemblies to sign'
+    inputs:
+      script: |
+        dir /b /s Stack\Opc.Ua.*.dll > .\list.txt
+        dir /b /s Libraries\Opc.Ua.*.dll >> .\list.txt
+        dir /b /s .azurepipelines\*.* >> .\list.txt
+        type .\list.txt
   - task: CmdLine@2
     displayName: 'Sign Assemblies'
     condition: ne( variables['SigningClientSecret'], '')

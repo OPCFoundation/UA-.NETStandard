@@ -16,6 +16,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -594,7 +595,7 @@ namespace Opc.Ua.Bindings
 
                     if (SecurityMode != MessageSecurityMode.None)
                     {
-                        if (CertificateFactory.GetRSAPublicKeySize(receiverCertificate) <= TcpMessageLimits.KeySizeExtraPadding)
+                        if (X509Utils.GetRSAPublicKeySize(receiverCertificate) <= TcpMessageLimits.KeySizeExtraPadding)
                         {
                             // need to reserve one byte for the padding.
                             plainTextSize++;
@@ -978,7 +979,7 @@ namespace Opc.Ua.Bindings
             if (SecurityMode != MessageSecurityMode.None)
             {
                 int paddingEnd = -1;
-                if (CertificateFactory.GetRSAPublicKeySize(receiverCertificate) > TcpMessageLimits.KeySizeExtraPadding)
+                if (X509Utils.GetRSAPublicKeySize(receiverCertificate) > TcpMessageLimits.KeySizeExtraPadding)
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
                     paddingCount = plainText.Array[paddingEnd - 1] + plainText.Array[paddingEnd] * 256;
