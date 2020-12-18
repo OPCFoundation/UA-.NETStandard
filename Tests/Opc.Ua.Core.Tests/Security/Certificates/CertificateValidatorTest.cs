@@ -758,7 +758,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             Assert.True(X509Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
             CleanupValidatorAndStores();
-            if (trusted)
+            if (!trusted)
             {
                 await m_issuerStore.Add(cert);
             }
@@ -768,7 +768,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = InitValidatorWithStores();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
-            if (trusted)
+            if (!trusted)
             {
                 Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
             }
@@ -795,7 +795,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(cert);
             Assert.True(X509Utils.CompareDistinguishedName("CN=App Test Cert", cert.Subject));
             CleanupValidatorAndStores();
-            if (trusted)
+            if (!trusted)
             {
                 await m_issuerStore.Add(cert);
             }
@@ -805,7 +805,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             var certValidator = InitValidatorWithStores();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
-            if (trusted)
+            if (!trusted)
             {
                 Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
             }

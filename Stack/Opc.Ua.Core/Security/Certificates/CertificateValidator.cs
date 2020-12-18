@@ -251,7 +251,7 @@ namespace Opc.Ua
             catch (ServiceResultException se)
             {
                 // check for errors that may be suppressed.
-                if (containsUnsuppressibleSC(se.Result))
+                if (ContainsUnsuppressibleSC(se.Result))
                 {
                     Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
                     SaveCertificate(certificate);
@@ -260,7 +260,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1} (and possibly others)", certificate.Subject, (StatusCode)se.StatusCode);
+                    Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}", certificate.Subject, se.ToLongString());
                 }
 
                 // invoke callback.
@@ -305,7 +305,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="sr"></param>
         /// <returns></returns>
-        private bool containsUnsuppressibleSC(ServiceResult sr)
+        static private bool ContainsUnsuppressibleSC(ServiceResult sr)
         {
             List<StatusCode> suppressibleStatusCodes = new List<StatusCode>()
             {
@@ -328,7 +328,7 @@ namespace Opc.Ua
             {
                 return false;
             }
-            return containsUnsuppressibleSC(sr.InnerResult);
+            return ContainsUnsuppressibleSC(sr.InnerResult);
         }
 
 
