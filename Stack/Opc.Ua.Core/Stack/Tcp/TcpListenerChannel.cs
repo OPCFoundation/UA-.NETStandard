@@ -82,6 +82,11 @@ namespace Opc.Ua.Bindings
         public virtual string ChannelName => "TCPLISTENERCHANNEL";
 
         /// <summary>
+        /// The TCP channel listener.
+        /// </summary>
+        protected ITcpChannelListener Listener => m_listener;
+
+        /// <summary>
         /// Sets the callback used to receive notifications of new events.
         /// </summary>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
@@ -536,7 +541,6 @@ namespace Opc.Ua.Bindings
         {
             throw new NotImplementedException();
         }
-
         #endregion
 
         #region Connect/Reconnect Sequence
@@ -550,7 +554,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        protected ITcpChannelListener m_listener;
+        private ITcpChannelListener m_listener;
         protected bool m_responseRequired;
         protected SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         protected TcpChannelRequestEventHandler m_RequestReceived;

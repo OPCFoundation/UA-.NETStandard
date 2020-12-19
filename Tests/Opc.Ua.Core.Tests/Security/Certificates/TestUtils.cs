@@ -29,8 +29,16 @@
 
 namespace Opc.Ua.Core.Tests
 {
+    /// <summary>
+    /// Common utilities for tests.
+    /// </summary>
     public static class TestUtils
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="store"></param>
+        /// <param name="dispose"></param>
         public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
             var certs = store.Enumerate().Result;

@@ -484,9 +484,9 @@ namespace Opc.Ua.Server
                 {
                     using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Security, $"Delete application certificate {certificateGroup.ApplicationCertificate.Thumbprint}");
+                        Utils.Trace(Utils.TraceMasks.Security, $"Delete application certificate {certificateGroup.ApplicationCertificate.Thumbprint}");
                         appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
-                        Utils.Trace((int)Utils.TraceMasks.Security, $"Add new application certificate {updateCertificate.CertificateWithPrivateKey}");
+                        Utils.Trace(Utils.TraceMasks.Security, $"Add new application certificate {updateCertificate.CertificateWithPrivateKey}");
                         appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
                         // keep only track of cert without private key
                         var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                Utils.Trace((int)Utils.TraceMasks.Security, $"Add new issuer certificate {issuer}");
+                                Utils.Trace(Utils.TraceMasks.Security, $"Add new issuer certificate {issuer}");
                                 issuerStore.Add(issuer).Wait();
                             }
                             catch (ArgumentException)
@@ -511,7 +511,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace((int)Utils.TraceMasks.Security, ex.StackTrace);
+                    Utils.Trace((int)Utils.TraceMasks.Security, ServiceResult.BuildExceptionTrace(ex));
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to update certificate.", ex);
                 }
             }

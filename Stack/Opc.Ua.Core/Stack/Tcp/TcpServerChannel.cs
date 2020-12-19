@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings
         {
             ChannelId = channelId;
             ReverseConnectionUrl = endpointUrl;
-            SetEndpointUrl(m_listener.EndpointUrl.ToString());
+            SetEndpointUrl(Listener.EndpointUrl.ToString());
 
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout);
 
@@ -614,7 +614,7 @@ namespace Opc.Ua.Bindings
                     if (State == TcpChannelState.Opening)
                     {
                         // tell the listener to find the channel that can process the request.
-                        m_listener.ReconnectToExistingChannel(
+                        Listener.ReconnectToExistingChannel(
                             Socket,
                             requestId,
                             sequenceNumber,
@@ -651,18 +651,18 @@ namespace Opc.Ua.Bindings
                 {
                     Opc.Ua.Security.Audit.SecureChannelCreated(
                         m_ImplementationString,
-                        this.m_listener.EndpointUrl.ToString(),
-                        Utils.Format("{0}", this.ChannelId),
-                        this.EndpointDescription,
-                        this.ClientCertificate,
-                        this.ServerCertificate,
+                        Listener.EndpointUrl.ToString(),
+                        Utils.Format("{0}", ChannelId),
+                        EndpointDescription,
+                        ClientCertificate,
+                        ServerCertificate,
                         BinaryEncodingSupport.Required);
                 }
                 else
                 {
                     Opc.Ua.Security.Audit.SecureChannelRenewed(
                         m_ImplementationString,
-                        Utils.Format("{0}", this.ChannelId));
+                        Utils.Format("{0}", ChannelId));
                 }
 
                 if (requestType == SecurityTokenRequestType.Renew)

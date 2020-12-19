@@ -34,7 +34,6 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, listener, bufferManager, quotas, null, null, endpoints)
         {
-            m_listener = listener;
         }
         #endregion
 
@@ -110,7 +109,7 @@ namespace Opc.Ua.Bindings
                 Task t = Task.Run(async () => {
                     try
                     {
-                        if (false == await m_listener.TransferListenerChannel(Id, serverUri, endpointUri))
+                        if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri))
                         {
                             m_responseRequired = true;
                             ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
