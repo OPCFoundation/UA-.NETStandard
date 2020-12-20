@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -39,6 +40,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+#if NETCOREAPP2_1
+using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
+#endif
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -196,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void VerifySelfSignedAppCertsNotTrusted()
         {
             // verify cert with issuer chain
-            using (var validator = TemporaryCertValidator.Create())
+            using (var validator = TemporaryCertValidator.Create(true))
             {
                 var certValidator = validator.Update();
                 foreach (var cert in m_appSelfSignedCerts)
@@ -204,6 +208,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(new X509Certificate2(cert)); });
                     Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
                 }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, validator.RejectedStore.Enumerate().GetAwaiter().GetResult().Count);
+
+                // add auto approver
+                var approver = new CertValidationApprover(new StatusCode[] { StatusCodes.BadCertificateUntrusted });
+                certValidator.CertificateValidation += approver.OnCertificateValidation;
+                foreach (var cert in m_appSelfSignedCerts)
+                {
+                    certValidator.Validate(new X509Certificate2(cert));
+                }
+                Assert.AreEqual(m_appSelfSignedCerts.Count, approver.AcceptedCount);
             }
         }
 
@@ -248,7 +262,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // verify cert with issuer chain
             {
                 // add all certs to issuer store, make sure validation fails.
-                using (var validator = TemporaryCertValidator.Create())
+                using (var validator = TemporaryCertValidator.Create(true))
                 {
                     foreach (var cert in m_appSelfSignedCerts)
                     {
@@ -261,6 +275,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(new X509Certificate2(cert)); });
                         Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
                     }
+                    Assert.AreEqual(m_appSelfSignedCerts.Count, validator.RejectedStore.Enumerate().Result.Count);
                 }
             }
         }
@@ -810,6 +825,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (!trusted)
             {
                 Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                // check the chained service result
+                ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
+                Assert.NotNull(innerResult);
+                Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid,
+                    innerResult.StatusCode.Code,
+                    innerResult.LocalizedText.Text);
             }
             else
             {
@@ -856,6 +877,193 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Validate various null parameter return null exception.
+        /// </summary>
+        [Test]
+        public void TestNullParameters()
+        {
+            var validator = TemporaryCertValidator.Create();
+            var certValidator = validator.Update();
+            Assert.Throws<ArgumentNullException>(() => { certValidator.Update((SecurityConfiguration)null).GetAwaiter().GetResult(); });
+            Assert.Throws<ArgumentNullException>(() => { certValidator.Update((ApplicationConfiguration)null).GetAwaiter().GetResult(); });
+        }
+
+        /// <summary>
+        /// Validate the event handlers can be used.
+        /// </summary>
+        [Test]
+        public void TestEventHandler()
+        {
+            var validator = TemporaryCertValidator.Create();
+            var certValidator = validator.Update();
+            certValidator.CertificateUpdate += OnCertificateUpdate;
+            certValidator.CertificateValidation += OnCertificateValidation;
+            certValidator.CertificateUpdate -= OnCertificateUpdate;
+            certValidator.CertificateValidation -= OnCertificateValidation;
+        }
+
+        /// <summary>
+        /// Validate Sha1 signed certificates cause a policy check failed.
+        /// </summary>
+        [Theory]
+        public void TestSHA1Rejected(bool trusted)
+        {
+#if NETCOREAPP3_1
+            Assert.Ignore("SHA1 is unsupported on .NET Core 3.1");
+#endif
+            var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)
+                .SetHashAlgorithm(HashAlgorithmName.SHA1)
+                .CreateForRSA();
+            var validator = TemporaryCertValidator.Create();
+            if (trusted)
+            {
+                validator.TrustedStore.Add(cert);
+            }
+            var certValidator = validator.Update();
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+            Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.NotNull(serviceResultException.InnerResult);
+            ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
+            if (!trusted)
+            {
+                Assert.NotNull(innerResult);
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
+                    innerResult.StatusCode.Code,
+                    innerResult.LocalizedText.Text);
+            }
+            else
+            {
+                Assert.Null(innerResult);
+            }
+        }
+
+        /// <summary>
+        /// Validate invalid key usage flags cause use not allowed.
+        /// </summary>
+        [Theory]
+        public void TestInvalidKeyUsage(bool trusted)
+        {
+            var subject = "CN=Invalid Signature Cert";
+            // self signed but key usage is not valid for app cert
+            var cert = CertificateFactory.CreateCertificate(null, null, subject, null)
+                .SetCAConstraint(0)
+                .CreateForRSA();
+
+            Assert.True(X509Utils.VerifySelfSigned(cert));
+            var validator = TemporaryCertValidator.Create();
+            if (trusted)
+            {
+                validator.TrustedStore.Add(cert);
+            }
+            var certValidator = validator.Update();
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+            Assert.AreEqual(StatusCodes.BadCertificateUseNotAllowed, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.NotNull(serviceResultException.InnerResult);
+            var innerResult = serviceResultException.InnerResult.InnerResult;
+            if (trusted)
+            {
+                Assert.Null(innerResult);
+            }
+            else
+            {
+                Assert.NotNull(innerResult);
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, innerResult.StatusCode.Code, innerResult.LocalizedText.Text);
+            }
+        }
+
+        /// <summary>
+        /// Validate certificates with invalid signature are returned as invalid.
+        /// </summary>
+        [Theory]
+        public void TestInvalidSignature(bool ca, bool trusted)
+        {
+            var subject = "CN=Invalid Signature Cert";
+            var certBase = CertificateFactory.CreateCertificate(null, null, subject, null)
+                .CreateForRSA();
+
+            var generator = X509SignatureGenerator.CreateForRSA(m_caChain[0].GetRSAPrivateKey(), RSASignaturePadding.Pkcs1);
+            // generate a self signed cert with invalid signature
+            var builder = CertificateFactory.CreateCertificate(null, null, subject, null);
+            if (ca)
+            {
+                builder.SetCAConstraint(0);
+            }
+            var cert = builder.SetIssuer(certBase)
+            .SetRSAPublicKey(certBase.GetRSAPublicKey())
+            .CreateForRSA(generator);
+
+            Assert.False(X509Utils.VerifySelfSigned(cert));
+            var validator = TemporaryCertValidator.Create();
+            if (trusted)
+            {
+                validator.TrustedStore.Add(cert);
+            }
+            var certValidator = validator.Update();
+            var approver = new CertValidationApprover(new StatusCode[] { StatusCodes.BadCertificateUntrusted });
+            certValidator.CertificateValidation += approver.OnCertificateValidation;
+            ServiceResult innerResult;
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+            if (ca)
+            {
+                // The CA version fails for the key usage flags
+                Assert.AreEqual(StatusCodes.BadCertificateUseNotAllowed, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.NotNull(serviceResultException.InnerResult);
+                innerResult = serviceResultException.InnerResult.InnerResult;
+            }
+            else
+            {
+                innerResult = serviceResultException.InnerResult;
+            }
+            if (!trusted)
+            {
+                // for the untrusted case, the untrusted error is also reported.
+                Assert.NotNull(innerResult);
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
+                    innerResult.StatusCode.Code,
+                    innerResult.LocalizedText.Text);
+                innerResult = innerResult.InnerResult;
+            }
+            // However, all cert versions got an invalid signature, must fail...
+            Assert.NotNull(innerResult);
+            Assert.AreEqual(StatusCodes.BadCertificateInvalid,
+                innerResult.StatusCode.Code,
+                innerResult.LocalizedText.Text);
+            Assert.AreEqual(0, approver.Count);
+        }
+
+        /// <summary>
+        /// Test if a key below min length is detected.
+        /// </summary>
+        [Theory]
+        public void TestMinimumKeyRejected(bool trusted)
+        {
+            var cert = CertificateFactory.CreateCertificate(null, null, "CN=1k Key", null)
+                .SetRSAKeySize(1024)
+                .CreateForRSA();
+            var validator = TemporaryCertValidator.Create();
+            if (trusted)
+            {
+                validator.TrustedStore.Add(cert);
+            }
+            var certValidator = validator.Update();
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+            Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
+            Assert.NotNull(serviceResultException.InnerResult);
+            ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
+            if (!trusted)
+            {
+                Assert.NotNull(innerResult);
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
+                    innerResult.StatusCode.Code,
+                    innerResult.LocalizedText.Text);
+            }
+            else
+            {
+                Assert.Null(innerResult);
+            }
+        }
+
+        /// <summary>
         /// Verify the certificate validator can be assigned.
         /// </summary>
         [Test]
@@ -867,6 +1075,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #endregion
 
         #region Private Methods
+        private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
+        {
+        }
+        private void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
+        {
+        }
         #endregion
 
         #region Private Fields
@@ -881,5 +1095,33 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private X509Certificate2Collection m_appCerts;
         private X509Certificate2Collection m_appSelfSignedCerts;
         #endregion
+    }
+
+    /// <summary>
+    /// Helper to approve suppressable errors in test cases.
+    /// To catch cases where unsuppressable errors should not
+    /// call for approvals.
+    /// </summary>
+    class CertValidationApprover
+    {
+        public StatusCode[] ApprovedCodes { get; }
+        public int Count { get; private set; }
+        public int AcceptedCount { get; private set; }
+        public CertValidationApprover(StatusCode[] approvedCodes)
+        {
+            ApprovedCodes = approvedCodes;
+            AcceptedCount = Count = 0;
+        }
+
+        public void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
+        {
+            Count++;
+            if (ApprovedCodes.Contains(e.Error.StatusCode))
+            {
+                e.Accept = true;
+                AcceptedCount++;
+            }
+        }
+
     }
 }

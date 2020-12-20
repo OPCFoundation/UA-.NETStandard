@@ -809,7 +809,6 @@ namespace Opc.Ua
         /// Extract a default message from an exception.
         /// </summary>
         /// <param name="exception"></param>
-        /// <returns></returns>
         private static string GetDefaultMessage(Exception exception)
         {
             if (exception != null && exception.Message != null)

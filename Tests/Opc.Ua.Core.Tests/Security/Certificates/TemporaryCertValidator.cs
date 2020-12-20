@@ -41,15 +41,15 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// Create the cert store in a temp location.
         /// </summary>
-        public static TemporaryCertValidator Create()
+        public static TemporaryCertValidator Create(bool rejectedStore = false)
         {
-            return new TemporaryCertValidator();
+            return new TemporaryCertValidator(rejectedStore);
         }
 
         /// <summary>
         /// Ctor of the store, creates the random path name in a OS temp folder.
         /// </summary>
-        private TemporaryCertValidator()
+        private TemporaryCertValidator(bool rejectedStore)
         {
             // pki directory root for test runs. 
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
@@ -57,6 +57,11 @@ namespace Opc.Ua.Core.Tests
             m_issuerStore.Open(m_pkiRoot + "issuer");
             m_trustedStore = new DirectoryCertificateStore();
             m_trustedStore.Open(m_pkiRoot + "trusted");
+            if (rejectedStore)
+            {
+                m_rejectedStore = new DirectoryCertificateStore();
+                m_rejectedStore.Open(m_pkiRoot + "rejected");
+            }
         }
 
         /// <summary>
@@ -77,6 +82,7 @@ namespace Opc.Ua.Core.Tests
                 CleanupValidatorAndStores(true);
                 m_issuerStore = null;
                 m_trustedStore = null;
+                m_rejectedStore = null;
                 var path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
                 if (Directory.Exists(path))
                 {
@@ -97,6 +103,10 @@ namespace Opc.Ua.Core.Tests
         /// The trusted store, used for trusted CA, Sub CA and leaf certificates.
         /// </summary>
         public ICertificateStore TrustedStore => m_trustedStore;
+        /// <summary>
+        /// The rejected store, used for rejected certificates.
+        /// </summary>
+        public ICertificateStore RejectedStore => m_rejectedStore;
 
         /// <summary>
         /// Creates the validator using the issuer and trusted store.
@@ -112,7 +122,15 @@ namespace Opc.Ua.Core.Tests
                 StoreType = "Directory",
                 StorePath = m_trustedStore.Directory.FullName
             };
-            certValidator.Update(issuerTrustList, trustedTrustList, null);
+            CertificateStoreIdentifier rejectedList = null;
+            if (m_rejectedStore != null)
+            {
+                rejectedList = new CertificateStoreIdentifier {
+                    StoreType = "Directory",
+                    StorePath = m_rejectedStore.Directory.FullName
+                };
+            }
+            certValidator.Update(issuerTrustList, trustedTrustList, rejectedList);
             m_certificateValidator = certValidator;
             return certValidator;
         }
@@ -124,6 +142,7 @@ namespace Opc.Ua.Core.Tests
         {
             TestUtils.CleanupTrustList(m_issuerStore, dispose);
             TestUtils.CleanupTrustList(m_trustedStore, dispose);
+            TestUtils.CleanupTrustList(m_rejectedStore, dispose);
         }
 
         #region Private Fields
@@ -131,6 +150,7 @@ namespace Opc.Ua.Core.Tests
         private CertificateValidator m_certificateValidator;
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
+        private DirectoryCertificateStore m_rejectedStore;
         private string m_pkiRoot;
         #endregion
     };
