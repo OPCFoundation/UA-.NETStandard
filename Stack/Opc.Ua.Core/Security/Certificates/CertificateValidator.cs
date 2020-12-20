@@ -269,13 +269,26 @@ namespace Opc.Ua
                 // invoke callback.
                 bool accept = false;
 
+                ServiceResult serviceResult = se.Result;
                 lock (m_callbackLock)
                 {
                     if (m_CertificateValidation != null)
                     {
-                        CertificateValidationEventArgs args = new CertificateValidationEventArgs(new ServiceResult(se), certificate);
-                        m_CertificateValidation(this, args);
-                        accept = args.Accept;
+                        do
+                        {
+                            CertificateValidationEventArgs args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), certificate);
+                            m_CertificateValidation(this, args);
+                            accept = args.Accept;
+                            if (accept)
+                            {
+                                serviceResult = serviceResult.InnerResult;
+                            }
+                            else
+                            {
+                                // report the rejected service result
+                                se = new ServiceResultException(serviceResult);
+                            }
+                        } while (accept && serviceResult != null);
                     }
                 }
 
@@ -283,7 +296,7 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, (StatusCode)se.StatusCode);
+                    Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, serviceResult.ToString());
                     SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);

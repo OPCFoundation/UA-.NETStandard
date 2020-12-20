@@ -886,7 +886,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var subject = "CN=Signed App Test Cert";
             var cert = CertificateFactory.CreateCertificate(
                 null, null, subject, null)
-                .SetNotBefore(new DateTime(2010, 1, 1))
+                .SetNotBefore(DateTime.Today.AddDays(30))
                 .SetLifeTime(12)
                 .SetIssuer(m_caChain[0])
                 .CreateForRSA();
