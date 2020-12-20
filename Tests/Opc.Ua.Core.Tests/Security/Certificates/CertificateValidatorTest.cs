@@ -217,6 +217,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     certValidator.Validate(new X509Certificate2(cert));
                 }
+                // count certs written to rejected store
                 Assert.AreEqual(m_appSelfSignedCerts.Count, approver.AcceptedCount);
             }
         }
@@ -877,6 +878,46 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Verify signed cert, not after invalid and chain missing.
+        /// </summary>
+        [Theory]
+        public async Task VerifySignedNotAfterInvalid(bool trusted)
+        {
+            var subject = "CN=Signed App Test Cert";
+            var cert = CertificateFactory.CreateCertificate(
+                null, null, subject, null)
+                .SetNotBefore(new DateTime(2010, 1, 1))
+                .SetLifeTime(12)
+                .SetIssuer(m_caChain[0])
+                .CreateForRSA();
+            TestContext.Out.WriteLine($"{cert}:");
+            Assert.NotNull(cert);
+            cert = new X509Certificate2(cert);
+            Assert.NotNull(cert);
+            Assert.True(X509Utils.CompareDistinguishedName(subject, cert.Subject));
+            var validator = TemporaryCertValidator.Create();
+            if (!trusted)
+            {
+                await validator.IssuerStore.Add(cert);
+            }
+            else
+            {
+                await validator.TrustedStore.Add(cert);
+            }
+            var certValidator = validator.Update();
+            var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+            Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+            // approver tries to suppress error which is not suppressable
+            var approver = new CertValidationApprover(new StatusCode[] {
+                StatusCodes.BadCertificateTimeInvalid,
+                StatusCodes.BadCertificateChainIncomplete
+            });
+            certValidator.CertificateValidation += approver.OnCertificateValidation;
+            Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+            certValidator.CertificateValidation -= approver.OnCertificateValidation;
+        }
+
+        /// <summary>
         /// Validate various null parameter return null exception.
         /// </summary>
         [Test]
@@ -986,6 +1027,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var builder = CertificateFactory.CreateCertificate(null, null, subject, null);
             if (ca)
             {
+                // set the CA flag changes the key usage to sign only
                 builder.SetCAConstraint(0);
             }
             var cert = builder.SetIssuer(certBase)
@@ -1061,6 +1103,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.Null(innerResult);
             }
+
+            // approve suppression of smaller key
+            var approver = new CertValidationApprover(new StatusCode[] {
+                StatusCodes.BadCertificatePolicyCheckFailed,
+                //StatusCodes.BadCertificateUntrusted
+            });
+            certValidator.CertificateValidation += approver.OnCertificateValidation;
+            if (trusted)
+            {
+                certValidator.Validate(cert);
+            }
+            else
+            {
+                serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+            }
+            certValidator.CertificateValidation -= approver.OnCertificateValidation;
         }
 
         /// <summary>
