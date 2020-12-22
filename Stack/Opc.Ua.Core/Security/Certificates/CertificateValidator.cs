@@ -881,6 +881,7 @@ namespace Opc.Ua
                     break;
                 }
 
+                case X509ChainStatusFlags.PartialChain:
                 case X509ChainStatusFlags.UntrustedRoot:
                 {
                     // self signed cert signature validation 
@@ -963,7 +964,6 @@ namespace Opc.Ua
                         status.StatusInformation);
                 }
 
-                case X509ChainStatusFlags.PartialChain:
                 case X509ChainStatusFlags.NotSignatureValid:
                 default:
                 {
