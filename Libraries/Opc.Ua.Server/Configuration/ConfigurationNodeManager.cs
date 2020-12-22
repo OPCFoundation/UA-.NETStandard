@@ -33,7 +33,6 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Xml;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -484,9 +483,9 @@ namespace Opc.Ua.Server
                 {
                     using (ICertificateStore appStore = CertificateStoreIdentifier.OpenStore(certificateGroup.ApplicationCertificate.StorePath))
                     {
-                        Utils.Trace(Utils.TraceMasks.Security, $"Delete application certificate {certificateGroup.ApplicationCertificate.Thumbprint}");
+                        Utils.Trace(Utils.TraceMasks.Security, "Delete application certificate {0}", certificateGroup.ApplicationCertificate.Thumbprint);
                         appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
-                        Utils.Trace(Utils.TraceMasks.Security, $"Add new application certificate {updateCertificate.CertificateWithPrivateKey}");
+                        Utils.Trace(Utils.TraceMasks.Security, "Add new application certificate {0}", updateCertificate.CertificateWithPrivateKey);
                         appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
                         // keep only track of cert without private key
                         var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
@@ -499,7 +498,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                Utils.Trace(Utils.TraceMasks.Security, $"Add new issuer certificate {issuer}");
+                                Utils.Trace(Utils.TraceMasks.Security, "Add new issuer certificate {0}", issuer);
                                 issuerStore.Add(issuer).Wait();
                             }
                             catch (ArgumentException)
@@ -511,7 +510,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace((int)Utils.TraceMasks.Security, ServiceResult.BuildExceptionTrace(ex));
+                    Utils.Trace(Utils.TraceMasks.Security, ServiceResult.BuildExceptionTrace(ex));
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to update certificate.", ex);
                 }
             }
@@ -738,9 +737,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private class UpdateCertificateData
         {
             public NodeId SessionId;
@@ -765,6 +764,6 @@ namespace Opc.Ua.Server
         private IList<ServerCertificateGroup> m_certificateGroups;
         private readonly string m_rejectedStorePath;
         private Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = new Dictionary<string, NamespaceMetadataState>();
-#endregion
+        #endregion
     }
 }

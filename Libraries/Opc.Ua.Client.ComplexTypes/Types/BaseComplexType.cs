@@ -948,11 +948,20 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion
 
+        #region Protected Fields
+        /// <summary>
+        /// The list of properties of this complex type. 
+        /// </summary>
+        protected IList<ComplexTypePropertyAttribute> m_propertyList;
+        /// <summary>
+        /// The list of properties as dictionary.
+        /// </summary>
+        protected Dictionary<string, ComplexTypePropertyAttribute> m_propertyDict;
+        #endregion
+
         #region Private Fields
         private ServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
-        protected IList<ComplexTypePropertyAttribute> m_propertyList;
-        protected Dictionary<string, ComplexTypePropertyAttribute> m_propertyDict;
         #endregion
     }
 

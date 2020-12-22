@@ -251,7 +251,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_responseRequired = true;
+                SetResponseRequired(true);
 
                 try
                 {
@@ -293,7 +293,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    m_responseRequired = false;
+                    SetResponseRequired(false);
                 }
             }
         }
@@ -936,7 +936,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // hand the request to the server.
-                m_RequestReceived?.Invoke(this, requestId, request);
+                m_requestReceived?.Invoke(this, requestId, request);
 
                 return true;
             }

@@ -246,22 +246,20 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                DateTime yesterday = DateTime.UtcNow.AddDays(-1);
+                DateTime yesterday = DateTime.Today.AddDays(-1);
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
                 {
                     return CertificateFactory.CreateCertificate(
-                        null, null, null,
-                        application.ApplicationUri ?? "urn:ApplicationURI",
-                        application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                        info.Subject.ToString(),
-                        domainNames,
-                        Configuration.DefaultCertificateKeySize,
-                        yesterday,
-                        Configuration.DefaultCertificateLifetime,
-                        Configuration.DefaultCertificateHashSize,
-                        false,
-                        signingKey,
-                        info.SubjectPublicKeyInfo.GetEncoded());
+                            application.ApplicationUri,
+                            null,
+                            info.Subject.ToString(),
+                            domainNames)
+                        .SetNotBefore(yesterday)
+                        .SetLifeTime(Configuration.DefaultCertificateLifetime)
+                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                        .SetIssuer(signingKey)
+                        .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                        .CreateForRSA();
                 }
             }
             catch (Exception ex)
@@ -279,22 +277,17 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             )
         {
-            DateTime yesterday = DateTime.UtcNow.AddDays(-1);
-            X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
-                m_authoritiesStoreType,
-                m_authoritiesStorePath,
-                null,
-                null,
-                null,
-                subjectName,
-                null,
-                Configuration.CACertificateKeySize,
-                yesterday,
-                Configuration.CACertificateLifetime,
-                Configuration.CACertificateHashSize,
-                true,
-                null,
-                null);
+            DateTime yesterday = DateTime.Today.AddDays(-1);
+            X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
+                .SetNotBefore(yesterday)
+                .SetLifeTime(Configuration.CACertificateLifetime)
+                .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                .SetCAConstraint()
+                .SetRSAKeySize(Configuration.CACertificateKeySize)
+                .CreateForRSA()
+                .AddToStore(
+                    m_authoritiesStoreType,
+                    m_authoritiesStorePath);
 
             // save only public key
             Certificate = new X509Certificate2(newCertificate.RawData);

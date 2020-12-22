@@ -93,7 +93,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_RequestReceived = callback;
+                m_requestReceived = callback;
             }
         }
 
@@ -541,6 +541,14 @@ namespace Opc.Ua.Bindings
         {
             throw new NotImplementedException();
         }
+
+        /// <summary>
+        /// Set the flag if a response is required for the use case of reverse connect.
+        /// </summary>
+        protected void SetResponseRequired(bool responseRequired)
+        {
+            m_responseRequired = responseRequired;
+        }
         #endregion
 
         #region Connect/Reconnect Sequence
@@ -555,9 +563,9 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private ITcpChannelListener m_listener;
-        protected bool m_responseRequired;
+        private bool m_responseRequired;
         protected SortedDictionary<uint, IServiceResponse> m_queuedResponses;
-        protected TcpChannelRequestEventHandler m_RequestReceived;
+        protected TcpChannelRequestEventHandler m_requestReceived;
         private long m_lastTokenId;
         private Timer m_cleanupTimer;
         #endregion

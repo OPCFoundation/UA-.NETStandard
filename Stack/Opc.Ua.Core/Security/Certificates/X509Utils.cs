@@ -541,5 +541,28 @@ namespace Opc.Ua
             return certificate;
         }
 
+        /// <summary>
+        /// Get the hash algorithm from the hash size in bits.
+        /// </summary>
+        /// <param name="hashSizeInBits"></param>
+        public static HashAlgorithmName GetRSAHashAlgorithmName(uint hashSizeInBits)
+        {
+            if (hashSizeInBits <= 160)
+            {
+                return HashAlgorithmName.SHA1;
+            }
+            else if (hashSizeInBits <= 256)
+            {
+                return HashAlgorithmName.SHA256;
+            }
+            else if (hashSizeInBits <= 384)
+            {
+                return HashAlgorithmName.SHA384;
+            }
+            else
+            {
+                return HashAlgorithmName.SHA512;
+            }
+        }
     }
 }

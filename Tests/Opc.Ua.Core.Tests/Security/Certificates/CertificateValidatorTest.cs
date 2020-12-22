@@ -87,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(rootCABaseTime)
                 .SetLifeTime(25 * 12)
                 .SetCAConstraint()
-                .SetHashAlgorithm(CertificateFactory.GetRSAHashAlgorithmName(hashSize))
+                .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(hashSize))
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var subCACert = CertificateFactory.CreateCertificate(subject)
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
-                    .SetHashAlgorithm(CertificateFactory.GetRSAHashAlgorithmName(hashSize))
+                    .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(hashSize))
                     .SetCAConstraint(kCaChainCount - 1 - i)
                     .SetIssuer(signingCert)
                     .SetRSAKeySize(keySize)

@@ -99,7 +99,7 @@ namespace Opc.Ua
 
             return clone;
         }
-        
+
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>
@@ -183,7 +183,7 @@ namespace Opc.Ua
                 viewNode.ContainsNoLoops = this.ContainsNoLoops;
             }
         }
-        
+
         /// <summary>
         /// Saves the attributes from the stream.
         /// </summary>
@@ -418,13 +418,13 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }              
+                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
         #endregion
-        
+
         #region Private Fields
         private byte m_eventNotifier;
         private bool m_containsNoLoops;

@@ -53,7 +53,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_responseRequired = true;
+                SetResponseRequired(true);
 
                 try
                 {
@@ -74,7 +74,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    m_responseRequired = false;
+                    SetResponseRequired(false);
                 }
             }
         }
@@ -111,7 +111,7 @@ namespace Opc.Ua.Bindings
                     {
                         if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri))
                         {
-                            m_responseRequired = true;
+                            SetResponseRequired(true);
                             ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
                         }
                         else
@@ -122,7 +122,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception)
                     {
-                        m_responseRequired = true;
+                        SetResponseRequired(true);
                         ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
                     }
                 });

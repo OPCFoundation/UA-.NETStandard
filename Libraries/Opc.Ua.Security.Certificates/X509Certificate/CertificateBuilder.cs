@@ -83,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
             CreateDefaults();
 
             if (m_rsaPublicKey != null &&
-               (m_issuerCAKeyCert == null || !m_issuerCAKeyCert.HasPrivateKey))
+               (IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey))
             {
                 throw new NotSupportedException("Cannot use a public key without a issuer certificate with a private key.");
             }
@@ -103,13 +103,13 @@ namespace Opc.Ua.Security.Certificates
 
             X509Certificate2 signedCert;
             var serialNumber = m_serialNumber.Reverse().ToArray();
-            if (m_issuerCAKeyCert != null)
+            if (IssuerCAKeyCert != null)
             {
-                var issuerSubjectName = m_issuerCAKeyCert.SubjectName;
-                using (RSA rsaIssuerKey = m_issuerCAKeyCert.GetRSAPrivateKey())
+                var issuerSubjectName = IssuerCAKeyCert.SubjectName;
+                using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
                 {
                     signedCert = request.Create(
-                        m_issuerCAKeyCert.SubjectName,
+                        IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
                         NotBefore,
                         NotAfter,
@@ -137,7 +137,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            if (m_issuerCAKeyCert == null)
+            if (IssuerCAKeyCert == null)
             {
                 throw new NotSupportedException("X509 Signature generator requires an issuer certificate.");
             }
@@ -156,12 +156,12 @@ namespace Opc.Ua.Security.Certificates
 
             X509Certificate2 signedCert;
 
-            var issuerSubjectName = m_issuerCAKeyCert.SubjectName;
+            var issuerSubjectName = IssuerCAKeyCert.SubjectName;
             signedCert = request.Create(
-                m_issuerCAKeyCert.SubjectName,
+                IssuerCAKeyCert.SubjectName,
                 generator,
-                m_notBefore,
-                m_notAfter,
+                NotBefore,
+                NotAfter,
                 m_serialNumber.Reverse().ToArray()
                 );
 
@@ -342,11 +342,11 @@ namespace Opc.Ua.Security.Certificates
             request.CertificateExtensions.Add(ski);
 
             // Authority Key Identifier
-            X509Extension authorityKeyIdentifier = m_issuerCAKeyCert != null
-                ? X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCAKeyCert)
+            X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
+                ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
                 : new X509AuthorityKeyIdentifierExtension(
                     ski.SubjectKeyIdentifier.FromHexString(),
-                    m_subjectName,
+                    SubjectName,
                     m_serialNumber
                     );
             request.CertificateExtensions.Add(authorityKeyIdentifier);
@@ -362,7 +362,7 @@ namespace Opc.Ua.Security.Certificates
                 keyUsageFlags =
                     X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.DataEncipherment |
                     X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment;
-                if (m_issuerCAKeyCert == null)
+                if (IssuerCAKeyCert == null)
                 {
                     // self signed case
                     keyUsageFlags |= X509KeyUsageFlags.KeyCertSign;
@@ -397,7 +397,7 @@ namespace Opc.Ua.Security.Certificates
         private X509BasicConstraintsExtension GetBasicContraints()
         {
             // Basic constraints
-            if (!m_isCA && m_issuerCAKeyCert == null)
+            if (!m_isCA && IssuerCAKeyCert == null)
             {
                 // self signed
                 return new X509BasicConstraintsExtension(true, true, 0, true);

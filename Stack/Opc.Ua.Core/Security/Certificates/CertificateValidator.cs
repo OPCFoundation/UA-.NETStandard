@@ -20,7 +20,7 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-    
+
     /// <summary>
     /// Validates certificates.
     /// </summary>
@@ -323,28 +323,15 @@ namespace Opc.Ua
         /// <returns></returns>
         static private bool ContainsUnsuppressibleSC(ServiceResult sr)
         {
-            List<StatusCode> suppressibleStatusCodes = new List<StatusCode>()
+            while (sr != null)
             {
-                StatusCodes.BadCertificateHostNameInvalid,
-                StatusCodes.BadCertificateIssuerRevocationUnknown,
-                StatusCodes.BadCertificateChainIncomplete,
-                StatusCodes.BadCertificateIssuerTimeInvalid,
-                StatusCodes.BadCertificateIssuerUseNotAllowed,
-                StatusCodes.BadCertificateRevocationUnknown,
-                StatusCodes.BadCertificateTimeInvalid,
-                StatusCodes.BadCertificatePolicyCheckFailed,
-                StatusCodes.BadCertificateUseNotAllowed,
-                StatusCodes.BadCertificateUntrusted
-            };
-            if (!suppressibleStatusCodes.Contains(sr.StatusCode))
-            {
-                return true;
+                if (!m_suppressibleStatusCodes.Contains(sr.StatusCode))
+                {
+                    return true;
+                }
+                sr = sr.InnerResult;
             }
-            if (sr.InnerResult == null)
-            {
-                return false;
-            }
-            return ContainsUnsuppressibleSC(sr.InnerResult);
+            return false;
         }
 
         /// <summary>
@@ -746,7 +733,6 @@ namespace Opc.Ua
                 {
                     foreach (X509ChainStatus status in element.ChainElementStatus)
                     {
-
                         ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
                         if (ServiceResult.IsBad(result))
                         {
@@ -1031,6 +1017,25 @@ namespace Opc.Ua
         {
             return X509Utils.VerifySelfSigned(cert);
         }
+
+        /// <summary>
+        /// The list of suppressible status codes.
+        /// </summary>
+        private static readonly ReadOnlyList<StatusCode> m_suppressibleStatusCodes =
+            new ReadOnlyList<StatusCode>(
+                new List<StatusCode>
+                {
+                    StatusCodes.BadCertificateHostNameInvalid,
+                    StatusCodes.BadCertificateIssuerRevocationUnknown,
+                    StatusCodes.BadCertificateChainIncomplete,
+                    StatusCodes.BadCertificateIssuerTimeInvalid,
+                    StatusCodes.BadCertificateIssuerUseNotAllowed,
+                    StatusCodes.BadCertificateRevocationUnknown,
+                    StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificatePolicyCheckFailed,
+                    StatusCodes.BadCertificateUseNotAllowed,
+                    StatusCodes.BadCertificateUntrusted
+                });
         #endregion
 
         #region Private Fields
