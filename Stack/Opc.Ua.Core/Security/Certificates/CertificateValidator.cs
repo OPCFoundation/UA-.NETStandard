@@ -296,7 +296,8 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace((int)Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}", certificate.Subject, serviceResult.ToString());
+                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
+                        certificate.Subject, serviceResult.ToString());
                     SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -355,7 +356,7 @@ namespace Opc.Ua
             {
                 if (m_rejectedCertificateStore != null)
                 {
-                    Utils.Trace((int)Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
+                    Utils.Trace(Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
                     try
                     {
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
@@ -727,7 +728,6 @@ namespace Opc.Ua
                 {
                     issuer = issuers[ii];
                 }
-
                 // check for chain status errors.
                 if (element.ChainElementStatus.Length > 0)
                 {
@@ -877,7 +877,6 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.NoError:
                 case X509ChainStatusFlags.OfflineRevocation:
                 case X509ChainStatusFlags.InvalidBasicConstraints:
-                case X509ChainStatusFlags.PartialChain:
                 {
                     break;
                 }
@@ -964,13 +963,8 @@ namespace Opc.Ua
                         status.StatusInformation);
                 }
 
+                case X509ChainStatusFlags.PartialChain:
                 case X509ChainStatusFlags.NotSignatureValid:
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadCertificateInvalid,
-                        status.StatusInformation);
-                }
-
                 default:
                 {
                     return ServiceResult.Create(
