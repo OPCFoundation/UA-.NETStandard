@@ -699,7 +699,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}\r\n", uriScheme);
+                    "Unsupported transport profile for scheme {0}.", uriScheme);
             }
 
             // create a UA channel.
@@ -796,7 +796,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}\r\n", uriScheme);
+                    "Unsupported transport profile for scheme {0}.", uriScheme);
             }
 
             // create a UA-TCP channel.

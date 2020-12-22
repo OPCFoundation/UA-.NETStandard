@@ -77,7 +77,6 @@ namespace Opc.Ua.Security.Certificates
         private CertificateBuilder(X500DistinguishedName subjectName)
             : base(subjectName)
         {
-            m_subjectName = subjectName;
         }
 
         /// <summary>
@@ -86,7 +85,6 @@ namespace Opc.Ua.Security.Certificates
         private CertificateBuilder(string subjectName)
             : base(subjectName)
         {
-            m_subjectName = new X500DistinguishedName(subjectName);
         }
         #endregion
 
@@ -141,15 +139,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 throw new ArgumentException("Failed to decode and import the public key.", e);
             }
-            return this;
-        }
-
-        /// <inheritdoc/>
-        public override ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
-        {
-            if (issuerCertificate == null) throw new ArgumentNullException(nameof(issuerCertificate));
-            m_issuerCAKeyCert = issuerCertificate;
-            m_issuerName = issuerCertificate.SubjectName;
             return this;
         }
 
@@ -281,12 +270,12 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="cg">The cert generator</param>
         private void CreateMandatoryFields(X509V3CertificateGenerator cg)
         {
-            m_subjectDN = new CertificateFactoryX509Name(m_subjectName.Name);
+            m_subjectDN = new CertificateFactoryX509Name(SubjectName.Name);
             // subject and issuer DN
             m_issuerDN = null;
-            if (m_issuerCAKeyCert != null)
+            if (IssuerCAKeyCert != null)
             {
-                m_issuerDN = new CertificateFactoryX509Name(m_issuerCAKeyCert.Subject);
+                m_issuerDN = new CertificateFactoryX509Name(IssuerCAKeyCert.Subject);
             }
             else
             {
@@ -321,7 +310,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 basicConstraints = new BasicConstraints(m_pathLengthConstraint);
             }
-            else if (!m_isCA && m_issuerCAKeyCert == null)
+            else if (!m_isCA && IssuerCAKeyCert == null)
             {   // self-signed
                 basicConstraints = new BasicConstraints(0);
             }
@@ -330,10 +319,10 @@ namespace Opc.Ua.Security.Certificates
             // Authority Key identifier references the issuer cert or itself when self signed
             AsymmetricKeyParameter issuerPublicKey;
             BigInteger issuerSerialNumber;
-            if (m_issuerCAKeyCert != null)
+            if (IssuerCAKeyCert != null)
             {
-                issuerPublicKey = X509Utils.GetPublicKeyParameter(m_issuerCAKeyCert);
-                issuerSerialNumber = X509Utils.GetSerialNumber(m_issuerCAKeyCert);
+                issuerPublicKey = X509Utils.GetPublicKeyParameter(IssuerCAKeyCert);
+                issuerSerialNumber = X509Utils.GetSerialNumber(IssuerCAKeyCert);
             }
             else
             {
@@ -350,7 +339,7 @@ namespace Opc.Ua.Security.Certificates
                 // Key usage 
                 var keyUsage = KeyUsage.DataEncipherment | KeyUsage.DigitalSignature |
                         KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment;
-                if (m_issuerCAKeyCert == null)
+                if (IssuerCAKeyCert == null)
                 {   // only self signed certs need KeyCertSign flag.
                     keyUsage |= KeyUsage.KeyCertSign;
                 }
@@ -386,8 +375,8 @@ namespace Opc.Ua.Security.Certificates
         {
             // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey != null, "Need a public key for the certificate.");
-            Debug.Assert(m_issuerCAKeyCert != null, "Need a issuer certificate to sign.");
-            if (!m_issuerCAKeyCert.HasPrivateKey && signatureFactory == null)
+            Debug.Assert(IssuerCAKeyCert != null, "Need a issuer certificate to sign.");
+            if (!IssuerCAKeyCert.HasPrivateKey && signatureFactory == null)
             {
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }
@@ -407,7 +396,7 @@ namespace Opc.Ua.Security.Certificates
             // sign certificate by issuer
             if (signatureFactory == null)
             {
-                AsymmetricKeyParameter signingKey = X509Utils.GetPrivateKeyParameter(m_issuerCAKeyCert);
+                AsymmetricKeyParameter signingKey = X509Utils.GetPrivateKeyParameter(IssuerCAKeyCert);
                 signatureFactory = new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey);
             }
             Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
@@ -427,13 +416,13 @@ namespace Opc.Ua.Security.Certificates
             // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey == null, "A public key is not supported for the certificate.");
 
-            if (signatureFactory != null && m_issuerCAKeyCert == null)
+            if (signatureFactory != null && IssuerCAKeyCert == null)
             {
                 throw new NotSupportedException("Need an issuer certificate for a signature generator.");
             }
 
-            if (m_issuerCAKeyCert != null &&
-                (!m_issuerCAKeyCert.HasPrivateKey && signatureFactory == null))
+            if (IssuerCAKeyCert != null &&
+                (!IssuerCAKeyCert.HasPrivateKey && signatureFactory == null))
             {
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }
@@ -461,10 +450,10 @@ namespace Opc.Ua.Security.Certificates
                 if (signatureFactory == null)
                 {
                     AsymmetricKeyParameter signingKey;
-                    if (m_issuerCAKeyCert != null)
+                    if (IssuerCAKeyCert != null)
                     {
                         // signed by issuer
-                        signingKey = X509Utils.GetPrivateKeyParameter(m_issuerCAKeyCert);
+                        signingKey = X509Utils.GetPrivateKeyParameter(IssuerCAKeyCert);
                     }
                     else
                     {

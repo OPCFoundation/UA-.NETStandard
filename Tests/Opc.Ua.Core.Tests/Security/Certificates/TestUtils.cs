@@ -29,23 +29,34 @@
 
 namespace Opc.Ua.Core.Tests
 {
+    /// <summary>
+    /// Common utilities for tests.
+    /// </summary>
     public static class TestUtils
     {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="store"></param>
+        /// <param name="dispose"></param>
         public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            var certs = store.Enumerate().Result;
-            foreach (var cert in certs)
+            if (store != null)
             {
-                store.Delete(cert.Thumbprint);
-            }
-            var crls = store.EnumerateCRLs();
-            foreach (var crl in crls)
-            {
-                store.DeleteCRL(crl);
-            }
-            if (dispose)
-            {
-                store.Dispose();
+                var certs = store.Enumerate().Result;
+                foreach (var cert in certs)
+                {
+                    store.Delete(cert.Thumbprint);
+                }
+                var crls = store.EnumerateCRLs();
+                foreach (var crl in crls)
+                {
+                    store.DeleteCRL(crl);
+                }
+                if (dispose)
+                {
+                    store.Dispose();
+                }
             }
         }
     }

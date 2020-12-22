@@ -317,7 +317,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Private Fields
-        protected UInt32 m_encodingMask;
+        private UInt32 m_encodingMask;
         #endregion
     }
 

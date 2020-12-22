@@ -112,6 +112,13 @@ namespace Opc.Ua.Security.Certificates
             return rsaPrivateKey;
         }
 #else
+        /// <summary>
+        /// Import a PKCS#8 private key or RSA private key from PEM.
+        /// The PKCS#8 private key may be encrypted using a password.
+        /// </summary>
+        /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
+        /// <param name="password">The password to use (optional).</param>
+        /// <returns>The RSA private key.</returns>
         public static RSA ImportPrivateKeyFromPEM(
             byte[] pemDataBlob,
             string password = null)

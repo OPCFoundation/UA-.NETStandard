@@ -120,9 +120,11 @@ namespace Opc.Ua.Security.Certificates
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate
+            X509Certificate2 certificate,
+            string password = null
             )
         {
+            if (!String.IsNullOrEmpty(password)) throw new ArgumentException(nameof(password), "Export with password not supported on this platform.");
             RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
             using (TextWriter textWriter = new StringWriter())
             {
