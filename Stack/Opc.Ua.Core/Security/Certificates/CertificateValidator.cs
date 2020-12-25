@@ -237,6 +237,15 @@ namespace Opc.Ua
         /// </remarks>
         public virtual void Validate(X509Certificate2Collection chain)
         {
+            Validate(chain, null);
+        }
+
+        /// <summary>
+        /// Validates a certificate with domain validation check.
+        /// <see cref="Validate(X509Certificate2Collection)"/>
+        /// </summary>
+        public virtual void Validate(X509Certificate2Collection chain, ConfiguredEndpoint endpoint)
+        {
             X509Certificate2 certificate = chain[0];
 
             try
@@ -244,7 +253,7 @@ namespace Opc.Ua
                 lock (m_lock)
                 {
 
-                    InternalValidate(chain).GetAwaiter().GetResult();
+                    InternalValidate(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
@@ -661,8 +670,9 @@ namespace Opc.Ua
         /// Throws an exception if validation fails.
         /// </summary>
         /// <param name="certificates">The certificates to be checked.</param>
+        /// <param name="endpoint">The endpoint for domain validation.</param>
         /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
-        protected virtual async Task InternalValidate(X509Certificate2Collection certificates)
+        protected virtual async Task InternalValidate(X509Certificate2Collection certificates, ConfiguredEndpoint endpoint)
         {
             X509Certificate2 certificate = certificates[0];
 
@@ -796,6 +806,16 @@ namespace Opc.Ua
                 }
             }
 
+            if (endpoint != null && !FindDomain(certificate, endpoint))
+            {
+                string message = Utils.Format(
+                    "The domain '{0}' is not listed in the server certificate.",
+                    endpoint.EndpointUrl.DnsSafeHost);
+                sresult = new ServiceResult(StatusCodes.BadCertificateHostNameInvalid,
+                    null, null, message, null, sresult
+                    );
+            }
+
             // check if certificate is valid for use as app/sw or user cert
             X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
 
@@ -862,8 +882,6 @@ namespace Opc.Ua
         /// <param name="endpoint">The endpoint used to connect to a server.</param>
         public void ValidateDomains(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
         {
-            bool domainFound = false;
-
             X509Certificate2 certificate2;
             if (m_validatedCertificates.TryGetValue(serverCertificate.Thumbprint, out certificate2))
             {
@@ -873,51 +891,7 @@ namespace Opc.Ua
                 }
             }
 
-            // check the certificate domains.
-            IList<string> domains = X509Utils.GetDomainsFromCertficate(serverCertificate);
-
-            if (domains != null && domains.Count > 0)
-            {
-                string hostname;
-                string dnsHostName = hostname = endpoint.EndpointUrl.DnsSafeHost;
-                bool isLocalHost = false;
-                if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
-                {
-                    if (String.Equals(dnsHostName, "localhost", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        isLocalHost = true;
-                    }
-                    else
-                    {   // strip domain names from hostname
-                        hostname = dnsHostName.Split('.')[0];
-                    }
-                }
-                else
-                {   // dnsHostname is a IPv4 or IPv6 address
-                    // normalize ip addresses, cert parser returns normalized addresses
-                    hostname = Utils.NormalizedIPAddress(dnsHostName);
-                    if (hostname == "127.0.0.1" || hostname == "::1")
-                    {
-                        isLocalHost = true;
-                    }
-                }
-
-                if (isLocalHost)
-                {
-                    dnsHostName = Utils.GetFullQualifiedDomainName();
-                    hostname = Utils.GetHostName();
-                }
-
-                for (int ii = 0; ii < domains.Count; ii++)
-                {
-                    if (String.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
-                        String.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
-                    {
-                        domainFound = true;
-                        break;
-                    }
-                }
-            }
+            bool domainFound = FindDomain(serverCertificate, endpoint);
 
             if (!domainFound)
             {
@@ -929,7 +903,7 @@ namespace Opc.Ua
                 if (m_CertificateValidation != null)
                 {
                     var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), serverCertificate);
-                    m_CertificateValidation( this, args);
+                    m_CertificateValidation(this, args);
                     accept = args.Accept;
                 }
                 // throw if rejected.
@@ -1120,6 +1094,65 @@ namespace Opc.Ua
                     StatusCodes.BadCertificateUseNotAllowed,
                     StatusCodes.BadCertificateUntrusted
                 });
+
+        /// <summary>
+        /// Find the domain in a certificate in the
+        /// endpoint that was used to connect a session.
+        /// </summary>
+        /// <param name="serverCertificate">The server certificate which is tested for domain names.</param>
+        /// <param name="endpoint">The endpoint which was used to connect.</param>
+        /// <returns>True if domain was found.</returns>
+        private bool FindDomain(X509Certificate2 serverCertificate, ConfiguredEndpoint endpoint)
+        {
+            bool domainFound = false;
+
+            // check the certificate domains.
+            IList<string> domains = X509Utils.GetDomainsFromCertficate(serverCertificate);
+
+            if (domains != null && domains.Count > 0)
+            {
+                string hostname;
+                string dnsHostName = hostname = endpoint.EndpointUrl.DnsSafeHost;
+                bool isLocalHost = false;
+                if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
+                {
+                    if (String.Equals(dnsHostName, "localhost", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        isLocalHost = true;
+                    }
+                    else
+                    {   // strip domain names from hostname
+                        hostname = dnsHostName.Split('.')[0];
+                    }
+                }
+                else
+                {   // dnsHostname is a IPv4 or IPv6 address
+                    // normalize ip addresses, cert parser returns normalized addresses
+                    hostname = Utils.NormalizedIPAddress(dnsHostName);
+                    if (hostname == "127.0.0.1" || hostname == "::1")
+                    {
+                        isLocalHost = true;
+                    }
+                }
+
+                if (isLocalHost)
+                {
+                    dnsHostName = Utils.GetFullQualifiedDomainName();
+                    hostname = Utils.GetHostName();
+                }
+
+                for (int ii = 0; ii < domains.Count; ii++)
+                {
+                    if (String.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
+                    {
+                        domainFound = true;
+                        break;
+                    }
+                }
+            }
+            return domainFound;
+        }
         #endregion
 
         #region Private Fields

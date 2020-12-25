@@ -827,6 +827,7 @@ namespace Opc.Ua.Client
                 configuration.CertificateValidator?.ValidateDomains(
                     new X509Certificate2(endpoint.Description.ServerCertificate),
                     endpoint);
+                checkDomain = false;
             }
 
             X509Certificate2 clientCertificate = null;
@@ -2361,11 +2362,13 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    m_configuration.CertificateValidator.Validate(serverCertificateChain);
-
                     if (checkDomain)
                     {
-                        m_configuration.CertificateValidator.ValidateDomains(serverCertificate, m_endpoint);
+                        m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
+                    }
+                    else
+                    {
+                        m_configuration.CertificateValidator.Validate(serverCertificateChain);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
