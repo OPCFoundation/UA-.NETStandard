@@ -575,6 +575,7 @@ namespace Opc.Ua.Client.Controls
         #endregion
 
         #region Event Handlers
+        private delegate void UpdateStatusCallback(bool error, DateTime time, string status, params object[] arg);
         /// <summary>
         /// Updates the status control.
         /// </summary>
@@ -584,6 +585,12 @@ namespace Opc.Ua.Client.Controls
         /// <param name="args">Arguments used to format the status message.</param>
         private void UpdateStatus(bool error, DateTime time, string status, params object[] args)
         {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new UpdateStatusCallback(UpdateStatus), error, time, status, args);
+                return;
+            }
+
             if (m_ServerStatusLB != null)
             {
                 m_ServerStatusLB.Text = String.Format(status, args);
@@ -719,17 +726,13 @@ namespace Opc.Ua.Client.Controls
 
             try
             {
-                e.Accept = m_configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates;
-
                 if (!m_configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    DialogResult result = MessageBox.Show(
-                        e.Certificate.Subject,
-                        "Untrusted Certificate",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Warning);
-
-                    e.Accept = (result == DialogResult.Yes);
+                    GuiUtils.HandleCertificateValidationError(this.FindForm(), sender, e);
+                }
+                else
+                {
+                    e.Accept = true;
                 }
             }
             catch (Exception exception)
