@@ -672,6 +672,16 @@ namespace Opc.Ua.Client.Controls
             {
                 await ConnectAsync();
             }
+            catch (ServiceResultException sre)
+            {
+                if (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                {
+                    if (GuiUtils.HandleDomainCheckError(this.FindForm().Text, sre.Result))
+                    {
+                        DisableDomainCheck = true;
+                    };
+                }
+            }
             catch (Exception exception)
             {
                 ClientUtils.HandleException(this.Text, exception);
