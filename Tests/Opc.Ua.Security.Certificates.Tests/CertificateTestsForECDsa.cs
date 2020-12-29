@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -52,15 +53,11 @@ namespace Opc.Ua.Security.Certificates.Tests
         public const string Subject = "CN=Test Cert Subject";
 
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
+        public CertificateAsset[] CertificateTestCases =
+            new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
 
         [DatapointSource]
-        public ECCurveHashPair[] ECCurveHashPairs = new ECCurveHashPairCollection {
-            { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
-            { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 },
-            { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
-            { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 },
-        }.ToArray();
+        public ECCurveHashPair[] ECCurveHashPairs = GetECCurveHashPairs();
         #endregion
 
         #region Test Setup
@@ -206,10 +203,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
-        [TestCase("nistP256")]
-        public void CreateECDsaDefaultWithSerialTest(string friendlyName)
+        [Test]
+        public void CreateECDsaDefaultWithSerialTest()
         {
-            var eccurve = ECCurve.CreateFromFriendlyName(friendlyName);
+            var eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
@@ -241,10 +238,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
-        [TestCase("nistP256")]
-        public void CreateECDsaManualSerialTest(string friendlyName)
+        [Test]
+        public void CreateECDsaManualSerialTest()
         {
-            var eccurve = ECCurve.CreateFromFriendlyName(friendlyName);
+            var eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
@@ -354,6 +351,20 @@ namespace Opc.Ua.Security.Certificates.Tests
         #endregion
 
         #region Private Methods
+        private static ECCurveHashPair[] GetECCurveHashPairs()
+        {
+            var result = new ECCurveHashPairCollection {
+                { ECCurve.NamedCurves.nistP256, HashAlgorithmName.SHA256 },
+                { ECCurve.NamedCurves.nistP384, HashAlgorithmName.SHA384 } };
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                result.AddRange(new ECCurveHashPairCollection {
+                { ECCurve.NamedCurves.brainpoolP256r1, HashAlgorithmName.SHA256 },
+                { ECCurve.NamedCurves.brainpoolP384r1, HashAlgorithmName.SHA384 }});
+            }
+            return result.ToArray();
+        }
+
         private void WriteCertificate(X509Certificate2 cert, string message)
         {
             TestContext.Out.WriteLine(message);
