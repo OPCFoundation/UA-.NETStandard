@@ -27,26 +27,6 @@ using Org.BouncyCastle.Security;
 namespace Opc.Ua.Security.Certificates.BouncyCastle
 {
     /// <summary>
-    /// Wrapper for a password string.
-    /// </summary>
-    internal class Password
-        : IPasswordFinder
-    {
-        private readonly char[] password;
-
-        public Password(
-            char[] word)
-        {
-            this.password = (char[])word.Clone();
-        }
-
-        public char[] GetPassword()
-        {
-            return (char[])password.Clone();
-        }
-    }
-
-    /// <summary>
     /// Helpers to create certificates, CRLs and extensions.
     /// </summary>
     internal static class X509Utils
