@@ -279,9 +279,9 @@ namespace Opc.Ua.Client.Controls
                     buffer.AppendLine();
                 }
             }
-            buffer.AppendFormat("This certificate validation error indicates that the hostname used to connect");
-            buffer.AppendFormat(" is not listed as a valid hostname in the server certificate.");
-            buffer.AppendFormat("\r\n\r\nIgnore error and disable the hostname verification?");
+            buffer.Append("This certificate validation error indicates that the hostname used to connect");
+            buffer.Append(" is not listed as a valid hostname in the server certificate.");
+            buffer.Append("\r\n\r\nIgnore error and disable the hostname verification?");
 
             if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
@@ -311,8 +311,8 @@ namespace Opc.Ua.Client.Controls
         {
             StringBuilder buffer = new StringBuilder();
 
-            buffer.AppendFormat("Certificate could not be validated!\r\n");
-            buffer.AppendFormat("Validation error(s): \r\n");
+            buffer.Append("Certificate could not be validated!\r\n");
+            buffer.Append("Validation error(s): \r\n");
             buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
             if (e.Error.InnerResult != null)
             {
@@ -323,9 +323,9 @@ namespace Opc.Ua.Client.Controls
             buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
             buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
             buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", e.Certificate.Thumbprint);
-            buffer.AppendFormat("Certificate validation errors may indicate an attempt to intercept any data you send ");
-            buffer.AppendFormat("to a server or to allow an untrusted client to connect to your server.");
-            buffer.AppendFormat("\r\n\r\nAccept anyway?");
+            buffer.Append("Certificate validation errors may indicate an attempt to intercept any data you send ");
+            buffer.Append("to a server or to allow an untrusted client to connect to your server.");
+            buffer.Append("\r\n\r\nAccept anyway?");
 
             if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {

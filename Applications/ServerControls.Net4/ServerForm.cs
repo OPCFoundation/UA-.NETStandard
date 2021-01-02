@@ -210,8 +210,8 @@ namespace Opc.Ua.Server.Controls
         public static void HandleCertificateValidationError(Form caller, CertificateValidator validator, CertificateValidationEventArgs e)
         {
             StringBuilder buffer = new StringBuilder();
-            buffer.AppendFormat("Certificate could not be validated!\r\n");
-            buffer.AppendFormat("Validation error(s): \r\n");
+            buffer.AppendLine("Certificate could not be validated!");
+            buffer.AppendLine("Validation error(s):");
             buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
             if (e.Error.InnerResult != null)
             {
@@ -223,10 +223,9 @@ namespace Opc.Ua.Server.Controls
             buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
             buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
             buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", e.Certificate.Thumbprint);
-            buffer.AppendFormat("The security certificate was not issued by a trusted certificate authority. ");
-            buffer.AppendFormat("Security certificate problems may indicate an attempt to intercept any data you send ");
-            buffer.AppendFormat("to a server or to allow an untrusted client to connect to your server.");
-            buffer.AppendFormat("\r\n\r\nAccept anyway?");
+            buffer.Append("Security certificate problems may indicate an attempt to intercept any data you send ");
+            buffer.Append("to a server or to allow an untrusted client to connect to your server.");
+            buffer.Append("\r\n\r\nAccept anyway?");
 
             if (MessageBox.Show(buffer.ToString(), caller.Text, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
