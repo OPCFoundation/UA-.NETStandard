@@ -10,7 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if !NETSTANDARD2_1
+#if !NETSTANDARD2_1 && !NET472
 using System;
 using System.Security.Cryptography;
 using Org.BouncyCastle.Crypto.Prng;
