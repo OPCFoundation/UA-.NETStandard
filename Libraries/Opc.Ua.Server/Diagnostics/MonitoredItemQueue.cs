@@ -110,7 +110,7 @@ namespace Opc.Ua.Server
             }
 
             // calculate the next sampling interval.
-            m_samplingInterval = (long)(samplingInterval * TimeSpan.TicksPerMillisecond);
+            m_samplingInterval = (long)samplingInterval;
 
             if (m_samplingInterval > 0)
             {
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to queue.</param>
         public void QueueValue(DataValue value, ServiceResult error)
         {
-            long now = DateTime.UtcNow.Ticks;
+            long now = HiResClock.TickCount64;
 
             if (m_start >= 0)
             {
