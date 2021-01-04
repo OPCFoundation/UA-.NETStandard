@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -44,6 +44,7 @@ namespace Opc.Ua
             m_transportConfigurations = new TransportConfigurationCollection();
             m_disableHiResClock = true;
             m_properties = new Dictionary<string, object>();
+            m_certificateValidator = new CertificateValidator();
         }
 
         /// <summary>
@@ -1005,7 +1006,9 @@ namespace Opc.Ua
         /// Gets or sets a value indicating whether the server nonce validation errors should be suppressed.
         /// </summary>
         /// <remarks>
+        /// Allows client interoperability with legacy servers which do not comply with the specification for nonce usage.
         /// If set to true the server nonce validation errors are suppressed.
+        /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public bool SuppressNonceValidationErrors
@@ -1893,6 +1896,9 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// A collection of reverse connect clients.
+        /// </summary>
         [DataMember(Order = 10)]
         public ReverseConnectClientCollection Clients { get; set; }
 
@@ -1983,6 +1989,9 @@ namespace Opc.Ua
     #endregion
 
     #region ReverseConnectClientCollection Class
+    /// <summary>
+    /// A collection of reverse connect clients.
+    /// </summary>
     [CollectionDataContract(Name = "ListOfReverseConnectClient", Namespace = Namespaces.OpcUaConfig, ItemName = "ReverseConnectClient")]
     public class ReverseConnectClientCollection : List<ReverseConnectClient>
     {
@@ -2178,6 +2187,9 @@ namespace Opc.Ua
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// A collection of reverse connect client endpoints.
+        /// </summary>
         [DataMember(Order = 10, IsRequired = false)]
         public ReverseConnectClientEndpointCollection ClientEndpoints { get; set; }
 
@@ -2228,6 +2240,9 @@ namespace Opc.Ua
         #endregion
 
         #region Persistent Properties
+        /// <summary>
+        /// The endpoint Url of a reverse connect client.
+        /// </summary>
         [DataMember(Order = 1, IsRequired = false)]
         public string EndpointUrl { get; set; }
         #endregion
@@ -2235,6 +2250,9 @@ namespace Opc.Ua
     #endregion
 
     #region ReverseConnectClientEndpointCollection Class
+    /// <summary>
+    /// A collection of reverse connect client endpoints.
+    /// </summary>
     [CollectionDataContract(Name = "ListOfReverseConnectClientEndpoint", Namespace = Namespaces.OpcUaConfig, ItemName = "ClientEndpoint")]
     public class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
     {

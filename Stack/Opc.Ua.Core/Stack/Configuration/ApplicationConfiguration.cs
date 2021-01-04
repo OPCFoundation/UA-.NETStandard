@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
@@ -96,11 +97,11 @@ namespace Opc.Ua
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
-        public string SourceFilePath
-        {
-            get { return m_sourceFilePath; }
-        }
+        public string SourceFilePath => m_sourceFilePath;
 
+        /// <summary>
+        /// Gets or sets the certificate validator which is configured to use.
+        /// </summary>
         public CertificateValidator CertificateValidator
         {
             get { return m_certificateValidator; }
@@ -113,8 +114,6 @@ namespace Opc.Ua
         /// <returns>A list of domain names.</returns>
         public IList<string> GetServerDomainNames()
         {
-            List<string> domainNames = new List<string>();
-
             StringCollection baseAddresses = new StringCollection();
 
             if (this.ServerConfiguration != null)
@@ -143,6 +142,7 @@ namespace Opc.Ua
                 }
             }
 
+            var domainNames = new List<string>();
             for (int ii = 0; ii < baseAddresses.Count; ii++)
             {
                 Uri url = Utils.ParseUri(baseAddresses[ii]);
@@ -176,7 +176,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext(bool clonedFactory=false)
+        public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
@@ -221,10 +221,8 @@ namespace Opc.Ua
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType)
-        {
-            return await Load(sectionName, applicationType, typeof(ApplicationConfiguration));
-        }
+        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType) =>
+            Load(sectionName, applicationType, typeof(ApplicationConfiguration));
 
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
@@ -233,7 +231,7 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
@@ -241,14 +239,15 @@ namespace Opc.Ua
 
             if (!file.Exists)
             {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration file does not exist: {0}", filePath);
+                message.AppendLine();
+                message.AppendFormat("Current directory is: {1}", Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Configuration file does not exist: {0}\r\nCurrent directory is: {1}",
-                    filePath,
-                    Directory.GetCurrentDirectory());
+                    StatusCodes.BadConfigurationError, message.ToString());
             }
 
-            return await Load(file, applicationType, systemType);
+            return Load(file, applicationType, systemType);
         }
 
         /// <summary>
@@ -260,33 +259,30 @@ namespace Opc.Ua
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         public static ApplicationConfiguration LoadWithNoValidation(FileInfo file, Type systemType)
         {
-            FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
-
-            try
+            using (var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
             {
-                DataContractSerializer serializer = new DataContractSerializer(systemType);
-
-                ApplicationConfiguration configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
-
-                if (configuration != null)
+                try
                 {
-                    configuration.m_sourceFilePath = file.FullName;
-                }
+                    DataContractSerializer serializer = new DataContractSerializer(systemType);
 
-                return configuration;
-            }
-            catch (Exception e)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    e,
-                    "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                    file.FullName,
-                    e.Message);
-            }
-            finally
-            {
-                stream.Dispose();
+                    ApplicationConfiguration configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+
+                    if (configuration != null)
+                    {
+                        configuration.m_sourceFilePath = file.FullName;
+                    }
+
+                    return configuration;
+                }
+                catch (Exception e)
+                {
+                    var message = new StringBuilder();
+                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendLine();
+                    message.AppendFormat("Error is: {1}", e.Message);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError, e, message.ToString());
+                }
             }
         }
 
@@ -297,10 +293,8 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType)
-        {
-            return await ApplicationConfiguration.Load(file, applicationType, systemType, true);
-        }
+        public static Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType) =>
+            ApplicationConfiguration.Load(file, applicationType, systemType, true);
 
         /// <summary>
         /// Loads and validates the application configuration from a configuration section.
@@ -313,31 +307,24 @@ namespace Opc.Ua
         public static async Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType, bool applyTraceSettings)
         {
             ApplicationConfiguration configuration = null;
+            systemType = systemType ?? typeof(ApplicationConfiguration);
 
-            if (systemType == null)
+            using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
             {
-                systemType = typeof(ApplicationConfiguration);
-            }
-
-            FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
-
-            try
-            {
-                DataContractSerializer serializer = new DataContractSerializer(systemType);
-                configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
-            }
-            catch (Exception e)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    e,
-                    "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                    file.FullName,
-                    e.Message);
-            }
-            finally
-            {
-                stream.Dispose();
+                try
+                {
+                    DataContractSerializer serializer = new DataContractSerializer(systemType);
+                    configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
+                }
+                catch (Exception e)
+                {
+                    var message = new StringBuilder();
+                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendLine();
+                    message.AppendFormat("Error is: {1}", e.Message);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError, e, message.ToString());
+                }
             }
 
             if (configuration != null)
@@ -366,14 +353,7 @@ namespace Opc.Ua
         {
             // convert to absolute file path (expands environment strings).
             string absolutePath = Utils.GetAbsoluteFilePath(sectionName + ".Config.xml", true, false, false);
-            if (absolutePath != null)
-            {
-                return absolutePath;
-            }
-            else
-            {
-                return sectionName + ".Config.xml";
-            }
+            return (absolutePath != null) ? absolutePath : sectionName + ".Config.xml";
         }
 
         /// <summary>
@@ -383,14 +363,13 @@ namespace Opc.Ua
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
         {
-            Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
+            XmlWriterSettings settings = new XmlWriterSettings() {
+                Encoding = Encoding.UTF8,
+                Indent = true,
+                CloseOutput = true
+            };
 
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Encoding = System.Text.Encoding.UTF8;
-            settings.Indent = true;
-            settings.CloseOutput = true;
-
+            using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
             using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(GetType());
@@ -419,18 +398,16 @@ namespace Opc.Ua
             // load private key
             await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
 
-            //  generate a default uri if null
-            if (String.IsNullOrEmpty(ApplicationUri))
-            {
-                StringBuilder buffer = new StringBuilder();
+            Func<string> generateDefaultUri = () => {
+                var sb = new StringBuilder();
+                sb.Append("urn:");
+                sb.Append(Utils.GetHostName());
+                sb.Append(":");
+                sb.Append(ApplicationName);
+                return sb.ToString();
+            };
 
-                buffer.Append("urn:");
-                buffer.Append(Utils.GetHostName());
-                buffer.Append(":");
-                buffer.Append(ApplicationName);
-
-                m_applicationUri = buffer.ToString();
-            }
+            if (String.IsNullOrEmpty(ApplicationUri)) m_applicationUri = generateDefaultUri();
 
             if (applicationType == ApplicationType.Client || applicationType == ApplicationType.ClientAndServer)
             {
@@ -476,8 +453,6 @@ namespace Opc.Ua
                 }
             }
 
-            // create the certificate validator.
-            m_certificateValidator = new CertificateValidator();
             await m_certificateValidator.Update(this.SecurityConfiguration);
         }
 
@@ -487,10 +462,7 @@ namespace Opc.Ua
         /// <param name="createAlways">if set to <c>true</c> ConfiguredEndpointCollection is always returned,
         ///	even if loading from disk fails</param>
         /// <returns>Colection of configured endpoints from the disk.</returns>
-        public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways)
-        {
-            return LoadCachedEndpoints(createAlways, false);
-        }
+        public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways) => LoadCachedEndpoints(createAlways, false);
 
         /// <summary>
         /// Loads the endpoints cached on disk.
@@ -554,10 +526,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
-        public T ParseExtension<T>()
-        {
-            return ParseExtension<T>(null);
-        }
+        public T ParseExtension<T>() => ParseExtension<T>(null);
 
         /// <summary>
         /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
@@ -565,10 +534,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <returns>The extension if found. Null otherwise.</returns>
-        public T ParseExtension<T>(XmlQualifiedName elementName)
-        {
-            return Utils.ParseExtension<T>(m_extensions, elementName);
-        }
+        public T ParseExtension<T>(XmlQualifiedName elementName) => Utils.ParseExtension<T>(m_extensions, elementName);
 
         /// <summary>
         /// Updates the extension.
@@ -576,10 +542,8 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="elementName">Name of the element (null means use type name).</param>
         /// <param name="value">The value.</param>
-        public void UpdateExtension<T>(XmlQualifiedName elementName, object value)
-        {
+        public void UpdateExtension<T>(XmlQualifiedName elementName, object value) =>
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
-        }
 
         /// <summary>
         /// Updates the extension.

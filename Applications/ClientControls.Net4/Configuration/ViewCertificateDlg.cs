@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -33,6 +33,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Controls
 {
@@ -92,7 +93,7 @@ namespace Opc.Ua.Client.Controls
                     // fill in subject name.
                     StringBuilder buffer = new StringBuilder();
 
-                    foreach (string element in Utils.ParseDistinguishedName(data.Subject))
+                    foreach (string element in X509Utils.ParseDistinguishedName(data.Subject))
                     {
                         if (element.StartsWith("CN="))
                         {
@@ -121,7 +122,7 @@ namespace Opc.Ua.Client.Controls
                     // fill in issuer name.
                     buffer = new StringBuilder();
 
-                    foreach (string element in Utils.ParseDistinguishedName(data.Issuer))
+                    foreach (string element in X509Utils.ParseDistinguishedName(data.Issuer))
                     {
                         if (buffer.Length > 0)
                         {
@@ -137,7 +138,7 @@ namespace Opc.Ua.Client.Controls
                     }
 
                     // fill in application uri.
-                    string applicationUri = Utils.GetApplicationUriFromCertificate(data);
+                    string applicationUri = X509Utils.GetApplicationUriFromCertificate(data);
 
                     if (!String.IsNullOrEmpty(applicationUri))
                     {
@@ -147,7 +148,7 @@ namespace Opc.Ua.Client.Controls
                     // fill in domains.
                     buffer = new StringBuilder();
 
-                    foreach (string domain in Utils.GetDomainsFromCertficate(data))
+                    foreach (string domain in X509Utils.GetDomainsFromCertficate(data))
                     {
                         if (buffer.Length > 0)
                         {
@@ -228,7 +229,7 @@ namespace Opc.Ua.Client.Controls
 
                 string displayName = null;
 
-                foreach (string element in Utils.ParseDistinguishedName(certificate.Subject))
+                foreach (string element in X509Utils.ParseDistinguishedName(certificate.Subject))
                 {
                     if (element.StartsWith("CN="))
                     {

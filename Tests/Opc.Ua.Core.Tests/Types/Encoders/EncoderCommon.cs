@@ -34,6 +34,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -646,7 +647,80 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
         #endregion
 
-        #region Private Fields
+        #region Protected classes
+        protected class FooBarEncodeable : IEncodeable, IDisposable
+        {
+            private static int s_count = 0;
+
+            public FooBarEncodeable()
+            {
+                m_resetCounter = true;
+                Count = Interlocked.Increment(ref s_count);
+                Foo = $"bar_{Count}";
+                FieldName = nameof(Foo);
+            }
+
+            public FooBarEncodeable(int count)
+            {
+                Count = count;
+                Foo = $"bar_{Count}";
+                FieldName = nameof(Foo);
+            }
+
+            public FooBarEncodeable(string foo)
+            {
+                Foo = foo;
+                FieldName = nameof(Foo);
+            }
+
+            public FooBarEncodeable(string fieldname, string foo)
+            {
+                Foo = foo;
+                FieldName = fieldname;
+            }
+
+            public string Foo { get; set; }
+            public string FieldName { get; set; }
+            public int Count { get; set; }
+
+            public ExpandedNodeId TypeId { get; }
+            public ExpandedNodeId BinaryEncodingId { get; }
+            public ExpandedNodeId XmlEncodingId { get; }
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.PushNamespace(ApplicationUri);
+                encoder.WriteString(FieldName, Foo);
+                encoder.PopNamespace();
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                decoder.PushNamespace(ApplicationUri);
+                Foo = decoder.ReadString(FieldName);
+                decoder.PopNamespace();
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                if (encodeable is FooBarEncodeable de)
+                {
+                    return Foo == de.Foo;
+                }
+
+                return false;
+            }
+
+            public void Dispose()
+            {
+                if (m_resetCounter)
+                {
+                    s_count = 0;
+                }
+            }
+
+            private bool m_resetCounter;
+        }
         #endregion
     }
 

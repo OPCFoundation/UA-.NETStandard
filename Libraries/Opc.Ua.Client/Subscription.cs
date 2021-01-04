@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -1608,12 +1608,12 @@ namespace Opc.Ua.Client
 
                 // get list of new messages to process.
                 List<NotificationMessage> messagesToProcess = null;
-                
+
                 // get list of new messages to republish.
                 List<IncomingMessage> messagesToRepublish = null;
 
                 lock (m_cache)
-                {                    
+                {
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
                         // update monitored items with unprocessed messages.
@@ -1654,7 +1654,7 @@ namespace Opc.Ua.Client
 
                     session = m_session;
                     subscriptionId = m_id;
-                    callback =  m_PublishStatusChanged;
+                    callback = m_PublishStatusChanged;
                 }
 
                 if (callback != null)
@@ -1677,7 +1677,7 @@ namespace Opc.Ua.Client
                     int noNotificationsReceived = 0;
 
                     for (int ii = 0; ii < messagesToProcess.Count; ii++)
-                    {                
+                    {
                         NotificationMessage message = messagesToProcess[ii];
                         noNotificationsReceived = 0;
                         try
@@ -1717,7 +1717,7 @@ namespace Opc.Ua.Client
                                         eventCallback(this, events, message.StringTable);
                                     }
                                 }
-                                
+
                                 StatusChangeNotification statusChanged = message.NotificationData[jj].Body as StatusChangeNotification;
 
                                 if (statusChanged != null)
@@ -1733,19 +1733,19 @@ namespace Opc.Ua.Client
 
                         if (MaxNotificationsPerPublish != 0 && noNotificationsReceived > MaxNotificationsPerPublish)
                         {
-                            Utils.Trace("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}", Id, noNotificationsReceived, MaxNotificationsPerPublish);    
+                            Utils.Trace("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}", Id, noNotificationsReceived, MaxNotificationsPerPublish);
                         }
                     }
                 }
-                
+
                 // do any re-publishes.
                 if (messagesToRepublish != null && session != null && subscriptionId != 0)
                 {
                     for (int ii = 0; ii < messagesToRepublish.Count; ii++)
-                    {     
+                    {
                         if (!session.Republish(subscriptionId, messagesToRepublish[ii].SequenceNumber))
                         {
-                             messagesToRepublish[ii].Republished = false;
+                            messagesToRepublish[ii].Republished = false;
                         }
                     }
                 }
@@ -1754,7 +1754,10 @@ namespace Opc.Ua.Client
             {
                 Utils.Trace(e, "Error while processing incoming messages.");
             }
-            Interlocked.Decrement(ref m_outstandingMessageWorkers);
+            finally
+            {
+                Interlocked.Decrement(ref m_outstandingMessageWorkers);
+            }
         }
 
         /// <summary>

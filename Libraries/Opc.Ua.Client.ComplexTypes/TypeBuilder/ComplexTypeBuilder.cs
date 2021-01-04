@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -60,7 +60,14 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion
 
         #region Public Members
+        /// <summary>
+        /// The target namespace of the type builder.
+        /// </summary>
         public string TargetNamespace => m_targetNamespace;
+
+        /// <summary>
+        /// The target namespace index of the type builder.
+        /// </summary>
         public int TargetNamespaceIndex => m_targetNamespaceIndex;
 
         /// <summary>

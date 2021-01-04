@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             catch (ServiceResultException sre)
             {
-                Utils.Trace(sre, $"Failed to load the custom type {nodeId}.");
+                Utils.Trace(sre, "Failed to load the custom type {0}.", nodeId);
                 if (throwOnError)
                 {
                     throw;
@@ -602,15 +602,13 @@ namespace Opc.Ua.Client.ComplexTypes
                                     }
                                     else
                                     {   // known missing type, retry on next round
-                                        Utils.Trace(dtnfex,
-                                            $"Skipped the type definition of {dataTypeNode.BrowseName.Name}. Retry in next round.");
+                                        Utils.Trace(dtnfex, "Skipped the type definition of {0}. Retry in next round.", dataTypeNode.BrowseName.Name);
                                         retryAddStructType = true;
                                     }
                                 }
                                 catch (DataTypeNotSupportedException dtnsex)
                                 {
-                                    Utils.Trace(dtnsex,
-                                        $"Skipped the type definition of {dataTypeNode.BrowseName.Name} because it is not supported.");
+                                    Utils.Trace(dtnsex, "Skipped the type definition of {0} because it is not supported.", dataTypeNode.BrowseName.Name);
                                     continue;
                                 }
                                 catch
@@ -695,7 +693,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Helper to ensure the expanded nodeId contains a valid namespaceUri.
         /// </summary>
         /// <param name="expandedNodeId">The expanded nodeId.</param>
-        /// <param name="namespaceTable">The session namespace table.</param>
         /// <returns>The normalized expanded nodeId.</returns>
         private ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId)
         {

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -54,11 +54,11 @@ namespace Opc.Ua
         #endregion
     }
 
-	/// <summary>
-	/// The UserIdentityToken class.
-	/// </summary>
-	public partial class UserNameIdentityToken
-	{
+    /// <summary>
+    /// The UserIdentityToken class.
+    /// </summary>
+    public partial class UserNameIdentityToken
+    {
         #region Public Properties
         /// <summary>
         /// The decrypted password associated with the token.
@@ -97,11 +97,11 @@ namespace Opc.Ua
                 certificate,
                 securityPolicyUri,
                 dataToEncrypt);
-                        
+
             m_password = encryptedData.Data;
             m_encryptionAlgorithm = encryptedData.Algorithm; 
         }
-                
+
         /// <summary>
         /// Decrypts the Password using the EncryptionAlgorithm and places the result in DecryptedPassword
         /// </summary>
@@ -113,7 +113,7 @@ namespace Opc.Ua
                 m_decryptedPassword = new UTF8Encoding().GetString(m_password, 0, m_password.Length);
                 return;
             }
-            
+
             // decrypt.
             EncryptedData encryptedData = new EncryptedData();
             encryptedData.Data = m_password;
@@ -148,7 +148,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                 }
             }
-                     
+
             // convert to UTF-8.
             m_decryptedPassword = new UTF8Encoding().GetString(decryptedPassword, 0, startOfNonce);
         }
@@ -158,12 +158,12 @@ namespace Opc.Ua
         private string m_decryptedPassword;
         #endregion
     }
-    
-	/// <summary>
-	/// The X509IdentityToken class.
-	/// </summary>
-	public partial class X509IdentityToken
-	{        
+
+    /// <summary>
+    /// The X509IdentityToken class.
+    /// </summary>
+    public partial class X509IdentityToken
+    {
         #region Public Properties
         /// <summary>
         /// The certificate associated with the token.
@@ -241,11 +241,26 @@ namespace Opc.Ua
         #endregion
     }
 
+    /// <summary>
+    /// The issued token type.
+    /// </summary>
     public enum IssuedTokenType
     {
+        /// <summary>
+        /// Web services security (WSS) token.
+        /// </summary>
         GenericWSS,
+        /// <summary>
+        /// Security Assertions Markup Language (SAML) token.
+        /// </summary>
         SAML,
+        /// <summary>
+        /// JSON web token.
+        /// </summary>
         JWT,
+        /// <summary>
+        /// Kerberos token.
+        /// </summary>
         KerberosBinary
     };
 

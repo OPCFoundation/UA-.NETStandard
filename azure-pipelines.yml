@@ -3,7 +3,7 @@
 # https://aka.ms/yaml
 
 pr: 
-  autoCancel: true
+  autoCancel: 'true'
   branches:
     include:
     - '*'
@@ -44,21 +44,24 @@ stages:
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
     parameters:
+      framework: netcoreapp2.1
       configuration: Release
-      agents: '@{ windows = "windows-2019"; mac = "macOS-10.15" }'
-  - template: .azurepipelines/testcc.yml
-    parameters:
-      configuration: Release
-      poolImage: 'ubuntu-18.04'
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
       framework: netcoreapp3.1
+      agents: '@{ windows = "windows-2019"; mac = "macOS-10.15" }'
       jobnamesuffix: core3
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      poolImage: 'ubuntu-18.04'
+      jobnamesuffix: netcore31
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
+      framework: netcoreapp3.1
       configuration: Debug

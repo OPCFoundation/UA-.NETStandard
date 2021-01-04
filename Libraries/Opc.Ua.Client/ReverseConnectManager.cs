@@ -34,6 +34,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -50,9 +51,17 @@ namespace Opc.Ua.Client
     /// </remarks>
     public class ReverseConnectManager : IDisposable
     {
-        // a good default value for reverse hello configurations, if undefined
+        /// <summary>
+        /// A default value for reverse hello configurations, if undefined.
+        /// </summary>
+        /// <remarks>
+        /// This value is used as wait timeout if the value is undefined by a caller.
+        /// </remarks>
         public const int DefaultWaitTimeout = 20000;
 
+        /// <summary>
+        /// Internal state of the reverse connect manager.
+        /// </summary>
         private enum ReverseConnectManagerState
         {
             New = 0,
@@ -61,6 +70,9 @@ namespace Opc.Ua.Client
             Errored = 3
         };
 
+        /// <summary>
+        /// Internal state of the reverse connect host.
+        /// </summary>
         private enum ReverseConnectHostState
         {
             New = 0,
@@ -152,7 +164,7 @@ namespace Opc.Ua.Client
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
                 this(endpointUrl, onConnectionWaiting)
             {
-                ServerUri = Utils.GetApplicationUriFromCertificate(serverCertificate);
+                ServerUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
             }
 
             private Registration(
@@ -580,7 +592,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Add endpoint for reverse connection.
         /// </summary>
-        /// <param name="endpointUrl"></param>
+        /// <param name="endpointUrl">The endpoint Url of the reverse connect client endpoint.</param>
+        /// <param name="configEntry">Tf this is an entry in the application configuration.</param>
         private void AddEndpointInternal(Uri endpointUrl, bool configEntry)
         {
             var reverseConnectHost = new ReverseConnectHost();

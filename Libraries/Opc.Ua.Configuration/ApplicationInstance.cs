@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -31,13 +31,26 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Configuration
 {
+    /// <summary>
+    /// Interface to create application callbacks.
+    /// </summary>
     public abstract class IApplicationMessageDlg
     {
+        /// <summary>
+        /// The application message.
+        /// </summary>
+        /// <param name="text">The text of the message.</param>
+        /// <param name="ask">If the application should ask the user.</param>
         public abstract void Message(string text, Boolean ask = false);
+
+        /// <summary>
+        /// Show the message and return result.
+        /// </summary>
         public abstract Task<bool> ShowAsync();
     }
 
@@ -126,6 +139,9 @@ namespace Opc.Ua.Configuration
         /// <value>If true the application will not be visible to the GDS local agent after installation.</value>
         public bool NoGdsAgentAdmin { get; set; }
 
+        /// <summary>
+        /// Get or set the message dialog.
+        /// </summary>
         public static IApplicationMessageDlg MessageDlg { get; set; }
         #endregion
 
@@ -182,6 +198,12 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Static Methods
+        /// <summary>
+        /// Helper to replace localhost with the hostname
+        /// in the application uri and base adresses of the
+        /// configuration.
+        /// </summary>
+        /// <param name="configuration"></param>
         public static ApplicationConfiguration FixupAppConfig(
             ApplicationConfiguration configuration)
         {
@@ -314,7 +336,8 @@ namespace Opc.Ua.Configuration
 
             if (id == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Configuration file does not specify a certificate.");
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "Configuration file does not specify a certificate.");
             }
 
             X509Certificate2 certificate = await id.Find(true);
@@ -331,7 +354,8 @@ namespace Opc.Ua.Configuration
 
                 if (certificate != null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Cannot access certificate private key. Subject={0}", certificate.Subject);
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        "Cannot access certificate private key. Subject={0}", certificate.Subject);
                 }
 
                 // check for missing thumbprint.
@@ -343,27 +367,29 @@ namespace Opc.Ua.Configuration
                         id2.StoreType = id.StoreType;
                         id2.StorePath = id.StorePath;
                         id2.SubjectName = id.SubjectName;
-
                         certificate = await id2.Find(true);
                     }
 
                     if (certificate != null)
                     {
-                        string message = Utils.Format(
-                            "Thumbprint was explicitly specified in the configuration." +
-                            "\r\nAnother certificate with the same subject name was found." +
-                            "\r\nUse it instead?\r\n" +
-                            "\r\nRequested: {0}" +
-                            "\r\nFound: {1}",
-                            id.SubjectName,
-                            certificate.Subject);
-
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                        var message = new StringBuilder();
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration.");
+                        message.AppendLine("Another certificate with the same subject name was found.");
+                        message.AppendLine("Use it instead?");
+                        message.AppendLine("Requested: {0}");
+                        message.AppendLine("Found: {1}");
+                        if (!await ApproveMessage(String.Format(message.ToString(), id.SubjectName, certificate.Subject), silent))
+                        {
+                            throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                                message.ToString(), id.SubjectName, certificate.Subject);
+                        }
                     }
                     else
                     {
-                        string message = Utils.Format("Thumbprint was explicitly specified in the configuration. Cannot generate a new certificate.");
-                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                        var message = new StringBuilder();
+                        message.AppendLine("Thumbprint was explicitly specified in the configuration. ");
+                        message.AppendLine("Cannot generate a new certificate.");
+                        throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message.ToString());
                     }
                 }
             }
@@ -375,14 +401,14 @@ namespace Opc.Ua.Configuration
 
                 if (certificate == null)
                 {
-                    string message = Utils.Format(
-                        "There is no cert with subject {0} in the configuration." +
-                        "\r\n Please generate a cert for your application,",
-                        "\r\n then copy the new cert to this location:" +
-                        "\r\n{1}",
-                        id.SubjectName,
-                        id.StorePath);
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message);
+                    var message = new StringBuilder();
+                    message.AppendLine("There is no cert with subject {0} in the configuration.");
+                    message.AppendLine(" Please generate a cert for your application,");
+                    message.AppendLine(" then copy the new cert to this location:");
+                    message.AppendLine(" {1}");
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        message.ToString(), id.SubjectName, id.StorePath
+                        );
                 }
             }
             else
@@ -445,23 +471,14 @@ namespace Opc.Ua.Configuration
             {
                 string message = Utils.Format(
                     "Error validating certificate. Exception: {0}. Use certificate anyway?", ex.Message);
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
 
             // check key size.
-            int keySize = CertificateFactory.GetRSAPublicKeySize(certificate);
+            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
             if (minimumKeySize > keySize)
             {
                 string message = Utils.Format(
@@ -469,17 +486,8 @@ namespace Opc.Ua.Configuration
                     keySize,
                     minimumKeySize);
 
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -494,23 +502,13 @@ namespace Opc.Ua.Configuration
             }
 
             // check uri.
-            string applicationUri = Utils.GetApplicationUriFromCertificate(certificate);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(certificate);
 
             if (String.IsNullOrEmpty(applicationUri))
             {
                 string message = "The Application URI could not be read from the certificate. Use certificate anyway?";
-
-                if (!silent && MessageDlg != null)
+                if (!await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (!await MessageDlg.ShowAsync())
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    Utils.Trace(message);
                     return false;
                 }
             }
@@ -537,7 +535,7 @@ namespace Opc.Ua.Configuration
 
             bool valid = true;
             IList<string> serverDomainNames = configuration.GetServerDomainNames();
-            IList<string> certificateDomainNames = Utils.GetDomainsFromCertficate(certificate);
+            IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertficate(certificate);
 
             // get computer name.
             string computerName = Utils.GetHostName();
@@ -565,7 +563,7 @@ namespace Opc.Ua.Configuration
                     // get IP addresses only if necessary.
                     if (addresses == null)
                     {
-                        addresses = await Utils.GetHostAddresses(computerName);
+                        addresses = await Utils.GetHostAddressesAsync(computerName);
                     }
 
                     // check for ip addresses.
@@ -590,17 +588,12 @@ namespace Opc.Ua.Configuration
 
                 valid = false;
 
-                if (!silent && MessageDlg != null)
+                if (await ApproveMessage(message, silent))
                 {
-                    MessageDlg.Message(message, true);
-                    if (await MessageDlg.ShowAsync())
-                    {
-                        valid = true;
-                        continue;
-                    }
+                    valid = true;
+                    continue;
                 }
 
-                Utils.Trace(message);
                 break;
             }
 
@@ -612,7 +605,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="keySize">Size of the key.</param>
-        /// <param name="lifetimeInMonths">The lifetime in months.</param>
+        /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <returns>The new certificate</returns>
         private static async Task<X509Certificate2> CreateApplicationInstanceCertificate(
             ApplicationConfiguration configuration,
@@ -642,20 +635,16 @@ namespace Opc.Ua.Configuration
             }
 
             X509Certificate2 certificate = CertificateFactory.CreateCertificate(
-                id.StoreType,
-                id.StorePath,
-                null,
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
                 id.SubjectName,
-                serverDomainNames,
-                keySize,
-                DateTime.UtcNow - TimeSpan.FromDays(1),
-                lifeTimeInMonths,
-                CertificateFactory.DefaultHashSize,
-                false,
-                null,
-                null
+                serverDomainNames)
+                .SetLifeTime(lifeTimeInMonths)
+                .SetRSAKeySize(keySize)
+                .CreateForRSA()
+                .AddToStore(
+                    id.StoreType,
+                    id.StorePath
                 );
 
             id.Certificate = certificate;
@@ -765,14 +754,14 @@ namespace Opc.Ua.Configuration
 
                     Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to trusted peer store. StorePath={0}", storePath);
 
-                    List<string> subjectName = Utils.ParseDistinguishedName(certificate.Subject);
+                    List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                     // check for old certificate.
                     X509Certificate2Collection certificates = await store.Enumerate();
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
-                        if (Utils.CompareDistinguishedName(certificates[ii], subjectName))
+                        if (X509Utils.CompareDistinguishedName(certificates[ii], subjectName))
                         {
                             if (certificates[ii].Thumbprint == certificate.Thumbprint)
                             {
@@ -796,6 +785,26 @@ namespace Opc.Ua.Configuration
             catch (Exception e)
             {
                 Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
+            }
+        }
+
+        /// <summary>
+        /// Show a message for approval and return result.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="silent"></param>
+        /// <returns>True if approved, false otherwise.</returns>
+        private static async Task<bool> ApproveMessage(string message, bool silent)
+        {
+            if (!silent && MessageDlg != null)
+            {
+                MessageDlg.Message(message, true);
+                return await MessageDlg.ShowAsync();
+            }
+            else
+            {
+                Utils.Trace(message);
+                return false;
             }
         }
         #endregion

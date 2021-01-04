@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -15,18 +15,6 @@ using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
-    /// <summary>
-    /// This is an interface to a channel which supports a factory 
-    /// </summary>
-    public interface ITransportChannelFactory
-    {
-        /// <summary>
-        /// The method creates a new transport channel
-        /// </summary>
-        /// <returns> the transport channel</returns>
-        ITransportChannel Create();
-    }
-
     /// <summary>
     /// This is an interface to a channel which supports 
     /// </summary>
@@ -131,7 +119,7 @@ namespace Opc.Ua
         /// <param name="callbackData">The callback data to return with the callback.</param>
         /// <returns>The result which must be passed to the EndReconnect method.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect" />
+        /// <seealso cref="Reconnect()" />
         IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData);
 
         /// <summary>
@@ -139,7 +127,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="result">The result returned from the BeginReconnect call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect" />
+        /// <seealso cref="Reconnect()" />
         void EndReconnect(IAsyncResult result);
 
         /// <summary>

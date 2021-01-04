@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -16,6 +16,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -316,9 +317,9 @@ namespace Opc.Ua
                             return certificate;
                         }
 
-                        List<string> subjectName2 = Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
-                        if (Utils.CompareDistinguishedName(certificate, subjectName2))
+                        if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
                             return certificate;
                         }
@@ -330,11 +331,11 @@ namespace Opc.Ua
             // find by subject name.
             if (!String.IsNullOrEmpty(subjectName))
             {
-                List<string> subjectName2 = Utils.ParseDistinguishedName(subjectName);
+                List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (Utils.CompareDistinguishedName(certificate, subjectName2))
+                    if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                     {
                         if (!needPrivateKey || certificate.HasPrivateKey)
                         {
@@ -639,6 +640,7 @@ namespace Opc.Ua
         /// Adds a certificate to the store.
         /// </summary>
         /// <param name="certificate">The certificate.</param>
+        /// <param name="password">The password of the certificate.</param>
         public async Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));

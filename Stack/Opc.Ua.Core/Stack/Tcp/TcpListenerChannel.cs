@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -82,13 +82,18 @@ namespace Opc.Ua.Bindings
         public virtual string ChannelName => "TCPLISTENERCHANNEL";
 
         /// <summary>
+        /// The TCP channel listener.
+        /// </summary>
+        protected ITcpChannelListener Listener => m_listener;
+
+        /// <summary>
         /// Sets the callback used to receive notifications of new events.
         /// </summary>
         public void SetRequestReceivedCallback(TcpChannelRequestEventHandler callback)
         {
             lock (DataLock)
             {
-                m_RequestReceived = callback;
+                m_requestReceived = callback;
             }
         }
 
@@ -537,6 +542,13 @@ namespace Opc.Ua.Bindings
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Set the flag if a response is required for the use case of reverse connect.
+        /// </summary>
+        protected void SetResponseRequired(bool responseRequired)
+        {
+            m_responseRequired = responseRequired;
+        }
         #endregion
 
         #region Connect/Reconnect Sequence
@@ -550,10 +562,10 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        protected ITcpChannelListener m_listener;
-        protected bool m_responseRequired;
+        private ITcpChannelListener m_listener;
+        private bool m_responseRequired;
         protected SortedDictionary<uint, IServiceResponse> m_queuedResponses;
-        protected TcpChannelRequestEventHandler m_RequestReceived;
+        protected TcpChannelRequestEventHandler m_requestReceived;
         private long m_lastTokenId;
         private Timer m_cleanupTimer;
         #endregion

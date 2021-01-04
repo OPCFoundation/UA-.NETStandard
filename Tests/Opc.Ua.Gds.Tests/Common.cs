@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
@@ -342,6 +343,38 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
             return url;
+        }
+
+        public static async Task<GlobalDiscoveryTestServer> StartGDS(bool clean)
+        {
+            GlobalDiscoveryTestServer server = null;
+            Random random = new Random();
+            int testPort;
+            bool retryStartServer = false;
+            int serverStartRetries = 10;
+            do
+            {
+                try
+                {
+                    // work around travis issue by selecting different ports on every run
+                    testPort = random.Next(50000, 60000);
+                    server = new GlobalDiscoveryTestServer(true);
+                    await server.StartServer(clean, testPort);
+                }
+                catch (ServiceResultException sre)
+                {
+                    serverStartRetries--;
+                    if (serverStartRetries == 0 ||
+                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    {
+                        throw;
+                    }
+                    retryStartServer = true;
+                }
+                await Task.Delay(1000);
+            } while (retryStartServer);
+
+            return server;
         }
     }
 }

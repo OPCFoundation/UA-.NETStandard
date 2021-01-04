@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -106,59 +106,59 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                    {
-                        m_hmacHashSize = 20;
-                        m_signatureKeySize = 16;
-                        m_encryptionKeySize = 16;
-                        m_encryptionBlockSize = 16;
-                        break;
-                    }
+                {
+                    m_hmacHashSize = 20;
+                    m_signatureKeySize = 16;
+                    m_encryptionKeySize = 16;
+                    m_encryptionBlockSize = 16;
+                    break;
+                }
 
                 case SecurityPolicies.Basic256:
-                    {
-                        m_hmacHashSize = 20;
-                        m_signatureKeySize = 24;
-                        m_encryptionKeySize = 32;
-                        m_encryptionBlockSize = 16;
-                        break;
-                    }
+                {
+                    m_hmacHashSize = 20;
+                    m_signatureKeySize = 24;
+                    m_encryptionKeySize = 32;
+                    m_encryptionBlockSize = 16;
+                    break;
+                }
 
                 case SecurityPolicies.Basic256Sha256:
-                    {
-                        m_hmacHashSize = 32;
-                        m_signatureKeySize = 32;
-                        m_encryptionKeySize = 32;
-                        m_encryptionBlockSize = 16;
-                        break;
-                    }
+                {
+                    m_hmacHashSize = 32;
+                    m_signatureKeySize = 32;
+                    m_encryptionKeySize = 32;
+                    m_encryptionBlockSize = 16;
+                    break;
+                }
 
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    {
-                        m_hmacHashSize = 32;
-                        m_signatureKeySize = 32;
-                        m_encryptionKeySize = 16;
-                        m_encryptionBlockSize = 16;
-                        break;
-                    }
+                {
+                    m_hmacHashSize = 32;
+                    m_signatureKeySize = 32;
+                    m_encryptionKeySize = 16;
+                    m_encryptionBlockSize = 16;
+                    break;
+                }
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        m_hmacHashSize = 32;
-                        m_signatureKeySize = 32;
-                        m_encryptionKeySize = 32;
-                        m_encryptionBlockSize = 16;
-                        break;
-                    }
+                {
+                    m_hmacHashSize = 32;
+                    m_signatureKeySize = 32;
+                    m_encryptionKeySize = 32;
+                    m_encryptionBlockSize = 16;
+                    break;
+                }
 
                 default:
                 case SecurityPolicies.None:
-                    {
-                        m_hmacHashSize = 0;
-                        m_signatureKeySize = 0;
-                        m_encryptionKeySize = 0;
-                        m_encryptionBlockSize = 1;
-                        break;
-                    }
+                {
+                    m_hmacHashSize = 0;
+                    m_signatureKeySize = 0;
+                    m_encryptionKeySize = 0;
+                    m_encryptionBlockSize = 1;
+                    break;
+                }
             }
         }
 
@@ -200,44 +200,44 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
+                {
+                    // create encryptors.
+                    SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
+                    AesCbcEncryptorProvider.Mode = CipherMode.CBC;
+                    AesCbcEncryptorProvider.Padding = PaddingMode.None;
+                    AesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
+                    AesCbcEncryptorProvider.IV = token.ClientInitializationVector;
+                    token.ClientEncryptor = AesCbcEncryptorProvider;
+
+                    SymmetricAlgorithm AesCbcDecryptorProvider = Aes.Create();
+                    AesCbcDecryptorProvider.Mode = CipherMode.CBC;
+                    AesCbcDecryptorProvider.Padding = PaddingMode.None;
+                    AesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
+                    AesCbcDecryptorProvider.IV = token.ServerInitializationVector;
+                    token.ServerEncryptor = AesCbcDecryptorProvider;
+
+                    // create HMACs.
+                    if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
+                        SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
+                        SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
                     {
-                        // create encryptors.
-                        SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
-                        AesCbcEncryptorProvider.Mode = CipherMode.CBC;
-                        AesCbcEncryptorProvider.Padding = PaddingMode.None;
-                        AesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
-                        AesCbcEncryptorProvider.IV = token.ClientInitializationVector;
-                        token.ClientEncryptor = AesCbcEncryptorProvider;
-
-                        SymmetricAlgorithm AesCbcDecryptorProvider = Aes.Create();
-                        AesCbcDecryptorProvider.Mode = CipherMode.CBC;
-                        AesCbcDecryptorProvider.Padding = PaddingMode.None;
-                        AesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
-                        AesCbcDecryptorProvider.IV = token.ServerInitializationVector;
-                        token.ServerEncryptor = AesCbcDecryptorProvider;
-
-                        // create HMACs.
-                        if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
-                            SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
-                            SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
-                        {
-                            // SHA256
-                            token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
-                            token.ClientHmac = new HMACSHA256(token.ClientSigningKey);
-                        }
-                        else
-                        {   // SHA1
-                            token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
-                            token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
-                        }
-                        break;
+                        // SHA256
+                        token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
+                        token.ClientHmac = new HMACSHA256(token.ClientSigningKey);
                     }
+                    else
+                    {   // SHA1
+                        token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
+                        token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
+                    }
+                    break;
+                }
 
                 default:
                 case SecurityPolicies.None:
-                    {
-                        break;
-                    }
+                {
+                    break;
+                }
             }
         }
 
@@ -583,18 +583,18 @@ namespace Opc.Ua.Bindings
             {
                 default:
                 case SecurityPolicies.None:
-                    {
-                        return null;
-                    }
+                {
+                    return null;
+                }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        return SymmetricSign(token, dataToSign, useClientKeys);
-                    }
+                {
+                    return SymmetricSign(token, dataToSign, useClientKeys);
+                }
             }
         }
 
@@ -611,23 +611,23 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.None:
-                    {
-                        return true;
-                    }
+                {
+                    return true;
+                }
 
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
-                    }
+                {
+                    return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
+                }
 
                 default:
-                    {
-                        return false;
-                    }
+                {
+                    return false;
+                }
             }
         }
 
@@ -640,19 +640,19 @@ namespace Opc.Ua.Bindings
             {
                 default:
                 case SecurityPolicies.None:
-                    {
-                        break;
-                    }
+                {
+                    break;
+                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
-                        break;
-                    }
+                {
+                    SymmetricEncrypt(token, dataToEncrypt, useClientKeys);
+                    break;
+                }
             }
         }
 
@@ -665,19 +665,19 @@ namespace Opc.Ua.Bindings
             {
                 default:
                 case SecurityPolicies.None:
-                    {
-                        break;
-                    }
+                {
+                    break;
+                }
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    {
-                        SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
-                        break;
-                    }
+                {
+                    SymmetricDecrypt(token, dataToDecrypt, useClientKeys);
+                    break;
+                }
             }
         }
 
@@ -726,14 +726,13 @@ namespace Opc.Ua.Bindings
                     string expectedSignature = Utils.ToHexString(computedSignature);
                     string actualSignature = Utils.ToHexString(signature);
 
-                    Utils.Trace(
-                        "Could not validate signature.\r\nChannelId={0}, TokenId={1}, MessageType={2}, Length={3}\r\nExpectedSignature={4}\r\nActualSignature  ={5}",
-                        token.ChannelId,
-                        token.TokenId,
-                        messageType,
-                        messageLength,
-                        expectedSignature,
-                        actualSignature);
+                    var message = new StringBuilder();
+                    message.AppendLine("Could not validate signature.");
+                    message.AppendLine("ChannelId={0}, TokenId={1}, MessageType={2}, Length={3}");
+                    message.AppendLine("ExpectedSignature={4}");
+                    message.AppendLine("ActualSignature={5}");
+                    Utils.Trace(message.ToString(), token.ChannelId, token.TokenId,
+                        messageType, messageLength, expectedSignature, actualSignature);
 
                     return false;
                 }

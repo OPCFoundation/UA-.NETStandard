@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -630,7 +631,12 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Updates the certificate.
         /// </summary>
+        /// <param name="certificateGroupId">The group of the trust list.</param>
+        /// <param name="certificateTypeId">The type of the trust list.</param>
         /// <param name="certificate">The certificate.</param>
+        /// <param name="privateKeyFormat">The format of the private key, PFX or PEM.</param>
+        /// <param name="privateKey">The private ky.</param>
+        /// <param name="issuerCertificates">An array containing the chain of issuer certificates.</param>
         public bool UpdateCertificate(
             NodeId certificateGroupId,
             NodeId certificateTypeId,

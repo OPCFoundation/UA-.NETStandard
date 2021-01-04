@@ -1,0 +1,48 @@
+<Project>
+  <PropertyGroup>
+    <Product>OPC UA .NET Standard Library</Product>
+    <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
+    <VersionPrefix>1.04.360</VersionPrefix>
+    <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
+    <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
+    <Company>OPC Foundation</Company>
+    <Authors>OPC Foundation</Authors>
+    <NoWarn>NU5125;RCS1138;RCS1139</NoWarn>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <HighEntropyVA>true</HighEntropyVA>
+    <IsPackable>false</IsPackable>
+    <!--TODO <TreatWarningsAsErrors>true</TreatWarningsAsErrors>-->
+    <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageIcon>images/logo.jpg</PackageIcon>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+    <!-- deprecated <PackageLicenseUrl>https://opcfoundation.org/license/redistributables/1.3/</PackageLicenseUrl>-->
+    <PackageLicenseFile>licenses/LICENSE.txt</PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
+    <PackageTags>OPCFoundation OPC-UA netstandard ios linux dotnet net netcore uwp</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)/Licenses/OPC Foundation REDISTRIBUTABLES Agreement of Use.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+  </ItemGroup>
+  
+  <!-- Deterministic build is currently not supported for code coverage tests. -->
+  <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+</Project>

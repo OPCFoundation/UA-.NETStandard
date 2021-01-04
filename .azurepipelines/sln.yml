@@ -9,7 +9,12 @@ jobs:
   steps:
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.4.x'
+      versionSpec: '>=5.8.x'
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/set-version.ps1
   - task: NuGetCommand@2
     displayName: Restore Release
     inputs:

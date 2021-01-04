@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -1854,6 +1854,21 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfPubSubDiagnosticsCounterClassification" type="tns:ListOfPubSubDiagnosticsCounterClassification" nillable="true"></xs:element>
+
+  <xs:complexType name="AliasNameDataType">
+    <xs:sequence>
+      <xs:element name="AliasName" type="ua:QualifiedName" minOccurs="0" nillable="true" />
+      <xs:element name="ReferencedNodes" type="ua:ListOfExpandedNodeId" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="AliasNameDataType" type="tns:AliasNameDataType" />
+
+  <xs:complexType name="ListOfAliasNameDataType">
+    <xs:sequence>
+      <xs:element name="AliasNameDataType" type="tns:AliasNameDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfAliasNameDataType" type="tns:ListOfAliasNameDataType" nillable="true"></xs:element>
 
   <xs:simpleType  name="IdType">
     <xs:restriction base="xs:string">

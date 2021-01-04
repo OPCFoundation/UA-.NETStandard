@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -78,13 +78,13 @@ namespace Opc.Ua.Bindings
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string actualSignature = Utils.ToHexString(signature);
-
-                    Utils.Trace(
-                        "Could not validate signature.\r\nCertificate={0}, MessageType={1}, Length={2}\r\nActualSignature={3}",
-                        signingCertificate.Subject,
-                        messageType,
-                        messageLength,
-                        actualSignature);
+                    var message = new StringBuilder();
+                    message.AppendLine("Could not validate signature.");
+                    message.AppendLine("Certificate ={0}, MessageType ={1}, Length ={2}");
+                    message.AppendLine("ActualSignature={3}");
+                    Utils.Trace(message.ToString(), signingCertificate.Subject,
+                        messageType, messageLength, actualSignature
+                        );
 
                     return false;
                 }

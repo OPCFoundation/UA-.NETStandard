@@ -1,0 +1,47 @@
+https://opcfoundation.org/license/source/1.11/index.html
+
+
+      License information for OPC Source Deliverables
+
+
+        A. Introduction
+
+The OPC Foundation provides source code as sample code/reference
+implementation. The source code is provided as-is, with no warranty,
+support, or misrepresentation of the quality of code.
+
+The OPC Foundation provides communication stacks, sample libraries,
+sample applications and utilities. All sources are available either as a
+downloadable ZIP file or in a repository on github
+(https://github.com/OPCFoundation/ <https://github.com/OPCFoundation/>).
+
+
+        B. License models
+
+The OPC Foundation provides different licenses depending on the
+component and on the membership status of the user of the sources. A
+single ZIP file or a single repository can contain multiple components
+where the sources have different license models. The valid license is in
+the header of each source file.
+
+Following are basic rules on how the OPC Foundation licenses the
+different components:
+
+ 1. OPC UA core components (OPC UA Stacks, OPC UA Local Discovery Server
+    - LDS) follow a dual-license model:
+      * *OPC Foundation Corporate Members*: RCL
+        <https://opcfoundation.org/license/rcl.html>
+        enables OPC Foundation corporate members to deploy their
+        applications using the core component sources without being
+        required to disclose the application code.
+         
+      * *Users that are not OPC Foundation corporate-members*: GPL 2.0
+        <https://opcfoundation.org/license/gpl.html>
+        Based on the GPL 2.0 license terms these users must disclose
+        their application code when using the core component sources.
+         
+ 2. Samples and Utilities:
+    All samples and most of the utilities are provided under the MIT
+    license <https://opcfoundation.org/license/mit.html> for OPC
+    Foundation Members and Non-Members.
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings
         {
             ChannelId = channelId;
             ReverseConnectionUrl = endpointUrl;
-            SetEndpointUrl(m_listener.EndpointUrl.ToString());
+            SetEndpointUrl(Listener.EndpointUrl.ToString());
 
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout);
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_responseRequired = true;
+                SetResponseRequired(true);
 
                 try
                 {
@@ -293,7 +293,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    m_responseRequired = false;
+                    SetResponseRequired(false);
                 }
             }
         }
@@ -614,7 +614,7 @@ namespace Opc.Ua.Bindings
                     if (State == TcpChannelState.Opening)
                     {
                         // tell the listener to find the channel that can process the request.
-                        m_listener.ReconnectToExistingChannel(
+                        Listener.ReconnectToExistingChannel(
                             Socket,
                             requestId,
                             sequenceNumber,
@@ -651,18 +651,18 @@ namespace Opc.Ua.Bindings
                 {
                     Opc.Ua.Security.Audit.SecureChannelCreated(
                         m_ImplementationString,
-                        this.m_listener.EndpointUrl.ToString(),
-                        Utils.Format("{0}", this.ChannelId),
-                        this.EndpointDescription,
-                        this.ClientCertificate,
-                        this.ServerCertificate,
+                        Listener.EndpointUrl.ToString(),
+                        Utils.Format("{0}", ChannelId),
+                        EndpointDescription,
+                        ClientCertificate,
+                        ServerCertificate,
                         BinaryEncodingSupport.Required);
                 }
                 else
                 {
                     Opc.Ua.Security.Audit.SecureChannelRenewed(
                         m_ImplementationString,
-                        Utils.Format("{0}", this.ChannelId));
+                        Utils.Format("{0}", ChannelId));
                 }
 
                 if (requestType == SecurityTokenRequestType.Renew)
@@ -936,7 +936,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // hand the request to the server.
-                m_RequestReceived?.Invoke(this, requestId, request);
+                m_requestReceived?.Invoke(this, requestId, request);
 
                 return true;
             }
