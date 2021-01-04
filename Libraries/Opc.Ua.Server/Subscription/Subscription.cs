@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Server
                 if (publishingInterval != m_publishingInterval)
                 {
                     m_publishingInterval = publishingInterval;
-                    m_publishTimerExpiry = (HiResClock.TickCount64) + (long)publishingInterval;
+                    m_publishTimerExpiry = HiResClock.TickCount64 + (long)publishingInterval;
                     ResetKeepaliveCount();
                 }
 

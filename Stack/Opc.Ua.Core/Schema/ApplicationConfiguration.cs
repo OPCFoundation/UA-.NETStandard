@@ -223,7 +223,7 @@ namespace Opc.Ua
         /// <summary>
         /// Disabling / enabling high resolution clock 
         /// </summary>
-        /// <value><c>true</c> if high resolutioin clock is disabled; otherwise, <c>false</c>.</value>
+        /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock
         {
