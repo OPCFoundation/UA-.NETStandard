@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -313,10 +314,11 @@ namespace Opc.Ua.Client.Controls
 
             buffer.Append("Certificate could not be validated!\r\n");
             buffer.Append("Validation error(s): \r\n");
-            buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
-            if (e.Error.InnerResult != null)
+            ServiceResult error = e.Error;
+            while (error != null)
             {
-                buffer.AppendFormat("\t{0}\r\n", e.Error.InnerResult.StatusCode);
+                buffer.AppendFormat("- {0}\r\n", error.ToString().Split('\r', '\n').FirstOrDefault());
+                error = error.InnerResult;
             }
             buffer.AppendFormat("\r\nSubject: {0}\r\n", e.Certificate.Subject);
             buffer.AppendFormat("Issuer: {0}\r\n", (e.Certificate.Subject == e.Certificate.Issuer) ? "Self-signed" : e.Certificate.Issuer);
@@ -329,7 +331,7 @@ namespace Opc.Ua.Client.Controls
 
             if (MessageBox.Show(buffer.ToString(), caption, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                e.Accept = true;
+                e.AcceptAll = true;
             }
         }
 

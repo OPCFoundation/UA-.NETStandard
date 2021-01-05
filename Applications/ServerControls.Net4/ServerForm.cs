@@ -38,6 +38,7 @@ using System.Runtime.InteropServices;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using System.IO;
+using System.Linq;
 
 namespace Opc.Ua.Server.Controls
 {
@@ -212,10 +213,11 @@ namespace Opc.Ua.Server.Controls
             StringBuilder buffer = new StringBuilder();
             buffer.AppendLine("Certificate could not be validated!");
             buffer.AppendLine("Validation error(s):");
-            buffer.AppendFormat("\t{0}\r\n", e.Error.StatusCode);
-            if (e.Error.InnerResult != null)
+            ServiceResult error = e.Error;
+            while (error != null)
             {
-                buffer.AppendFormat("\t{0}\r\n", e.Error.InnerResult.StatusCode);
+                buffer.AppendFormat("- {0}\r\n", error.ToString().Split('\r','\n').FirstOrDefault());
+                error = error.InnerResult;
             }
             buffer.AppendFormat("\r\nSubject: {0}\r\n", e.Certificate.Subject);
             buffer.AppendFormat("Issuer: {0}\r\n", X509Utils.CompareDistinguishedName(e.Certificate.Subject, e.Certificate.Issuer)
@@ -229,7 +231,7 @@ namespace Opc.Ua.Server.Controls
 
             if (MessageBox.Show(buffer.ToString(), caller.Text, MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                e.Accept = true;
+                e.AcceptAll = true;
             }
         }
     }

@@ -285,8 +285,14 @@ namespace Opc.Ua
                     {
                         do
                         {
-                            CertificateValidationEventArgs args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), certificate);
+                            CertificateValidationEventArgs args = new CertificateValidationEventArgs(serviceResult, certificate);
                             m_CertificateValidation(this, args);
+                            if (args.AcceptAll)
+                            {
+                                accept = true;
+                                serviceResult = null;
+                                break;
+                            }
                             accept = args.Accept;
                             if (accept)
                             {
@@ -330,7 +336,6 @@ namespace Opc.Ua
         /// must not be supressed according to (e.g.) version 1.04 of the spec)
         /// </summary>
         /// <param name="sr"></param>
-        /// <returns></returns>
         static private bool ContainsUnsuppressibleSC(ServiceResult sr)
         {
             while (sr != null)
@@ -780,14 +785,9 @@ namespace Opc.Ua
             // check if certificate issuer is trusted.
             if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
-                var message = CertificateMessage("Certificate issuer is not trusted.", certificate);
+                var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
                 sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
-                    null,
-                    null,
-                    message,
-                    null,
-                    sresult
-                    );
+                    null, null, message, null, sresult);
             }
 
             // check if certificate is trusted.
@@ -797,12 +797,7 @@ namespace Opc.Ua
                 {
                     var message = CertificateMessage("Certificate is not trusted.", certificate);
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
-                        null,
-                        null,
-                        message,
-                        null,
-                        sresult
-                        );
+                    null, null, message, null, sresult);
                 }
             }
 
@@ -822,36 +817,21 @@ namespace Opc.Ua
             if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
-                    null,
-                    null,
-                    "Usage of certificate is not allowed.",
-                    null,
-                    sresult
-                    );
+                    null, null, "Usage of certificate is not allowed.", null, sresult);
             }
 
             // check if minimum requirements are met
             if (m_rejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                    null,
-                    null,
-                    "SHA1 signed certificates are not trusted.",
-                    null,
-                    sresult
-                    );
+                    null, null, "SHA1 signed certificates are not trusted.", null, sresult);
             }
 
             int keySize = X509Utils.GetRSAPublicKeySize(certificate);
             if (keySize < m_minimumCertificateKeySize)
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                    null,
-                    null,
-                    "Certificate doesn't meet minimum key length requirement.",
-                    null,
-                    sresult
-                    );
+                    null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
             }
 
             if (issuedByCA && chainIncomplete)
@@ -904,7 +884,7 @@ namespace Opc.Ua
                 {
                     var args = new CertificateValidationEventArgs(new ServiceResult(serviceResult), serverCertificate);
                     m_CertificateValidation(this, args);
-                    accept = args.Accept;
+                    accept = args.Accept || args.AcceptAll;
                 }
                 // throw if rejected.
                 if (!accept)
@@ -1202,12 +1182,23 @@ namespace Opc.Ua
         public X509Certificate2 Certificate => m_certificate;
 
         /// <summary>
-        /// Whether the certificate should be accepted.
+        /// Whether the current error reported for
+        /// a certificate should be accepted and suppressed.
         /// </summary>
         public bool Accept
         {
             get { return m_accept; }
             set { m_accept = value; }
+        }
+
+        /// <summary>
+        /// Whether all the errors reported for
+        /// a certificate should be accepted and suppressed.
+        /// </summary>
+        public bool AcceptAll
+        {
+            get { return m_acceptAll; }
+            set { m_acceptAll = value; }
         }
         #endregion
 
@@ -1215,9 +1206,9 @@ namespace Opc.Ua
         private ServiceResult m_error;
         private X509Certificate2 m_certificate;
         private bool m_accept;
+        private bool m_acceptAll;
         #endregion
     }
-
 
     /// <summary>
     /// Used to handled certificate validation errors.
