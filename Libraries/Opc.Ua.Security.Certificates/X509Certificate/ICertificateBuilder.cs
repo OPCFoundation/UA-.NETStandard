@@ -40,7 +40,7 @@ namespace Opc.Ua.Security.Certificates
         : ICertificateBuilderConfig
         , ICertificateBuilderSetIssuer
         , ICertificateBuilderParameter
-        , ICertificateBuilderCreate
+        , ICertificateBuilderCreateForRSA
         , IX509Certificate
     { }
 
@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public interface ICertificateBuilderIssuer
         : ICertificateBuilderPublicKey
-        , ICertificateBuilderCreate
+        , ICertificateBuilderCreateForRSA
         , ICertificateBuilderParameter
         , ICertificateBuilderCreateGenerator
     { }
@@ -252,7 +252,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Set the ECC Curve parameter.
         /// </summary>
-        /// <param name="keySize">The ECCurve.</param>
+        /// <param name="curve">The ECCurve.</param>
         ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve);
     }
 #endif

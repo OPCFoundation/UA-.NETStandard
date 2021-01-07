@@ -27,13 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1
+#if !NETSTANDARD2_1 
 
 using System;
 using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography;
 using System.IO;
 using System.Text;
+using Opc.Ua.Security.Certificates.BouncyCastle;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Asn1.Pkcs;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -60,36 +63,6 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Returns a byte array containing the public key in PEM format.
-        /// </summary>
-        public static byte[] ExportPublicKeyAsPEM(
-            X509Certificate2 certificate
-            )
-        {
-            byte[] exportedPublicKey = null;
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
-            {
-                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
-            }
-            return EncodeAsPEM(exportedPublicKey, "PUBLIC KEY");
-        }
-
-        /// <summary>
-        /// Returns a byte array containing the RSA private key in PEM format.
-        /// </summary>
-        public static byte[] ExportRSAPrivateKeyAsPEM(
-            X509Certificate2 certificate)
-        {
-            byte[] exportedRSAPrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
-            {
-                // write private key as PKCS#1
-                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
-            }
-            return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
-        }
-
-        /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
@@ -97,17 +70,15 @@ namespace Opc.Ua.Security.Certificates
             string password = null
             )
         {
-            byte[] exportedPkcs8PrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            if (!String.IsNullOrEmpty(password)) throw new ArgumentException(nameof(password), "Export with password not supported on this platform.");
+            RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
+            using (TextWriter textWriter = new StringWriter())
             {
                 // write private key as PKCS#8
-                exportedPkcs8PrivateKey = String.IsNullOrEmpty(password) ?
-                    rsaPrivateKey.ExportPkcs8PrivateKey() :
-                    rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                        new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+                byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+                return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
             }
-            return EncodeAsPEM(exportedPkcs8PrivateKey,
-                String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
         #endregion
 
