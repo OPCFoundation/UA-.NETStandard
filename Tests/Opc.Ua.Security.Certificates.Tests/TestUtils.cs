@@ -90,6 +90,68 @@ namespace Opc.Ua.Security.Certificates.Tests
     }
     #endregion
 
+#if ECC_SUPPORT
+    #region ECCurveHashPair Helper
+    public class ECCurveHashPair : IFormattable
+    {
+        public ECCurveHashPair(ECCurve curve, HashAlgorithmName hashAlgorithmName)
+        {
+            Curve = curve;
+            HashAlgorithmName = hashAlgorithmName;
+            if (hashAlgorithmName == HashAlgorithmName.SHA1)
+            {
+                HashSize = 160;
+            }
+            else if (hashAlgorithmName == HashAlgorithmName.SHA256)
+            {
+                HashSize = 256;
+            }
+            else if (hashAlgorithmName == HashAlgorithmName.SHA384)
+            {
+                HashSize = 384;
+            }
+            else if (hashAlgorithmName == HashAlgorithmName.SHA512)
+            {
+                HashSize = 512;
+            }
+        }
+
+        public ECCurve Curve;
+        public ushort HashSize;
+        public HashAlgorithmName HashAlgorithmName;
+
+        public string ToString(string format, IFormatProvider formatProvider)
+        {
+            try
+            {
+                var friendlyName = Curve.Oid?.FriendlyName ?? "Unknown";
+                return $"{friendlyName}-{HashAlgorithmName}";
+            }
+            catch
+            {
+                return $"unknown-{HashAlgorithmName}";
+            }
+        }
+    }
+
+    public class ECCurveHashPairCollection : List<ECCurveHashPair>
+    {
+        public ECCurveHashPairCollection() { }
+        public ECCurveHashPairCollection(IEnumerable<ECCurveHashPair> collection) : base(collection) { }
+        public ECCurveHashPairCollection(int capacity) : base(capacity) { }
+        public static ECCurveHashPairCollection ToJsonValidationDataCollection(ECCurveHashPair[] values)
+        {
+            return values != null ? new ECCurveHashPairCollection(values) : new ECCurveHashPairCollection();
+        }
+
+        public void Add(ECCurve curve, HashAlgorithmName hashAlgorithmName)
+        {
+            Add(new ECCurveHashPair(curve, hashAlgorithmName));
+        }
+    }
+    #endregion
+#endif
+
     #region Asset Helpers
     public interface IAsset
     {

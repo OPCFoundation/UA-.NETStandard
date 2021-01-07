@@ -208,7 +208,8 @@ namespace Opc.Ua.Security.Certificates
         {
             using (ECDsa key = certificate.GetECDsaPublicKey())
             {
-                return key.VerifyData(Tbs, Signature, Name);
+                var decodedSignature = DecodeECDsa(Signature);
+                return key.VerifyData(Tbs, decodedSignature, Name);
             }
         }
 
@@ -234,8 +235,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Encode a ECDSA signature as ASN.1.
         /// </summary>
-        /// <param name="signature"></param>
-        private static byte[] EncodeECDSA(byte[] signature)
+        /// <param name="signature">The signature to encode as ASN.1</param>
+        private static byte[] EncodeECDsa(byte[] signature)
         {
             // Encode from IEEE signature format to ASN1 DER encoded 
             // signature format for ecdsa certificates.
@@ -251,6 +252,32 @@ namespace Opc.Ua.Security.Certificates
             writer.PopSequence(tag);
 
             return writer.Encode();
+        }
+
+        /// <summary>
+        /// Decode a ECDSA signature from ASN.1.
+        /// </summary>
+        /// <param name="signature">The signature to decode from ASN.1</param>
+        private static byte[] DecodeECDsa(ReadOnlyMemory<byte> signature)
+        {
+            AsnReader reader = new AsnReader(signature, AsnEncodingRules.DER);
+            var seqReader = reader.ReadSequence();
+            reader.ThrowIfNotEmpty();
+            var r = seqReader.ReadIntegerBytes();
+            var s = seqReader.ReadIntegerBytes();
+            seqReader.ThrowIfNotEmpty();
+            if (r.Span[0] == 0)
+            {
+                r = r.Slice(1);
+            }
+            if (s.Span[0] == 0)
+            {
+                s = s.Slice(1);
+            }
+            var result = new byte[r.Length + s.Length];
+            r.CopyTo(new Memory<byte>(result, 0, r.Length));
+            s.CopyTo(new Memory<byte>(result, r.Length, s.Length));
+            return result;
         }
     }
 }

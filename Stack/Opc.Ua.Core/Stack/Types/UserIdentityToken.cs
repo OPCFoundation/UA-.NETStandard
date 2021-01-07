@@ -246,9 +246,21 @@ namespace Opc.Ua
     /// </summary>
     public enum IssuedTokenType
     {
+        /// <summary>
+        /// Web services security (WSS) token.
+        /// </summary>
         GenericWSS,
+        /// <summary>
+        /// Security Assertions Markup Language (SAML) token.
+        /// </summary>
         SAML,
+        /// <summary>
+        /// JSON web token.
+        /// </summary>
         JWT,
+        /// <summary>
+        /// Kerberos token.
+        /// </summary>
         KerberosBinary
     };
 

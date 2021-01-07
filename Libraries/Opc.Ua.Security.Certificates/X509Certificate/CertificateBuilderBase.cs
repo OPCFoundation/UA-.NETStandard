@@ -116,39 +116,20 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Public Methods
-        /// <summary>
-        /// Create the RSA certificate with signature.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public abstract X509Certificate2 CreateForRSA();
 
-        /// <summary>
-        /// Create the RSA certificate with signature using an external generator.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public abstract X509Certificate2 CreateForRSA(X509SignatureGenerator generator);
 
 #if ECC_SUPPORT
-        /// <summary>
-        /// Create the ECC certificate based on selected parameters.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa();
 
-        /// <summary>
-        /// Create the ECC certificate with signature using an external generator.
-        /// </summary>
-        /// <returns>The signed certificate.</returns>
+        /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
 #endif
-        /// <summary>
-        /// Set the length of the serial number.
-        /// </summary>
-        /// <remarks>
-        /// The length of the serial number shall
-        /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
-        /// </remarks>
-        /// <param name="length">The length of the serial number in octets.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumberLength(int length)
         {
             if (length > X509Defaults.SerialNumberLengthMax || length == 0)
@@ -160,15 +141,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Set the value of the serial number directly
-        /// using a byte array.
-        /// </summary>
-        /// <remarks>
-        /// The length of the serial number shall
-        /// not exceed <see cref="X509Defaults.SerialNumberLengthMax"/> octets.
-        /// </remarks>
-        /// <param name="serialNumber">The serial number as an array of bytes in little endian order.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumber(byte[] serialNumber)
         {
             if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
@@ -184,15 +157,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Create a new serial number and preserve
-        /// it until the certificate is created.
-        /// </summary>
-        /// <remarks>
-        /// The serial number may be needed to create an extension.
-        /// This function makes it available before the
-        /// cert is created.
-        /// </remarks>
+        /// <inheritdoc/>
         public ICertificateBuilder CreateSerialNumber()
         {
             NewSerialNumber();
@@ -200,50 +165,35 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Set the date when the certificate becomes valid.
-        /// </summary>
-        /// <param name="notBefore">The date.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetNotBefore(DateTime notBefore)
         {
             m_notBefore = notBefore;
             return this;
         }
 
-        /// <summary>
-        /// Set the certificate expiry date.
-        /// </summary>
-        /// <param name="notAfter">The date after which the certificate is expired.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetNotAfter(DateTime notAfter)
         {
             m_notAfter = notAfter;
             return this;
         }
 
-        /// <summary>
-        /// Set the lifetime of the certificate using Timespan.
-        /// </summary>
-        /// <param name="lifeTime">The lifetime as <see cref="System.Timespan"/>.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetLifeTime(TimeSpan lifeTime)
         {
             m_notAfter = m_notBefore.Add(lifeTime);
             return this;
         }
 
-        /// <summary>
-        /// Set the lifetime of the certificate in month starting now.
-        /// </summary>
-        /// <param name="months">The lifetime in month.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetLifeTime(ushort months)
         {
             m_notAfter = m_notBefore.AddMonths(months == 0 ? X509Defaults.LifeTime : (int)months);
             return this;
         }
 
-        /// <summary>
-        /// Set the hash algorithm to use for the signature.
-        /// </summary>
-        /// <param name="hashAlgorithmName">The hash algorithm name.</param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
             if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
@@ -251,13 +201,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Set the CA constraints of the certificate.
-        /// </summary>
-        /// <param name="pathLengthConstraint">
-        /// The path length constraint to use.
-        /// -1 corresponds to None, other values constrain the chain length.
-        /// </param>
+        /// <inheritdoc/>
         public ICertificateBuilder SetCAConstraint(int pathLengthConstraint = -1)
         {
             m_isCA = true;
@@ -266,11 +210,7 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Set the RSA key size in bits.
-        /// </summary>
-        /// <param name="keySize">The size of the RSA key.</param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize)
         {
             if (keySize == 0)
@@ -287,50 +227,26 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Add a extension to the certificate in addition to the default extensions.
-        /// </summary>
-        /// <remarks>
-        /// By default the following X509 extensions are added to a certificate,
-        /// some depending on certificate type:
-        /// CA/SubCA/OPC UA application:
-        ///     X509BasicConstraintsExtension
-        ///     X509SubjectKeyIdentifierExtension
-        ///     X509AuthorityKeyIdentifierExtension
-        ///     X509KeyUsageExtension
-        /// OPC UA application:
-        ///     X509SubjectAltNameExtension
-        ///     X509EnhancedKeyUsageExtension
-        /// </remarks>
-        /// <param name="extension"></param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public virtual ICertificateBuilder AddExtension(X509Extension extension)
         {
+            if (extension == null) throw new ArgumentNullException(nameof(extension));
             m_extensions.Add(extension);
             return this;
         }
 
 #if ECC_SUPPORT
-        /// <summary>
-        /// Set the ECC curve to use for the certificate.
-        /// </summary>
-        /// <param name="curve">The ECC curve.</param>
+        /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForECDsaAny SetECCurve(ECCurve curve)
         {
             m_curve = curve;
             return this;
         }
 
-        /// <summary>
-        /// Set the ECDsa public key to be used in the signed certificate.
-        /// </summary>
-        /// <param name="publicKey">The ASN encoded ECDsa public key.</param>
+        /// <inheritdoc/>
         public abstract ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey);
 
-        /// <summary>
-        /// Set the ECDsa public key to be used in the signed certificate.
-        /// </summary>
-        /// <param name="publicKey">The ECDsa object with the public key.</param>
+        /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(ECDsa publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
@@ -338,16 +254,11 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 #endif
-        /// <summary>
-        /// Set the RSA public key to be used in the signed certificate.
-        /// </summary>
-        /// <param name="publicKey">The ASN encoded RSA public key.</param>
+
+        /// <inheritdoc/>
         public abstract ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey);
 
-        /// <summary>
-        /// Set the RSA public key to be used in the signed certificate.
-        /// </summary>
-        /// <param name="publicKey">The RSA object with the public key.</param>
+        /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForRSAAny SetRSAPublicKey(RSA publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
@@ -355,26 +266,22 @@ namespace Opc.Ua.Security.Certificates
             return this;
         }
 
-        /// <summary>
-        /// Set the issuer certificate which is used to sign the certificate.
-        /// </summary>
-        /// <remarks>
-        /// The issuer certificate must contain a private key which matches
-        /// the selected sign algorithm if no generator is avilable.
-        /// If a <see cref="X509SignatureGenerator"/> is used for signing the
-        /// the issuer certificate can be set with a public key to create
-        /// the X509 extensions.
-        /// </remarks>
-        /// <param name="issuerCertificate">The issuer certificate.</param>
+        /// <inheritdoc/>
         public virtual ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
             if (issuerCertificate == null) throw new ArgumentNullException(nameof(issuerCertificate));
             m_issuerCAKeyCert = issuerCertificate;
+            m_issuerName = issuerCertificate.SubjectName;
             return this;
         }
         #endregion
 
         #region Protected Methods
+        /// <summary>
+        /// The issuer CA certificate.
+        /// </summary>
+        protected X509Certificate2 IssuerCAKeyCert => m_issuerCAKeyCert;
+
         /// <summary>
         /// Validate and adjust settings to avoid creation of invalid certificates.
         /// </summary>
@@ -409,24 +316,57 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Protected Fields
+        /// <summary>
+        /// If the certificate is a CA.
+        /// </summary>
         protected bool m_isCA;
+        /// <summary>
+        /// The path length constraint to sue for a CA.
+        /// </summary>
         protected int m_pathLengthConstraint;
+        /// <summary>
+        /// The serial number length in octets.
+        /// </summary>
         protected int m_serialNumberLength;
+        /// <summary>
+        /// If the serial number is preset by the user.
+        /// </summary>
         protected bool m_presetSerial;
-        protected X509Certificate2 m_issuerCAKeyCert;
-        protected DateTime m_notBefore;
-        protected DateTime m_notAfter;
+        /// <summary>
+        /// The serial number as a little endian byte array.
+        /// </summary>
         protected byte[] m_serialNumber;
-        protected HashAlgorithmName m_hashAlgorithmName;
-        protected X500DistinguishedName m_subjectName;
-        protected X500DistinguishedName m_issuerName;
+        /// <summary>
+        /// The collection of X509Extension to add to the certificate.
+        /// </summary>
         protected X509ExtensionCollection m_extensions;
+        /// <summary>
+        /// The RSA public to use when if a certificate is signed.
+        /// </summary>
         protected RSA m_rsaPublicKey;
+        /// <summary>
+        /// The size of a RSA key pair to create.
+        /// </summary>
         protected int m_keySize;
-#if NETSTANDARD2_1
+#if ECC_SUPPORT
+        /// <summary>
+        /// The ECDsa public to use when if a certificate is signed.
+        /// </summary>
         protected ECDsa m_ecdsaPublicKey;
+        /// <summary>
+        /// The ECCurve to use.
+        /// </summary>
         protected ECCurve? m_curve;
 #endif
+        #endregion
+
+        #region Private Fields
+        private X509Certificate2 m_issuerCAKeyCert;
+        private DateTime m_notBefore;
+        private DateTime m_notAfter;
+        private HashAlgorithmName m_hashAlgorithmName;
+        private X500DistinguishedName m_subjectName;
+        private X500DistinguishedName m_issuerName;
         #endregion
     }
 }

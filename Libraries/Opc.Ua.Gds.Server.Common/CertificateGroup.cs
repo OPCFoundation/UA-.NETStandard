@@ -117,6 +117,14 @@ namespace Opc.Ua.Gds.Server
             return new CertificateGroup(storePath, certificateGroupConfiguration);
         }
 
+        /// <summary>
+        /// Create a certificate with a new key pair signed by the CA of the cert group.
+        /// </summary>
+        /// <param name="application">The application record.</param>
+        /// <param name="subjectName">The subject of the certificate.</param>
+        /// <param name="domainNames">The domain names for the subject alt name extension.</param>
+        /// <param name="privateKeyFormat">The private key format as PFX or PEM.</param>
+        /// <param name="privateKeyPassword">A password for the private key.</param>
         public virtual async Task<X509Certificate2KeyPair> NewKeyPairRequestAsync(
             ApplicationRecordDataType application,
             string subjectName,
@@ -124,20 +132,18 @@ namespace Opc.Ua.Gds.Server
             string privateKeyFormat,
             string privateKeyPassword)
         {
+            if (application == null) throw new ArgumentNullException(nameof(application));
+            if (application.ApplicationUri == null) throw new ArgumentNullException(nameof(application.ApplicationUri));
+            if (application.ApplicationNames == null) throw new ArgumentNullException(nameof(application.ApplicationNames));
+
             using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
             using (var certificate = CertificateFactory.CreateCertificate(
-                null, null, null,
-                application.ApplicationUri ?? "urn:ApplicationURI",
+                application.ApplicationUri,
                 application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
                 subjectName,
-                domainNames,
-                Configuration.DefaultCertificateKeySize,
-                DateTime.UtcNow.AddDays(-1),
-                Configuration.DefaultCertificateLifetime,
-                Configuration.DefaultCertificateHashSize,
-                false,
-                signingKey,
-                null))
+                domainNames)
+                .SetIssuer(signingKey)
+                .CreateForRSA())
             {
                 byte[] privateKey;
                 if (privateKeyFormat == "PFX")
@@ -146,7 +152,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 else if (privateKeyFormat == "PEM")
                 {
-                    privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate);
+                    privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
                 }
                 else
                 {
@@ -240,22 +246,20 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                DateTime yesterday = DateTime.UtcNow.AddDays(-1);
+                DateTime yesterday = DateTime.Today.AddDays(-1);
                 using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
                 {
                     return CertificateFactory.CreateCertificate(
-                        null, null, null,
-                        application.ApplicationUri ?? "urn:ApplicationURI",
-                        application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                        info.Subject.ToString(),
-                        domainNames,
-                        Configuration.DefaultCertificateKeySize,
-                        yesterday,
-                        Configuration.DefaultCertificateLifetime,
-                        Configuration.DefaultCertificateHashSize,
-                        false,
-                        signingKey,
-                        info.SubjectPublicKeyInfo.GetEncoded());
+                            application.ApplicationUri,
+                            null,
+                            info.Subject.ToString(),
+                            domainNames)
+                        .SetNotBefore(yesterday)
+                        .SetLifeTime(Configuration.DefaultCertificateLifetime)
+                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                        .SetIssuer(signingKey)
+                        .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                        .CreateForRSA();
                 }
             }
             catch (Exception ex)
@@ -273,22 +277,17 @@ namespace Opc.Ua.Gds.Server
             string subjectName
             )
         {
-            DateTime yesterday = DateTime.UtcNow.AddDays(-1);
-            X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(
-                m_authoritiesStoreType,
-                m_authoritiesStorePath,
-                null,
-                null,
-                null,
-                subjectName,
-                null,
-                Configuration.CACertificateKeySize,
-                yesterday,
-                Configuration.CACertificateLifetime,
-                Configuration.CACertificateHashSize,
-                true,
-                null,
-                null);
+            DateTime yesterday = DateTime.Today.AddDays(-1);
+            X509Certificate2 newCertificate = CertificateFactory.CreateCertificate(subjectName)
+                .SetNotBefore(yesterday)
+                .SetLifeTime(Configuration.CACertificateLifetime)
+                .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.CACertificateHashSize))
+                .SetCAConstraint()
+                .SetRSAKeySize(Configuration.CACertificateKeySize)
+                .CreateForRSA()
+                .AddToStore(
+                    m_authoritiesStoreType,
+                    m_authoritiesStorePath);
 
             // save only public key
             Certificate = new X509Certificate2(newCertificate.RawData);

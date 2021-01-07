@@ -27,12 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NET472
 
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -83,7 +84,7 @@ namespace Opc.Ua.Security.Certificates
             CreateDefaults();
 
             if (m_rsaPublicKey != null &&
-               (m_issuerCAKeyCert == null || !m_issuerCAKeyCert.HasPrivateKey))
+               (IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey))
             {
                 throw new NotSupportedException("Cannot use a public key without a issuer certificate with a private key.");
             }
@@ -99,17 +100,17 @@ namespace Opc.Ua.Security.Certificates
             var padding = RSASignaturePadding.Pkcs1;
             var request = new CertificateRequest(SubjectName, rsaPublicKey, HashAlgorithmName, padding);
 
-            CreateX509Extensions(request);
+            CreateX509Extensions(request, false);
 
             X509Certificate2 signedCert;
             var serialNumber = m_serialNumber.Reverse().ToArray();
-            if (m_issuerCAKeyCert != null)
+            if (IssuerCAKeyCert != null)
             {
-                var issuerSubjectName = m_issuerCAKeyCert.SubjectName;
-                using (RSA rsaIssuerKey = m_issuerCAKeyCert.GetRSAPrivateKey())
+                var issuerSubjectName = IssuerCAKeyCert.SubjectName;
+                using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
                 {
                     signedCert = request.Create(
-                        m_issuerCAKeyCert.SubjectName,
+                        IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
                         NotBefore,
                         NotAfter,
@@ -137,7 +138,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            if (m_issuerCAKeyCert == null)
+            if (IssuerCAKeyCert == null)
             {
                 throw new NotSupportedException("X509 Signature generator requires an issuer certificate.");
             }
@@ -152,16 +153,16 @@ namespace Opc.Ua.Security.Certificates
 
             var request = new CertificateRequest(SubjectName, rsaPublicKey, HashAlgorithmName, RSASignaturePadding.Pkcs1);
 
-            CreateX509Extensions(request);
+            CreateX509Extensions(request, false);
 
             X509Certificate2 signedCert;
 
-            var issuerSubjectName = m_issuerCAKeyCert.SubjectName;
+            var issuerSubjectName = IssuerCAKeyCert.SubjectName;
             signedCert = request.Create(
-                m_issuerCAKeyCert.SubjectName,
+                IssuerCAKeyCert.SubjectName,
                 generator,
-                m_notBefore,
-                m_notAfter,
+                NotBefore,
+                NotAfter,
                 m_serialNumber.Reverse().ToArray()
                 );
 
@@ -172,7 +173,7 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForECDsa()
         {
-            if (m_ecdsaPublicKey != null && m_issuerCAKeyCert == null)
+            if (m_ecdsaPublicKey != null && IssuerCAKeyCert == null)
             {
                 throw new NotSupportedException("Cannot use a public key without a issuer certificate with a private key.");
             }
@@ -194,18 +195,18 @@ namespace Opc.Ua.Security.Certificates
 
             var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
 
-            CreateX509Extensions(request);
+            CreateX509Extensions(request, true);
 
             var serialNumber = m_serialNumber.Reverse().ToArray();
-            if (m_issuerCAKeyCert != null)
+            if (IssuerCAKeyCert != null)
             {
-                using (ECDsa issuerKey = m_issuerCAKeyCert.GetECDsaPrivateKey())
+                using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
                 {
                     return request.Create(
-                        m_issuerCAKeyCert.SubjectName,
+                        IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
-                        m_notBefore,
-                        m_notAfter,
+                        NotBefore,
+                        NotAfter,
                         serialNumber
                         );
                 }
@@ -215,8 +216,8 @@ namespace Opc.Ua.Security.Certificates
                 return request.Create(
                     SubjectName,
                     X509SignatureGenerator.CreateForECDsa(key),
-                    m_notBefore,
-                    m_notAfter,
+                    NotBefore,
+                    NotAfter,
                     serialNumber
                     )
                     .CopyWithPrivateKey(key);
@@ -226,7 +227,7 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForECDsa(X509SignatureGenerator generator)
         {
-            if (m_issuerCAKeyCert == null)
+            if (IssuerCAKeyCert == null)
             {
                 throw new NotSupportedException("X509 Signature generator requires an issuer certificate.");
             }
@@ -248,13 +249,13 @@ namespace Opc.Ua.Security.Certificates
 
             var request = new CertificateRequest(SubjectName, publicKey, HashAlgorithmName);
 
-            CreateX509Extensions(request);
+            CreateX509Extensions(request, true);
 
             X509Certificate2 signedCert = request.Create(
-                m_issuerCAKeyCert.SubjectName,
+                IssuerCAKeyCert.SubjectName,
                 generator,
-                m_notBefore,
-                m_notAfter,
+                NotBefore,
+                NotAfter,
                 m_serialNumber.Reverse().ToArray()
                 );
 
@@ -266,11 +267,13 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
-            int bytes;
+            int bytes = 0;
             try
             {
                 m_ecdsaPublicKey = ECDsa.Create();
+#if !NET472  // TODO
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
             }
             catch (Exception e)
             {
@@ -289,11 +292,13 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
-            int bytes;
+            int bytes = 0;
             try
             {
                 m_rsaPublicKey = RSA.Create();
+#if !NET472  // TODO
                 m_rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
             }
             catch (Exception e)
             {
@@ -326,8 +331,9 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Create the X509 extensions to build the certificate.
         /// </summary>
-        /// <param name="request"></param>
-        private void CreateX509Extensions(CertificateRequest request)
+        /// <param name="request">A certificate request.</param>
+        /// <param name="forECDsa">If the certificate is for ECDsa, not RSA.</param>
+        private void CreateX509Extensions(CertificateRequest request, bool forECDsa)
         {
 
             // Basic Constraints
@@ -342,11 +348,11 @@ namespace Opc.Ua.Security.Certificates
             request.CertificateExtensions.Add(ski);
 
             // Authority Key Identifier
-            X509Extension authorityKeyIdentifier = m_issuerCAKeyCert != null
-                ? X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCAKeyCert)
+            X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
+                ? X509Extensions.BuildAuthorityKeyIdentifier(IssuerCAKeyCert)
                 : new X509AuthorityKeyIdentifierExtension(
                     ski.SubjectKeyIdentifier.FromHexString(),
-                    m_subjectName,
+                    SubjectName,
                     m_serialNumber
                     );
             request.CertificateExtensions.Add(authorityKeyIdentifier);
@@ -358,11 +364,19 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                // Key Usage
-                keyUsageFlags =
-                    X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.DataEncipherment |
-                    X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment;
-                if (m_issuerCAKeyCert == null)
+                if (forECDsa)
+                {
+                    // Key Usage for ECDsa
+                    keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation
+                        | X509KeyUsageFlags.KeyAgreement;
+                }
+                else
+                {
+                    // Key usage for RSA
+                    keyUsageFlags = X509KeyUsageFlags.DataEncipherment | X509KeyUsageFlags.KeyEncipherment
+                        | X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation;
+                }
+                if (IssuerCAKeyCert == null)
                 {
                     // self signed case
                     keyUsageFlags |= X509KeyUsageFlags.KeyCertSign;
@@ -397,7 +411,7 @@ namespace Opc.Ua.Security.Certificates
         private X509BasicConstraintsExtension GetBasicContraints()
         {
             // Basic constraints
-            if (!m_isCA && m_issuerCAKeyCert == null)
+            if (!m_isCA && IssuerCAKeyCert == null)
             {
                 // self signed
                 return new X509BasicConstraintsExtension(true, true, 0, true);

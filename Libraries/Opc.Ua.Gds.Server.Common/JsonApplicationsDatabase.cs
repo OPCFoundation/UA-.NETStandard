@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -54,17 +55,22 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// </summary>
         static public JsonApplicationsDatabase Load(string fileName)
         {
+            if (fileName == null) throw new ArgumentNullException(nameof(fileName));
             try
             {
-                string json = File.ReadAllText(fileName);
-                JsonApplicationsDatabase db = JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
-                db.FileName = fileName;
-                return db;
+                if (File.Exists(fileName))
+                {
+                    string json = File.ReadAllText(fileName);
+                    JsonApplicationsDatabase db = JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
+                    db.FileName = fileName;
+                    return db;
+                }
             }
             catch
             {
-                return new JsonApplicationsDatabase(fileName);
+
             }
+            return new JsonApplicationsDatabase(fileName);
         }
         #endregion
 

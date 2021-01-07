@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1
-
+#if !NETSTANDARD2_1
 using System;
 using System.Security.Cryptography;
 using System.IO;
 using System.Text;
+using Org.BouncyCastle.OpenSsl;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Crypto.Parameters;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -42,7 +44,6 @@ namespace Opc.Ua.Security.Certificates
     public static class PEMReader
     {
         #region Public Methods
-#if !NETSTANDARD2_1
         /// <summary>
         /// Import a private key from PEM.
         /// </summary>
@@ -106,78 +107,28 @@ namespace Opc.Ua.Security.Certificates
 
             return rsaPrivateKey;
         }
-#else
-        /// <summary>
-        /// Import a PKCS#8 private key or RSA private key from PEM.
-        /// The PKCS#8 private key may be encrypted using a password.
-        /// </summary>
-        /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
-        /// <param name="password">The password to use (optional).</param>
-        /// <returns>The RSA private key.</returns>
-        public static RSA ImportPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
-        {
-            string[] labels = {
-                "ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"
-                };
-            try
-            {
-                string pemText = Encoding.UTF8.GetString(pemDataBlob);
-                int count = 0;
-                foreach (var label in labels)
-                {
-                    count++;
-                    string beginlabel = $"-----BEGIN {label}-----";
-                    int beginIndex = pemText.IndexOf(beginlabel);
-                    if (beginIndex < 0)
-                    {
-                        continue;
-                    }
-                    string endlabel = $"-----END {label}-----";
-                    int endIndex = pemText.IndexOf(endlabel);
-                    beginIndex += beginlabel.Length;
-                    if (endIndex < 0 || endIndex <= beginIndex)
-                    {
-                        continue;
-                    }
-                    var pemData = pemText.Substring(beginIndex, endIndex - beginIndex);
-                    byte[] pemDecoded = new byte[pemData.Length];
-                    int bytesDecoded;
-                    if (Convert.TryFromBase64Chars(pemData, pemDecoded, out bytesDecoded))
-                    {
-                        RSA rsaPrivateKey = RSA.Create();
-                        int bytesRead;
-                        switch (count)
-                        {
-                            case 1:
-                                if (String.IsNullOrEmpty(password))
-                                {
-                                    throw new ArgumentException("Need password for encrypted private key.");
-                                }
-                                rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), pemDecoded, out bytesRead);
-                                break;
-                            case 2: rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead); break;
-                            case 3: rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead); break;
-                        }
-                        return rsaPrivateKey;
-                    }
-                }
-            }
-            catch (CryptographicException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new CryptographicException("Failed to decode the PEM private key.", ex);
-            }
-            throw new ArgumentException("No private PEM key found.");
-        }
-#endif
         #endregion
 
-        #region Private Methods
+        #region Internal class
+        /// <summary>
+        /// Wrapper for a password string.
+        /// </summary>
+        internal class Password
+            : IPasswordFinder
+        {
+            private readonly char[] password;
+
+            public Password(
+                char[] word)
+            {
+                this.password = (char[])word.Clone();
+            }
+
+            public char[] GetPassword()
+            {
+                return (char[])password.Clone();
+            }
+        }
         #endregion
     }
 }

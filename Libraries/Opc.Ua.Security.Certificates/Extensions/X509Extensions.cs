@@ -46,7 +46,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="certificate">The certificate with extensions.</param>
-        public static T FindExtension<T>(X509Certificate2 certificate) where T : X509Extension
+        public static T FindExtension<T>(this X509Certificate2 certificate) where T : X509Extension
         {
             return FindExtension<T>(certificate.Extensions);
         }
@@ -56,46 +56,50 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="extensions">The extensions to search.</param>
-        public static T FindExtension<T>(X509ExtensionCollection extensions) where T : X509Extension
+        public static T FindExtension<T>(this X509ExtensionCollection extensions) where T : X509Extension
         {
-            // search known custom extensions
-            if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
+            if (extensions == null) throw new ArgumentNullException(nameof(extensions));
+            lock (extensions.SyncRoot)
             {
-                var extension = extensions.Cast<X509Extension>().Where(e => (
-                    e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid ||
-                    e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid)
-                ).FirstOrDefault();
-                if (extension != null)
+                // search known custom extensions
+                if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
                 {
-                    return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical) as T;
+                    var extension = extensions.Cast<X509Extension>().Where(e => (
+                        e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid ||
+                        e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid)
+                    ).FirstOrDefault();
+                    if (extension != null)
+                    {
+                        return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical) as T;
+                    }
                 }
-            }
 
-            if (typeof(T) == typeof(X509SubjectAltNameExtension))
-            {
-                var extension = extensions.Cast<X509Extension>().Where(e => (
-                    e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
-                    e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                ).FirstOrDefault();
-                if (extension != null)
+                if (typeof(T) == typeof(X509SubjectAltNameExtension))
                 {
-                    return new X509SubjectAltNameExtension(extension, extension.Critical) as T;
+                    var extension = extensions.Cast<X509Extension>().Where(e => (
+                        e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
+                        e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
+                    ).FirstOrDefault();
+                    if (extension != null)
+                    {
+                        return new X509SubjectAltNameExtension(extension, extension.Critical) as T;
+                    }
                 }
-            }
 
-            if (typeof(T) == typeof(X509CrlNumberExtension))
-            {
-                var extension = extensions.Cast<X509Extension>().Where(e => (
-                    e.Oid.Value == X509CrlNumberExtension.CrlNumberOid)
-                ).FirstOrDefault();
-                if (extension != null)
+                if (typeof(T) == typeof(X509CrlNumberExtension))
                 {
-                    return new X509CrlNumberExtension(extension, extension.Critical) as T;
+                    var extension = extensions.Cast<X509Extension>().Where(e => (
+                        e.Oid.Value == X509CrlNumberExtension.CrlNumberOid)
+                    ).FirstOrDefault();
+                    if (extension != null)
+                    {
+                        return new X509CrlNumberExtension(extension, extension.Critical) as T;
+                    }
                 }
-            }
 
-            // search builtin extension
-            return extensions.OfType<T>().FirstOrDefault();
+                // search builtin extension
+                return extensions.OfType<T>().FirstOrDefault();
+            }
         }
 
         /// <summary>

@@ -480,16 +480,24 @@ namespace Quickstarts.ConsoleReferenceClient
             bool certificateAccepted = true;
 
             // ****
-            // Implement a custom logic to decide if the certificate should be accepted or not and set certificateAccepted flag accordingly.
+            // Implement a custom logic to decide if the certificate should be
+            // accepted or not and set certificateAccepted flag accordingly.
             // The certificate can be retrieved from the e.Certificate field
             // ***
+
+            ServiceResult error = e.Error;
+            while (error != null)
+            {
+                Console.WriteLine(error);
+                error = error.InnerResult;
+            }
 
             if (certificateAccepted)
             {
                 Console.WriteLine("Untrusted Certificate accepted. SubjectName = {0}", e.Certificate.SubjectName);
             }
 
-            e.Accept = certificateAccepted;
+            e.AcceptAll = certificateAccepted;
         }
         #endregion
 

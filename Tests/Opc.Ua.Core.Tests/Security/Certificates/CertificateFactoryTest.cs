@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
@@ -63,7 +64,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            m_rootCACertificate = new Dictionary<int, X509Certificate2>();
+            m_rootCACertificate = new ConcurrentDictionary<int, X509Certificate2>();
         }
 
         /// <summary>
@@ -104,8 +105,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var plainCert = new X509Certificate2(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyApplicationCert(app, plainCert);
-            X509Utils.VerifySelfSigned(cert);
-            X509Utils.VerifyRSAKeyPair(cert, cert);
+            X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
@@ -117,20 +117,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             KeyHashPair keyHashPair
             )
         {
-            X509Certificate2 caCert;
-            if (!m_rootCACertificate.TryGetValue(keyHashPair.KeySize, out caCert))
-            {
-                Assert.Ignore($"Could not load Root CA.");
-            }
-            Assert.NotNull(caCert);
-            Assert.NotNull(caCert.RawData);
-            Assert.True(caCert.HasPrivateKey);
+            X509Certificate2 issuerCertificate = GetIssuer(keyHashPair);
+            Assert.NotNull(issuerCertificate);
+            Assert.NotNull(issuerCertificate.RawData);
+            Assert.True(issuerCertificate.HasPrivateKey);
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
             var cert = CertificateFactory.CreateCertificate(
                 app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
-                .SetIssuer(caCert)
+                .SetIssuer(issuerCertificate)
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
             Assert.NotNull(cert);
@@ -139,8 +135,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using (var plainCert = new X509Certificate2(cert.RawData))
             {
                 Assert.NotNull(plainCert);
-                VerifyApplicationCert(app, plainCert, caCert);
-                X509Utils.VerifyRSAKeyPair(cert, caCert);
+                VerifyApplicationCert(app, plainCert, issuerCertificate);
+                X509Utils.VerifyRSAKeyPair(plainCert, cert, true);
             }
         }
 
@@ -167,8 +163,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var plainCert = new X509Certificate2(cert.RawData);
             Assert.NotNull(plainCert);
             VerifyCACert(plainCert, subject, pathLengthConstraint);
-            X509Utils.VerifySelfSigned(cert);
-            X509Utils.VerifyRSAKeyPair(cert, cert);
+            X509Utils.VerifyRSAKeyPair(cert, cert, true);
             Assert.True(X509Utils.VerifySelfSigned(cert));
             m_rootCACertificate[keyHashPair.KeySize] = cert;
         }
@@ -182,11 +177,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             )
         {
             int pathLengthConstraint = (keyHashPair.KeySize / 512) - 3;
-            X509Certificate2 issuerCertificate;
-            if (!m_rootCACertificate.TryGetValue(keyHashPair.KeySize, out issuerCertificate))
-            {
-                Assert.Ignore($"Could not load Issuer Cert.");
-            }
+            X509Certificate2 issuerCertificate = GetIssuer(keyHashPair);
             Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
 
             var otherIssuerCertificate = CertificateFactory.CreateCertificate(issuerCertificate.Subject)
@@ -220,8 +211,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.NotNull(plainCert);
                 VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
             }
-            X509Utils.VerifySelfSigned(issuerCertificate);
-            X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate);
+            Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
+            X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate, true);
 
             var crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, null);
             Assert.NotNull(crl);
@@ -253,7 +244,28 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
         #endregion
 
-        #region Private Methods
+        #region Public Methods
+        private X509Certificate2 GetIssuer(KeyHashPair keyHashPair)
+        {
+            X509Certificate2 issuerCertificate = null;
+            try
+            {
+                if (!m_rootCACertificate.TryGetValue(keyHashPair.KeySize, out issuerCertificate))
+                {
+                    VerifyCACerts(keyHashPair);
+                    if (!m_rootCACertificate.TryGetValue(keyHashPair.KeySize, out issuerCertificate))
+                    {
+                        Assert.Ignore($"Could not load Issuer Cert.");
+                    }
+                }
+            }
+            catch
+            {
+                Assert.Ignore($"Could not load create Issuer Cert.");
+            }
+            return issuerCertificate;
+        }
+
         public static void VerifyApplicationCert(ApplicationTestData testApp, X509Certificate2 cert, X509Certificate2 issuerCert = null)
         {
             bool signedCert = issuerCert != null;
@@ -425,7 +437,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #endregion
 
         #region Private Fields
-        private Dictionary<int, X509Certificate2> m_rootCACertificate;
+        private ConcurrentDictionary<int, X509Certificate2> m_rootCACertificate;
         #endregion
     }
 
