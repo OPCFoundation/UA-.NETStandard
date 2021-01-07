@@ -1106,8 +1106,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // approve suppression of smaller key
             var approver = new CertValidationApprover(new StatusCode[] {
-                StatusCodes.BadCertificatePolicyCheckFailed,
-                //StatusCodes.BadCertificateUntrusted
+                StatusCodes.BadCertificatePolicyCheckFailed
             });
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             if (trusted)
