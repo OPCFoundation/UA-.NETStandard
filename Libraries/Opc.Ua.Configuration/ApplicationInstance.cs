@@ -583,7 +583,7 @@ namespace Opc.Ua.Configuration
                 }
 
                 string message = Utils.Format(
-                    "The server is configured to use domain '{0}' which does not appear in the certificate. Use certificate?",
+                    "The server is configured to use domain '{0}' which does not appear in the certificate. Use certificate anyway?",
                     serverDomainNames[ii]);
 
                 valid = false;

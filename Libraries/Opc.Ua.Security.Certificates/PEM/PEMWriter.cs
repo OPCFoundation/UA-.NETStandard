@@ -83,7 +83,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] exportedRSAPrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
-                // write private key as PKCS#8
+                // write private key as PKCS#1
                 exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
             }
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
