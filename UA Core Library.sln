@@ -56,9 +56,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Bindings.Https", "Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj", "{759563A2-AF35-4E7B-B813-082F047C8705}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub", "Libraries\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj", "{93A5176D-AB2C-4A65-9745-ECCCEE55C689}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates", "Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj", "{484FB34A-4DCF-4F63-976B-C00F0230BE28}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates.Tests", "Tests\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj", "{A727180B-4AA8-4182-B35F-5B6D6CB79593}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{625495DA-ECA1-4B48-8FFB-C055CA71BF2E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -110,6 +114,10 @@ Global
 		{759563A2-AF35-4E7B-B813-082F047C8705}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{759563A2-AF35-4E7B-B813-082F047C8705}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{759563A2-AF35-4E7B-B813-082F047C8705}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93A5176D-AB2C-4A65-9745-ECCCEE55C689}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93A5176D-AB2C-4A65-9745-ECCCEE55C689}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93A5176D-AB2C-4A65-9745-ECCCEE55C689}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93A5176D-AB2C-4A65-9745-ECCCEE55C689}.Release|Any CPU.Build.0 = Release|Any CPU
 		{484FB34A-4DCF-4F63-976B-C00F0230BE28}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{484FB34A-4DCF-4F63-976B-C00F0230BE28}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{484FB34A-4DCF-4F63-976B-C00F0230BE28}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -118,6 +126,10 @@ Global
 		{A727180B-4AA8-4182-B35F-5B6D6CB79593}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A727180B-4AA8-4182-B35F-5B6D6CB79593}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A727180B-4AA8-4182-B35F-5B6D6CB79593}.Release|Any CPU.Build.0 = Release|Any CPU
+		{625495DA-ECA1-4B48-8FFB-C055CA71BF2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{625495DA-ECA1-4B48-8FFB-C055CA71BF2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{625495DA-ECA1-4B48-8FFB-C055CA71BF2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{625495DA-ECA1-4B48-8FFB-C055CA71BF2E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
