@@ -805,7 +805,6 @@ namespace Opc.Ua.PubSub.Uadp
                         default:
                             Utils.Trace("Decoding ValueRank = {0} not supported yet !!!", fieldMetaData.ValueRank);
                             break;
-
                     }
                 }
                 catch (Exception ex)

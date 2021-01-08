@@ -33,6 +33,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Opc.Ua.PubSub.Uadp
 {
@@ -56,7 +57,6 @@ namespace Opc.Ua.PubSub.Uadp
     /// </summary>
     internal class UdpClientCreator
     {
-
         public const int SIO_UDP_CONNRESET = -1744830452;
 
         /// <summary>
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Uadp
             Uri connectionUri;
             if (url != null && Uri.TryCreate(url, UriKind.Absolute, out connectionUri))
             {
-                if (connectionUri.Scheme != "opc.udp")
+                if (connectionUri.Scheme != Utils.UriSchemeOpcUdp)
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "Invalid Scheme specified in URL: {0}", url);
                     return null;
@@ -121,12 +121,12 @@ namespace Opc.Ua.PubSub.Uadp
         /// <returns></returns>
         internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, NetworkAddressUrlDataType networkAddressUrl, IPEndPoint configuredEndpoint)
         {
+            StringBuilder buffer = new StringBuilder();
+            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkAddressUrl != null ? networkAddressUrl.NetworkInterface : "null");
+            buffer.AppendFormat("networkAddressUrl.Url = {0} \n", networkAddressUrl.Url != null ? networkAddressUrl.Url : "null");
+            buffer.AppendFormat("configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
-            Utils.Trace(Utils.TraceMasks.Information, "networkAddressUrl.NetworkInterface = {0} \n networkAddressUrl.Url = {1} \n configuredEndpoint = {2}",
-                networkAddressUrl != null ? networkAddressUrl.NetworkInterface: "null",
-                networkAddressUrl.Url != null ? networkAddressUrl.Url: "null",
-                configuredEndpoint != null ? configuredEndpoint.ToString(): "null"
-                );
+            Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 
             List<UdpClient> udpClients = new List<UdpClient>();
             //validate input parameters
@@ -158,7 +158,7 @@ namespace Opc.Ua.PubSub.Uadp
                     Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkAddressUrl.NetworkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
                 }
-            }            
+            }
 
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {

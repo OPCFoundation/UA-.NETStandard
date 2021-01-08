@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 
@@ -54,24 +55,26 @@ namespace Quickstarts.ConsoleReferencePublisher
                     // Start the publisher
                     uaPubSubApplication.Start();
 
-                    Console.WriteLine("Publisher Started");
+                    Console.WriteLine("Publisher Started. Press Ctrl-C to exit...");
 
-                    do
+                    ManualResetEvent quitEvent = new ManualResetEvent(false);
+                    try
                     {
-                        Console.WriteLine("\t Press x or q to shutdown the Publisher\n\n");
-
-                        ConsoleKeyInfo key = Console.ReadKey();
-                        if (key.KeyChar == 'q' || key.KeyChar == 'x')
+                        Console.CancelKeyPress += (sender, eArgs) =>
                         {
-                            Console.WriteLine("\nShutting down...");
-                            break;
-                        }
-
+                            quitEvent.Set();
+                            eArgs.Cancel = true;
+                        };
                     }
-                    while (true);
+                    catch
+                    {
+                    }
+
+                    // wait for timeout or Ctrl-C
+                    quitEvent.WaitOne();
                 }
 
-                Console.WriteLine("\nProgram ended.");
+                Console.WriteLine("Program ended.");
                 Console.WriteLine("Press any key to finish...");
                 Console.ReadKey();
             }
@@ -92,7 +95,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             pubSubConnection1.Name = "UADPConnection1";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)100;
-            pubSubConnection1.TransportProfileUri = UaPubSubApplication.UadpTransportProfileUri;
+            pubSubConnection1.TransportProfileUri = Profiles.UadpTransport;
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
             // Specify the local Network interface name to be used
             // e.g. address.NetworkInterface = "Ethernet";

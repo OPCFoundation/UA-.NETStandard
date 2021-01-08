@@ -45,9 +45,9 @@ namespace Opc.Ua.PubSub.Configuration
     {
         #region Private Fields
         /// <summary>
-        /// Value of an invalid id
+        /// Value of an uninitialized identifier.
         /// </summary>
-        public static uint InvalidId = 0;
+        internal static uint InvalidId = 0;
 
         private object m_lock = new object();
         private PubSubConfigurationDataType m_pubSubConfiguration;

@@ -25,3 +25,6 @@ Libraries\Opc.Ua.Gds.Server.Common\bin\Release\net462\Opc.Ua.Gds.Server.Common.d
 Libraries\Opc.Ua.Security.Certificates\bin\Release\netstandard2.1\Opc.Ua.Security.Certificates.dll
 Libraries\Opc.Ua.Security.Certificates\bin\Release\netstandard2.0\Opc.Ua.Security.Certificates.dll
 Libraries\Opc.Ua.Security.Certificates\bin\Release\net462\Opc.Ua.Security.Certificates.dll
+Libraries\Opc.Ua.PubSub\bin\Release\netstandard2.1\Opc.Ua.PubSub.dll
+Libraries\Opc.Ua.PubSub\bin\Release\netstandard2.0\Opc.Ua.PubSub.dll
+Libraries\Opc.Ua.PubSub\bin\Release\net462\Opc.Ua.PubSub.dll

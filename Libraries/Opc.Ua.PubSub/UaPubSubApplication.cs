@@ -41,12 +41,7 @@ namespace Opc.Ua.PubSub
     public class UaPubSubApplication : IDisposable
     {
         #region Fields
-        /// <summary>
-        /// URI for UADP transport protocol
-        /// </summary>
-        public const string UadpTransportProfileUri = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
-
-        private object m_lock = new object();        
+        private object m_lock = new object();
         private List<IUaPubSubConnection> m_uaPubSubConnections;
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
@@ -93,7 +88,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public static string[] SupportedTransportProfiles
         {
-            get { return new string[] { UadpTransportProfileUri }; }
+            get { return new string[] { Profiles.UadpTransport }; }
         }
 
         /// <summary>

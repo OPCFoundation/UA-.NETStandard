@@ -79,12 +79,14 @@ namespace Opc.Ua.PubSub.Configuration
             }
             catch (Exception e)
             {
+                StringBuilder buffer = new StringBuilder();
+                buffer.AppendFormat("Configuration file could not be loaded: {0}\r\n", filePath);
+                buffer.AppendFormat("Error: {0}", e.Message);
+
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     e,
-                    "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                    filePath,
-                    e.Message);
+                    buffer.ToString());
             }
         }
     }

@@ -684,7 +684,7 @@ namespace Opc.Ua.PubSub.Uadp
         /// <param name="encoder"></param>
         private void EncodePromotedFields(BinaryEncoder encoder)
         {
-            // todo:
+            // todo: Promnoted fields not supported
         }
 
         /// <summary>
