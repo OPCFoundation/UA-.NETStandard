@@ -14,7 +14,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="NunitXml.TestLogger" Version="2.1.36" />
+    <PackageReference Include="NunitXml.TestLogger" Version="2.1.80" />
     <PackageReference Include="Moq" Version="4.10.1" />
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
     <PackageReference Include="System.Security.Cryptography.Primitives" Version="4.3.0" />
