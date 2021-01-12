@@ -3667,6 +3667,55 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
+
+        /// <summary>
+        /// Calls the specified method and returns the output arguments.
+        /// </summary>
+        /// <param name="objectId">The NodeId of the object that provides the method.</param>
+        /// <param name="methodId">The NodeId of the method to call.</param>
+        /// <param name="dataValue">The input argument in a structure </param>
+        /// <returns>The list of output argument values.</returns>
+        public IList<object> CallStruct(NodeId objectId, NodeId methodId, ExtensionObject dataValue)
+        {
+            VariantCollection inputArguments = new VariantCollection();
+
+            inputArguments.Add(new Variant(dataValue));
+
+            CallMethodRequest request = new CallMethodRequest();
+
+            request.ObjectId = objectId;
+            request.MethodId = methodId;
+            request.InputArguments = inputArguments;
+
+            CallMethodRequestCollection requests = new CallMethodRequestCollection();
+            requests.Add(request);
+
+            CallMethodResultCollection results;
+            DiagnosticInfoCollection diagnosticInfos;
+
+            ResponseHeader responseHeader = Call(
+                null,
+                requests,
+                out results,
+                out diagnosticInfos);
+
+            ClientBase.ValidateResponse(results, requests);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, requests);
+
+            if (StatusCode.IsBad(results[0].StatusCode))
+            {
+                throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable);
+            }
+
+            List<object> outputArguments = new List<object>();
+
+            foreach (Variant arg in results[0].OutputArguments)
+            {
+                outputArguments.Add(arg.Value);
+            }
+
+            return outputArguments;
+        }
         #endregion
 
         #region Protected Methods
