@@ -114,6 +114,11 @@ namespace Opc.Ua
         public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
 
         /// <summary>
+        /// Communicates with PubSub for UADP transport protocol.
+        /// </summary>
+        public const string UadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
+        /// <summary>
         /// An Issued User Token that complies with the JWT specification.
         /// </summary>
         public const string JwtUserToken = "http://opcfoundation.org/UA/UserToken#JWT";

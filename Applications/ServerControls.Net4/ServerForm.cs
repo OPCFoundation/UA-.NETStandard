@@ -38,6 +38,7 @@ using System.Runtime.InteropServices;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using System.IO;
+using System.Linq;
 
 namespace Opc.Ua.Server.Controls
 {
@@ -66,6 +67,12 @@ namespace Opc.Ua.Server.Controls
             m_configuration = configuration;
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
+            if (!configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            {
+                configuration.CertificateValidator.CertificateValidation +=
+                    new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            }
+
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
             this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
@@ -83,6 +90,11 @@ namespace Opc.Ua.Server.Controls
             m_configuration = application.ApplicationConfiguration;
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
+            if (!application.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            {
+                application.ApplicationConfiguration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            }
+
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
             this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
@@ -95,6 +107,21 @@ namespace Opc.Ua.Server.Controls
         #endregion
 
         #region Event Handlers
+        /// <summary>
+        /// Handles a certificate validation error.
+        /// </summary>
+        void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        {
+            try
+            {
+                HandleCertificateValidationError(this, validator, e);
+            }
+            catch (Exception exception)
+            {
+                HandleException(this.Text, MethodBase.GetCurrentMethod(), exception);
+            }
+        }
+
         private void ServerForm_Resize(object sender, EventArgs e)
         {
             if (FormWindowState.Minimized == WindowState)
@@ -161,7 +188,51 @@ namespace Opc.Ua.Server.Controls
             {
                 MessageBox.Show("Unable to launch help documentation. Error: " + ex.Message);
             }
+        }
 
+        /// <summary>
+        /// Displays the details of an exception.
+        /// </summary>
+        public static void HandleException(string caption, MethodBase method, Exception e)
+        {
+            if (String.IsNullOrEmpty(caption))
+            {
+                caption = method.Name;
+            }
+            ExceptionDlg.Show(caption, e);
+        }
+
+        /// <summary>
+        /// Handles a certificate validation error.
+        /// </summary>
+        /// <param name="caller">The caller's text is used as the caption of the <see cref="MessageBox"/> shown to provide details about the error.</param>
+        /// <param name="validator">The validator (not used).</param>
+        /// <param name="e">The <see cref="Opc.Ua.CertificateValidationEventArgs"/> instance event arguments provided when a certificate validation error occurs.</param>
+        public static void HandleCertificateValidationError(Form caller, CertificateValidator validator, CertificateValidationEventArgs e)
+        {
+            StringBuilder buffer = new StringBuilder();
+            buffer.AppendLine("Certificate could not be validated!");
+            buffer.AppendLine("Validation error(s):");
+            ServiceResult error = e.Error;
+            while (error != null)
+            {
+                buffer.AppendFormat("- {0}\r\n", error.ToString().Split('\r','\n').FirstOrDefault());
+                error = error.InnerResult;
+            }
+            buffer.AppendFormat("\r\nSubject: {0}\r\n", e.Certificate.Subject);
+            buffer.AppendFormat("Issuer: {0}\r\n", X509Utils.CompareDistinguishedName(e.Certificate.Subject, e.Certificate.Issuer)
+                ? "Self-signed" : e.Certificate.Issuer);
+            buffer.AppendFormat("Valid From: {0}\r\n", e.Certificate.NotBefore);
+            buffer.AppendFormat("Valid To: {0}\r\n", e.Certificate.NotAfter);
+            buffer.AppendFormat("Thumbprint: {0}\r\n\r\n", e.Certificate.Thumbprint);
+            buffer.Append("Security certificate problems may indicate an attempt to intercept any data you send ");
+            buffer.Append("to a server or to allow an untrusted client to connect to your server.");
+            buffer.Append("\r\n\r\nAccept anyway?");
+
+            if (MessageBox.Show(buffer.ToString(), caller.Text, MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                e.AcceptAll = true;
+            }
         }
     }
 }

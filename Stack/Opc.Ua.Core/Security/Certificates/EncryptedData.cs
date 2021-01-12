@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// </summary>
     public class EncryptedData
     {
-        #region Private Members
+        #region Public Members
         /// <summary>
         /// The algorithm used to encrypt the data.
         /// </summary>

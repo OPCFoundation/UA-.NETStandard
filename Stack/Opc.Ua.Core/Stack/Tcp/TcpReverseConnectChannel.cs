@@ -34,7 +34,6 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, listener, bufferManager, quotas, null, null, endpoints)
         {
-            m_listener = listener;
         }
         #endregion
 
@@ -54,7 +53,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_responseRequired = true;
+                SetResponseRequired(true);
 
                 try
                 {
@@ -75,7 +74,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    m_responseRequired = false;
+                    SetResponseRequired(false);
                 }
             }
         }
@@ -110,9 +109,9 @@ namespace Opc.Ua.Bindings
                 Task t = Task.Run(async () => {
                     try
                     {
-                        if (false == await m_listener.TransferListenerChannel(Id, serverUri, endpointUri))
+                        if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri))
                         {
-                            m_responseRequired = true;
+                            SetResponseRequired(true);
                             ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
                         }
                         else
@@ -123,7 +122,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception)
                     {
-                        m_responseRequired = true;
+                        SetResponseRequired(true);
                         ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
                     }
                 });

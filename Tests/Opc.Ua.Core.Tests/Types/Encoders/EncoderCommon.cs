@@ -657,20 +657,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_resetCounter = true;
                 Count = Interlocked.Increment(ref s_count);
                 Foo = $"bar_{Count}";
+                FieldName = nameof(Foo);
             }
 
             public FooBarEncodeable(int count)
             {
                 Count = count;
                 Foo = $"bar_{Count}";
+                FieldName = nameof(Foo);
             }
 
             public FooBarEncodeable(string foo)
             {
                 Foo = foo;
+                FieldName = nameof(Foo);
+            }
+
+            public FooBarEncodeable(string fieldname, string foo)
+            {
+                Foo = foo;
+                FieldName = fieldname;
             }
 
             public string Foo { get; set; }
+            public string FieldName { get; set; }
             public int Count { get; set; }
 
             public ExpandedNodeId TypeId { get; }
@@ -680,14 +690,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public void Encode(IEncoder encoder)
             {
                 encoder.PushNamespace(ApplicationUri);
-                encoder.WriteString(nameof(Foo), Foo);
+                encoder.WriteString(FieldName, Foo);
                 encoder.PopNamespace();
             }
 
             public void Decode(IDecoder decoder)
             {
                 decoder.PushNamespace(ApplicationUri);
-                Foo = decoder.ReadString(nameof(Foo));
+                Foo = decoder.ReadString(FieldName);
                 decoder.PopNamespace();
             }
 

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
@@ -96,9 +97,12 @@ namespace Opc.Ua.Gds.Tests
                 _client = null;
                 gdsClient.Disconnect();
             }
-
         }
 
+        public string ReadLogFile()
+        {
+            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+        }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {

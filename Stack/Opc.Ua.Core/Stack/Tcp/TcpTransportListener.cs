@@ -338,7 +338,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadNoCommunication,
-                        "Failed to establish tcp listener sockets for Ipv4 and IPv6.\r\n");
+                        "Failed to establish tcp listener sockets for Ipv4 and IPv6.");
                 }
             }
         }

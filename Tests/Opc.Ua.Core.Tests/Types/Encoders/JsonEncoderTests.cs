@@ -361,7 +361,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                _= PrettifyAndValidateJson(encoded);
+                _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
@@ -439,8 +439,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void Test_WriteMultipleEncodeablesWithoutFieldNames(bool topLevelIsArray, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
-            _= PrettifyAndValidateJson(expected);
-            
+            _ = PrettifyAndValidateJson(expected);
+
 
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
             try
@@ -476,7 +476,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var expected = "{\"bar_1\":{\"Foo\":\"bar_1\"},\"bar_2\":{\"Foo\":\"bar_2\"},\"bar_3\":{\"Foo\":\"bar_3\"}}";
 
             TestContext.Out.WriteLine("Expected:");
-            _= PrettifyAndValidateJson(expected);
+            _ = PrettifyAndValidateJson(expected);
 
             var encodeables = new List<FooBarEncodeable> { new FooBarEncodeable(), new FooBarEncodeable(), new FooBarEncodeable() };
             try
@@ -564,6 +564,95 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "[[{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}]]",
                 true);
         }
+
+        /// <summary>
+        /// Test if field names and values are properly escaped.
+        /// </summary>
+        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\":{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}}")]
+        [TestCase("\"Hello\".\"World\"\b\f\n\r\t\\", "\"Test\b\f\n\r\t\\\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\\b\\f\\n\\r\\t\\\\\":{\"\\\"Hello\\\".\\\"World\\\"\\b\\f\\n\\r\\t\\\\\":\"\\\"Test\\b\\f\\n\\r\\t\\\\\\\".\\\"Output\\\"\"}}")]
+        public void TestFieldValueEscapedEncodeable(string fieldname, string foo, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable(fieldname, foo))
+            {
+                var encoder = new JsonEncoder(Context, true);
+                encoder.WriteEncodeable(encodeable.FieldName, encodeable, typeof(FooBarEncodeable));
+
+                var encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                _ = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// Test if field names and values are properly escaped when used in an array.
+        /// </summary>
+        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\":[" +
+            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}," +
+            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}" +
+            "]}")]
+        public void TestFieldValueEscapedArray(string fieldname, string foo, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable(fieldname, foo))
+            {
+                var list = new List<IEncodeable>() { encodeable, encodeable };
+                var encoder = new JsonEncoder(Context, true);
+                encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
+
+                var encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                _ = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// Test if field names and values are properly escaped when used in a variant.
+        /// </summary>
+        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
+            "{\"\\\"Hello\\\".\\\"World\\\"\":" +
+            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}" +
+            "}")]
+        public void TestFieldValueEscapedVariant(string fieldname, string foo, string expected)
+        {
+            TestContext.Out.WriteLine("Expected:");
+            _ = PrettifyAndValidateJson(expected);
+
+            using (var encodeable = new FooBarEncodeable(fieldname, foo))
+            {
+                var variant = new Variant(new ExtensionObject(encodeable));
+                // non reversible to save some space
+                var encoder = new JsonEncoder(Context, false);
+                encoder.WriteVariant(encodeable.FieldName, variant);
+
+                var encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                _ = PrettifyAndValidateJson(encoded);
+
+                Assert.That(encoded, Is.EqualTo(expected));
+            }
+        }
+
         #endregion
 
         #region Private Methods
@@ -590,7 +679,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine(encoded);
 
                 TestContext.Out.WriteLine("Formatted Encoded:");
-                _= PrettifyAndValidateJson(encoded);
+                _ = PrettifyAndValidateJson(encoded);
 
                 Assert.That(encoded, Is.EqualTo(expected));
             }
