@@ -13,7 +13,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace Opc.Ua
 {
@@ -23,8 +22,12 @@ namespace Opc.Ua
     public class HiResClock
     {
         /// <summary>
-        /// Returns the current UTC time (bugs in HALs on some computers can result in time jumping backwards).
+        /// Returns the current UTC time with a high resolution.
         /// </summary>
+        /// <remarks>
+        /// This Utc time does not change if the system time is changed.
+        /// It returns the Utc time elapsed since the application started.
+        /// </remarks>
         public static DateTime UtcNow
         {
             get
@@ -33,16 +36,7 @@ namespace Opc.Ua
                 {
                     return DateTime.UtcNow;
                 }
-
-                long counter = 0;
-#if NETFRAMEWORK
-                if (NativeMethods.QueryPerformanceCounter(out counter) == 0)
-                {
-                    return DateTime.UtcNow;
-                }
-#else
-                counter = Stopwatch.GetTimestamp();
-#endif
+                long counter = Stopwatch.GetTimestamp();
                 decimal ticks = (counter - s_Default.m_baseline) * s_Default.m_ratio;
                 return new DateTime((long)ticks + s_Default.m_offset);
             }
@@ -59,32 +53,24 @@ namespace Opc.Ua
                 {
                     return (long)(DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond);
                 }
-#if NETFRAMEWORK
-                return NativeMethods.GetTickCount64();
-#else
-                if (s_Default.m_isWindowsOS)
-                {
-                    return NativeMethods.GetTickCount64();
-                }
-                long counter = 0;
-                counter = Stopwatch.GetTimestamp();
-                return (long)(counter / s_Default.m_ticksPerMillisecond);
-#endif
+                return (long)(Stopwatch.GetTimestamp() / s_Default.m_ticksPerMillisecond);
             }
         }
 
         /// <summary>
         /// Return the frequency of the ticks.
         /// </summary>
-        public static long Frequency => s_Default.m_frequency;
+        public static long Frequency => s_Default.m_disabled ?
+            TimeSpan.TicksPerSecond : s_Default.m_frequency;
 
         /// <summary>
         /// Return the number of ticks per millisecond.
         /// </summary>
-        public static double TicksPerMillisecond => s_Default.m_ticksPerMillisecond;
+        public static double TicksPerMillisecond => s_Default.m_disabled ?
+            TimeSpan.TicksPerMillisecond : s_Default.m_ticksPerMillisecond;
 
         /// <summary>
-        /// Disables the hi-res clock (may be necessary on some machines with bugs in the HAL).
+        /// Disables the hires clock.
         /// </summary>
         public static bool Disabled
         {
@@ -95,32 +81,32 @@ namespace Opc.Ua
 
             set
             {
-                s_Default.m_disabled = value;
+                // do not enable if unsupported
+                if (Stopwatch.IsHighResolution)
+                {
+                    if (s_Default.m_disabled && !value)
+                    {
+                        // reset baseline
+                        s_Default = new HiResClock();
+                    }
+                    else
+                    {
+                        s_Default.m_disabled = value;
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Constructs a class.
+        /// Constructs a HiRes clock class.
         /// </summary>
         private HiResClock()
         {
-#if NETFRAMEWORK
-            if (NativeMethods.QueryPerformanceFrequency(out m_frequency) == 0)
-            {
-                m_frequency = TimeSpan.TicksPerSecond;
-            }
-            m_offset = DateTime.UtcNow.Ticks;
-            if (NativeMethods.QueryPerformanceCounter(out m_baseline) == 0)
-            {
-                m_baseline = m_offset;
-                m_disabled = true;
-            }
-            m_ratio = ((decimal)TimeSpan.TicksPerSecond) / m_frequency;
-#else
             m_offset = DateTime.UtcNow.Ticks;
             if (!Stopwatch.IsHighResolution)
             {
                 m_frequency = TimeSpan.TicksPerSecond;
+                m_ticksPerMillisecond = TimeSpan.TicksPerMillisecond;
                 m_baseline = m_offset;
                 m_disabled = true;
             }
@@ -128,42 +114,21 @@ namespace Opc.Ua
             {
                 m_baseline = Stopwatch.GetTimestamp();
                 m_frequency = Stopwatch.Frequency;
+                m_ticksPerMillisecond = m_frequency / 1000.0;
             }
             m_ratio = ((decimal)TimeSpan.TicksPerSecond) / m_frequency;
-#endif
-            m_ticksPerMillisecond = m_frequency / 1000.0;
         }
 
         /// <summary>
         /// Defines a global instance.
         /// </summary>
-        private static readonly HiResClock s_Default = new HiResClock();
-
-        /// <summary>
-        /// Defines the native methods used by the class.
-        /// </summary>
-        private static class NativeMethods
-        {
-#if NETFRAMEWORK
-            [DllImport("Kernel32.dll")]
-            public static extern int QueryPerformanceFrequency(out long lpFrequency);
-
-            [DllImport("Kernel32.dll")]
-            public static extern int QueryPerformanceCounter(out long lpFrequency);
-#endif
-            [DllImport("kernel32.dll")]
-            public static extern long GetTickCount64();
-        }
+        private static HiResClock s_Default = new HiResClock();
 
         private long m_frequency;
         private long m_baseline;
         private long m_offset;
         private double m_ticksPerMillisecond;
         private decimal m_ratio;
-#if !NETFRAMEWORK
-        private bool m_isWindowsOS = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-#endif
-
         private bool m_disabled;
     }
 

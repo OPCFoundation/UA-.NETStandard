@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Diagnostics;
 using System.Threading;
 using NUnit.Framework;
 
@@ -37,26 +39,98 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     /// </summary>
     [TestFixture, Category("Utils")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [Parallelizable]
     public class HiResClockTests
     {
+        /// <summary>
+        /// How long the tests are running.
+        /// </summary>
+        public const int HiResClockTestDuration = 2000;
+
         #region Test Methods
-        [Test]
-        public void HiResClockTickCount()
+        /// <summary>
+        /// Validate HiResClock defaults, platform dependant.
+        /// </summary>
+        [Test, Order(100)]
+        public void HiResParameters()
         {
             Assert.LessOrEqual(1.0, HiResClock.TicksPerMillisecond);
             Assert.LessOrEqual(1000, HiResClock.Frequency);
             Assert.False(HiResClock.Disabled);
-            long lastTickCount = 0;
-            for (int i=0; i< 1000; i++)
+            Assert.LessOrEqual(1.0, TimeSpan.TicksPerMillisecond);
+            HiResClock.Disabled = true;
+            Assert.True(HiResClock.Disabled);
+            Assert.AreEqual(TimeSpan.TicksPerSecond, HiResClock.Frequency);
+            Assert.AreEqual(TimeSpan.TicksPerMillisecond, HiResClock.TicksPerMillisecond);
+            HiResClock.Disabled = false;
+            Assert.False(HiResClock.Disabled);
+        }
+
+        /// <summary>
+        /// Validate tick counts forward only and has at least one tick per millsecond resolution.
+        /// </summary>
+        [Theory, Order(200)]
+        public void HiResClockTickCount(bool disabled)
+        {
+            HiResClock.Disabled = disabled;
+            Assert.AreEqual(disabled, HiResClock.Disabled);
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            long lastTickCount = HiResClock.TickCount64;
+            long firstTickCount = lastTickCount;
+            int counts = 0;
+            while (stopWatch.ElapsedMilliseconds <= HiResClockTestDuration)
             {
-                var tickCount = HiResClock.TickCount64;
+                long tickCount;
+                do
+                {
+                    tickCount = HiResClock.TickCount64;
+                }
+                while (tickCount == lastTickCount);
                 Assert.LessOrEqual(lastTickCount, tickCount);
                 lastTickCount = tickCount;
-                Thread.Sleep(1);
+                counts++;
             }
+            Assert.LessOrEqual(1000, counts);
+            stopWatch.Stop();
+            long elapsed = lastTickCount - firstTickCount;
+            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            // test accuracy of counter vs. stop watch
+            Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(2).Percent);
+        }
+
+        /// <summary>
+        /// Validate DateTime.UtcNow counts forward and has a high resolution.
+        /// </summary>
+        [Theory, Order(300)]
+        public void HiResUtcNowTickCount(bool disabled)
+        {
+            HiResClock.Disabled = disabled;
+            Assert.AreEqual(disabled, HiResClock.Disabled);
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            long lastTickCount = HiResClock.UtcNow.Ticks;
+            long firstTickCount = lastTickCount;
+            int counts = 0;
+            while (stopWatch.ElapsedMilliseconds <= HiResClockTestDuration)
+            {
+                long tickCount;
+                do
+                {
+                    tickCount = HiResClock.UtcNow.Ticks;
+                }
+                while (tickCount == lastTickCount);
+                Assert.LessOrEqual(lastTickCount, tickCount);
+                lastTickCount = tickCount;
+                counts++;
+            }
+            Assert.LessOrEqual(1000, counts);
+            stopWatch.Stop();
+            long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
+            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            // test accuracy of counter vs. stop watch
+            Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(2).Percent);
+            HiResClock.Disabled = false;
         }
         #endregion
     }
-
 }
