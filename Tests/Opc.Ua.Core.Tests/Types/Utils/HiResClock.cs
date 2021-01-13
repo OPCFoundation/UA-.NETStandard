@@ -29,7 +29,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Threading;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
@@ -45,6 +44,20 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// How long the tests are running.
         /// </summary>
         public const int HiResClockTestDuration = 2000;
+
+        #region Test Setup
+        [OneTimeTearDown]
+        protected void OneTimeTearDown()
+        {
+            HiResClock.Disabled = false;
+        }
+
+        [TearDown]
+        protected void TearDown()
+        {
+            HiResClock.Disabled = false;
+        }
+        #endregion
 
         #region Test Methods
         /// <summary>
@@ -129,7 +142,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
             Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(2).Percent);
-            HiResClock.Disabled = false;
         }
         #endregion
     }
