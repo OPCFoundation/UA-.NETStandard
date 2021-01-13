@@ -195,25 +195,29 @@ namespace Opc.Ua
                 {
                     if (ServiceResult.IsBad(selectResult))
                     {
-                        buffer.AppendFormat("Select Clause Error: {0}\r\n", selectResult.ToString());
+                        buffer.AppendFormat("Select Clause Error: {0}", selectResult.ToString());
+                        buffer.AppendLine();
                     }
                 }
 
                 if (ServiceResult.IsBad(WhereClauseResult.Status))
                 {                    
-                    buffer.AppendFormat("Where Clause Error: {0}\r\n", WhereClauseResult.Status.ToString());
-                    
+                    buffer.AppendFormat("Where Clause Error: {0}", WhereClauseResult.Status.ToString());
+                    buffer.AppendLine();
+
                     foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
-                            buffer.AppendFormat("Element Error: {0}\r\n", elementResult.Status.ToString());
-                                                        
+                            buffer.AppendFormat("Element Error: {0}", elementResult.Status.ToString());
+                            buffer.AppendLine();
+
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
                                 if (ServiceResult.IsBad(operandResult))
                                 {
-                                    buffer.AppendFormat("Operand Error: {0}\r\n",operandResult.ToString());
+                                    buffer.AppendFormat("Operand Error: {0}",operandResult.ToString());
+                                    buffer.AppendLine();
                                 }
                             }
                         }

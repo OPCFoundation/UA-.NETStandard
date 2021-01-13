@@ -37,7 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using static Opc.Ua.Utils;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -324,7 +324,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -338,7 +338,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -348,66 +348,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        private static void CheckCertificateDomain(ConfiguredEndpoint endpoint)
-        {
-            bool domainFound = false;
-
-            X509Certificate2 serverCertificate = new X509Certificate2(endpoint.Description.ServerCertificate);
-
-            // check the certificate domains.
-            IList<string> domains = Utils.GetDomainsFromCertficate(serverCertificate);
-
-            if (domains != null)
-            {
-                string hostname;
-                string dnsHostName = hostname = endpoint.EndpointUrl.DnsSafeHost;
-                bool isLocalHost = false;
-                if (endpoint.EndpointUrl.HostNameType == UriHostNameType.Dns)
-                {
-                    if (String.Equals(dnsHostName, "localhost", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        isLocalHost = true;
-                    }
-                    else
-                    {   // strip domain names from hostname
-                        hostname = dnsHostName.Split('.')[0];
-                    }
-                }
-                else
-                {   // dnsHostname is a IPv4 or IPv6 address
-                    // normalize ip addresses, cert parser returns normalized addresses
-                    hostname = Utils.NormalizedIPAddress(dnsHostName);
-                    if (hostname == "127.0.0.1" || hostname == "::1")
-                    {
-                        isLocalHost = true;
-                    }
-                }
-
-                if (isLocalHost)
-                {
-                    dnsHostName = Utils.GetFullQualifiedDomainName();
-                    hostname = Utils.GetHostName();
-                }
-
-                for (int ii = 0; ii < domains.Count; ii++)
-                {
-                    if (String.Equals(hostname, domains[ii], StringComparison.OrdinalIgnoreCase) ||
-                        String.Equals(dnsHostName, domains[ii], StringComparison.OrdinalIgnoreCase))
-                    {
-                        domainFound = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!domainFound)
-            {
-                string message = Utils.Format(
-                    "The domain '{0}' is not listed in the server certificate.",
-                    endpoint.EndpointUrl.DnsSafeHost);
-                throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid, message);
-            }
-        }
         #endregion
 
         #region IDisposable Members
@@ -880,9 +820,14 @@ namespace Opc.Ua.Client
             }
 
             // checks the domains in the certificate.
-            if (checkDomain && endpoint.Description.ServerCertificate != null && endpoint.Description.ServerCertificate.Length > 0)
+            if (checkDomain &&
+                endpoint.Description.ServerCertificate != null &&
+                endpoint.Description.ServerCertificate.Length > 0)
             {
-                CheckCertificateDomain(endpoint);
+                configuration.CertificateValidator?.ValidateDomains(
+                    new X509Certificate2(endpoint.Description.ServerCertificate),
+                    endpoint);
+                checkDomain = false;
             }
 
             X509Certificate2 clientCertificate = null;
@@ -2417,11 +2362,13 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    m_configuration.CertificateValidator.Validate(serverCertificateChain);
-
                     if (checkDomain)
                     {
-                        CheckCertificateDomain(m_endpoint);
+                        m_configuration.CertificateValidator.Validate(serverCertificateChain, m_endpoint);
+                    }
+                    else
+                    {
+                        m_configuration.CertificateValidator.Validate(serverCertificateChain);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
@@ -2524,7 +2471,6 @@ namespace Opc.Ua.Client
                         out serverSoftwareCertificates,
                         out serverSignature,
                         out m_maxRequestMessageSize);
-
             }
             // save session id.
             lock (SyncRoot)

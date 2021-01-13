@@ -66,15 +66,15 @@ namespace Opc.Ua.Bindings
         void SetBinding(T binding);
 
         /// <summary>
-        /// Add all bindings with interface <see cref="T"/> exported from a assembly.
+        /// Add all bindings with interface exported from a assembly.
         /// </summary>
         /// <param name="assembly">The assembly with the bindings.</param>
         IEnumerable<Type> AddBindings(Assembly assembly);
 
         /// <summary>
-        /// Add all bindings with interface <see cref="T"/> from a list.
+        /// Add all bindings with interface from a list.
         /// </summary>
-        /// <param name="bindings">The array of binding types with interface <see cref="T"/>.</param>
+        /// <param name="bindings">The array of binding types with interface.</param>
         IEnumerable<Type> AddBindings(IEnumerable<Type> bindings);
     }
 

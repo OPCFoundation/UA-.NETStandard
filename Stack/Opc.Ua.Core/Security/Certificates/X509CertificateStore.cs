@@ -17,7 +17,9 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -92,10 +94,11 @@ namespace Opc.Ua
             }
             if (found == false)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Store location specified not available.\r\nStore location={0}",
-                    storeLocation);
+                var message = new StringBuilder();
+                message.AppendLine("Store location specified not available.");
+                message.AppendLine("Store location={0}");
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                    message.ToString(), storeLocation);
             }
 
             m_storeName = path.Substring(index + 1);

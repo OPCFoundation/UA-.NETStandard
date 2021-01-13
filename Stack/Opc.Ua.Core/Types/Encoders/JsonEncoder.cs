@@ -334,7 +334,7 @@ namespace Opc.Ua
             if (!String.IsNullOrEmpty(fieldName))
             {
                 m_writer.Write("\"");
-                m_writer.Write(fieldName);
+                EscapeString(fieldName);
                 m_writer.Write("\":");
             }
             else if (!m_commaRequired)
@@ -366,7 +366,7 @@ namespace Opc.Ua
             if (!String.IsNullOrEmpty(fieldName))
             {
                 m_writer.Write("\"");
-                m_writer.Write(fieldName);
+                EscapeString(fieldName);
                 m_writer.Write("\":");
             }
             else if (!m_commaRequired)
@@ -461,7 +461,7 @@ namespace Opc.Ua
                 }
 
                 m_writer.Write("\"");
-                m_writer.Write(fieldName);
+                EscapeString(fieldName);
                 m_writer.Write("\":");
             }
             else
@@ -609,7 +609,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, "\"" + value.ToString(CultureInfo.InvariantCulture) + "\"", false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), true);
         }
 
         /// <summary>
@@ -623,7 +623,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, "\"" + value.ToString(CultureInfo.InvariantCulture) + "\"", false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), true);
         }
 
         /// <summary>
@@ -1124,7 +1124,7 @@ namespace Opc.Ua
             if (!String.IsNullOrEmpty(fieldName))
             {
                 m_writer.Write("\"");
-                m_writer.Write(fieldName);
+                EscapeString(fieldName);
                 m_writer.Write("\":");
             }
 
@@ -1334,7 +1334,7 @@ namespace Opc.Ua
             PopStructure();
 
             m_nestingLevel--;
-            
+
         }
 
         /// <summary>
