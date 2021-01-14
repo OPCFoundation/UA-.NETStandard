@@ -69,8 +69,17 @@ namespace Quickstarts.ReferenceServer
                 // start the server.
                 application.Start(new ReferenceServer()).Wait();
 
+                // check whether the invalid certificates dialog should be displayed.
+                bool showCertificateValidationDialog = false;
+                ReferenceServerConfiguration refServerconfiguration = application.ApplicationConfiguration.ParseExtension<ReferenceServerConfiguration>();
+
+                if (refServerconfiguration != null)
+                {
+                    showCertificateValidationDialog = refServerconfiguration.ShowCertificateValidationDialog;
+                }
+
                 // run the application interactively.
-                Application.Run(new ServerForm(application));
+                Application.Run(new ServerForm(application, showCertificateValidationDialog));
             }
             catch (Exception e)
             {

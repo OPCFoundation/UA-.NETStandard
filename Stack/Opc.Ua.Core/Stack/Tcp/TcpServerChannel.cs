@@ -507,6 +507,7 @@ namespace Opc.Ua.Bindings
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
