@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Controls
         /// <summary>
         /// Creates a form which displays the status for a UA server.
         /// </summary>
-        public ServerForm(StandardServer server, ApplicationConfiguration configuration)
+        public ServerForm(StandardServer server, ApplicationConfiguration configuration, bool showCertificateValidationDialog = false)
         {
             InitializeComponent();
 
@@ -67,7 +67,8 @@ namespace Opc.Ua.Server.Controls
             m_configuration = configuration;
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
-            if (!configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (showCertificateValidationDialog &&
+                !configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 configuration.CertificateValidator.CertificateValidation +=
                     new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
@@ -81,7 +82,7 @@ namespace Opc.Ua.Server.Controls
         /// <summary>
         /// Creates a form which displays the status for a UA server.
         /// </summary>
-        public ServerForm(ApplicationInstance application)
+        public ServerForm(ApplicationInstance application, bool showCertificateValidationDialog = false)
         {
             InitializeComponent();
 
@@ -90,7 +91,8 @@ namespace Opc.Ua.Server.Controls
             m_configuration = application.ApplicationConfiguration;
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
 
-            if (!application.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (showCertificateValidationDialog &&
+                !application.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates)
             {
                 application.ApplicationConfiguration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
             }
