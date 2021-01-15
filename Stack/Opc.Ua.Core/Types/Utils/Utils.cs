@@ -493,12 +493,12 @@ namespace Opc.Ua
                 return;
             }
 
-            double seconds = ((double)(HiResClock.UtcNow.Ticks - s_BaseLineTicks)) / TimeSpan.TicksPerSecond;
+            double seconds = ((double)(DateTime.UtcNow.Ticks - s_BaseLineTicks)) / TimeSpan.TicksPerSecond;
 
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", HiResClock.UtcNow.ToLocalTime());
+            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)
