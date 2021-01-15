@@ -68,9 +68,19 @@ namespace Quickstarts.ReferenceServer
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// Whether the user dialog for accepting invalid certificates should be displayed.
+        /// </summary>
+        [DataMember(Order = 1)]
+        public bool ShowCertificateValidationDialog
+        {
+            get { return m_showCertificateValidationDialog; }
+            set { m_showCertificateValidationDialog = value; }
+        }
         #endregion
 
         #region Private Members
+        private bool m_showCertificateValidationDialog;
         #endregion
     }
 }

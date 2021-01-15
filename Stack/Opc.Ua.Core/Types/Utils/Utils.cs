@@ -36,7 +36,7 @@ namespace Opc.Ua
     {
         #region Public Constants
         /// <summary>
-        /// The URI scheme for the HTTPS protocol. 
+        /// The URI scheme for the HTTP protocol. 
         /// </summary>
         public const string UriSchemeHttp = "http";
 
@@ -54,6 +54,11 @@ namespace Opc.Ua
         /// The URI scheme for the UA TCP protocol over Secure WebSockets. 
         /// </summary>
         public const string UriSchemeOpcWss = "opc.wss";
+
+        /// <summary>
+        /// The URI scheme for the UDP protocol. 
+        /// </summary>
+        public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
         /// The URI schemes which are supported in the core server. 
