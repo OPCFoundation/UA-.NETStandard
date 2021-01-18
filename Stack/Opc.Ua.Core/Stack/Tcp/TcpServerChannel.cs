@@ -231,8 +231,7 @@ namespace Opc.Ua.Bindings
                     SendOpenSecureChannelResponse(requestId, token, request);
 
                     // send any queue responses.
-                    Task.Factory.StartNew(OnChannelReconnected, m_queuedResponses);
-                    m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+                    ResetQueuedResponses(OnChannelReconnected);
                 }
                 catch (Exception e)
                 {
@@ -937,7 +936,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // hand the request to the server.
-                m_requestReceived?.Invoke(this, requestId, request);
+                RequestReceived?.Invoke(this, requestId, request);
 
                 return true;
             }
