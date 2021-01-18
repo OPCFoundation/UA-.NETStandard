@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -42,37 +45,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     {
         #region DataPointSources
         public const string X509StoreSubject = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store, C=US";
+
+        [DatapointSource]
+        public string[] CertStores = GetCertStores();
         #endregion
 
         #region Test Setup
         /// <summary>
-        /// Clean up the test cert store folder
+        /// Clean up the test cert store folder.
         /// </summary>
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            using (var x509Store = new X509CertificateStore())
+            foreach (var certStore in CertStores)
             {
-                x509Store.Open("CurrentUser\\UA_MachineDefault");
-                var collection = x509Store.Enumerate().Result;
-                foreach (var cert in collection)
+                using (var x509Store = new X509CertificateStore())
                 {
-                    if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
+                    x509Store.Open(certStore);
+                    var collection = x509Store.Enumerate().Result;
+                    foreach (var cert in collection)
                     {
-                        x509Store.Delete(cert.Thumbprint).Wait();
-                    }
-                }
-            }
-
-            using (var x509Store = new X509CertificateStore())
-            {
-                x509Store.Open("CurrentUser\\My");
-                var collection = x509Store.Enumerate().Result;
-                foreach (var cert in collection)
-                {
-                    if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
-                    {
-                        x509Store.Delete(cert.Thumbprint).Wait();
+                        if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
+                        {
+                            x509Store.Delete(cert.Thumbprint).Wait();
+                        }
                     }
                 }
             }
@@ -81,45 +77,85 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         #region Test Methods
         /// <summary>
-        /// Verify new app certificate is stored in X509Store.
+        /// Verify new app certificate is stored in X509Store with private key.
         /// </summary>
-        [Test]
-        [TestCase("CurrentUser\\UA_MachineDefault")]
-        [TestCase("CurrentUser\\My")]
+        [Theory]
         public async Task VerifyAppCertX509Store(string storePath)
         {
-            X509Certificate2 publicKey;
-            using (var appCertificate = CertificateFactory.CreateCertificate(X509StoreSubject)
-                .CreateForRSA()
-                .AddToStore(
+            var appCertificate = GetTestCert();
+            Assert.NotNull(appCertificate);
+            Assert.True(appCertificate.HasPrivateKey);
+            appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     storePath
-                ))
+                );
+            using (var publicKey = new X509Certificate2(appCertificate.RawData))
             {
-                Assert.NotNull(appCertificate);
-                Assert.True(appCertificate.HasPrivateKey);
-                publicKey = new X509Certificate2(appCertificate.RawData);
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);
-            }
 
-            var id = new CertificateIdentifier() {
-                Thumbprint = publicKey.Thumbprint,
-                StorePath = storePath,
-                StoreType = CertificateStoreType.X509Store
-            };
-            var privateKey = await id.LoadPrivateKey(null);
-            Assert.NotNull(privateKey);
-            Assert.True(privateKey.HasPrivateKey);
+                var id = new CertificateIdentifier() {
+                    Thumbprint = publicKey.Thumbprint,
+                    StorePath = storePath,
+                    StoreType = CertificateStoreType.X509Store
+                };
+                var privateKey = await id.LoadPrivateKey(null);
+                Assert.NotNull(privateKey);
+                Assert.True(privateKey.HasPrivateKey);
 
-            X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
+                X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
-            using (var x509Store = new X509CertificateStore())
-            {
-                x509Store.Open(storePath);
-                await x509Store.Delete(publicKey.Thumbprint);
+                using (var x509Store = new X509CertificateStore())
+                {
+                    x509Store.Open(storePath);
+                    await x509Store.Delete(publicKey.Thumbprint);
+                }
             }
         }
+
+        /// <summary>
+        /// Verify that invalid cert stores throw.
+        /// </summary>
+        [Test]
+        public void VerifyInvalidAppCertX509Store()
+        {
+            var appCertificate = GetTestCert();
+            var cx = Assert.Throws<CryptographicException>(
+                () => appCertificate.AddToStore(
+                    CertificateStoreType.X509Store,
+                    "LocalMachine\\UA_MachineDefault"));
+            var sre = Assert.Throws<ServiceResultException>(
+                () => appCertificate.AddToStore(
+                    CertificateStoreType.X509Store,
+                    "User\\UA_MachineDefault"));
+            sre = Assert.Throws<ServiceResultException>(
+                () => appCertificate.AddToStore(
+                    CertificateStoreType.X509Store,
+                    "System\\UA_MachineDefault"));
+        }
+        #endregion
+
+        #region Private Methods
+        private X509Certificate2 GetTestCert()
+        {
+            return m_testCertificate ??
+                (m_testCertificate = CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA());
+        }
+
+        private static string[] GetCertStores()
+        {
+            var result = new List<string>();
+            result.Add("CurrentUser\\My");
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                result.Add("CurrentUser\\UA_MachineDefault");
+            }
+            return result.ToArray();
+        }
+        #endregion
+
+        #region Private Fields
+        X509Certificate2 m_testCertificate;
         #endregion
     }
 
