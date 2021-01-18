@@ -345,7 +345,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     for (int i = 0; i < kCaChainCount; i++)
                     {
                         ICertificateStore store = i == v ? validator.TrustedStore : validator.IssuerStore;
-                        await store.Add(m_caChain[i]);
+                        await store.Add(m_caChain[i]).ConfigureAwait(false);
                         store.AddCRL(m_crlChain[i]);
                     }
                     TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
@@ -947,7 +947,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Validate Sha1 signed certificates cause a policy check failed.
         /// </summary>
         [Theory]
-        public void TestSHA1Rejected(bool trusted)
+        public async Task TestSHA1Rejected(bool trusted)
         {
 #if NETCOREAPP3_1
             Assert.Ignore("SHA1 is unsupported on .NET Core 3.1");
@@ -958,7 +958,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var validator = TemporaryCertValidator.Create();
             if (trusted)
             {
-                validator.TrustedStore.Add(cert);
+                await validator.TrustedStore.Add(cert).ConfigureAwait(false);
             }
             var certValidator = validator.Update();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
@@ -982,7 +982,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Validate invalid key usage flags cause use not allowed.
         /// </summary>
         [Theory]
-        public void TestInvalidKeyUsage(bool trusted)
+        public async Task TestInvalidKeyUsage(bool trusted)
         {
             var subject = "CN=Invalid Signature Cert";
             // self signed but key usage is not valid for app cert
@@ -994,7 +994,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var validator = TemporaryCertValidator.Create();
             if (trusted)
             {
-                validator.TrustedStore.Add(cert);
+                await validator.TrustedStore.Add(cert).ConfigureAwait(false);
             }
             var certValidator = validator.Update();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Validate certificates with invalid signature are returned as invalid.
         /// </summary>
         [Theory]
-        public void TestInvalidSignature(bool ca, bool trusted)
+        public async Task TestInvalidSignature(bool ca, bool trusted)
         {
             var subject = "CN=Invalid Signature Cert";
             var certBase = CertificateFactory.CreateCertificate(null, null, subject, null)
@@ -1038,7 +1038,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var validator = TemporaryCertValidator.Create();
             if (trusted)
             {
-                validator.TrustedStore.Add(cert);
+                await validator.TrustedStore.Add(cert).ConfigureAwait(false);
             }
             var certValidator = validator.Update();
             var approver = new CertValidationApprover(new StatusCode[] { StatusCodes.BadCertificateUntrusted });
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Test if a key below min length is detected.
         /// </summary>
         [Theory]
-        public void TestMinimumKeyRejected(bool trusted)
+        public async Task TestMinimumKeyRejected(bool trusted)
         {
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=1k Key", null)
                 .SetRSAKeySize(1024)
@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var validator = TemporaryCertValidator.Create();
             if (trusted)
             {
-                validator.TrustedStore.Add(cert);
+                await validator.TrustedStore.Add(cert);
             }
             var certValidator = validator.Update();
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
