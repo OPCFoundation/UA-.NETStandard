@@ -2523,7 +2523,8 @@ namespace Opc.Ua.Client
                     // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
                     EndpointDescriptionCollection expectedServerEndpoints = null;
 
-                    if (m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
+                    if (serverEndpoints != null &&
+                        m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
                     {
                         // Select EndpointDescriptions with a transportProfileUri that matches the
                         // profileUris specified in the original GetEndpoints() request.
@@ -2542,7 +2543,8 @@ namespace Opc.Ua.Client
                         expectedServerEndpoints = serverEndpoints;
                     }
 
-                    if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                    if (expectedServerEndpoints == null ||
+                        m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadSecurityChecksFailed,

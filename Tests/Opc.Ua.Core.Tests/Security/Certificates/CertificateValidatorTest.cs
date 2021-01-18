@@ -215,7 +215,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certValidator.CertificateValidation += approver.OnCertificateValidation;
                 foreach (var cert in m_appSelfSignedCerts)
                 {
-                    certValidator.Validate(new X509Certificate2(cert));
+                    using (var publicKey = new X509Certificate2(cert))
+                    {
+                        certValidator.Validate(publicKey);
+                    }
                 }
                 // count certs written to rejected store
                 Assert.AreEqual(m_appSelfSignedCerts.Count, approver.AcceptedCount);
@@ -1129,6 +1132,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var appConfig = new ApplicationConfiguration() {
                 CertificateValidator = new CertificateValidator()
             };
+            Assert.NotNull(appConfig);
+            Assert.NotNull(appConfig.CertificateValidator);
         });
         #endregion
 

@@ -312,7 +312,7 @@ namespace Opc.Ua
                 {
                     // write the invalid certificate to rejected store if specified.
                     Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
-                        certificate.Subject, serviceResult.ToString());
+                        certificate.Subject, serviceResult != null ? serviceResult.ToString() : "Unknown Error" );
                     SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);

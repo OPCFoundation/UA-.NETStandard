@@ -93,17 +93,19 @@ namespace Opc.Ua.Security.Certificates.Tests
             foreach (var eCCurveHash in ECCurveHashPairs)
             {
                 if (!eCCurveHash.Curve.IsNamed) continue;
-                var cert = builder
+                using (var cert = builder
                     .SetHashAlgorithm(eCCurveHash.HashAlgorithmName)
                     .SetECCurve(eCCurveHash.Curve)
-                    .CreateForECDsa();
-                Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
-                Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-                // ensure serial numbers are different
-                Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
-                X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-                Assert.True(X509Utils.VerifySelfSigned(cert));
+                    .CreateForECDsa())
+                {
+                    Assert.NotNull(cert);
+                    WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
+                    Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+                    // ensure serial numbers are different
+                    Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
+                    X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
+                    Assert.True(X509Utils.VerifySelfSigned(cert));
+                }
             }
         }
 
