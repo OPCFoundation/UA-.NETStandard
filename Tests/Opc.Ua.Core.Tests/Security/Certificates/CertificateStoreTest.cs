@@ -120,11 +120,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void VerifyInvalidAppCertX509Store()
         {
             var appCertificate = GetTestCert();
-            var sre = Assert.Throws<ServiceResultException>(
+            _ = Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault"));
-            sre = Assert.Throws<ServiceResultException>(
+            _ = Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault"));
