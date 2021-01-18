@@ -114,16 +114,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Verify that invalid cert stores throw.
+        /// Verify that old invalid cert stores throw.
         /// </summary>
         [Test]
         public void VerifyInvalidAppCertX509Store()
         {
             var appCertificate = GetTestCert();
-            var cx = Assert.Throws<CryptographicException>(
-                () => appCertificate.AddToStore(
-                    CertificateStoreType.X509Store,
-                    "LocalMachine\\UA_MachineDefault"));
             var sre = Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
