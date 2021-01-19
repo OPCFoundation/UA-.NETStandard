@@ -493,8 +493,6 @@ namespace Opc.Ua
                 return;
             }
 
-            double seconds = ((double)(DateTime.UtcNow.Ticks - s_BaseLineTicks)) / TimeSpan.TicksPerSecond;
-
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.

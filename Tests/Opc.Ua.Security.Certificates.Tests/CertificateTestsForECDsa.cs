@@ -142,7 +142,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var keyUsage = X509Extensions.FindExtension<X509KeyUsageExtension>(cert.Extensions);
             Assert.NotNull(keyUsage);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.True(X509Utils.VerifySelfSigned(cert), "Verify self signed.");
         }
 
         [Theory]

@@ -337,8 +337,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                 using (RSA rsaPrivateKey = signingCert.GetRSAPrivateKey())
                 {
                     var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
+                    using (var issuer = new X509Certificate2(signingCert.RawData))
                     using (var cert = CertificateBuilder.Create("CN=App Cert")
-                        .SetIssuer(new X509Certificate2(signingCert.RawData))
+                        .SetIssuer(issuer)
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
@@ -350,9 +351,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 using (RSA rsaPublicKey = signingCert.GetRSAPublicKey())
                 {
                     var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
+                    using (var issuer = new X509Certificate2(signingCert.RawData))
                     using (var cert = CertificateBuilder.Create("CN=App Cert")
                         .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
-                        .SetIssuer(new X509Certificate2(signingCert.RawData))
+                        .SetIssuer(issuer)
                         .SetRSAPublicKey(rsaPublicKey)
                         .CreateForRSA(generator))
                     {
@@ -364,9 +366,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 using (RSA rsaPrivateKey = signingCert.GetRSAPrivateKey())
                 {
                     var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
+                    using (var issuer = new X509Certificate2(signingCert.RawData))
                     using (var cert = CertificateBuilder.Create("CN=App Cert")
                         .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
-                        .SetIssuer(new X509Certificate2(signingCert.RawData))
+                        .SetIssuer(issuer)
                         .SetRSAKeySize(keyHashPair.KeySize)
                         .CreateForRSA(generator))
                     {

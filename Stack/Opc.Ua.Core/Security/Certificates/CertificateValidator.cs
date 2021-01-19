@@ -398,8 +398,6 @@ namespace Opc.Ua
         /// </summary>
         private async Task<CertificateIdentifier> GetTrustedCertificate(X509Certificate2 certificate)
         {
-            string certificateThumbprint = certificate.Thumbprint.ToUpper();
-
             // check if explicitly trusted.
             if (m_trustedCertificateList != null)
             {
