@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public const string AuthorityInfoAccess = "1.3.6.1.5.5.7.1.1";
         /// <summary>
-        /// The Oid string for Authority Information Access.
+        /// The Oid string for Online Certificate Status Protocol.
         /// </summary>
         public const string OnlineCertificateStatusProtocol = "1.3.6.1.5.5.7.48.1";
         /// <summary>
