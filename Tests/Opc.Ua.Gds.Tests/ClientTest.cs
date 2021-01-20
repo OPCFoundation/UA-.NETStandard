@@ -952,7 +952,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _goodApplicationTestSet)
             {
                 bool certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
-                Assert.True(certificateStatus);
+                Assert.False(certificateStatus);
             }
         }
 
