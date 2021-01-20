@@ -80,7 +80,6 @@ namespace Opc.Ua.Security.Certificates
                 return new byte[0];
             }
 
-            string text = buffer.ToUpperInvariant();
             const string digits = "0123456789ABCDEF";
 
             byte[] bytes = new byte[(buffer.Length / 2) + (buffer.Length % 2)];

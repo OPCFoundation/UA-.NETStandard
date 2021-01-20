@@ -187,9 +187,11 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType emptyTrustList = _pushClient.PushClient.ReadTrustList(TrustListMasks.None);
             emptyTrustList.SpecifiedLists = (uint)TrustListMasks.All;
             bool requireReboot = _pushClient.PushClient.UpdateTrustList(emptyTrustList);
+            Assert.False(requireReboot);
             TrustListDataType expectEmptyTrustList = _pushClient.PushClient.ReadTrustList();
             Assert.IsTrue(Utils.IsEqual(expectEmptyTrustList, emptyTrustList));
             requireReboot = _pushClient.PushClient.UpdateTrustList(fullTrustList);
+            Assert.False(requireReboot);
             TrustListDataType expectFullTrustList = _pushClient.PushClient.ReadTrustList();
             Assert.IsTrue(Utils.IsEqual(expectFullTrustList, fullTrustList));
         }
@@ -583,6 +585,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ConnectPushClient(true);
             var collection = _pushClient.PushClient.GetRejectedList();
+            Assert.NotNull(collection);
         }
 
         [Test, Order(700)]

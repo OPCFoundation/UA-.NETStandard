@@ -235,7 +235,8 @@ namespace Opc.Ua
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
                     var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
-                    if (extension?.CrlNumber > crlSerialNumber)
+                    if (extension != null &&
+                        extension.CrlNumber > crlSerialNumber)
                     {
                         crlSerialNumber = extension.CrlNumber;
                     }

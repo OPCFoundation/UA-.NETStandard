@@ -3142,7 +3142,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        protected readonly object m_lock = new object();
+        private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

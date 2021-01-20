@@ -46,7 +46,7 @@ namespace Opc.Ua.Bindings
 
         #region Public Properties
         /// <summary>
-        /// Dictionary of bindings of type <see cref="T"/>.
+        /// Dictionary of bindings.
         /// </summary>
         protected Dictionary<string, T> Bindings { get; private set; }
         #endregion

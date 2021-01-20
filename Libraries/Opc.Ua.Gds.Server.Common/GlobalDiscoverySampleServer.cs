@@ -150,7 +150,7 @@ namespace Opc.Ua.Gds.Server
                 UserNameIdentityToken userNameToken = securityToken as UserNameIdentityToken;
                 if (userNameToken != null)
                 {
-                    lock (m_lock)
+                    lock (Lock)
                     {
                         m_contexts.Add(context.RequestId, new ImpersonationContext());
                     }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Server
         {
             ImpersonationContext impersonationContext = null;
 
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_contexts.TryGetValue(context.RequestId, out impersonationContext))
                 {
