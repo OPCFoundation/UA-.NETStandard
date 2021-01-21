@@ -480,7 +480,7 @@ namespace Opc.Ua.Client.Controls
                     {
                         ILocalNode aggregate = m_session.NodeCache.Find(reference.TargetId) as ILocalNode;
 
-                        if (aggregate != null || aggregate.TypeDefinitionId == ObjectTypeIds.AggregateFunctionType)
+                        if (aggregate != null && aggregate.TypeDefinitionId == ObjectTypeIds.AggregateFunctionType)
                         {
                             AvailableAggregate item = new AvailableAggregate();
                             item.NodeId = aggregate.NodeId;

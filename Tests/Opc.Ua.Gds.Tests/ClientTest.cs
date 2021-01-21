@@ -31,12 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -201,7 +199,7 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { NodeId id = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+                Assert.That(() => { _ = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
             }
             _invalidRegistrationOk = true;
         }
@@ -213,7 +211,7 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { NodeId id = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+                Assert.That(() => { _ = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
             }
         }
 
@@ -658,7 +656,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.Null(application.CertificateRequestId);
                 Assert.That(() => {
-                    NodeId requestId = _gdsClient.GDSClient.StartNewKeyPairRequest(
+                    _ = _gdsClient.GDSClient.StartNewKeyPairRequest(
                         application.ApplicationRecord.ApplicationId,
                         application.CertificateGroupId,
                         application.CertificateTypeId,
@@ -746,7 +744,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => {
-                    byte[] certificate = _gdsClient.GDSClient.FinishRequest(
+                    _ = _gdsClient.GDSClient.FinishRequest(
                         application.ApplicationRecord.ApplicationId,
                         new NodeId(Guid.NewGuid()),
                         out byte[] privateKey,
@@ -865,7 +863,7 @@ namespace Opc.Ua.Gds.Tests
             var testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
             Assert.That(() => {
-                NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
+                _ = _gdsClient.GDSClient.StartSigningRequest(
                 application.ApplicationRecord.ApplicationId,
                 application.CertificateGroupId,
                 application.CertificateTypeId,
@@ -916,13 +914,13 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => {
-                    var trustListId = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
+                    _ = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
                 }, Throws.Exception);
                 Assert.That(() => {
-                    var trustListId = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid()));
+                    _ = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid()));
                 }, Throws.Exception);
                 Assert.That(() => {
-                    var certificateGroups = _gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+                    _ = _gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
                 }, Throws.Exception);
             }
         }
@@ -941,6 +939,7 @@ namespace Opc.Ua.Gds.Tests
                     var trustListId = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
                     // Opc.Ua.TrustListDataType
                     var trustList = _gdsClient.GDSClient.ReadTrustList(trustListId);
+                    Assert.NotNull(trustList);
                 }
             }
         }
@@ -952,7 +951,8 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
-                var certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                bool certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                Assert.False(certificateStatus);
             }
         }
 
@@ -964,7 +964,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => {
-                    var certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                    _ = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
                 }, Throws.Exception);
             }
         }
