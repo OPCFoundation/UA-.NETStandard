@@ -11,6 +11,8 @@
 */
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -70,7 +72,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TransportChannelFeatures SupportedFeatures =>
             TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen |
-            TransportChannelFeatures.BeginSendRequest |
+            TransportChannelFeatures.BeginSendRequest | TransportChannelFeatures.SendRequestAsync |
             ((Socket != null) ? Socket.MessageSocketFeatures : 0);
 
         /// <summary>
@@ -317,6 +319,17 @@ namespace Opc.Ua.Bindings
         {
             IAsyncResult result = BeginSendRequest(request, null, null);
             return EndSendRequest(result);
+        }
+
+        /// <summary>
+        /// Sends a request over the secure channel (async version).
+        /// </summary>
+        /// <param name="request">The request to send.</param>
+        /// <returns>The response returned by the server.</returns>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
+        {
+            return Task.Factory.FromAsync(BeginSendRequest(request, null, null), EndSendRequest);
         }
 
         /// <summary>

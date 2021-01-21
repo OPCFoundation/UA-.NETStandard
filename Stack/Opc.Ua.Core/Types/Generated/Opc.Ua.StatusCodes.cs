@@ -775,6 +775,11 @@ namespace Opc.Ua
         public const uint BadSequenceNumberUnknown = 0x807A0000;
 
         /// <summary>
+        /// The Server does not support retransmission queue and acknowledgement of sequence numbers is not available.
+        /// </summary>
+        public const uint GoodRetransmissionQueueNotSupported = 0x00DF0000;
+
+        /// <summary>
         /// The requested notification message is no longer available.
         /// </summary>
         public const uint BadMessageNotAvailable = 0x807B0000;
@@ -1093,6 +1098,16 @@ namespace Opc.Ua
         /// The request has not been processed by the server yet.
         /// </summary>
         public const uint BadRequestNotComplete = 0x81130000;
+
+        /// <summary>
+        /// The device identity needs a ticket before it can be accepted.
+        /// </summary>
+        public const uint BadTicketRequired = 0x811F0000;
+
+        /// <summary>
+        /// The device identity needs a ticket before it can be accepted.
+        /// </summary>
+        public const uint BadTicketInvalid = 0x81200000;
 
         /// <summary>
         /// The value does not come from the real source and has been edited by the server.

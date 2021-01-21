@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.ServiceModel;
 
 namespace Opc.Ua
 {
@@ -35,13 +34,11 @@ namespace Opc.Ua
     /// <summary>
     /// The base asynchronous interface for all services exposed by UA servers.
     /// </summary>
-    [ServiceContract(Namespace = Namespaces.OpcUaWsdl)]
     public interface IEndpointBase
     {
         /// <summary>
         /// The operation contract for the InvokeService service.
         /// </summary>
-        [OperationContractAttribute(AsyncPattern = true, Action = Namespaces.OpcUaWsdl + "/InvokeService", ReplyAction = Namespaces.OpcUaWsdl + "/InvokeServiceResponse")]
         IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
 
         /// <summary>
