@@ -366,12 +366,6 @@ namespace Opc.Ua
         /// </summary>
         CreateSessionResponseMessage EndCreateSession(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the CreateSession service.
-        /// </summary>
-        Task<CreateSessionResponseMessage> CreateSessionAsync(CreateSessionMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_ActivateSession)
@@ -389,12 +383,6 @@ namespace Opc.Ua
         /// </summary>
         ActivateSessionResponseMessage EndActivateSession(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the ActivateSession service.
-        /// </summary>
-        Task<ActivateSessionResponseMessage> ActivateSessionAsync(ActivateSessionMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CloseSession)
@@ -412,12 +400,6 @@ namespace Opc.Ua
         /// </summary>
         CloseSessionResponseMessage EndCloseSession(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the CloseSession service.
-        /// </summary>
-        Task<CloseSessionResponseMessage> CloseSessionAsync(CloseSessionMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Cancel)
@@ -435,12 +417,6 @@ namespace Opc.Ua
         /// </summary>
         CancelResponseMessage EndCancel(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Cancel service.
-        /// </summary>
-        Task<CancelResponseMessage> CancelAsync(CancelMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_AddNodes)
@@ -458,12 +434,6 @@ namespace Opc.Ua
         /// </summary>
         AddNodesResponseMessage EndAddNodes(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the AddNodes service.
-        /// </summary>
-        Task<AddNodesResponseMessage> AddNodesAsync(AddNodesMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_AddReferences)
@@ -481,12 +451,6 @@ namespace Opc.Ua
         /// </summary>
         AddReferencesResponseMessage EndAddReferences(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the AddReferences service.
-        /// </summary>
-        Task<AddReferencesResponseMessage> AddReferencesAsync(AddReferencesMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteNodes)
@@ -504,12 +468,6 @@ namespace Opc.Ua
         /// </summary>
         DeleteNodesResponseMessage EndDeleteNodes(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the DeleteNodes service.
-        /// </summary>
-        Task<DeleteNodesResponseMessage> DeleteNodesAsync(DeleteNodesMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteReferences)
@@ -527,12 +485,6 @@ namespace Opc.Ua
         /// </summary>
         DeleteReferencesResponseMessage EndDeleteReferences(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the DeleteReferences service.
-        /// </summary>
-        Task<DeleteReferencesResponseMessage> DeleteReferencesAsync(DeleteReferencesMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Browse)
@@ -550,12 +502,6 @@ namespace Opc.Ua
         /// </summary>
         BrowseResponseMessage EndBrowse(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Browse service.
-        /// </summary>
-        Task<BrowseResponseMessage> BrowseAsync(BrowseMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_BrowseNext)
@@ -573,12 +519,6 @@ namespace Opc.Ua
         /// </summary>
         BrowseNextResponseMessage EndBrowseNext(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the BrowseNext service.
-        /// </summary>
-        Task<BrowseNextResponseMessage> BrowseNextAsync(BrowseNextMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
@@ -596,12 +536,6 @@ namespace Opc.Ua
         /// </summary>
         TranslateBrowsePathsToNodeIdsResponseMessage EndTranslateBrowsePathsToNodeIds(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the TranslateBrowsePathsToNodeIds service.
-        /// </summary>
-        Task<TranslateBrowsePathsToNodeIdsResponseMessage> TranslateBrowsePathsToNodeIdsAsync(TranslateBrowsePathsToNodeIdsMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterNodes)
@@ -619,12 +553,6 @@ namespace Opc.Ua
         /// </summary>
         RegisterNodesResponseMessage EndRegisterNodes(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the RegisterNodes service.
-        /// </summary>
-        Task<RegisterNodesResponseMessage> RegisterNodesAsync(RegisterNodesMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes)
@@ -642,12 +570,6 @@ namespace Opc.Ua
         /// </summary>
         UnregisterNodesResponseMessage EndUnregisterNodes(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the UnregisterNodes service.
-        /// </summary>
-        Task<UnregisterNodesResponseMessage> UnregisterNodesAsync(UnregisterNodesMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryFirst)
@@ -665,12 +587,6 @@ namespace Opc.Ua
         /// </summary>
         QueryFirstResponseMessage EndQueryFirst(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the QueryFirst service.
-        /// </summary>
-        Task<QueryFirstResponseMessage> QueryFirstAsync(QueryFirstMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryNext)
@@ -688,12 +604,6 @@ namespace Opc.Ua
         /// </summary>
         QueryNextResponseMessage EndQueryNext(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the QueryNext service.
-        /// </summary>
-        Task<QueryNextResponseMessage> QueryNextAsync(QueryNextMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Read)
@@ -711,12 +621,6 @@ namespace Opc.Ua
         /// </summary>
         ReadResponseMessage EndRead(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Read service.
-        /// </summary>
-        Task<ReadResponseMessage> ReadAsync(ReadMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryRead)
@@ -734,12 +638,6 @@ namespace Opc.Ua
         /// </summary>
         HistoryReadResponseMessage EndHistoryRead(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the HistoryRead service.
-        /// </summary>
-        Task<HistoryReadResponseMessage> HistoryReadAsync(HistoryReadMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Write)
@@ -757,12 +655,6 @@ namespace Opc.Ua
         /// </summary>
         WriteResponseMessage EndWrite(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Write service.
-        /// </summary>
-        Task<WriteResponseMessage> WriteAsync(WriteMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryUpdate)
@@ -780,12 +672,6 @@ namespace Opc.Ua
         /// </summary>
         HistoryUpdateResponseMessage EndHistoryUpdate(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the HistoryUpdate service.
-        /// </summary>
-        Task<HistoryUpdateResponseMessage> HistoryUpdateAsync(HistoryUpdateMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Call)
@@ -803,12 +689,6 @@ namespace Opc.Ua
         /// </summary>
         CallResponseMessage EndCall(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Call service.
-        /// </summary>
-        Task<CallResponseMessage> CallAsync(CallMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
@@ -826,12 +706,6 @@ namespace Opc.Ua
         /// </summary>
         CreateMonitoredItemsResponseMessage EndCreateMonitoredItems(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the CreateMonitoredItems service.
-        /// </summary>
-        Task<CreateMonitoredItemsResponseMessage> CreateMonitoredItemsAsync(CreateMonitoredItemsMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
@@ -849,12 +723,6 @@ namespace Opc.Ua
         /// </summary>
         ModifyMonitoredItemsResponseMessage EndModifyMonitoredItems(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the ModifyMonitoredItems service.
-        /// </summary>
-        Task<ModifyMonitoredItemsResponseMessage> ModifyMonitoredItemsAsync(ModifyMonitoredItemsMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_SetMonitoringMode)
@@ -872,12 +740,6 @@ namespace Opc.Ua
         /// </summary>
         SetMonitoringModeResponseMessage EndSetMonitoringMode(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the SetMonitoringMode service.
-        /// </summary>
-        Task<SetMonitoringModeResponseMessage> SetMonitoringModeAsync(SetMonitoringModeMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_SetTriggering)
@@ -895,12 +757,6 @@ namespace Opc.Ua
         /// </summary>
         SetTriggeringResponseMessage EndSetTriggering(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the SetTriggering service.
-        /// </summary>
-        Task<SetTriggeringResponseMessage> SetTriggeringAsync(SetTriggeringMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
@@ -918,12 +774,6 @@ namespace Opc.Ua
         /// </summary>
         DeleteMonitoredItemsResponseMessage EndDeleteMonitoredItems(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the DeleteMonitoredItems service.
-        /// </summary>
-        Task<DeleteMonitoredItemsResponseMessage> DeleteMonitoredItemsAsync(DeleteMonitoredItemsMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateSubscription)
@@ -941,12 +791,6 @@ namespace Opc.Ua
         /// </summary>
         CreateSubscriptionResponseMessage EndCreateSubscription(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the CreateSubscription service.
-        /// </summary>
-        Task<CreateSubscriptionResponseMessage> CreateSubscriptionAsync(CreateSubscriptionMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifySubscription)
@@ -964,12 +808,6 @@ namespace Opc.Ua
         /// </summary>
         ModifySubscriptionResponseMessage EndModifySubscription(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the ModifySubscription service.
-        /// </summary>
-        Task<ModifySubscriptionResponseMessage> ModifySubscriptionAsync(ModifySubscriptionMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_SetPublishingMode)
@@ -987,12 +825,6 @@ namespace Opc.Ua
         /// </summary>
         SetPublishingModeResponseMessage EndSetPublishingMode(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the SetPublishingMode service.
-        /// </summary>
-        Task<SetPublishingModeResponseMessage> SetPublishingModeAsync(SetPublishingModeMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Publish)
@@ -1010,12 +842,6 @@ namespace Opc.Ua
         /// </summary>
         PublishResponseMessage EndPublish(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Publish service.
-        /// </summary>
-        Task<PublishResponseMessage> PublishAsync(PublishMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_Republish)
@@ -1033,12 +859,6 @@ namespace Opc.Ua
         /// </summary>
         RepublishResponseMessage EndRepublish(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the Republish service.
-        /// </summary>
-        Task<RepublishResponseMessage> RepublishAsync(RepublishMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_TransferSubscriptions)
@@ -1056,12 +876,6 @@ namespace Opc.Ua
         /// </summary>
         TransferSubscriptionsResponseMessage EndTransferSubscriptions(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the TransferSubscriptions service.
-        /// </summary>
-        Task<TransferSubscriptionsResponseMessage> TransferSubscriptionsAsync(TransferSubscriptionsMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
@@ -1079,12 +893,6 @@ namespace Opc.Ua
         /// </summary>
         DeleteSubscriptionsResponseMessage EndDeleteSubscriptions(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the DeleteSubscriptions service.
-        /// </summary>
-        Task<DeleteSubscriptionsResponseMessage> DeleteSubscriptionsAsync(DeleteSubscriptionsMessage request);
-        #endif
         #endif
     }
     #endif
@@ -2158,12 +1966,6 @@ namespace Opc.Ua
         /// </summary>
         FindServersResponseMessage EndFindServers(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the FindServers service.
-        /// </summary>
-        Task<FindServersResponseMessage> FindServersAsync(FindServersMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
@@ -2181,12 +1983,6 @@ namespace Opc.Ua
         /// </summary>
         FindServersOnNetworkResponseMessage EndFindServersOnNetwork(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the FindServersOnNetwork service.
-        /// </summary>
-        Task<FindServersOnNetworkResponseMessage> FindServersOnNetworkAsync(FindServersOnNetworkMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints)
@@ -2204,12 +2000,6 @@ namespace Opc.Ua
         /// </summary>
         GetEndpointsResponseMessage EndGetEndpoints(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the GetEndpoints service.
-        /// </summary>
-        Task<GetEndpointsResponseMessage> GetEndpointsAsync(GetEndpointsMessage request);
-        #endif
         #endif
     }
     #endif
@@ -2375,12 +2165,6 @@ namespace Opc.Ua
         /// </summary>
         RegisterServerResponseMessage EndRegisterServer(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the RegisterServer service.
-        /// </summary>
-        Task<RegisterServerResponseMessage> RegisterServerAsync(RegisterServerMessage request);
-        #endif
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterServer2)
@@ -2398,12 +2182,6 @@ namespace Opc.Ua
         /// </summary>
         RegisterServer2ResponseMessage EndRegisterServer2(IAsyncResult result);
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// The async operation contract for the RegisterServer2 service.
-        /// </summary>
-        Task<RegisterServer2ResponseMessage> RegisterServer2Async(RegisterServer2Message request);
-        #endif
         #endif
     }
     #endif

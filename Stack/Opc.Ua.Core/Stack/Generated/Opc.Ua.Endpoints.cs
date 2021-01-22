@@ -210,29 +210,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the FindServers service.
-        /// </summary>
-        public virtual Task<FindServersResponseMessage> FindServersAsync(FindServersMessage message)
-        {
-            var tcs = new TaskCompletionSource<FindServersResponseMessage>();
-            BeginFindServers(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<FindServersResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndFindServers(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -348,29 +325,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the FindServersOnNetwork service.
-        /// </summary>
-        public virtual Task<FindServersOnNetworkResponseMessage> FindServersOnNetworkAsync(FindServersOnNetworkMessage message)
-        {
-            var tcs = new TaskCompletionSource<FindServersOnNetworkResponseMessage>();
-            BeginFindServersOnNetwork(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<FindServersOnNetworkResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndFindServersOnNetwork(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -483,29 +437,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the GetEndpoints service.
-        /// </summary>
-        public virtual Task<GetEndpointsResponseMessage> GetEndpointsAsync(GetEndpointsMessage message)
-        {
-            var tcs = new TaskCompletionSource<GetEndpointsResponseMessage>();
-            BeginGetEndpoints(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<GetEndpointsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndGetEndpoints(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -647,29 +578,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the CreateSession service.
-        /// </summary>
-        public virtual Task<CreateSessionResponseMessage> CreateSessionAsync(CreateSessionMessage message)
-        {
-            var tcs = new TaskCompletionSource<CreateSessionResponseMessage>();
-            BeginCreateSession(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<CreateSessionResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndCreateSession(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -790,29 +698,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the ActivateSession service.
-        /// </summary>
-        public virtual Task<ActivateSessionResponseMessage> ActivateSessionAsync(ActivateSessionMessage message)
-        {
-            var tcs = new TaskCompletionSource<ActivateSessionResponseMessage>();
-            BeginActivateSession(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<ActivateSessionResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndActivateSession(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -920,29 +805,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the CloseSession service.
-        /// </summary>
-        public virtual Task<CloseSessionResponseMessage> CloseSessionAsync(CloseSessionMessage message)
-        {
-            var tcs = new TaskCompletionSource<CloseSessionResponseMessage>();
-            BeginCloseSession(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<CloseSessionResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndCloseSession(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1053,29 +915,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Cancel service.
-        /// </summary>
-        public virtual Task<CancelResponseMessage> CancelAsync(CancelMessage message)
-        {
-            var tcs = new TaskCompletionSource<CancelResponseMessage>();
-            BeginCancel(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<CancelResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndCancel(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1189,29 +1028,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the AddNodes service.
-        /// </summary>
-        public virtual Task<AddNodesResponseMessage> AddNodesAsync(AddNodesMessage message)
-        {
-            var tcs = new TaskCompletionSource<AddNodesResponseMessage>();
-            BeginAddNodes(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<AddNodesResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndAddNodes(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1325,29 +1141,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the AddReferences service.
-        /// </summary>
-        public virtual Task<AddReferencesResponseMessage> AddReferencesAsync(AddReferencesMessage message)
-        {
-            var tcs = new TaskCompletionSource<AddReferencesResponseMessage>();
-            BeginAddReferences(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<AddReferencesResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndAddReferences(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1461,29 +1254,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the DeleteNodes service.
-        /// </summary>
-        public virtual Task<DeleteNodesResponseMessage> DeleteNodesAsync(DeleteNodesMessage message)
-        {
-            var tcs = new TaskCompletionSource<DeleteNodesResponseMessage>();
-            BeginDeleteNodes(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<DeleteNodesResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndDeleteNodes(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1597,29 +1367,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the DeleteReferences service.
-        /// </summary>
-        public virtual Task<DeleteReferencesResponseMessage> DeleteReferencesAsync(DeleteReferencesMessage message)
-        {
-            var tcs = new TaskCompletionSource<DeleteReferencesResponseMessage>();
-            BeginDeleteReferences(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<DeleteReferencesResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndDeleteReferences(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1735,29 +1482,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Browse service.
-        /// </summary>
-        public virtual Task<BrowseResponseMessage> BrowseAsync(BrowseMessage message)
-        {
-            var tcs = new TaskCompletionSource<BrowseResponseMessage>();
-            BeginBrowse(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<BrowseResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndBrowse(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -1872,29 +1596,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the BrowseNext service.
-        /// </summary>
-        public virtual Task<BrowseNextResponseMessage> BrowseNextAsync(BrowseNextMessage message)
-        {
-            var tcs = new TaskCompletionSource<BrowseNextResponseMessage>();
-            BeginBrowseNext(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<BrowseNextResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndBrowseNext(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2008,29 +1709,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the TranslateBrowsePathsToNodeIds service.
-        /// </summary>
-        public virtual Task<TranslateBrowsePathsToNodeIdsResponseMessage> TranslateBrowsePathsToNodeIdsAsync(TranslateBrowsePathsToNodeIdsMessage message)
-        {
-            var tcs = new TaskCompletionSource<TranslateBrowsePathsToNodeIdsResponseMessage>();
-            BeginTranslateBrowsePathsToNodeIds(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<TranslateBrowsePathsToNodeIdsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndTranslateBrowsePathsToNodeIds(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2141,29 +1819,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the RegisterNodes service.
-        /// </summary>
-        public virtual Task<RegisterNodesResponseMessage> RegisterNodesAsync(RegisterNodesMessage message)
-        {
-            var tcs = new TaskCompletionSource<RegisterNodesResponseMessage>();
-            BeginRegisterNodes(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<RegisterNodesResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndRegisterNodes(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2271,29 +1926,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the UnregisterNodes service.
-        /// </summary>
-        public virtual Task<UnregisterNodesResponseMessage> UnregisterNodesAsync(UnregisterNodesMessage message)
-        {
-            var tcs = new TaskCompletionSource<UnregisterNodesResponseMessage>();
-            BeginUnregisterNodes(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<UnregisterNodesResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndUnregisterNodes(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2420,29 +2052,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the QueryFirst service.
-        /// </summary>
-        public virtual Task<QueryFirstResponseMessage> QueryFirstAsync(QueryFirstMessage message)
-        {
-            var tcs = new TaskCompletionSource<QueryFirstResponseMessage>();
-            BeginQueryFirst(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<QueryFirstResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndQueryFirst(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2557,29 +2166,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the QueryNext service.
-        /// </summary>
-        public virtual Task<QueryNextResponseMessage> QueryNextAsync(QueryNextMessage message)
-        {
-            var tcs = new TaskCompletionSource<QueryNextResponseMessage>();
-            BeginQueryNext(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<QueryNextResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndQueryNext(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2695,29 +2281,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Read service.
-        /// </summary>
-        public virtual Task<ReadResponseMessage> ReadAsync(ReadMessage message)
-        {
-            var tcs = new TaskCompletionSource<ReadResponseMessage>();
-            BeginRead(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<ReadResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndRead(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2834,29 +2397,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the HistoryRead service.
-        /// </summary>
-        public virtual Task<HistoryReadResponseMessage> HistoryReadAsync(HistoryReadMessage message)
-        {
-            var tcs = new TaskCompletionSource<HistoryReadResponseMessage>();
-            BeginHistoryRead(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<HistoryReadResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndHistoryRead(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -2970,29 +2510,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Write service.
-        /// </summary>
-        public virtual Task<WriteResponseMessage> WriteAsync(WriteMessage message)
-        {
-            var tcs = new TaskCompletionSource<WriteResponseMessage>();
-            BeginWrite(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<WriteResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndWrite(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3106,29 +2623,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the HistoryUpdate service.
-        /// </summary>
-        public virtual Task<HistoryUpdateResponseMessage> HistoryUpdateAsync(HistoryUpdateMessage message)
-        {
-            var tcs = new TaskCompletionSource<HistoryUpdateResponseMessage>();
-            BeginHistoryUpdate(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<HistoryUpdateResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndHistoryUpdate(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3242,29 +2736,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Call service.
-        /// </summary>
-        public virtual Task<CallResponseMessage> CallAsync(CallMessage message)
-        {
-            var tcs = new TaskCompletionSource<CallResponseMessage>();
-            BeginCall(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<CallResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndCall(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3380,29 +2851,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the CreateMonitoredItems service.
-        /// </summary>
-        public virtual Task<CreateMonitoredItemsResponseMessage> CreateMonitoredItemsAsync(CreateMonitoredItemsMessage message)
-        {
-            var tcs = new TaskCompletionSource<CreateMonitoredItemsResponseMessage>();
-            BeginCreateMonitoredItems(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<CreateMonitoredItemsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndCreateMonitoredItems(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3518,29 +2966,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the ModifyMonitoredItems service.
-        /// </summary>
-        public virtual Task<ModifyMonitoredItemsResponseMessage> ModifyMonitoredItemsAsync(ModifyMonitoredItemsMessage message)
-        {
-            var tcs = new TaskCompletionSource<ModifyMonitoredItemsResponseMessage>();
-            BeginModifyMonitoredItems(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<ModifyMonitoredItemsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndModifyMonitoredItems(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3656,29 +3081,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the SetMonitoringMode service.
-        /// </summary>
-        public virtual Task<SetMonitoringModeResponseMessage> SetMonitoringModeAsync(SetMonitoringModeMessage message)
-        {
-            var tcs = new TaskCompletionSource<SetMonitoringModeResponseMessage>();
-            BeginSetMonitoringMode(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<SetMonitoringModeResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndSetMonitoringMode(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3801,29 +3203,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the SetTriggering service.
-        /// </summary>
-        public virtual Task<SetTriggeringResponseMessage> SetTriggeringAsync(SetTriggeringMessage message)
-        {
-            var tcs = new TaskCompletionSource<SetTriggeringResponseMessage>();
-            BeginSetTriggering(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<SetTriggeringResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndSetTriggering(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -3938,29 +3317,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the DeleteMonitoredItems service.
-        /// </summary>
-        public virtual Task<DeleteMonitoredItemsResponseMessage> DeleteMonitoredItemsAsync(DeleteMonitoredItemsMessage message)
-        {
-            var tcs = new TaskCompletionSource<DeleteMonitoredItemsResponseMessage>();
-            BeginDeleteMonitoredItems(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<DeleteMonitoredItemsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndDeleteMonitoredItems(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4085,29 +3441,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the CreateSubscription service.
-        /// </summary>
-        public virtual Task<CreateSubscriptionResponseMessage> CreateSubscriptionAsync(CreateSubscriptionMessage message)
-        {
-            var tcs = new TaskCompletionSource<CreateSubscriptionResponseMessage>();
-            BeginCreateSubscription(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<CreateSubscriptionResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndCreateSubscription(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4229,29 +3562,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the ModifySubscription service.
-        /// </summary>
-        public virtual Task<ModifySubscriptionResponseMessage> ModifySubscriptionAsync(ModifySubscriptionMessage message)
-        {
-            var tcs = new TaskCompletionSource<ModifySubscriptionResponseMessage>();
-            BeginModifySubscription(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<ModifySubscriptionResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndModifySubscription(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4366,29 +3676,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the SetPublishingMode service.
-        /// </summary>
-        public virtual Task<SetPublishingModeResponseMessage> SetPublishingModeAsync(SetPublishingModeMessage message)
-        {
-            var tcs = new TaskCompletionSource<SetPublishingModeResponseMessage>();
-            BeginSetPublishingMode(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<SetPublishingModeResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndSetPublishingMode(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4514,29 +3801,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Publish service.
-        /// </summary>
-        public virtual Task<PublishResponseMessage> PublishAsync(PublishMessage message)
-        {
-            var tcs = new TaskCompletionSource<PublishResponseMessage>();
-            BeginPublish(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<PublishResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndPublish(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4648,29 +3912,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the Republish service.
-        /// </summary>
-        public virtual Task<RepublishResponseMessage> RepublishAsync(RepublishMessage message)
-        {
-            var tcs = new TaskCompletionSource<RepublishResponseMessage>();
-            BeginRepublish(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<RepublishResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndRepublish(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4785,29 +4026,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the TransferSubscriptions service.
-        /// </summary>
-        public virtual Task<TransferSubscriptionsResponseMessage> TransferSubscriptionsAsync(TransferSubscriptionsMessage message)
-        {
-            var tcs = new TaskCompletionSource<TransferSubscriptionsResponseMessage>();
-            BeginTransferSubscriptions(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<TransferSubscriptionsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndTransferSubscriptions(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -4921,29 +4139,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the DeleteSubscriptions service.
-        /// </summary>
-        public virtual Task<DeleteSubscriptionsResponseMessage> DeleteSubscriptionsAsync(DeleteSubscriptionsMessage message)
-        {
-            var tcs = new TaskCompletionSource<DeleteSubscriptionsResponseMessage>();
-            BeginDeleteSubscriptions(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<DeleteSubscriptionsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndDeleteSubscriptions(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -5231,29 +4426,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the FindServers service.
-        /// </summary>
-        public virtual Task<FindServersResponseMessage> FindServersAsync(FindServersMessage message)
-        {
-            var tcs = new TaskCompletionSource<FindServersResponseMessage>();
-            BeginFindServers(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<FindServersResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndFindServers(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -5369,29 +4541,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the FindServersOnNetwork service.
-        /// </summary>
-        public virtual Task<FindServersOnNetworkResponseMessage> FindServersOnNetworkAsync(FindServersOnNetworkMessage message)
-        {
-            var tcs = new TaskCompletionSource<FindServersOnNetworkResponseMessage>();
-            BeginFindServersOnNetwork(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<FindServersOnNetworkResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndFindServersOnNetwork(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -5504,29 +4653,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the GetEndpoints service.
-        /// </summary>
-        public virtual Task<GetEndpointsResponseMessage> GetEndpointsAsync(GetEndpointsMessage message)
-        {
-            var tcs = new TaskCompletionSource<GetEndpointsResponseMessage>();
-            BeginGetEndpoints(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<GetEndpointsResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndGetEndpoints(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -5634,29 +4760,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the RegisterServer service.
-        /// </summary>
-        public virtual Task<RegisterServerResponseMessage> RegisterServerAsync(RegisterServerMessage message)
-        {
-            var tcs = new TaskCompletionSource<RegisterServerResponseMessage>();
-            BeginRegisterServer(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<RegisterServerResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndRegisterServer(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
@@ -5771,29 +4874,6 @@ namespace Opc.Ua
             }
         }
 
-        #if (NET_STANDARD_ASYNC_SERVER)
-        /// <summary>
-        /// Asynchronously calls the RegisterServer2 service.
-        /// </summary>
-        public virtual Task<RegisterServer2ResponseMessage> RegisterServer2Async(RegisterServer2Message message)
-        {
-            var tcs = new TaskCompletionSource<RegisterServer2ResponseMessage>();
-            BeginRegisterServer2(message, 
-                new AsyncCallback((result) => 
-                {
-                    var completion = (System.Threading.Tasks.TaskCompletionSource<RegisterServer2ResponseMessage>)result.AsyncState;
-                    try 
-                    {
-                        completion.SetResult(EndRegisterServer2(result));
-                    }
-                    catch(Exception ex)
-                    {
-                        completion.SetException(ex);
-                    }
-                }), tcs);
-            return tcs.Task;
-        }
-        #endif
         #endif
         #endif
         #endregion
