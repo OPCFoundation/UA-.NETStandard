@@ -42,71 +42,6 @@ namespace Opc.Ua.Security.Certificates
     public static class PEMReader
     {
         #region Public Methods
-#if !NETSTANDARD2_1
-        /// <summary>
-        /// Import a private key from PEM.
-        /// </summary>
-        public static RSA ImportPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
-        {
-            RSA rsaPrivateKey = null;
-            Org.BouncyCastle.OpenSsl.PemReader pemReader;
-            using (StreamReader pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
-            {
-                if (String.IsNullOrEmpty(password))
-                {
-                    pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader);
-                }
-                else
-                {
-                    Password pwFinder = new Password(password.ToCharArray());
-                    pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
-                }
-                try
-                {
-                    // find the private key in the PEM blob
-                    var pemObject = pemReader.ReadObject();
-                    while (pemObject != null)
-                    {
-                        RsaPrivateCrtKeyParameters privateKey = null;
-                        var keypair = pemObject as Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair;
-                        if (keypair != null)
-                        {
-                            privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
-                            break;
-                        }
-
-                        if (privateKey == null)
-                        {
-                            privateKey = pemObject as RsaPrivateCrtKeyParameters;
-                        }
-
-                        if (privateKey != null)
-                        {
-                            rsaPrivateKey = RSA.Create();
-                            rsaPrivateKey.ImportParameters(DotNetUtilities.ToRSAParameters(privateKey));
-                            break;
-                        }
-
-                        // read next object
-                        pemObject = pemReader.ReadObject();
-                    }
-                }
-                finally
-                {
-                    pemReader.Reader.Dispose();
-                }
-            }
-
-            if (rsaPrivateKey == null)
-            {
-                throw new CryptographicException("PEM data blob does not contain a private key.");
-            }
-
-            return rsaPrivateKey;
-        }
-#else
         /// <summary>
         /// Import a PKCS#8 private key or RSA private key from PEM.
         /// The PKCS#8 private key may be encrypted using a password.
@@ -174,7 +109,6 @@ namespace Opc.Ua.Security.Certificates
             }
             throw new ArgumentException("No private PEM key found.");
         }
-#endif
         #endregion
 
         #region Private Methods

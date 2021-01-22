@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -561,11 +562,27 @@ namespace Opc.Ua.Bindings
         }
         #endregion
 
+        #region Protected Functions
+        /// <summary>
+        /// Reset the sorted dictionary of queued responses after reconnect.
+        /// </summary>
+        protected void ResetQueuedResponses(Action<object> action)
+        {
+            Task.Factory.StartNew(action, m_queuedResponses);
+            m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+        }
+
+        /// <summary>
+        /// The channel request event handler.
+        /// </summary>
+        protected TcpChannelRequestEventHandler RequestReceived => m_requestReceived;
+        #endregion
+
         #region Private Fields
         private ITcpChannelListener m_listener;
         private bool m_responseRequired;
-        protected SortedDictionary<uint, IServiceResponse> m_queuedResponses;
-        protected TcpChannelRequestEventHandler m_requestReceived;
+        private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
+        private TcpChannelRequestEventHandler m_requestReceived;
         private long m_lastTokenId;
         private Timer m_cleanupTimer;
         #endregion

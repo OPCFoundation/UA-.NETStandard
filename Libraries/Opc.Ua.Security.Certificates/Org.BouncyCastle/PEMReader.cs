@@ -75,7 +75,6 @@ namespace Opc.Ua.Security.Certificates
                         if (keypair != null)
                         {
                             privateKey = keypair.Private as RsaPrivateCrtKeyParameters;
-                            break;
                         }
 
                         if (privateKey == null)

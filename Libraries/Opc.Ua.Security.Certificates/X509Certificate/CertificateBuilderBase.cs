@@ -307,9 +307,11 @@ namespace Opc.Ua.Security.Certificates
         protected virtual void NewSerialNumber()
         {
             // new serial number
-            var rnd = RandomNumberGenerator.Create();
-            m_serialNumber = new byte[m_serialNumberLength];
-            rnd.GetBytes(m_serialNumber);
+            using (var rnd = RandomNumberGenerator.Create())
+            {
+                m_serialNumber = new byte[m_serialNumberLength];
+                rnd.GetBytes(m_serialNumber);
+            }
             // A compliant certificate uses a positive serial number.
             m_serialNumber[m_serialNumberLength - 1] &= 0x7F;
         }

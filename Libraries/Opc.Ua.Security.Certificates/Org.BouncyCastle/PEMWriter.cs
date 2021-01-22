@@ -72,13 +72,10 @@ namespace Opc.Ua.Security.Certificates
         {
             if (!String.IsNullOrEmpty(password)) throw new ArgumentException(nameof(password), "Export with password not supported on this platform.");
             RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
-            using (TextWriter textWriter = new StringWriter())
-            {
-                // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
-                byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
-                return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
-            }
+            // write private key as PKCS#8
+            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+            return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
         }
         #endregion
 

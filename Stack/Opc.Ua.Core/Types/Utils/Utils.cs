@@ -36,7 +36,7 @@ namespace Opc.Ua
     {
         #region Public Constants
         /// <summary>
-        /// The URI scheme for the HTTPS protocol. 
+        /// The URI scheme for the HTTP protocol. 
         /// </summary>
         public const string UriSchemeHttp = "http";
 
@@ -54,6 +54,11 @@ namespace Opc.Ua
         /// The URI scheme for the UA TCP protocol over Secure WebSockets. 
         /// </summary>
         public const string UriSchemeOpcWss = "opc.wss";
+
+        /// <summary>
+        /// The URI scheme for the UDP protocol. 
+        /// </summary>
+        public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
         /// The URI schemes which are supported in the core server. 
@@ -488,12 +493,10 @@ namespace Opc.Ua
                 return;
             }
 
-            double seconds = ((double)(HiResClock.UtcNow.Ticks - s_BaseLineTicks)) / TimeSpan.TicksPerSecond;
-
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", HiResClock.UtcNow.ToLocalTime());
+            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)

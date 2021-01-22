@@ -126,7 +126,7 @@ namespace Opc.Ua.Gds.Tests
             await Application.Start(m_server);
 
             ServerState serverState = Server.GetStatus().State;
-            if ((serverState = Server.GetStatus().State) != ServerState.Running)
+            if (serverState != ServerState.Running)
             {
                 throw new ServiceResultException("Server failed to start");
             }

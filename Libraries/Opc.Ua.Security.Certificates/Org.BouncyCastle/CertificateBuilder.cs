@@ -438,12 +438,15 @@ namespace Opc.Ua.Security.Certificates
                 CreateMandatoryFields(cg);
 
                 // create Private/Public Keypair
-                var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
-                AsymmetricKeyParameter subjectPublicKey = X509Utils.GetPublicKeyParameter(rsa);
-                AsymmetricKeyParameter subjectPrivateKey = X509Utils.GetPrivateKeyParameter(rsa);
+                AsymmetricKeyParameter subjectPublicKey = null;
+                AsymmetricKeyParameter subjectPrivateKey = null;
+                using (var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize))
+                {
+                    subjectPublicKey = X509Utils.GetPublicKeyParameter(rsa);
+                    subjectPrivateKey = X509Utils.GetPrivateKeyParameter(rsa);
+                }
 
                 cg.SetPublicKey(subjectPublicKey);
-
                 CreateExtensions(cg, subjectPublicKey);
 
                 // sign certificate
