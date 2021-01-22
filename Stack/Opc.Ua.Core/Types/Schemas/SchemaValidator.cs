@@ -178,7 +178,7 @@ namespace Opc.Ua.Schema
                 }
 
                 // load embedded resource.
-                return LoadResource(type, location, null);
+                return LoadResource(type, location, Assembly.GetCallingAssembly());
             }
 
             if (!String.IsNullOrEmpty(path))
@@ -305,6 +305,7 @@ namespace Opc.Ua.Schema
         }
 
         #endregion
+
         #region Private Fields
         private Dictionary<string, string> m_knownFiles;
         private Dictionary<string, object> m_loadedFiles;
