@@ -42,7 +42,8 @@ namespace Opc.Ua.PubSub.Tests
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
-            m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(ConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(ConfigurationFileName, true, true, false);
+            m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
         }
 
         [Test(Description = "Validate Create call with null path")]

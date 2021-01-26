@@ -53,7 +53,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(localhost, "localhost is null");
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(SubscriberConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             NetworkAddressUrlDataType subscriberAddress = new NetworkAddressUrlDataType();
@@ -67,7 +68,8 @@ namespace Opc.Ua.PubSub.Tests
 
             subscriberConnection.UadpMessageReceived += DataReceived;
 
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
+            configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
@@ -115,7 +117,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(localhost, "localhost is null");
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(SubscriberConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             NetworkAddressUrlDataType subscriberAddress = new NetworkAddressUrlDataType();
@@ -129,7 +132,8 @@ namespace Opc.Ua.PubSub.Tests
 
             subscriberConnection.UadpMessageReceived += DataReceived;
 
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
+            configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
@@ -181,7 +185,8 @@ namespace Opc.Ua.PubSub.Tests
             IPAddress multicastIPAddress = new IPAddress(new byte[4] { 239, 0, 0, 1 });
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
-            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(SubscriberConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType subscriberConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration is null");
 
             NetworkAddressUrlDataType subscriberAddress = new NetworkAddressUrlDataType();
@@ -195,7 +200,8 @@ namespace Opc.Ua.PubSub.Tests
 
             subscriberConnection.UadpMessageReceived += DataReceived;
 
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
+            configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();

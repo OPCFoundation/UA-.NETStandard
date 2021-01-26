@@ -120,7 +120,8 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateUdpClientCreatorGetUdpClients()
         {
             // Create a publisher application
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(configurationFile);
             Assert.IsNotNull(publisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration

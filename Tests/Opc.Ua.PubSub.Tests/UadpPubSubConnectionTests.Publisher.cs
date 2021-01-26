@@ -52,7 +52,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             IPAddress unicastIPAddress = localhost.Address;
@@ -105,7 +106,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
@@ -157,7 +159,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
             //create publisher configuration object with modified port
-            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration is null");
 
             IPAddress multicastIPAddress = new IPAddress(new byte[4] { 239, 0, 0, 1 });

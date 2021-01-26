@@ -63,7 +63,6 @@ namespace Opc.Ua.PubSub.Tests
         public void MyTestInitialize()
         {
             m_uaPubSubConfigurator = new UaPubSubConfigurator();
-            
 
             // Attach triggers that count calls 
             m_uaPubSubConfigurator.ConnectionAdded += (sender, e) => CallCountConnectionAdded += 1;
@@ -79,10 +78,12 @@ namespace Opc.Ua.PubSub.Tests
             m_uaPubSubConfigurator.WriterGroupAdded += (sender, e) => CallCountWriterGroupAdded += 1;
             m_uaPubSubConfigurator.WriterGroupRemoved += (sender, e) => CallCountWriterGroupRemoved += 1;
 
-            // A publisher configuration source 
-            m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(PublisherConfigurationFileName);
-            // A subscriber configuration source 
-            m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(SubscriberConfigurationFileName);
+            // A publisher configuration source
+            string publisherConfigFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            m_pubConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(publisherConfigFile);
+            // A subscriber configuration source
+            string subscriberConfigFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            m_subConfigurationLoaded = UaPubSubConfigurationHelper.LoadConfiguration(subscriberConfigFile);
         }
 
         #region AddConnection 

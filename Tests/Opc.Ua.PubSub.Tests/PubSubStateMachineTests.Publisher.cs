@@ -37,16 +37,21 @@ namespace Opc.Ua.PubSub.Tests
     partial class PubSubStateMachineTests
     {
         private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
+        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
+        private string publisherConfigurationFile = null;
+        private string subscriberConfigurationFile = null;
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
+            publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            subscriberConfigurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Publisher")]
         public void ValidateDisabled_0ToPause_1_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -111,7 +116,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Disabled_0 to Operational_2 on Publisher")]
         public void ValidateDisabled_0ToOperational_2_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -183,7 +188,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Paused_1 to Disabled_0 on Publisher")]
         public void ValidatePaused_1ToDisabled_0_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -251,7 +256,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Paused_1 to Operational_2 on Publisher")]
         public void ValidatePaused_1ToOperational_2_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -296,7 +301,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Operational_2 to Disabled_0 on Publisher")]
         public void ValidateOperational_2ToDisabled_0_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -354,7 +359,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Operational_2 to Paused_1 on Publisher")]
         public void ValidateOperational_2ToPaused_1_Publisher()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 

@@ -36,13 +36,10 @@ namespace Opc.Ua.PubSub.Tests
 {
     partial class PubSubStateMachineTests
     {
-        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
-
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Reader")]
         public void ValidateDisabled_0ToPause_1_Reader()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
-
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]
@@ -105,8 +102,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Disabled_0 to Operational_2 on Reader")]
         public void ValidateDisabled_0ToOperational_2_Reader()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
-
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]
@@ -177,7 +173,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Paused_1 to Disabled_0 on Reader")]
         public void ValidatePaused_1ToDisabled_0_Reader()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -245,7 +241,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate transition of state Paused_1 to Operational_2 on Reader")]
         public void ValidatePaused_1ToOperational_2_Reader()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -283,13 +279,12 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(conState == PubSubState.Operational, Is.True);
             Assert.That(rgState == PubSubState.Operational, Is.True);
             Assert.That(dsrState == PubSubState.Operational, Is.True);
-
         }
 
         [Test(Description = "Validate transition of state Operational_2 to Disabled_0 on Reader")]
         public void ValidateOperational_2ToDisabled_0_Reader()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
 
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
@@ -343,14 +338,12 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(conState == PubSubState.Disabled, Is.True);
             Assert.That(rgState == PubSubState.Disabled, Is.True);
             Assert.That(dsrState == PubSubState.Disabled, Is.True);
-
         }
 
         [Test(Description = "Validate transition of state Operational_2 to Paused_1 on Reader")]
         public void ValidateOperational_2ToPaused_1_Reader()
         {
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
-
+            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubReaderGroup -> DataSetReader brought to [Disabled, Disabled, Disabled, Disabled]
@@ -399,7 +392,6 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(conState == PubSubState.Paused, Is.True);
             Assert.That(rgState == PubSubState.Paused, Is.True);
             Assert.That(dsrState == PubSubState.Paused, Is.True);
-
         }
 
     }

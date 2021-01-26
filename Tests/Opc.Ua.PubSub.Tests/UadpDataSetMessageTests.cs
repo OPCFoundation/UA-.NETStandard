@@ -73,9 +73,9 @@ namespace Opc.Ua.PubSub.Tests
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
-
             // Create a publisher application
-            m_publisherApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            string publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration
@@ -97,7 +97,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotEmpty(m_publisherConfiguration.PublishedDataSets, "m_publisherConfiguration.PublishedDataSets should not be empty");
 
             // Create a subscriber application
-            m_subscriberApplication = UaPubSubApplication.Create(SubscriberConfigurationFileName);
+            string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
             // Get the subscriber configuration

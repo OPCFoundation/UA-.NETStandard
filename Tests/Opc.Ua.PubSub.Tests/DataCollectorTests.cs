@@ -54,8 +54,10 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateAddPublishedDataSet()
         {
             //Arrange
+            string configurationFile = Utils.GetAbsoluteFilePath(ConfigurationFileName, true, true, false);
+            var pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
+
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
-            var pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(ConfigurationFileName);
             //Act  
             dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets[0]);
             DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets[0].Name);

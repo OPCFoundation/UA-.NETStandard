@@ -58,7 +58,8 @@ namespace Opc.Ua.PubSub.Tests
         public void MyTestInitialize()
         {
             // Create a publisher application
-            m_uaPublisherApplication = UaPubSubApplication.Create(PublisherConfigurationFileName);
+            string configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
+            m_uaPublisherApplication = UaPubSubApplication.Create(configurationFile);
             Assert.IsNotNull(m_uaPublisherApplication, "m_publisherApplication should not be null");
 
             // Get the publisher configuration
