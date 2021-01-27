@@ -173,9 +173,13 @@ namespace Opc.Ua
         ExtensionObject ReadExtensionObject(string fieldName);
 
         /// <summary>
-        ///  Reads an encodeable object from the stream.
+        /// Reads an encodeable object from the stream.
         /// </summary>
-        IEncodeable ReadEncodeable(string fieldName, System.Type systemType);
+        /// <param name="fieldName">The encodeable object field name</param>
+        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
+        IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         ///  Reads an enumerated value from the stream.
@@ -308,9 +312,13 @@ namespace Opc.Ua
         ExtensionObjectCollection ReadExtensionObjectArray(string fieldName);
 
         /// <summary>
-        /// Reads an encodeable object array from the stream.
+        /// Reads an encodeable array from the stream.
         /// </summary>
-        Array ReadEncodeableArray(string fieldName, System.Type systemType);
+        /// <param name="fieldName">The encodeable array field name</param>
+        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
+        Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null);
 
         /// <summary>
         /// Reads an enumerated value array from the stream.
