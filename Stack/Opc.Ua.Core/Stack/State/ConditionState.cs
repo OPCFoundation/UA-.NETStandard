@@ -195,6 +195,8 @@ namespace Opc.Ua
                 this.Time.Value = DateTime.UtcNow;
                 this.ReceiveTime.Value = this.Time.Value;
 
+                ClearChangeMasks(context, includeChildren: true);
+
                 // report a state change event.
                 if (this.AreEventsMonitored)
                 {
