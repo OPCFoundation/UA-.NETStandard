@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -43,7 +43,7 @@ namespace Quickstarts.ReferenceServer
         private ILogger m_logger;
 
         /// <summary>
-        /// Create a serilog trace logger which replaces the defualt logging.
+        /// Create a serilog trace logger which replaces the default logging.
         /// </summary>
         /// <param name="config">The application configuration.</param>
         /// <param name="fileMinimumLevel">The min log level for file output.</param>
@@ -55,7 +55,7 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Create a serilog trace logger which replaces the defualt logging.
+        /// Create a serilog trace logger which replaces the default logging.
         /// </summary>
         /// <param name="loggerConfiguration">The logger configuration.</param>
         /// <param name="config">The application configuration.</param>
@@ -95,6 +95,11 @@ namespace Quickstarts.ReferenceServer
             return traceLogger;
         }
 
+        /// <summary>
+        /// Ctor of trace logger.
+        /// </summary>
+        /// <param name="logger">The logger</param>
+        /// <param name="traceMask">The trace mask</param>
         public SerilogTraceLogger(ILogger logger, int traceMask)
         {
             m_logger = logger;
@@ -117,8 +122,8 @@ namespace Quickstarts.ReferenceServer
                 }
                 switch (e.TraceMask)
                 {
-                    case Utils.TraceMasks.OperationDetail: m_logger.Verbose(e.Format, e.Arguments); break;
-                    case Utils.TraceMasks.Information: m_logger.Information(e.Format, e.Arguments); break;
+                    case Utils.TraceMasks.OperationDetail: 
+                    case Utils.TraceMasks.Information: m_logger.Verbose(e.Format, e.Arguments); break;
                     case Utils.TraceMasks.Error: m_logger.Error(e.Format, e.Arguments); break;
                     case Utils.TraceMasks.StackTrace: 
                     case Utils.TraceMasks.Security: m_logger.Warning(e.Format, e.Arguments); break;

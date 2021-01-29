@@ -35,6 +35,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -292,20 +293,21 @@ namespace Quickstarts.ReferenceServer
         {
             lock (session.DiagnosticsLock)
             {
-                string item = string.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
+                StringBuilder item = new StringBuilder();
+                item.Append(string.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName));
                 if (lastContact)
                 {
-                    item += string.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                    item.Append(string.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()));
                 }
                 else
                 {
                     if (session.Identity != null)
                     {
-                        item += string.Format(":{0,20}", session.Identity.DisplayName);
+                        item.Append(string.Format(":{0,20}", session.Identity.DisplayName));
                     }
-                    item += string.Format(":{0}", session.Id);
+                    item.Append(string.Format(":{0}", session.Id));
                 }
-                Console.WriteLine(item);
+                Console.WriteLine(item.ToString());
             }
         }
 
