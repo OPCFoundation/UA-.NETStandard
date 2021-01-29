@@ -335,8 +335,8 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                     }
 
-                    m_pubSubConfiguration.Connections.Clear();
-                    m_pubSubConfiguration.PublishedDataSets.Clear();
+                    m_pubSubConfiguration?.Connections.Clear();
+                    m_pubSubConfiguration?.PublishedDataSets.Clear();
                 }
 
                 //first load Published DataSet information
@@ -1674,7 +1674,6 @@ namespace Opc.Ua.PubSub.Configuration
         {
             bool configurationObjectEnabled = false;
             PubSubState parentPubSubState = PubSubState.Operational;
-            uint parentId = InvalidId;
 
             if (configurationObject is PubSubConfigurationDataType)
             {

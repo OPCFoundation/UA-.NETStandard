@@ -198,7 +198,6 @@ namespace Opc.Ua.PubSub.Tests
             }
            
             NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
-            var netInterface = interfaces.FirstOrDefault(nic => nic.GetIPProperties().UnicastAddresses.Any(addr => addr.Address.AddressFamily == AddressFamily.InterNetwork));
 
             foreach (NetworkInterface nic in interfaces)
             {

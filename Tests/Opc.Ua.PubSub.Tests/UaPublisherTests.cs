@@ -64,7 +64,6 @@ namespace Opc.Ua.PubSub.Tests
             //wait so many seconds
             Thread.Sleep(publishTimeInSecods*1000);
             publisher.Stop();
-            List<double> publishTimesIntervals = new List<double>();
             int faultIndex = -1;
             double faultDeviation = 0;
 
@@ -77,8 +76,8 @@ namespace Opc.Ua.PubSub.Tests
                 {
                     faultIndex = i;
                     faultDeviation = deviation;
-                }                
-            }            
+                }
+            }
             Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation);
         }
     }

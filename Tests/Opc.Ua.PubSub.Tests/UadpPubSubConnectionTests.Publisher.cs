@@ -214,7 +214,8 @@ namespace Opc.Ua.PubSub.Tests
             // points towards whoever had sent the message:
             IPEndPoint source = new IPEndPoint(0, 0);
             // get the actual message and fill out the source:
-            byte[] message = socket.EndReceive(result, ref source);
+            socket.EndReceive(result, ref source);
+
             if (IsHostAddress(source.Address.ToString()))
             {
                 //signal that uadp message was received from local ip

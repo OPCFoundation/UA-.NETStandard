@@ -268,6 +268,7 @@ namespace Opc.Ua.PubSub.Tests
             Assert.That(conState == PubSubState.Paused, Is.True);
             Assert.That(rgState == PubSubState.Paused, Is.True);
             Assert.That(conState == PubSubState.Paused, Is.True);
+            Assert.That(dsrState == PubSubState.Paused, Is.True);
 
             // Bring pubSub to Enabled
             configurator.Enable(pubSub);

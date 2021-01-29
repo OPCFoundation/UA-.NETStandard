@@ -273,7 +273,6 @@ namespace Opc.Ua.PubSub.Uadp
         /// <returns></returns>
         private static bool IsIPv4BroadcastAddress(IPAddress address, NetworkInterface networkInterface)
         {
-            var ip = networkInterface.GetPhysicalAddress();
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
             foreach (UnicastIPAddressInformation localUnicastAddress in ipProps.UnicastAddresses)
             {
@@ -286,8 +285,8 @@ namespace Opc.Ua.PubSub.Uadp
                     bool isBroadcast = ((addressBits & invertedSubnetBits) == invertedSubnetBits);
                     if (isBroadcast)
                     {
-                return true;
-            }
+                        return true;
+                    }
                 }
             }
             return false;

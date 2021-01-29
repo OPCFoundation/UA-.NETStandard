@@ -518,8 +518,11 @@ namespace Opc.Ua.PubSub.Uadp
                 FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & FieldTypeUsedBits) >> 1);
                 if (fieldType == FieldTypeEncodingMask.RawData)
                 {
-                    // metadata should provide field count 
-                    fieldCount = (ushort)metaDataType.Fields.Count;
+                    if (metaDataType != null)
+                    {
+                        // metadata should provide field count 
+                        fieldCount = (ushort)metaDataType.Fields.Count;
+                    }
                 }
                 else
                 {
@@ -581,7 +584,7 @@ namespace Opc.Ua.PubSub.Uadp
                     dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
                     dataFields.Add(dataField);
                 }
-                DataSet dataSet = new DataSet(metaDataType.Name);
+                DataSet dataSet = new DataSet(metaDataType?.Name);
                 dataSet.Fields = dataFields.ToArray();
                 dataSet.DataSetWriterId = DataSetWriterId;
                 dataSet.SequenceNumber = SequenceNumber;

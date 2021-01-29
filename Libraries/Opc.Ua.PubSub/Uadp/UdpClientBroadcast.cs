@@ -83,13 +83,11 @@ namespace Opc.Ua.PubSub.Uadp
         /// </summary>
         private void CustomizeSocketToBroadcastThroughIf()
         {
-            Socket s = Client;
-
             Action<SocketOptionLevel, SocketOptionName, bool> setSocketOption = (SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value) =>
             {
                 try
                 {
-                    s.SetSocketOption(socketOptionLevel, socketOptionName, value);
+                    Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
                 }
                 catch (Exception ex)
                 {

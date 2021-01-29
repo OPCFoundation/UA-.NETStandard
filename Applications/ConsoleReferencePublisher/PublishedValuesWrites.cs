@@ -236,7 +236,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
                         Byte byteValue = Convert.ToByte(dataValue.Value);
-                        dataValue.Value = ++byteValue;
+                        dataValue.Value = byteValue + 1;
                         valueUpdated = true;
                     }
                     break;
@@ -301,7 +301,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         float floatValue = Convert.ToSingle(dataValue.Value);
                         Interlocked.CompareExchange(ref floatValue, 0, float.MaxValue);
-                        dataValue.Value = ++floatValue;
+                        dataValue.Value = floatValue + 1;
                         valueUpdated = true;
                     }
                     break;
@@ -310,7 +310,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     {
                         double doubleValue = Convert.ToDouble(dataValue.Value);
                         Interlocked.CompareExchange(ref doubleValue, 0, double.MaxValue);
-                        dataValue.Value = ++doubleValue;
+                        dataValue.Value = doubleValue + 1;
                         valueUpdated = true;
                     }
                     break;

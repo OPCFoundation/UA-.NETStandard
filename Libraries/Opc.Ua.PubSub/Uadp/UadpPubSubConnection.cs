@@ -281,17 +281,17 @@ namespace Opc.Ua.PubSub.Uadp
                         {
                             try
                             {
-                                int sent = udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
+                                udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
                             }
                             catch(Exception ex)
                             {
                                 Utils.Trace(ex, "UadpPubSubConnection.PublishNetworkMessage");
                                 return false;
                             }
-                        }                        
+                        }
                         return true;
                     }
-                }                
+                }
             }
             catch (Exception ex)
             {
@@ -299,9 +299,8 @@ namespace Opc.Ua.PubSub.Uadp
                 return false;
             }
 
-            return false;            
+            return false;
         }
-
         #endregion
 
         #region Private methods
@@ -354,10 +353,16 @@ namespace Opc.Ua.PubSub.Uadp
                 {
                     return;
                 }
-            }            
+            }
 
             // this is what had been passed into BeginReceive as the second parameter:
             UdpClient socket = result.AsyncState as UdpClient;
+
+            if (socket == null)
+            {
+                return;
+            }
+
             // points towards whoever had sent the message:
             IPEndPoint source = new IPEndPoint(0, 0);
             // get the actual message and fill out the source:
@@ -365,22 +370,24 @@ namespace Opc.Ua.PubSub.Uadp
             {
                 byte[] message = socket.EndReceive(result, ref source);
 
-                RaiseUadpDataReceivedEvent(
-                            new UadpDataEventArgs()
-                            {
+                if (message != null)
+                {
+                    RaiseUadpDataReceivedEvent(
+                            new UadpDataEventArgs() {
                                 Message = message,
                                 SourceEndPoint = source
                             });
 
-                Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);
+                    Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);
 
-                if (message != null && message.Length > 1)
-                {
-                    // call on a new thread
-                    Task.Run(() =>
+                    if (message.Length > 1)
                     {
-                        ProcessReceivedMessage(message, source);
-                    });
+                        // call on a new thread
+                        Task.Run(() =>
+                        {
+                            ProcessReceivedMessage(message, source);
+                        });
+                    }
                 }
             }
             catch (Exception ex)
@@ -402,7 +409,6 @@ namespace Opc.Ua.PubSub.Uadp
                     Renew(socket);
                 }
             }
-
         }
 
         /// <summary>
@@ -430,7 +436,10 @@ namespace Opc.Ua.PubSub.Uadp
             socket.Close();
             socket.Dispose();
 
-            newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
+            if(newsocket != null)
+            {
+                newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
+            }
         }
 
         /// <summary>
