@@ -773,9 +773,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        ///  Reads an encodeable object from the stream.
+        /// Reads an encodeable object from the stream.
         /// </summary>
-        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType)
+        /// <param name="fieldName">The encodeable object field name</param>
+        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
+        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
@@ -786,6 +790,17 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
                     Utils.Format("Cannot decode type '{0}'.", systemType.FullName));
+            }
+
+            if (encodeableTypeId != null)
+            {
+                // set type identifier for custom complex data types before decode.
+                IComplexTypeInstance complexTypeInstance = encodeable as IComplexTypeInstance;
+
+                if (complexTypeInstance != null)
+                {
+                    complexTypeInstance.TypeId = encodeableTypeId;
+                }
             }
 
             // check the nesting level for avoiding a stack overflow.
@@ -1365,9 +1380,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads an encodeable object array from the stream.
+        /// Reads an encodeable array from the stream.
         /// </summary>
-        public Array ReadEncodeableArray(string fieldName, System.Type systemType)
+        /// <param name="fieldName">The encodeable array field name</param>
+        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
+        public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             int length = ReadArrayLength();
 
@@ -1380,7 +1399,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values.SetValue(ReadEncodeable(null, systemType), ii);
+                values.SetValue(ReadEncodeable(null, systemType, encodeableTypeId), ii);
             }
 
             return values;
