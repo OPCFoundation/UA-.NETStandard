@@ -798,6 +798,7 @@ namespace Opc.Ua.Server
                 if (NodeId.IsNull(element.ReferenceTypeId))
                 {
                     element.ReferenceTypeId = ReferenceTypeIds.References;
+                    element.IncludeSubtypes = true;
                 }
             }
             // validate access rights and role permissions
