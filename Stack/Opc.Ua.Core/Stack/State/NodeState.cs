@@ -2853,7 +2853,7 @@ namespace Opc.Ua
         /// <param name="browseName">The browse name of the targets to return.</param>
         /// <param name="additionalReferences">Any additional references that should be included in the list.</param>
         /// <param name="internalOnly">Only return references that are stored in memory.</param>
-        /// <returns>A thread safe object which enumerates the refernces for an entity.</returns>
+        /// <returns>A thread safe object which enumerates the references for an entity.</returns>
         public virtual INodeBrowser CreateBrowser(
             ISystemContext context,
             ViewDescription view,
