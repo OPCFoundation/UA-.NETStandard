@@ -80,6 +80,10 @@ namespace Opc.Ua
 
         #region Public Properties - Operational
 
+        /// <summary>
+        /// Defines how often to update the UnshelveTime when Shelving State is TimedShelve or OneShotShelved.
+        /// Defaults to 1000 ms
+        /// </summary>
         public int UnshelveTimeUpdateRate
         {
             get
