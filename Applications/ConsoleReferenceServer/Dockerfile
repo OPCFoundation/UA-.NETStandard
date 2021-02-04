@@ -3,4 +3,4 @@
 COPY ./publish /publish
 WORKDIR /publish
 
-ENTRYPOINT ["dotnet", "NetCoreReferenceServer.dll"]
+ENTRYPOINT ["dotnet", "ConsoleReferenceServer.dll"]

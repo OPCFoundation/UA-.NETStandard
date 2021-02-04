@@ -31,51 +31,52 @@ using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Quickstarts.ReferenceServer
 {
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
-        private string message = string.Empty;
-        private bool ask = false;
+        private string m_message = string.Empty;
+        private bool m_ask = false;
 
         public override void Message(string text, bool ask)
         {
-            this.message = text;
-            this.ask = ask;
+            m_message = text;
+            m_ask = ask;
         }
 
         public override async Task<bool> ShowAsync()
         {
-            if (ask)
+            if (m_ask)
             {
-                message += " (y/n, default y): ";
-                Console.Write(message);
+                m_message += " (y/n, default y): ";
+                Console.Write(m_message);
             }
             else
             {
-                Console.WriteLine(message);
+                Console.WriteLine(m_message);
             }
-            if (ask)
+            if (m_ask)
             {
                 try
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     Console.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
                 }
                 catch
                 {
                     // intentionally fall through
                 }
             }
-            return await Task.FromResult(true);
+            return await Task.FromResult(true).ConfigureAwait(false);
         }
     }
 
@@ -97,10 +98,12 @@ namespace Quickstarts.ReferenceServer
             // command line options
             bool showHelp = false;
             bool autoAccept = false;
+            bool console = false;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
-                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null }
+                { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
+                { "c|console", "log trace to console", c => console = c != null }
             };
 
             try
@@ -128,7 +131,7 @@ namespace Quickstarts.ReferenceServer
                 return (int)ExitCode.ErrorInvalidCommandLine;
             }
 
-            MyRefServer server = new MyRefServer(autoAccept);
+            MyRefServer server = new MyRefServer(autoAccept, console);
             server.Run();
 
             return (int)MyRefServer.ExitCode;
@@ -137,40 +140,39 @@ namespace Quickstarts.ReferenceServer
 
     public class MyRefServer
     {
-        ReferenceServer server;
-        Task status;
-        DateTime lastEventTime;
-        static bool autoAccept = false;
-        static ExitCode exitCode;
+        private ReferenceServer m_server;
+        private Task m_status;
+        private DateTime m_lastEventTime;
+        private bool m_autoAccept = false;
+        private bool m_logConsole = false;
+        private static ExitCode s_exitCode;
 
-        public MyRefServer(bool _autoAccept)
+        public MyRefServer(bool autoAccept, bool logConsole)
         {
-            autoAccept = _autoAccept;
+            m_autoAccept = autoAccept;
+            m_logConsole = logConsole;
         }
 
         public void Run()
         {
-
             try
             {
-                exitCode = ExitCode.ErrorServerNotStarted;
+                s_exitCode = ExitCode.ErrorServerNotStarted;
                 ConsoleSampleServer().Wait();
                 Console.WriteLine("Server started. Press Ctrl-C to exit...");
-                exitCode = ExitCode.ErrorServerRunning;
+                s_exitCode = ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
-                Utils.Trace("ServiceResultException:" + ex.Message);
                 Console.WriteLine("Exception: {0}", ex.Message);
-                exitCode = ExitCode.ErrorServerException;
+                s_exitCode = ExitCode.ErrorServerException;
                 return;
             }
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.CancelKeyPress += (sender, eArgs) =>
-                {
+                Console.CancelKeyPress += (sender, eArgs) => {
                     quitEvent.Set();
                     eArgs.Cancel = true;
                 };
@@ -182,55 +184,75 @@ namespace Quickstarts.ReferenceServer
             // wait for timeout or Ctrl-C
             quitEvent.WaitOne();
 
-            if (server != null)
+            if (m_server != null)
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                using (ReferenceServer _server = server)
+                using (ReferenceServer server = m_server)
                 {
                     // Stop status thread
-                    server = null;
-                    status.Wait();
+                    m_server = null;
+                    m_status.Wait();
                     // Stop server and dispose
-                    _server.Stop();
+                    server.Stop();
                 }
             }
 
-            exitCode = ExitCode.Ok;
+            s_exitCode = ExitCode.Ok;
         }
 
-        public static ExitCode ExitCode { get => exitCode; }
+        public static ExitCode ExitCode { get => s_exitCode; }
 
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = autoAccept;
-                if (autoAccept)
+                if (m_autoAccept)
                 {
-                    Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-                }
-                else
-                {
-                    Console.WriteLine("Rejected Certificate: {0}", e.Certificate.Subject);
+                    if (!m_logConsole)
+                    {
+                        Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
+                    }
+                    Utils.Trace(Utils.TraceMasks.Security, "Accepted Certificate: {0}", e.Certificate.Subject);
+                    e.Accept = true;
+                    return;
                 }
             }
+            if (!m_logConsole)
+            {
+                Console.WriteLine("Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
+            }
+            Utils.Trace(Utils.TraceMasks.Security, "Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
         }
 
         private async Task ConsoleSampleServer()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            ApplicationInstance application = new ApplicationInstance();
-
-            application.ApplicationName = "Quickstart Reference Server";
-            application.ApplicationType = ApplicationType.Server;
-            application.ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
+            ApplicationInstance application = new ApplicationInstance {
+                ApplicationName = "Quickstart Reference Server",
+                ApplicationType = ApplicationType.Server,
+                ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer"
+            };
 
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false);
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+
+            var loggerConfiguration = new Serilog.LoggerConfiguration();
+            if (m_logConsole)
+            {
+                loggerConfiguration.WriteTo.Console(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning);
+            }
+#if DEBUG
+            else
+            {
+                loggerConfiguration.WriteTo.Debug(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning);
+            }
+#endif
+            SerilogTraceLogger.Create(loggerConfiguration, config);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(false, CertificateFactory.DefaultKeySize, CertificateFactory.DefaultLifeTime);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(
+                false, CertificateFactory.DefaultKeySize, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -242,8 +264,8 @@ namespace Quickstarts.ReferenceServer
             }
 
             // start the server.
-            server = new ReferenceServer();
-            await application.Start(server);
+            m_server = new ReferenceServer();
+            await application.Start(m_server).ConfigureAwait(false);
 
             // print endpoint info
             var endpoints = application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
@@ -253,56 +275,57 @@ namespace Quickstarts.ReferenceServer
             }
 
             // start the status thread
-            status = Task.Run(new Action(StatusThread));
+            m_status = Task.Run(new Action(StatusThread));
 
             // print notification on session events
-            server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
-            server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
-            server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
+            m_server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
+            m_server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
+            m_server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
         }
 
         private void EventStatus(Session session, SessionEventReason reason)
         {
-            lastEventTime = DateTime.UtcNow;
+            m_lastEventTime = DateTime.UtcNow;
             PrintSessionStatus(session, reason.ToString());
         }
 
-        void PrintSessionStatus(Session session, string reason, bool lastContact = false)
+        private void PrintSessionStatus(Session session, string reason, bool lastContact = false)
         {
             lock (session.DiagnosticsLock)
             {
-                string item = String.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
+                StringBuilder item = new StringBuilder();
+                item.Append(string.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName));
                 if (lastContact)
                 {
-                    item += String.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                    item.Append(string.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()));
                 }
                 else
                 {
                     if (session.Identity != null)
                     {
-                        item += String.Format(":{0,20}", session.Identity.DisplayName);
+                        item.Append(string.Format(":{0,20}", session.Identity.DisplayName));
                     }
-                    item += String.Format(":{0}", session.Id);
+                    item.Append(string.Format(":{0}", session.Id));
                 }
-                Console.WriteLine(item);
+                Console.WriteLine(item.ToString());
             }
         }
 
         private async void StatusThread()
         {
-            while (server != null)
+            while (m_server != null)
             {
-                if (DateTime.UtcNow - lastEventTime > TimeSpan.FromMilliseconds(6000))
+                if (DateTime.UtcNow - m_lastEventTime > TimeSpan.FromMilliseconds(6000))
                 {
-                    IList<Session> sessions = server.CurrentInstance.SessionManager.GetSessions();
+                    IList<Session> sessions = m_server.CurrentInstance.SessionManager.GetSessions();
                     for (int ii = 0; ii < sessions.Count; ii++)
                     {
                         Session session = sessions[ii];
                         PrintSessionStatus(session, "-Status-", true);
                     }
-                    lastEventTime = DateTime.UtcNow;
+                    m_lastEventTime = DateTime.UtcNow;
                 }
-                await Task.Delay(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
             }
         }
     }

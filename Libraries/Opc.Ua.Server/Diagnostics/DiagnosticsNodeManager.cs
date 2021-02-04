@@ -1182,17 +1182,46 @@ namespace Opc.Ua.Server
 
                 if (DateTime.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
+                    // diagnostic nodes already scanned.
                     return ServiceResult.Good;
                 }
 
-                DoScan(true);
-
-                // pull the value out of the node which was updated by the scan operation.
-                BaseVariableState variable = node as BaseVariableState;
-
-                if (variable != null)
+                if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray)
                 {
-                    value = variable.Value;
+                    // read session diagnostics.
+                    SessionDiagnosticsDataType[] sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
+
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        SessionDiagnosticsData diagnostics = m_sessions[ii];
+                        UpdateSessionDiagnostics(diagnostics, sessionArray, ii);
+                    }
+
+                    value = sessionArray;
+                }
+                else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
+                {
+                    // read session security diagnostics.
+                    SessionSecurityDiagnosticsDataType[] sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
+
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        UpdateSessionSecurityDiagnostics(m_sessions[ii], sessionSecurityArray, ii);
+                    }
+
+                    value = sessionSecurityArray;
+                }
+                else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
+                {
+                    // read subscription diagnostics.
+                    SubscriptionDiagnosticsDataType[] subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions.Count];
+
+                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                    {
+                        UpdateSubscriptionDiagnostics(m_subscriptions[ii], subscriptionArray, ii);
+                    }
+
+                    value = subscriptionArray;
                 }
 
                 return ServiceResult.Good;
@@ -1252,7 +1281,7 @@ namespace Opc.Ua.Server
 
                         if (UpdateSessionSecurityDiagnostics(diagnostics, sessionSecurityArray, ii))
                         {
-                            sessionsChanged = true;
+                            sessionsSecurityChanged = true;
                         }
                     }
 
@@ -1276,7 +1305,7 @@ namespace Opc.Ua.Server
 
                         if (UpdateSubscriptionDiagnostics(diagnostics, subscriptionArray, ii))
                         {
-                            sessionsChanged = true;
+                            subscriptionsChanged = true;
                         }
                     }
 
