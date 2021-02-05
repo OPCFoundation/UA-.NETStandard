@@ -29,6 +29,7 @@ namespace Opc.Ua
         private StreamWriter m_writer;
         private Stack<string> m_namespaces;
         private bool m_commaRequired;
+        private bool m_inVariantWithEncoding;
         private ServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
@@ -1377,7 +1378,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteBooleanArray(string fieldName, IList<bool> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1404,7 +1405,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteSByteArray(string fieldName, IList<sbyte> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1431,7 +1432,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1458,7 +1459,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt16Array(string fieldName, IList<short> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1485,7 +1486,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt16Array(string fieldName, IList<ushort> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1512,7 +1513,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt32Array(string fieldName, IList<int> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1539,7 +1540,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt32Array(string fieldName, IList<uint> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1566,7 +1567,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt64Array(string fieldName, IList<long> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1593,7 +1594,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt64Array(string fieldName, IList<ulong> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1620,7 +1621,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloatArray(string fieldName, IList<float> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1647,7 +1648,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDoubleArray(string fieldName, IList<double> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1674,7 +1675,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStringArray(string fieldName, IList<string> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1701,7 +1702,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1735,7 +1736,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1762,7 +1763,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1789,7 +1790,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteStringArray(string fieldName, IList<byte[]> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1816,7 +1817,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1843,7 +1844,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1870,7 +1871,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1897,7 +1898,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1932,7 +1933,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1959,7 +1960,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -1986,7 +1987,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -2013,7 +2014,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariantArray(string fieldName, IList<Variant> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -2046,7 +2047,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValueArray(string fieldName, IList<DataValue> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -2073,7 +2074,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -2100,7 +2101,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;
@@ -2204,130 +2205,139 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
-            // check for null.
-            if (value == null)
+            try
             {
-                return;
-            }
+                m_inVariantWithEncoding = UseReversibleEncoding;
 
-            m_commaRequired = false;
-
-            // write scalar.
-            if (typeInfo.ValueRank < 0)
-            {
-                switch (typeInfo.BuiltInType)
+                // check for null.
+                if (value == null)
                 {
-                    case BuiltInType.Boolean: { WriteBoolean(null, (bool)value); return; }
-                    case BuiltInType.SByte: { WriteSByte(null, (sbyte)value); return; }
-                    case BuiltInType.Byte: { WriteByte(null, (byte)value); return; }
-                    case BuiltInType.Int16: { WriteInt16(null, (short)value); return; }
-                    case BuiltInType.UInt16: { WriteUInt16(null, (ushort)value); return; }
-                    case BuiltInType.Int32: { WriteInt32(null, (int)value); return; }
-                    case BuiltInType.UInt32: { WriteUInt32(null, (uint)value); return; }
-                    case BuiltInType.Int64: { WriteInt64(null, (long)value); return; }
-                    case BuiltInType.UInt64: { WriteUInt64(null, (ulong)value); return; }
-                    case BuiltInType.Float: { WriteFloat(null, (float)value); return; }
-                    case BuiltInType.Double: { WriteDouble(null, (double)value); return; }
-                    case BuiltInType.String: { WriteString(null, (string)value); return; }
-                    case BuiltInType.DateTime: { WriteDateTime(null, (DateTime)value); return; }
-                    case BuiltInType.Guid: { WriteGuid(null, (Uuid)value); return; }
-                    case BuiltInType.ByteString: { WriteByteString(null, (byte[])value); return; }
-                    case BuiltInType.XmlElement: { WriteXmlElement(null, (XmlElement)value); return; }
-                    case BuiltInType.NodeId: { WriteNodeId(null, (NodeId)value); return; }
-                    case BuiltInType.ExpandedNodeId: { WriteExpandedNodeId(null, (ExpandedNodeId)value); return; }
-                    case BuiltInType.StatusCode: { WriteStatusCode(null, (StatusCode)value); return; }
-                    case BuiltInType.QualifiedName: { WriteQualifiedName(null, (QualifiedName)value); return; }
-                    case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)value); return; }
-                    case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)value); return; }
-                    case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)value); return; }
-                    case BuiltInType.Enumeration: { WriteEnumerated(null, (Enum)value); return; }
-                }
-            }
-
-            // write array.
-            else if (typeInfo.ValueRank <= 1)
-            {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Boolean: { WriteBooleanArray(null, (bool[])value); return; }
-                    case BuiltInType.SByte: { WriteSByteArray(null, (sbyte[])value); return; }
-                    case BuiltInType.Byte: { WriteByteArray(null, (byte[])value); return; }
-                    case BuiltInType.Int16: { WriteInt16Array(null, (short[])value); return; }
-                    case BuiltInType.UInt16: { WriteUInt16Array(null, (ushort[])value); return; }
-                    case BuiltInType.Int32: { WriteInt32Array(null, (int[])value); return; }
-                    case BuiltInType.UInt32: { WriteUInt32Array(null, (uint[])value); return; }
-                    case BuiltInType.Int64: { WriteInt64Array(null, (long[])value); return; }
-                    case BuiltInType.UInt64: { WriteUInt64Array(null, (ulong[])value); return; }
-                    case BuiltInType.Float: { WriteFloatArray(null, (float[])value); return; }
-                    case BuiltInType.Double: { WriteDoubleArray(null, (double[])value); return; }
-                    case BuiltInType.String: { WriteStringArray(null, (string[])value); return; }
-                    case BuiltInType.DateTime: { WriteDateTimeArray(null, (DateTime[])value); return; }
-                    case BuiltInType.Guid: { WriteGuidArray(null, (Uuid[])value); return; }
-                    case BuiltInType.ByteString: { WriteByteStringArray(null, (byte[][])value); return; }
-                    case BuiltInType.XmlElement: { WriteXmlElementArray(null, (XmlElement[])value); return; }
-                    case BuiltInType.NodeId: { WriteNodeIdArray(null, (NodeId[])value); return; }
-                    case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(null, (ExpandedNodeId[])value); return; }
-                    case BuiltInType.StatusCode: { WriteStatusCodeArray(null, (StatusCode[])value); return; }
-                    case BuiltInType.QualifiedName: { WriteQualifiedNameArray(null, (QualifiedName[])value); return; }
-                    case BuiltInType.LocalizedText: { WriteLocalizedTextArray(null, (LocalizedText[])value); return; }
-                    case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(null, (ExtensionObject[])value); return; }
-                    case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])value); return; }
-                    case BuiltInType.Enumeration:
-                    {
-                        Array array = value as Array;
-                        WriteEnumeratedArray(null, array, array.GetType().GetElementType());
-                        return;
-                    }
-
-                    case BuiltInType.Variant:
-                    {
-                        Variant[] variants = value as Variant[];
-
-                        if (variants != null)
-                        {
-                            WriteVariantArray(null, variants);
-                            return;
-                        }
-
-                        object[] objects = value as object[];
-
-                        if (objects != null)
-                        {
-                            WriteObjectArray(null, objects);
-                            return;
-                        }
-
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding an array of Variants: {0}",
-                            value.GetType());
-                    }
-                }
-            }
-
-            // write matrix.
-            else if (typeInfo.ValueRank > 1)
-            {
-                Matrix matrix = value as Matrix;
-                if (matrix != null)
-                {
-                    if (UseReversibleEncoding)
-                    {
-                        WriteVariantContents(matrix.Elements, new TypeInfo(typeInfo.BuiltInType, 1));
-                    }
-                    else
-                    {
-                        int index = 0;
-                        WriteStructureMatrix(matrix, 0, ref index, typeInfo);
-                    }
                     return;
                 }
-            }
 
-            // oops - should never happen.
-            throw new ServiceResultException(
-                StatusCodes.BadEncodingError,
-                Utils.Format("Type '{0}' is not allowed in an Variant.", value.GetType().FullName));
+                m_commaRequired = false;
+
+                // write scalar.
+                if (typeInfo.ValueRank < 0)
+                {
+                    switch (typeInfo.BuiltInType)
+                    {
+                        case BuiltInType.Boolean: { WriteBoolean(null, (bool)value); return; }
+                        case BuiltInType.SByte: { WriteSByte(null, (sbyte)value); return; }
+                        case BuiltInType.Byte: { WriteByte(null, (byte)value); return; }
+                        case BuiltInType.Int16: { WriteInt16(null, (short)value); return; }
+                        case BuiltInType.UInt16: { WriteUInt16(null, (ushort)value); return; }
+                        case BuiltInType.Int32: { WriteInt32(null, (int)value); return; }
+                        case BuiltInType.UInt32: { WriteUInt32(null, (uint)value); return; }
+                        case BuiltInType.Int64: { WriteInt64(null, (long)value); return; }
+                        case BuiltInType.UInt64: { WriteUInt64(null, (ulong)value); return; }
+                        case BuiltInType.Float: { WriteFloat(null, (float)value); return; }
+                        case BuiltInType.Double: { WriteDouble(null, (double)value); return; }
+                        case BuiltInType.String: { WriteString(null, (string)value); return; }
+                        case BuiltInType.DateTime: { WriteDateTime(null, (DateTime)value); return; }
+                        case BuiltInType.Guid: { WriteGuid(null, (Uuid)value); return; }
+                        case BuiltInType.ByteString: { WriteByteString(null, (byte[])value); return; }
+                        case BuiltInType.XmlElement: { WriteXmlElement(null, (XmlElement)value); return; }
+                        case BuiltInType.NodeId: { WriteNodeId(null, (NodeId)value); return; }
+                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeId(null, (ExpandedNodeId)value); return; }
+                        case BuiltInType.StatusCode: { WriteStatusCode(null, (StatusCode)value); return; }
+                        case BuiltInType.QualifiedName: { WriteQualifiedName(null, (QualifiedName)value); return; }
+                        case BuiltInType.LocalizedText: { WriteLocalizedText(null, (LocalizedText)value); return; }
+                        case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)value); return; }
+                        case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)value); return; }
+                        case BuiltInType.Enumeration: { WriteEnumerated(null, (Enum)value); return; }
+                    }
+                }
+
+                // write array.
+                else if (typeInfo.ValueRank <= 1)
+                {
+                    switch (typeInfo.BuiltInType)
+                    {
+                        case BuiltInType.Boolean: { WriteBooleanArray(null, (bool[])value); return; }
+                        case BuiltInType.SByte: { WriteSByteArray(null, (sbyte[])value); return; }
+                        case BuiltInType.Byte: { WriteByteArray(null, (byte[])value); return; }
+                        case BuiltInType.Int16: { WriteInt16Array(null, (short[])value); return; }
+                        case BuiltInType.UInt16: { WriteUInt16Array(null, (ushort[])value); return; }
+                        case BuiltInType.Int32: { WriteInt32Array(null, (int[])value); return; }
+                        case BuiltInType.UInt32: { WriteUInt32Array(null, (uint[])value); return; }
+                        case BuiltInType.Int64: { WriteInt64Array(null, (long[])value); return; }
+                        case BuiltInType.UInt64: { WriteUInt64Array(null, (ulong[])value); return; }
+                        case BuiltInType.Float: { WriteFloatArray(null, (float[])value); return; }
+                        case BuiltInType.Double: { WriteDoubleArray(null, (double[])value); return; }
+                        case BuiltInType.String: { WriteStringArray(null, (string[])value); return; }
+                        case BuiltInType.DateTime: { WriteDateTimeArray(null, (DateTime[])value); return; }
+                        case BuiltInType.Guid: { WriteGuidArray(null, (Uuid[])value); return; }
+                        case BuiltInType.ByteString: { WriteByteStringArray(null, (byte[][])value); return; }
+                        case BuiltInType.XmlElement: { WriteXmlElementArray(null, (XmlElement[])value); return; }
+                        case BuiltInType.NodeId: { WriteNodeIdArray(null, (NodeId[])value); return; }
+                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(null, (ExpandedNodeId[])value); return; }
+                        case BuiltInType.StatusCode: { WriteStatusCodeArray(null, (StatusCode[])value); return; }
+                        case BuiltInType.QualifiedName: { WriteQualifiedNameArray(null, (QualifiedName[])value); return; }
+                        case BuiltInType.LocalizedText: { WriteLocalizedTextArray(null, (LocalizedText[])value); return; }
+                        case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(null, (ExtensionObject[])value); return; }
+                        case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])value); return; }
+                        case BuiltInType.Enumeration:
+                        {
+                            Array array = value as Array;
+                            WriteEnumeratedArray(null, array, array.GetType().GetElementType());
+                            return;
+                        }
+
+                        case BuiltInType.Variant:
+                        {
+                            Variant[] variants = value as Variant[];
+
+                            if (variants != null)
+                            {
+                                WriteVariantArray(null, variants);
+                                return;
+                            }
+
+                            object[] objects = value as object[];
+
+                            if (objects != null)
+                            {
+                                WriteObjectArray(null, objects);
+                                return;
+                            }
+
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding an array of Variants: {0}",
+                                value.GetType());
+                        }
+                    }
+                }
+
+                // write matrix.
+                else if (typeInfo.ValueRank > 1)
+                {
+                    Matrix matrix = value as Matrix;
+                    if (matrix != null)
+                    {
+                        if (UseReversibleEncoding)
+                        {
+                            WriteVariantContents(matrix.Elements, new TypeInfo(typeInfo.BuiltInType, 1));
+                        }
+                        else
+                        {
+                            int index = 0;
+                            WriteStructureMatrix(matrix, 0, ref index, typeInfo);
+                        }
+                        return;
+                    }
+                }
+
+                // oops - should never happen.
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingError,
+                    Utils.Format("Type '{0}' is not allowed in an Variant.", value.GetType().FullName));
+            }
+            finally
+            {
+                m_inVariantWithEncoding = false;
+            }
         }
         #endregion
 
@@ -2383,7 +2393,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
-            if (values == null || values.Count == 0)
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
             {
                 WriteSimpleField(fieldName, null, false);
                 return;

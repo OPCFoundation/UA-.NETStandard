@@ -295,6 +295,7 @@ namespace Opc.Ua.Export
                 exportedNode.Description = new LocalizedText[0];
             }
 
+            exportedNode.Documentation = node.NodeSetDocumentation;
             exportedNode.Category = (node.Categories != null && node.Categories.Count > 0) ? new List<string>(node.Categories).ToArray() : null;
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
@@ -624,6 +625,7 @@ namespace Opc.Ua.Export
             }
 
             importedNode.Description = Import(node.Description);
+            importedNode.NodeSetDocumentation = node.Documentation;
             importedNode.Categories = (node.Category != null && node.Category.Length > 0) ? node.Category : null;
             importedNode.ReleaseStatus = node.ReleaseStatus;
             importedNode.WriteMask = (AttributeWriteMask)node.WriteMask;
@@ -909,8 +911,10 @@ namespace Opc.Ua.Export
                 {
                     List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
 
-                    foreach (StructureField field in structureDefinition.Fields)
+                    for (int ii = structureDefinition.FirstExplicitFieldIndex; ii < structureDefinition.Fields.Count; ii++)
                     {
+                        StructureField field = structureDefinition.Fields[ii];
+
                         Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
 
                         output.Name = field.Name;
@@ -948,7 +952,16 @@ namespace Opc.Ua.Export
                         Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
 
                         output.Name = field.Name;
-                        output.DisplayName = Export(new Opc.Ua.LocalizedText[] { field.Name });
+
+                        if (field.DisplayName != null && output.Name != field.DisplayName.Text)
+                        {
+                            output.DisplayName = Export(new Opc.Ua.LocalizedText[] { field.DisplayName });
+                        }
+                        else
+                        {
+                            output.DisplayName = new LocalizedText[0];
+                        }
+
                         output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
                         output.ValueRank = ValueRanks.Scalar;
                         output.Value = (int)field.Value;

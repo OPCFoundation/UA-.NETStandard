@@ -437,7 +437,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteString(string fieldName, string value)
         {
-            if (BeginField(fieldName, value == null, true))
+            WriteString(fieldName, value, false);
+        }
+
+        private void WriteString(string fieldName, string value, bool isArrayElement)
+        {
+            if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
                 if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
@@ -502,7 +507,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
-            if (BeginField(fieldName, value == null, true))
+            WriteByteString(fieldName, value, false);
+        }
+
+        private void WriteByteString(string fieldName, byte[] value, bool isArrayElement = false)
+        {
+            if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
                 if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
@@ -520,7 +530,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
-            if (BeginField(fieldName, value == null, true))
+            WriteXmlElement(fieldName, value, false);
+        }
+
+        private void WriteXmlElement(string fieldName, XmlElement value, bool isArrayElement)
+        {
+            if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 m_writer.WriteRaw(value.OuterXml);
                 EndField(fieldName);
@@ -1230,7 +1245,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteString("String", values[ii]);
+                        WriteString("String", values[ii], true);
                     }
                 }
 
@@ -1346,7 +1361,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByteString("ByteString", values[ii]);
+                        WriteByteString("ByteString", values[ii], true);
                     }
                 }
 
@@ -1375,7 +1390,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteXmlElement("XmlElement", values[ii]);
+                        WriteXmlElement("XmlElement", values[ii], true);
                     }
                 }
 
