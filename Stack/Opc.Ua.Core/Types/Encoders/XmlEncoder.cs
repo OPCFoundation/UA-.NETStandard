@@ -39,6 +39,8 @@ namespace Opc.Ua
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.CheckCharacters = false;
             settings.ConformanceLevel = ConformanceLevel.Auto;
+            settings.NamespaceHandling = NamespaceHandling.OmitDuplicates;
+            settings.NewLineHandling = NewLineHandling.Replace;
 
             m_writer = XmlWriter.Create(m_destination, settings);
         }
@@ -443,7 +445,11 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteString(value);
+                if (!String.IsNullOrWhiteSpace(value))
+                {
+                    m_writer.WriteString(value);
+                }
+
                 EndField(fieldName);
             }
         }
@@ -504,7 +510,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteValue(Convert.ToBase64String(value));
+                m_writer.WriteValue(Convert.ToBase64String(value, Base64FormattingOptions.InsertLineBreaks));
                 EndField(fieldName);
             }
         }
@@ -684,8 +690,15 @@ namespace Opc.Ua
 
                 if (value != null)
                 {
-                    WriteString("Locale", value.Locale);
-                    WriteString("Text", value.Text);
+                    if (!String.IsNullOrEmpty(value.Locale))
+                    {
+                        WriteString("Locale", value.Locale);
+                    }
+
+                    if (!String.IsNullOrEmpty(value.Text))
+                    {
+                        WriteString("Text", value.Text);
+                    }
                 }
 
                 PopNamespace();
@@ -1817,6 +1830,7 @@ namespace Opc.Ua
                                     ints[ii] = (int)(object)enums[ii];
                                 }
                             }
+
                             WriteInt32Array("ListOfInt32", ints);
                             return;
                         }
@@ -1882,7 +1896,7 @@ namespace Opc.Ua
             if (bytes != null)
             {
                 m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
-                m_writer.WriteString(Convert.ToBase64String(bytes));
+                m_writer.WriteString(Convert.ToBase64String(bytes, Base64FormattingOptions.InsertLineBreaks));
                 m_writer.WriteEndElement();
                 return;
             }
@@ -1977,6 +1991,11 @@ namespace Opc.Ua
             // specifying a null field name means the start/end tags should not be written.
             if (!String.IsNullOrEmpty(fieldName))
             {
+                if (isNillable && isDefault)
+                {
+                    return false;
+                }
+
                 m_writer.WriteStartElement(fieldName, m_namespaces.Peek());
 
                 if (isDefault)
