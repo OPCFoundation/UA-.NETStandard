@@ -1273,5 +1273,60 @@ namespace Opc.Ua
         /// The operation could not be finished because all available connections are in use.
         /// </summary>
         public const uint BadMaxConnectionsReached = 0x80B70000;
+
+        /// <summary>
+        /// The value may not be accurate because the transducer is in manual mode.
+        /// </summary>
+        public const uint UncertainTransducerInManual = 0x42080000;
+
+        /// <summary>
+        /// The value is simulated.
+        /// </summary>
+        public const uint UncertainSimulatedValue = 0x42090000;
+
+        /// <summary>
+        /// The value may not be accurate due to a sensor calibration fault.
+        /// </summary>
+        public const uint UncertainSensorCalibration = 0x420A0000;
+
+        /// <summary>
+        /// The value may not be accurate due to a configuration issue.
+        /// </summary>
+        public const uint UncertainConfigurationError = 0x420F0000;
+
+        /// <summary>
+        /// The value source supports cascade handshaking and the value has been Initialized based on an initialization request from a cascade secondary.
+        /// </summary>
+        public const uint GoodCascadeInitializationAcknowledged = 0x04010000;
+
+        /// <summary>
+        /// The value source supports cascade handshaking and is requesting initialization of a cascade primary.
+        /// </summary>
+        public const uint GoodCascadeInitializationRequest = 0x04020000;
+
+        /// <summary>
+        /// The value source supports cascade handshaking, however, the source’s current state does not allow for cascade.
+        /// </summary>
+        public const uint GoodCascadeNotInvited = 0x04030000;
+
+        /// <summary>
+        /// The value source supports cascade handshaking, however, the source has not selected the corresponding cascade primary for use.
+        /// </summary>
+        public const uint GoodCascadeNotSelected = 0x04040000;
+
+        /// <summary>
+        /// There is a fault state condition active in the value source.
+        /// </summary>
+        public const uint GoodFaultStateActive = 0x04070000;
+
+        /// <summary>
+        /// A fault state condition is being requested of the destination.
+        /// </summary>
+        public const uint GoodInitiateFaultState = 0x04080000;
+
+        /// <summary>
+        /// The value is accurate, and the signal source supports cascade handshaking.
+        /// </summary>
+        public const uint GoodCascade = 0x04090000;
     }
 }

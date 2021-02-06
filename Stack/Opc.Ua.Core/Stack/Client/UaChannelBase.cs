@@ -439,6 +439,12 @@ namespace Opc.Ua
 #endif
         }
 
+        /// <summary>
+        /// Sends a request over the secure channel.
+        /// </summary>
+        /// <param name="request">The request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The response.</returns>
         public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
         {
             return Task.Factory.FromAsync<IServiceRequest, IServiceResponse>(BeginSendRequest, EndSendRequest, request, null);
