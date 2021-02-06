@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract class NodeState : IDisposable, IFormattable
+    public abstract partial class NodeState : IDisposable, IFormattable
     {
         #region Constructors
         /// <summary>

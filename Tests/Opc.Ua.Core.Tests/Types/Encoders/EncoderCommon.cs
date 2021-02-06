@@ -209,11 +209,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Encode(encoder, builtInType, builtInType.ToString(), expected);
             Dispose(encoder);
             var buffer = encoderStream.ToArray();
-            string jsonFormatted;
+            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    jsonFormatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    break;
+                default:
+                    formatted = Encoding.UTF8.GetString(buffer);
                     break;
             }
             var decoderStream = new MemoryStream(buffer);
