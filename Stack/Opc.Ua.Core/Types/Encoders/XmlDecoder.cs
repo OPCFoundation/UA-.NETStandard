@@ -1403,9 +1403,16 @@ namespace Opc.Ua
         /// </summary>
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
-            if (!BeginField(fieldName, true))
+            bool isNil;
+
+            if (!BeginField(fieldName, true, out isNil))
             {
-                return null;
+                if (isNil)
+                {
+                    return null;
+                }
+
+                return ExtensionObject.Null;
             }
 
             PushNamespace(Namespaces.OpcUaXsd);
@@ -1456,9 +1463,11 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an encodeable object from the stream.
         /// </summary>
-        public IEncodeable ReadEncodeable(
-            string fieldName,
-            System.Type systemType)
+        /// <param name="fieldName">The encodeable object field name</param>
+        /// <param name="systemType">The system type of the encopdeable object to be read</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
+        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
@@ -1469,6 +1478,17 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
                     Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
+            }
+
+            if (encodeableTypeId != null)
+            {
+                // set type identifier for custom complex data types before decode.
+                IComplexTypeInstance complexTypeInstance = value as IComplexTypeInstance;
+
+                if (complexTypeInstance != null)
+                {
+                    complexTypeInstance.TypeId = encodeableTypeId;
+                }
             }
 
             // check the nesting level for avoiding a stack overflow.
@@ -2497,9 +2517,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reads an encodeable object array from the stream.
+        /// Reads an encodeable array from the stream.
         /// </summary>
-        public Array ReadEncodeableArray(string fieldName, System.Type systemType)
+        /// <param name="fieldName">The encodeable array field name</param>
+        /// <param name="systemType">The system type of the encopdeable objects to be read object</param>
+        /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
+        /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
+        public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null) throw new ArgumentNullException(nameof(systemType));
 
@@ -2514,7 +2538,7 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
-                    encodeables.Add(ReadEncodeable(xmlName.Name, systemType));
+                    encodeables.Add(ReadEncodeable(xmlName.Name, systemType, encodeableTypeId));
                 }
 
                 // check the length.
