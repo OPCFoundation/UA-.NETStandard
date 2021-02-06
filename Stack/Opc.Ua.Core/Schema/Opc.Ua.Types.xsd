@@ -536,6 +536,21 @@
   </xs:complexType>
   <xs:element name="ListOfKeyValuePair" type="tns:ListOfKeyValuePair" nillable="true"></xs:element>
 
+  <xs:complexType name="AdditionalParametersType">
+    <xs:sequence>
+      <xs:element name="Parameters" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="AdditionalParametersType" type="tns:AdditionalParametersType" />
+
+  <xs:complexType name="EphemeralKeyType">
+    <xs:sequence>
+      <xs:element name="PublicKey" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="Signature" type="xs:base64Binary" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="EphemeralKeyType" type="tns:EphemeralKeyType" />
+
   <xs:complexType name="EndpointType">
     <xs:sequence>
       <xs:element name="EndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
@@ -2368,7 +2383,7 @@
 
   <xs:complexType name="SessionlessInvokeRequestType">
     <xs:sequence>
-      <xs:element name="UrisVersion" type="ua:ListOfUInt32" minOccurs="0" nillable="true" />
+      <xs:element name="UrisVersion" type="xs:unsignedInt" minOccurs="0" />
       <xs:element name="NamespaceUris" type="ua:ListOfString" minOccurs="0" nillable="true" />
       <xs:element name="ServerUris" type="ua:ListOfString" minOccurs="0" nillable="true" />
       <xs:element name="LocaleIds" type="ua:ListOfString" minOccurs="0" nillable="true" />
@@ -2755,6 +2770,8 @@
   <xs:element name="IssuedIdentityToken" type="tns:IssuedIdentityToken" />
 
   <xs:element name="RsaEncryptedSecret" type="ua:Variant" />
+
+  <xs:element name="EccEncryptedSecret" type="ua:Variant" />
 
   <xs:complexType name="ActivateSessionRequest">
     <xs:sequence>
@@ -3400,10 +3417,6 @@
   <xs:element name="Counter" type="xs:unsignedInt" />
 
   <xs:element name="NumericRange" type="xs:string" />
-
-  <xs:element name="Time" type="xs:string" />
-
-  <xs:element name="Date" type="xs:dateTime" />
 
   <xs:complexType name="EndpointConfiguration">
     <xs:sequence>

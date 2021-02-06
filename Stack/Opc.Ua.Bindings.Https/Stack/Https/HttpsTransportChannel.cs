@@ -16,6 +16,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
@@ -55,7 +56,11 @@ namespace Opc.Ua.Bindings
         public string UriScheme => Utils.UriSchemeHttps;
 
         /// <inheritdoc/>
-        public TransportChannelFeatures SupportedFeatures => TransportChannelFeatures.Open | TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest;
+        public TransportChannelFeatures SupportedFeatures =>
+            TransportChannelFeatures.Open |
+            TransportChannelFeatures.Reconnect |
+            TransportChannelFeatures.BeginSendRequest |
+            TransportChannelFeatures.SendRequestAsync;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription => m_settings.Description;
@@ -162,12 +167,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The async result class for the Https transport.
         /// </summary>
-        private class AsyncResult : AsyncResultBase
+        private class HttpsAsyncResult : AsyncResultBase
         {
             public IServiceRequest Request;
             public HttpResponseMessage Response;
 
-            public AsyncResult(
+            public HttpsAsyncResult(
                 AsyncCallback callback,
                 object callbackData,
                 int timeout,
@@ -189,13 +194,14 @@ namespace Opc.Ua.Bindings
             try
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
-                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                content.Headers.ContentType = m_mediaTypeHeaderValue;
 
-                AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, null);
+                var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
                 Task.Run(async () => {
                     try
                     {
-                        response = await m_client.PostAsync(m_url, content);
+                        var ct = new CancellationTokenSource(m_operationTimeout).Token;
+                        response = await m_client.PostAsync(m_url, content, ct);
                         response.EnsureSuccessStatusCode();
                     }
                     catch (Exception ex)
@@ -213,7 +219,7 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.Trace("Exception sending HTTPS request: " + ex.Message);
-                AsyncResult result = new AsyncResult(callback, callbackData, m_operationTimeout, request, response);
+                HttpsAsyncResult result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, response);
                 result.Exception = ex;
                 result.OperationCompleted();
                 return result;
@@ -223,7 +229,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            AsyncResult result2 = result as AsyncResult;
+            HttpsAsyncResult result2 = result as HttpsAsyncResult;
             if (result2 == null)
             {
                 throw new ArgumentException("Invalid result object passed.", nameof(result));
@@ -309,6 +315,25 @@ namespace Opc.Ua.Bindings
             return EndSendRequest(result);
         }
 
+        /// <inheritdoc/>
+        public async Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
+        {
+            try
+            {
+                ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
+                content.Headers.ContentType = m_mediaTypeHeaderValue;
+                var result = await m_client.PostAsync(m_url, content, ct);
+                result.EnsureSuccessStatusCode();
+                Stream responseContent = await result.Content.ReadAsStreamAsync();
+                return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                throw;
+            }
+        }
+
         /// <summary>
         /// Save the settings for a connection.
         /// </summary>
@@ -347,6 +372,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
+        private static readonly MediaTypeHeaderValue m_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
 

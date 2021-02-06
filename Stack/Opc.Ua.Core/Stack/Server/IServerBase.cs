@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-using System.ServiceModel;
 using System.Threading;
 
 namespace Opc.Ua

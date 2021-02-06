@@ -28,12 +28,19 @@
  * ======================================================================*/
 
 using System;
+
+#if (!NET_STANDARD)
 using System.Collections.Generic;
 using System.Xml;
 using System.Threading;
 using System.Security.Principal;
 using System.ServiceModel;
 using System.Runtime.Serialization;
+#endif
+
+#if (NET_STANDARD_ASYNC)
+using System.Threading.Tasks;
+#endif
 
 namespace Opc.Ua
 {
@@ -43,7 +50,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    #if !NET_STANDARD
+    #if (!NET_STANDARD)
     [ServiceMessageContextBehavior()]
     [ServiceBehavior(Namespace = Namespaces.OpcUaWsdl, InstanceContextMode=InstanceContextMode.PerSession, ConcurrencyMode=ConcurrencyMode.Multiple)]
     #endif
@@ -131,7 +138,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the FindServers service.
         /// </summary>
@@ -145,6 +152,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (FindServersResponse)FindServers(request.FindServersRequest);
+
                 // OnResponseSent(response);
                 return new FindServersResponseMessage(response);
             }
@@ -163,10 +171,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.FindServersRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.FindServersRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -201,6 +209,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -244,7 +253,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the FindServersOnNetwork service.
         /// </summary>
@@ -258,6 +267,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (FindServersOnNetworkResponse)FindServersOnNetwork(request.FindServersOnNetworkRequest);
+
                 // OnResponseSent(response);
                 return new FindServersOnNetworkResponseMessage(response);
             }
@@ -276,10 +286,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.FindServersOnNetworkRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.FindServersOnNetworkRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -314,6 +324,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -354,7 +365,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the GetEndpoints service.
         /// </summary>
@@ -368,6 +379,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (GetEndpointsResponse)GetEndpoints(request.GetEndpointsRequest);
+
                 // OnResponseSent(response);
                 return new GetEndpointsResponseMessage(response);
             }
@@ -386,10 +398,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.GetEndpointsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.GetEndpointsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -424,6 +436,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -493,7 +506,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the CreateSession service.
         /// </summary>
@@ -507,6 +520,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (CreateSessionResponse)CreateSession(request.CreateSessionRequest);
+
                 // OnResponseSent(response);
                 return new CreateSessionResponseMessage(response);
             }
@@ -525,10 +539,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.CreateSessionRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.CreateSessionRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -563,6 +577,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -611,7 +626,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the ActivateSession service.
         /// </summary>
@@ -625,6 +640,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (ActivateSessionResponse)ActivateSession(request.ActivateSessionRequest);
+
                 // OnResponseSent(response);
                 return new ActivateSessionResponseMessage(response);
             }
@@ -643,10 +659,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.ActivateSessionRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.ActivateSessionRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -681,6 +697,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -716,7 +733,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the CloseSession service.
         /// </summary>
@@ -730,6 +747,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (CloseSessionResponse)CloseSession(request.CloseSessionRequest);
+
                 // OnResponseSent(response);
                 return new CloseSessionResponseMessage(response);
             }
@@ -748,10 +766,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.CloseSessionRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.CloseSessionRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -786,6 +804,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -824,7 +843,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Cancel service.
         /// </summary>
@@ -838,6 +857,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (CancelResponse)Cancel(request.CancelRequest);
+
                 // OnResponseSent(response);
                 return new CancelResponseMessage(response);
             }
@@ -856,10 +876,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.CancelRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.CancelRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -894,6 +914,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -935,7 +956,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the AddNodes service.
         /// </summary>
@@ -949,6 +970,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (AddNodesResponse)AddNodes(request.AddNodesRequest);
+
                 // OnResponseSent(response);
                 return new AddNodesResponseMessage(response);
             }
@@ -967,10 +989,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.AddNodesRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.AddNodesRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1005,6 +1027,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1046,7 +1069,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the AddReferences service.
         /// </summary>
@@ -1060,6 +1083,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (AddReferencesResponse)AddReferences(request.AddReferencesRequest);
+
                 // OnResponseSent(response);
                 return new AddReferencesResponseMessage(response);
             }
@@ -1078,10 +1102,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.AddReferencesRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.AddReferencesRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1116,6 +1140,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1157,7 +1182,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the DeleteNodes service.
         /// </summary>
@@ -1171,6 +1196,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (DeleteNodesResponse)DeleteNodes(request.DeleteNodesRequest);
+
                 // OnResponseSent(response);
                 return new DeleteNodesResponseMessage(response);
             }
@@ -1189,10 +1215,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.DeleteNodesRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.DeleteNodesRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1227,6 +1253,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1268,7 +1295,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the DeleteReferences service.
         /// </summary>
@@ -1282,6 +1309,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (DeleteReferencesResponse)DeleteReferences(request.DeleteReferencesRequest);
+
                 // OnResponseSent(response);
                 return new DeleteReferencesResponseMessage(response);
             }
@@ -1300,10 +1328,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.DeleteReferencesRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.DeleteReferencesRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1338,6 +1366,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1381,7 +1410,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Browse service.
         /// </summary>
@@ -1395,6 +1424,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (BrowseResponse)Browse(request.BrowseRequest);
+
                 // OnResponseSent(response);
                 return new BrowseResponseMessage(response);
             }
@@ -1413,10 +1443,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.BrowseRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.BrowseRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1451,6 +1481,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1493,7 +1524,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the BrowseNext service.
         /// </summary>
@@ -1507,6 +1538,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (BrowseNextResponse)BrowseNext(request.BrowseNextRequest);
+
                 // OnResponseSent(response);
                 return new BrowseNextResponseMessage(response);
             }
@@ -1525,10 +1557,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.BrowseNextRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.BrowseNextRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1563,6 +1595,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1604,7 +1637,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the TranslateBrowsePathsToNodeIds service.
         /// </summary>
@@ -1618,6 +1651,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (TranslateBrowsePathsToNodeIdsResponse)TranslateBrowsePathsToNodeIds(request.TranslateBrowsePathsToNodeIdsRequest);
+
                 // OnResponseSent(response);
                 return new TranslateBrowsePathsToNodeIdsResponseMessage(response);
             }
@@ -1636,10 +1670,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.TranslateBrowsePathsToNodeIdsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.TranslateBrowsePathsToNodeIdsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1674,6 +1708,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1712,7 +1747,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the RegisterNodes service.
         /// </summary>
@@ -1726,6 +1761,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (RegisterNodesResponse)RegisterNodes(request.RegisterNodesRequest);
+
                 // OnResponseSent(response);
                 return new RegisterNodesResponseMessage(response);
             }
@@ -1744,10 +1780,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.RegisterNodesRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.RegisterNodesRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1782,6 +1818,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1817,7 +1854,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the UnregisterNodes service.
         /// </summary>
@@ -1831,6 +1868,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (UnregisterNodesResponse)UnregisterNodes(request.UnregisterNodesRequest);
+
                 // OnResponseSent(response);
                 return new UnregisterNodesResponseMessage(response);
             }
@@ -1849,10 +1887,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.UnregisterNodesRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.UnregisterNodesRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -1887,6 +1925,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -1941,7 +1980,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the QueryFirst service.
         /// </summary>
@@ -1955,6 +1994,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (QueryFirstResponse)QueryFirst(request.QueryFirstRequest);
+
                 // OnResponseSent(response);
                 return new QueryFirstResponseMessage(response);
             }
@@ -1973,10 +2013,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.QueryFirstRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.QueryFirstRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2011,6 +2051,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2053,7 +2094,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the QueryNext service.
         /// </summary>
@@ -2067,6 +2108,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (QueryNextResponse)QueryNext(request.QueryNextRequest);
+
                 // OnResponseSent(response);
                 return new QueryNextResponseMessage(response);
             }
@@ -2085,10 +2127,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.QueryNextRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.QueryNextRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2123,6 +2165,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2166,7 +2209,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Read service.
         /// </summary>
@@ -2180,6 +2223,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (ReadResponse)Read(request.ReadRequest);
+
                 // OnResponseSent(response);
                 return new ReadResponseMessage(response);
             }
@@ -2198,10 +2242,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.ReadRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.ReadRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2236,6 +2280,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2280,7 +2325,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the HistoryRead service.
         /// </summary>
@@ -2294,6 +2339,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (HistoryReadResponse)HistoryRead(request.HistoryReadRequest);
+
                 // OnResponseSent(response);
                 return new HistoryReadResponseMessage(response);
             }
@@ -2312,10 +2358,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.HistoryReadRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.HistoryReadRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2350,6 +2396,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2391,7 +2438,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Write service.
         /// </summary>
@@ -2405,6 +2452,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (WriteResponse)Write(request.WriteRequest);
+
                 // OnResponseSent(response);
                 return new WriteResponseMessage(response);
             }
@@ -2423,10 +2471,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.WriteRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.WriteRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2461,6 +2509,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2502,7 +2551,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the HistoryUpdate service.
         /// </summary>
@@ -2516,6 +2565,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (HistoryUpdateResponse)HistoryUpdate(request.HistoryUpdateRequest);
+
                 // OnResponseSent(response);
                 return new HistoryUpdateResponseMessage(response);
             }
@@ -2534,10 +2584,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.HistoryUpdateRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.HistoryUpdateRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2572,6 +2622,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2613,7 +2664,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Call service.
         /// </summary>
@@ -2627,6 +2678,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (CallResponse)Call(request.CallRequest);
+
                 // OnResponseSent(response);
                 return new CallResponseMessage(response);
             }
@@ -2645,10 +2697,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.CallRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.CallRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2683,6 +2735,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2726,7 +2779,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the CreateMonitoredItems service.
         /// </summary>
@@ -2740,6 +2793,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (CreateMonitoredItemsResponse)CreateMonitoredItems(request.CreateMonitoredItemsRequest);
+
                 // OnResponseSent(response);
                 return new CreateMonitoredItemsResponseMessage(response);
             }
@@ -2758,10 +2812,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.CreateMonitoredItemsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.CreateMonitoredItemsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2796,6 +2850,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2839,7 +2894,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the ModifyMonitoredItems service.
         /// </summary>
@@ -2853,6 +2908,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (ModifyMonitoredItemsResponse)ModifyMonitoredItems(request.ModifyMonitoredItemsRequest);
+
                 // OnResponseSent(response);
                 return new ModifyMonitoredItemsResponseMessage(response);
             }
@@ -2871,10 +2927,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.ModifyMonitoredItemsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.ModifyMonitoredItemsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -2909,6 +2965,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -2952,7 +3009,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the SetMonitoringMode service.
         /// </summary>
@@ -2966,6 +3023,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (SetMonitoringModeResponse)SetMonitoringMode(request.SetMonitoringModeRequest);
+
                 // OnResponseSent(response);
                 return new SetMonitoringModeResponseMessage(response);
             }
@@ -2984,10 +3042,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.SetMonitoringModeRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.SetMonitoringModeRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3022,6 +3080,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3072,7 +3131,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the SetTriggering service.
         /// </summary>
@@ -3086,6 +3145,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (SetTriggeringResponse)SetTriggering(request.SetTriggeringRequest);
+
                 // OnResponseSent(response);
                 return new SetTriggeringResponseMessage(response);
             }
@@ -3104,10 +3164,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.SetTriggeringRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.SetTriggeringRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3142,6 +3202,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3184,7 +3245,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the DeleteMonitoredItems service.
         /// </summary>
@@ -3198,6 +3259,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (DeleteMonitoredItemsResponse)DeleteMonitoredItems(request.DeleteMonitoredItemsRequest);
+
                 // OnResponseSent(response);
                 return new DeleteMonitoredItemsResponseMessage(response);
             }
@@ -3216,10 +3278,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.DeleteMonitoredItemsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.DeleteMonitoredItemsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3254,6 +3316,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3306,7 +3369,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the CreateSubscription service.
         /// </summary>
@@ -3320,6 +3383,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (CreateSubscriptionResponse)CreateSubscription(request.CreateSubscriptionRequest);
+
                 // OnResponseSent(response);
                 return new CreateSubscriptionResponseMessage(response);
             }
@@ -3338,10 +3402,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.CreateSubscriptionRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.CreateSubscriptionRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3376,6 +3440,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3425,7 +3490,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the ModifySubscription service.
         /// </summary>
@@ -3439,6 +3504,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (ModifySubscriptionResponse)ModifySubscription(request.ModifySubscriptionRequest);
+
                 // OnResponseSent(response);
                 return new ModifySubscriptionResponseMessage(response);
             }
@@ -3457,10 +3523,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.ModifySubscriptionRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.ModifySubscriptionRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3495,6 +3561,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3537,7 +3604,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the SetPublishingMode service.
         /// </summary>
@@ -3551,6 +3618,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (SetPublishingModeResponse)SetPublishingMode(request.SetPublishingModeRequest);
+
                 // OnResponseSent(response);
                 return new SetPublishingModeResponseMessage(response);
             }
@@ -3569,10 +3637,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.SetPublishingModeRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.SetPublishingModeRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3607,6 +3675,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3660,7 +3729,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Publish service.
         /// </summary>
@@ -3674,6 +3743,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (PublishResponse)Publish(request.PublishRequest);
+
                 // OnResponseSent(response);
                 return new PublishResponseMessage(response);
             }
@@ -3692,10 +3762,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.PublishRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.PublishRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3730,6 +3800,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3769,7 +3840,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the Republish service.
         /// </summary>
@@ -3783,6 +3854,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (RepublishResponse)Republish(request.RepublishRequest);
+
                 // OnResponseSent(response);
                 return new RepublishResponseMessage(response);
             }
@@ -3801,10 +3873,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.RepublishRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.RepublishRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3839,6 +3911,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3881,7 +3954,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the TransferSubscriptions service.
         /// </summary>
@@ -3895,6 +3968,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (TransferSubscriptionsResponse)TransferSubscriptions(request.TransferSubscriptionsRequest);
+
                 // OnResponseSent(response);
                 return new TransferSubscriptionsResponseMessage(response);
             }
@@ -3913,10 +3987,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.TransferSubscriptionsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.TransferSubscriptionsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -3951,6 +4025,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -3992,7 +4067,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the DeleteSubscriptions service.
         /// </summary>
@@ -4006,6 +4081,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (DeleteSubscriptionsResponse)DeleteSubscriptions(request.DeleteSubscriptionsRequest);
+
                 // OnResponseSent(response);
                 return new DeleteSubscriptionsResponseMessage(response);
             }
@@ -4024,10 +4100,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.DeleteSubscriptionsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.DeleteSubscriptionsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4062,6 +4138,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -4189,7 +4266,7 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    #if !NET_STANDARD
+    #if (!NET_STANDARD)
     [ServiceMessageContextBehavior()]
     [ServiceBehavior(Namespace = Namespaces.OpcUaWsdl, InstanceContextMode=InstanceContextMode.PerSession, ConcurrencyMode=ConcurrencyMode.Multiple)]
     #endif
@@ -4277,7 +4354,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the FindServers service.
         /// </summary>
@@ -4291,6 +4368,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (FindServersResponse)FindServers(request.FindServersRequest);
+
                 // OnResponseSent(response);
                 return new FindServersResponseMessage(response);
             }
@@ -4309,10 +4387,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.FindServersRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.FindServersRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4347,6 +4425,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -4390,7 +4469,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the FindServersOnNetwork service.
         /// </summary>
@@ -4404,6 +4483,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (FindServersOnNetworkResponse)FindServersOnNetwork(request.FindServersOnNetworkRequest);
+
                 // OnResponseSent(response);
                 return new FindServersOnNetworkResponseMessage(response);
             }
@@ -4422,10 +4502,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.FindServersOnNetworkRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.FindServersOnNetworkRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4460,6 +4540,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -4500,7 +4581,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the GetEndpoints service.
         /// </summary>
@@ -4514,6 +4595,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (GetEndpointsResponse)GetEndpoints(request.GetEndpointsRequest);
+
                 // OnResponseSent(response);
                 return new GetEndpointsResponseMessage(response);
             }
@@ -4532,10 +4614,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.GetEndpointsRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.GetEndpointsRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4570,6 +4652,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -4605,7 +4688,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the RegisterServer service.
         /// </summary>
@@ -4619,6 +4702,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (RegisterServerResponse)RegisterServer(request.RegisterServerRequest);
+
                 // OnResponseSent(response);
                 return new RegisterServerResponseMessage(response);
             }
@@ -4637,10 +4721,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.RegisterServerRequest);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.RegisterServerRequest);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4675,6 +4759,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
@@ -4717,7 +4802,7 @@ namespace Opc.Ua
             return response;
         }
 
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+        #if (OPCUA_USE_SYNCHRONOUS_ENDPOINTS)
         /// <summary>
         /// The operation contract for the RegisterServer2 service.
         /// </summary>
@@ -4731,6 +4816,7 @@ namespace Opc.Ua
 
                 SetRequestContext(RequestEncoding.Xml);
                 response = (RegisterServer2Response)RegisterServer2(request.RegisterServer2Request);
+
                 // OnResponseSent(response);
                 return new RegisterServer2ResponseMessage(response);
             }
@@ -4749,10 +4835,10 @@ namespace Opc.Ua
         {
             try
             {
-                OnRequestReceived(message.RegisterServer2Request);
-
                 // check for bad data.
-                if (message == null) throw new ArgumentNullException("message");
+                if (message == null) throw new ArgumentNullException(nameof(message));
+
+                OnRequestReceived(message.RegisterServer2Request);
 
                 // set the request context.
                 SetRequestContext(RequestEncoding.Xml);
@@ -4787,6 +4873,7 @@ namespace Opc.Ua
                 throw fault;
             }
         }
+
         #endif
         #endif
         #endregion
