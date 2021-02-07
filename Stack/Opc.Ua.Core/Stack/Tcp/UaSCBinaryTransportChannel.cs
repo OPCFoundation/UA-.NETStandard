@@ -325,6 +325,7 @@ namespace Opc.Ua.Bindings
         /// Sends a request over the secure channel (async version).
         /// </summary>
         /// <param name="request">The request to send.</param>
+        /// <param name="ct">The cancellation token.</param>
         /// <returns>The response returned by the server.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)

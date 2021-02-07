@@ -910,9 +910,9 @@ namespace Opc.Ua
     public interface ISessionChannel : IChannelBase
     {
         #if (!OPCUA_EXCLUDE_CreateSession)
-            /// <summary>
-            /// The operation contract for the CreateSession service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the CreateSession service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/CreateSession", ReplyAction = Namespaces.OpcUaWsdl + "/CreateSessionResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/CreateSessionFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -941,9 +941,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_ActivateSession)
-            /// <summary>
-            /// The operation contract for the ActivateSession service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the ActivateSession service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/ActivateSession", ReplyAction = Namespaces.OpcUaWsdl + "/ActivateSessionResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/ActivateSessionFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -972,9 +972,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CloseSession)
-            /// <summary>
-            /// The operation contract for the CloseSession service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the CloseSession service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/CloseSession", ReplyAction = Namespaces.OpcUaWsdl + "/CloseSessionResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/CloseSessionFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1003,9 +1003,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Cancel)
-            /// <summary>
-            /// The operation contract for the Cancel service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Cancel service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Cancel", ReplyAction = Namespaces.OpcUaWsdl + "/CancelResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/CancelFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1034,9 +1034,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_AddNodes)
-            /// <summary>
-            /// The operation contract for the AddNodes service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the AddNodes service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/AddNodes", ReplyAction = Namespaces.OpcUaWsdl + "/AddNodesResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/AddNodesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1065,9 +1065,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_AddReferences)
-            /// <summary>
-            /// The operation contract for the AddReferences service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the AddReferences service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/AddReferences", ReplyAction = Namespaces.OpcUaWsdl + "/AddReferencesResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/AddReferencesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1096,9 +1096,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteNodes)
-            /// <summary>
-            /// The operation contract for the DeleteNodes service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the DeleteNodes service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/DeleteNodes", ReplyAction = Namespaces.OpcUaWsdl + "/DeleteNodesResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/DeleteNodesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1127,9 +1127,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteReferences)
-            /// <summary>
-            /// The operation contract for the DeleteReferences service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the DeleteReferences service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/DeleteReferences", ReplyAction = Namespaces.OpcUaWsdl + "/DeleteReferencesResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/DeleteReferencesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1158,9 +1158,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Browse)
-            /// <summary>
-            /// The operation contract for the Browse service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Browse service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Browse", ReplyAction = Namespaces.OpcUaWsdl + "/BrowseResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/BrowseFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1189,9 +1189,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_BrowseNext)
-            /// <summary>
-            /// The operation contract for the BrowseNext service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the BrowseNext service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/BrowseNext", ReplyAction = Namespaces.OpcUaWsdl + "/BrowseNextResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/BrowseNextFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1220,9 +1220,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
-            /// <summary>
-            /// The operation contract for the TranslateBrowsePathsToNodeIds service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the TranslateBrowsePathsToNodeIds service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/TranslateBrowsePathsToNodeIds", ReplyAction = Namespaces.OpcUaWsdl + "/TranslateBrowsePathsToNodeIdsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TranslateBrowsePathsToNodeIdsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1251,9 +1251,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterNodes)
-            /// <summary>
-            /// The operation contract for the RegisterNodes service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the RegisterNodes service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/RegisterNodes", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterNodesResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterNodesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1282,9 +1282,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_UnregisterNodes)
-            /// <summary>
-            /// The operation contract for the UnregisterNodes service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the UnregisterNodes service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/UnregisterNodes", ReplyAction = Namespaces.OpcUaWsdl + "/UnregisterNodesResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/UnregisterNodesFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1313,9 +1313,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryFirst)
-            /// <summary>
-            /// The operation contract for the QueryFirst service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the QueryFirst service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/QueryFirst", ReplyAction = Namespaces.OpcUaWsdl + "/QueryFirstResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/QueryFirstFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1344,9 +1344,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_QueryNext)
-            /// <summary>
-            /// The operation contract for the QueryNext service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the QueryNext service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/QueryNext", ReplyAction = Namespaces.OpcUaWsdl + "/QueryNextResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/QueryNextFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1375,9 +1375,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Read)
-            /// <summary>
-            /// The operation contract for the Read service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Read service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Read", ReplyAction = Namespaces.OpcUaWsdl + "/ReadResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/ReadFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1406,9 +1406,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryRead)
-            /// <summary>
-            /// The operation contract for the HistoryRead service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the HistoryRead service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/HistoryRead", ReplyAction = Namespaces.OpcUaWsdl + "/HistoryReadResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/HistoryReadFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1437,9 +1437,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Write)
-            /// <summary>
-            /// The operation contract for the Write service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Write service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Write", ReplyAction = Namespaces.OpcUaWsdl + "/WriteResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/WriteFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1468,9 +1468,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_HistoryUpdate)
-            /// <summary>
-            /// The operation contract for the HistoryUpdate service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the HistoryUpdate service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/HistoryUpdate", ReplyAction = Namespaces.OpcUaWsdl + "/HistoryUpdateResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/HistoryUpdateFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1499,9 +1499,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Call)
-            /// <summary>
-            /// The operation contract for the Call service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Call service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Call", ReplyAction = Namespaces.OpcUaWsdl + "/CallResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/CallFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1530,9 +1530,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
-            /// <summary>
-            /// The operation contract for the CreateMonitoredItems service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the CreateMonitoredItems service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/CreateMonitoredItems", ReplyAction = Namespaces.OpcUaWsdl + "/CreateMonitoredItemsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/CreateMonitoredItemsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1561,9 +1561,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
-            /// <summary>
-            /// The operation contract for the ModifyMonitoredItems service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the ModifyMonitoredItems service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/ModifyMonitoredItems", ReplyAction = Namespaces.OpcUaWsdl + "/ModifyMonitoredItemsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/ModifyMonitoredItemsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1592,9 +1592,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_SetMonitoringMode)
-            /// <summary>
-            /// The operation contract for the SetMonitoringMode service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the SetMonitoringMode service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/SetMonitoringMode", ReplyAction = Namespaces.OpcUaWsdl + "/SetMonitoringModeResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/SetMonitoringModeFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1623,9 +1623,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_SetTriggering)
-            /// <summary>
-            /// The operation contract for the SetTriggering service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the SetTriggering service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/SetTriggering", ReplyAction = Namespaces.OpcUaWsdl + "/SetTriggeringResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/SetTriggeringFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1654,9 +1654,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
-            /// <summary>
-            /// The operation contract for the DeleteMonitoredItems service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the DeleteMonitoredItems service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/DeleteMonitoredItems", ReplyAction = Namespaces.OpcUaWsdl + "/DeleteMonitoredItemsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/DeleteMonitoredItemsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1685,9 +1685,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_CreateSubscription)
-            /// <summary>
-            /// The operation contract for the CreateSubscription service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the CreateSubscription service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/CreateSubscription", ReplyAction = Namespaces.OpcUaWsdl + "/CreateSubscriptionResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/CreateSubscriptionFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1716,9 +1716,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_ModifySubscription)
-            /// <summary>
-            /// The operation contract for the ModifySubscription service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the ModifySubscription service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/ModifySubscription", ReplyAction = Namespaces.OpcUaWsdl + "/ModifySubscriptionResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/ModifySubscriptionFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1747,9 +1747,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_SetPublishingMode)
-            /// <summary>
-            /// The operation contract for the SetPublishingMode service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the SetPublishingMode service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/SetPublishingMode", ReplyAction = Namespaces.OpcUaWsdl + "/SetPublishingModeResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/SetPublishingModeFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1778,9 +1778,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Publish)
-            /// <summary>
-            /// The operation contract for the Publish service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Publish service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Publish", ReplyAction = Namespaces.OpcUaWsdl + "/PublishResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/PublishFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1809,9 +1809,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_Republish)
-            /// <summary>
-            /// The operation contract for the Republish service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the Republish service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/Republish", ReplyAction = Namespaces.OpcUaWsdl + "/RepublishResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RepublishFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1840,9 +1840,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_TransferSubscriptions)
-            /// <summary>
-            /// The operation contract for the TransferSubscriptions service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the TransferSubscriptions service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/TransferSubscriptions", ReplyAction = Namespaces.OpcUaWsdl + "/TransferSubscriptionsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/TransferSubscriptionsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -1871,9 +1871,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
-            /// <summary>
-            /// The operation contract for the DeleteSubscriptions service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the DeleteSubscriptions service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/DeleteSubscriptions", ReplyAction = Namespaces.OpcUaWsdl + "/DeleteSubscriptionsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/DeleteSubscriptionsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -2017,9 +2017,9 @@ namespace Opc.Ua
     public interface IDiscoveryChannel : IChannelBase
     {
         #if (!OPCUA_EXCLUDE_FindServers)
-            /// <summary>
-            /// The operation contract for the FindServers service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the FindServers service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindServers", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindServersFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -2048,9 +2048,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
-            /// <summary>
-            /// The operation contract for the FindServersOnNetwork service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the FindServersOnNetwork service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/FindServersOnNetwork", ReplyAction = Namespaces.OpcUaWsdl + "/FindServersOnNetworkResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/FindServersOnNetworkFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -2079,9 +2079,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_GetEndpoints)
-            /// <summary>
-            /// The operation contract for the GetEndpoints service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the GetEndpoints service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/GetEndpoints", ReplyAction = Namespaces.OpcUaWsdl + "/GetEndpointsResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/GetEndpointsFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -2199,9 +2199,9 @@ namespace Opc.Ua
     public interface IRegistrationChannel : IChannelBase
     {
         #if (!OPCUA_EXCLUDE_RegisterServer)
-            /// <summary>
-            /// The operation contract for the RegisterServer service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the RegisterServer service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/RegisterServer", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServerResponse")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterServerFault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]
@@ -2230,9 +2230,9 @@ namespace Opc.Ua
         #endif
 
         #if (!OPCUA_EXCLUDE_RegisterServer2)
-            /// <summary>
-            /// The operation contract for the RegisterServer2 service.
-            /// </summary>
+        /// <summary>
+        /// The operation contract for the RegisterServer2 service.
+        /// </summary>
         #if (!NET_STANDARD)
         [OperationContract(Action = Namespaces.OpcUaWsdl + "/RegisterServer2", ReplyAction = Namespaces.OpcUaWsdl + "/RegisterServer2Response")]
         [FaultContract(typeof(ServiceFault), Action = Namespaces.OpcUaWsdl + "/RegisterServer2Fault", Name="ServiceFault", Namespace=Namespaces.OpcUaXsd)]

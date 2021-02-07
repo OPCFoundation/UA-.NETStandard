@@ -3234,6 +3234,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "AuthenticatedUser_6")]
         AuthenticatedUser = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "Application_7")]
+        Application = 7,
     }
 
     #region IdentityCriteriaTypeCollection Class
@@ -19376,6 +19380,14 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "Union_2")]
         Union = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "StructureWithSubtypedValues_3")]
+        StructureWithSubtypedValues = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "UnionWithSubtypedValues_4")]
+        UnionWithSubtypedValues = 4,
     }
     #endif
     #endregion
@@ -68380,7 +68392,7 @@ namespace Opc.Ua
             m_lastMethodInputValues = new VariantCollection();
             m_lastMethodOutputValues = new VariantCollection();
             m_lastMethodCallTime = DateTime.MinValue;
-            m_lastMethodReturnStatus = new StatusResult();
+            m_lastMethodReturnStatus = StatusCodes.Good;
         }
         #endregion
 
@@ -68529,26 +68541,12 @@ namespace Opc.Ua
             set { m_lastMethodCallTime = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodReturnStatus", IsRequired = false, Order = 12)]
-        public StatusResult LastMethodReturnStatus
+        public StatusCode LastMethodReturnStatus
         {
-            get
-            {
-                return m_lastMethodReturnStatus;
-            }
-
-            set
-            {
-                m_lastMethodReturnStatus = value;
-
-                if (value == null)
-                {
-                    m_lastMethodReturnStatus = new StatusResult();
-                }
-            }
+            get { return m_lastMethodReturnStatus;  }
+            set { m_lastMethodReturnStatus = value; }
         }
         #endregion
 
@@ -68587,7 +68585,7 @@ namespace Opc.Ua
             encoder.WriteVariantArray("LastMethodInputValues", LastMethodInputValues);
             encoder.WriteVariantArray("LastMethodOutputValues", LastMethodOutputValues);
             encoder.WriteDateTime("LastMethodCallTime", LastMethodCallTime);
-            encoder.WriteEncodeable("LastMethodReturnStatus", LastMethodReturnStatus, typeof(StatusResult));
+            encoder.WriteStatusCode("LastMethodReturnStatus", LastMethodReturnStatus);
 
             encoder.PopNamespace();
         }
@@ -68608,7 +68606,7 @@ namespace Opc.Ua
             LastMethodInputValues = decoder.ReadVariantArray("LastMethodInputValues");
             LastMethodOutputValues = decoder.ReadVariantArray("LastMethodOutputValues");
             LastMethodCallTime = decoder.ReadDateTime("LastMethodCallTime");
-            LastMethodReturnStatus = (StatusResult)decoder.ReadEncodeable("LastMethodReturnStatus", typeof(StatusResult));
+            LastMethodReturnStatus = decoder.ReadStatusCode("LastMethodReturnStatus");
 
             decoder.PopNamespace();
         }
@@ -68668,7 +68666,7 @@ namespace Opc.Ua
             clone.m_lastMethodInputValues = (VariantCollection)Utils.Clone(this.m_lastMethodInputValues);
             clone.m_lastMethodOutputValues = (VariantCollection)Utils.Clone(this.m_lastMethodOutputValues);
             clone.m_lastMethodCallTime = (DateTime)Utils.Clone(this.m_lastMethodCallTime);
-            clone.m_lastMethodReturnStatus = (StatusResult)Utils.Clone(this.m_lastMethodReturnStatus);
+            clone.m_lastMethodReturnStatus = (StatusCode)Utils.Clone(this.m_lastMethodReturnStatus);
 
             return clone;
         }
@@ -68686,7 +68684,7 @@ namespace Opc.Ua
         private VariantCollection m_lastMethodInputValues;
         private VariantCollection m_lastMethodOutputValues;
         private DateTime m_lastMethodCallTime;
-        private StatusResult m_lastMethodReturnStatus;
+        private StatusCode m_lastMethodReturnStatus;
         #endregion
     }
     #endif

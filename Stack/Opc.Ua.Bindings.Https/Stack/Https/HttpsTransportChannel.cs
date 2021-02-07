@@ -190,7 +190,6 @@ namespace Opc.Ua.Bindings
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
             HttpResponseMessage response = null;
-
             try
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
@@ -209,6 +208,10 @@ namespace Opc.Ua.Bindings
                         Utils.Trace("Exception sending HTTPS request: " + ex.Message);
                         result.Exception = ex;
                         response = null;
+                    }
+                    finally
+                    {
+                        content?.Dispose();
                     }
                     result.Response = response;
                     result.OperationCompleted();
