@@ -73365,7 +73365,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PubSubGroupTypeAddWriterrMethodState AddDataSetWriter
+        public PubSubGroupTypeAddWriterMethodState AddDataSetWriter
         {
             get
             {
@@ -73686,11 +73686,11 @@ namespace Opc.Ua
                         {
                             if (replacement == null)
                             {
-                                AddDataSetWriter = new PubSubGroupTypeAddWriterrMethodState(this);
+                                AddDataSetWriter = new PubSubGroupTypeAddWriterMethodState(this);
                             }
                             else
                             {
-                                AddDataSetWriter = (PubSubGroupTypeAddWriterrMethodState)replacement;
+                                AddDataSetWriter = (PubSubGroupTypeAddWriterMethodState)replacement;
                             }
                         }
                     }
@@ -73740,27 +73740,27 @@ namespace Opc.Ua
         private WriterGroupTransportState m_transportSettings;
         private WriterGroupMessageState m_messageSettings;
         private PubSubDiagnosticsWriterGroupState m_diagnostics;
-        private PubSubGroupTypeAddWriterrMethodState m_addDataSetWriterMethod;
+        private PubSubGroupTypeAddWriterMethodState m_addDataSetWriterMethod;
         private PubSubGroupTypeRemoveWriterMethodState m_removeDataSetWriterMethod;
         #endregion
     }
     #endif
     #endregion
 
-    #region PubSubGroupTypeAddWriterrMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterrMethodState)
+    #region PubSubGroupTypeAddWriterMethodState Class
+    #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterMethodState)
     /// <summary>
-    /// Stores an instance of the PubSubGroupTypeAddWriterrMethodType Method.
+    /// Stores an instance of the PubSubGroupTypeAddWriterMethodType Method.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class PubSubGroupTypeAddWriterrMethodState : MethodState
+    public partial class PubSubGroupTypeAddWriterMethodState : MethodState
     {
         #region Constructors
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public PubSubGroupTypeAddWriterrMethodState(NodeState parent) : base(parent)
+        public PubSubGroupTypeAddWriterMethodState(NodeState parent) : base(parent)
         {
         }
 
@@ -73771,7 +73771,7 @@ namespace Opc.Ua
         /// <returns>The new node.</returns>
         public new static NodeState Construct(NodeState parent)
         {
-            return new PubSubGroupTypeAddWriterrMethodState(parent);
+            return new PubSubGroupTypeAddWriterMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -73795,12 +73795,12 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string InitializationString =
-           "//////////8EYYIKBAAAAAAAIwAAAFB1YlN1Ykdyb3VwVHlwZUFkZFdyaXRlcnJNZXRob2RUeXBlAQBK" +
-           "RgAvAQBKRkpGAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAS0YALgBES0YA" +
-           "AJYBAAAAAQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAO08/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEATEYALgBETEYAAJYBAAAAAQAq" +
-           "AQEiAAAAEwAAAERhdGFTZXRXcml0ZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAA";
+           "//////////8EYYIKBAAAAAAAIgAAAFB1YlN1Ykdyb3VwVHlwZUFkZFdyaXRlck1ldGhvZFR5cGUBAEpG" +
+           "AC8BAEpGSkYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBLRgAuAERLRgAA" +
+           "lgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEA7Tz/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBMRgAuAERMRgAAlgEAAAABACoB" +
+           "ASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -73809,7 +73809,7 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the the method is called.
         /// </summary>
-        public PubSubGroupTypeAddWriterrMethodStateMethodCallHandler OnCall;
+        public PubSubGroupTypeAddWriterMethodStateMethodCallHandler OnCall;
         #endregion
 
         #region Public Properties
@@ -73860,7 +73860,7 @@ namespace Opc.Ua
     /// Used to receive notifications when the method is called.
     /// </summary>
     /// <exclude />
-    public delegate ServiceResult PubSubGroupTypeAddWriterrMethodStateMethodCallHandler(
+    public delegate ServiceResult PubSubGroupTypeAddWriterMethodStateMethodCallHandler(
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,

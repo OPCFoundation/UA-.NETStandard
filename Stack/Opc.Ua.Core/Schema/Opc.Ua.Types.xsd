@@ -1031,7 +1031,7 @@
       <xs:element name="DataSetFolder" type="ua:ListOfString" minOccurs="0" nillable="true" />
       <xs:element name="DataSetMetaData" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
       <xs:element name="ExtensionFields" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="DataSetSource" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="DataSetSource" type="tns:PublishedDataSetSourceDataType" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="PublishedDataSetDataType" type="tns:PublishedDataSetDataType" />
@@ -1137,8 +1137,8 @@
       <xs:element name="KeyFrameCount" type="xs:unsignedInt" minOccurs="0" />
       <xs:element name="DataSetName" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="DataSetWriterProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
-      <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="TransportSettings" type="tns:DataSetWriterTransportDataType" minOccurs="0" nillable="true" />
+      <xs:element name="MessageSettings" type="tns:DataSetWriterMessageDataType" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="DataSetWriterDataType" type="tns:DataSetWriterDataType" />
@@ -1206,8 +1206,8 @@
           <xs:element name="Priority" type="xs:unsignedByte" minOccurs="0" />
           <xs:element name="LocaleIds" type="ua:ListOfString" minOccurs="0" nillable="true" />
           <xs:element name="HeaderLayoutUri" type="xs:string" minOccurs="0" nillable="true" />
-          <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
-          <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="TransportSettings" type="tns:WriterGroupTransportDataType" minOccurs="0" nillable="true" />
+          <xs:element name="MessageSettings" type="tns:WriterGroupMessageDataType" minOccurs="0" nillable="true" />
           <xs:element name="DataSetWriters" type="tns:ListOfDataSetWriterDataType" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
@@ -1254,9 +1254,9 @@
       <xs:element name="Enabled" type="xs:boolean" minOccurs="0" />
       <xs:element name="PublisherId" type="ua:Variant" minOccurs="0" />
       <xs:element name="TransportProfileUri" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="Address" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="Address" type="tns:NetworkAddressDataType" minOccurs="0" nillable="true" />
       <xs:element name="ConnectionProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="TransportSettings" type="tns:ConnectionTransportDataType" minOccurs="0" nillable="true" />
       <xs:element name="WriterGroups" type="tns:ListOfWriterGroupDataType" minOccurs="0" nillable="true" />
       <xs:element name="ReaderGroups" type="tns:ListOfReaderGroupDataType" minOccurs="0" nillable="true" />
     </xs:sequence>
@@ -1319,8 +1319,8 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:PubSubGroupDataType">
         <xs:sequence>
-          <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
-          <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="TransportSettings" type="tns:ReaderGroupTransportDataType" minOccurs="0" nillable="true" />
+          <xs:element name="MessageSettings" type="tns:ReaderGroupMessageDataType" minOccurs="0" nillable="true" />
           <xs:element name="DataSetReaders" type="tns:ListOfDataSetReaderDataType" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
@@ -1377,9 +1377,9 @@
       <xs:element name="SecurityGroupId" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="SecurityKeyServices" type="tns:ListOfEndpointDescription" minOccurs="0" nillable="true" />
       <xs:element name="DataSetReaderProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
-      <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
-      <xs:element name="SubscribedDataSet" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="TransportSettings" type="tns:DataSetReaderTransportDataType" minOccurs="0" nillable="true" />
+      <xs:element name="MessageSettings" type="tns:DataSetReaderMessageDataType" minOccurs="0" nillable="true" />
+      <xs:element name="SubscribedDataSet" type="tns:SubscribedDataSetDataType" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="DataSetReaderDataType" type="tns:DataSetReaderDataType" />
