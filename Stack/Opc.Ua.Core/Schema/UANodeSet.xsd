@@ -478,6 +478,7 @@
     <xs:attribute name="MaxStringLength" type="xs:unsignedInt" default="0" />
     <xs:attribute name="Value" type="xs:int" default="-1" />
     <xs:attribute name="IsOptional" type="xs:boolean" default="false" />
+    <xs:attribute name="AllowSubTypes" type="xs:boolean" default="false" />
   </xs:complexType>
 
   <xs:complexType name="UAReferenceType">

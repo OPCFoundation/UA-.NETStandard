@@ -1,9 +1,9 @@
-NA,No capability information is available. Cannot be used in combination with any other capability.
+﻿NA,No capability information is available. Cannot be used in combination with any other capability.
 DA,Provides current data.
 HD,Provides historical data.
 AC,Provides alarms and conditions that may require operator interaction.
 HE,Provides historical alarms and events.
-GDS,Supports the Global Discovery Server information model.
+GDS,Supports the Global Discovery Server information model. 
 LDS,Only supports the Discovery Services. Cannot be used in combination with any other capability.
 DI,Supports the Device Integration (DI) information model (see DI).
 ADI,Supports the Analyser Device Integration (ADI) information model (see ADI).
@@ -31,3 +31,5 @@ DEXPI,Supports the DEXPI information model.
 IOLINK,Supports the IOLINK information model.
 VROBOT,Supports the VDMA ROBOTICS information model.
 PNO,Supports the ProfiNET information model.
+PADIM,Supports the information model for Process Automation Devices.
+

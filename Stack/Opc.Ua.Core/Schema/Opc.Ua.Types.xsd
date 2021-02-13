@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -518,6 +518,19 @@
   <xs:element name="ImagePNG" type="xs:base64Binary" />
 
   <xs:element name="AudioDataType" type="xs:base64Binary" />
+
+  <xs:complexType name="Union">
+    <xs:sequence>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Union" type="tns:Union" />
+
+  <xs:complexType name="ListOfUnion">
+    <xs:sequence>
+      <xs:element name="Union" type="tns:Union" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUnion" type="tns:ListOfUnion" nillable="true"></xs:element>
 
   <xs:element name="BitFieldMaskDataType" type="xs:unsignedLong" />
 
@@ -2271,19 +2284,6 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfOptionSet" type="tns:ListOfOptionSet" nillable="true"></xs:element>
-
-  <xs:complexType name="Union">
-    <xs:sequence>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="Union" type="tns:Union" />
-
-  <xs:complexType name="ListOfUnion">
-    <xs:sequence>
-      <xs:element name="Union" type="tns:Union" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfUnion" type="tns:ListOfUnion" nillable="true"></xs:element>
 
   <xs:element name="NormalizedString" type="xs:string" />
 

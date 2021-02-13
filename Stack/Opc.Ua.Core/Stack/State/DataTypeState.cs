@@ -61,11 +61,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// A modifier applied to the datatype.
-        /// </summary>
-        public DataTypeModifier DataTypeModifier { get; set; }
-
-        /// <summary>
         /// The purpose of the data type.
         /// </summary>
         public Opc.Ua.Export.DataTypePurpose Purpose { get; set; }
@@ -248,18 +243,5 @@ namespace Opc.Ua
         #region Private Fields
         private ExtensionObject m_dataTypeDefinition;
         #endregion
-    }
-
-    /// <remarks />
-    public enum DataTypeModifier
-    {
-        /// <remarks />
-        None = 0,
-
-        /// <remarks />
-        Union = 1,
-
-        /// <remarks />
-        OptionSet = 2
     }
 }
