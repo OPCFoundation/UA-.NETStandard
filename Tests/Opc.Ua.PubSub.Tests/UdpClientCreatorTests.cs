@@ -134,7 +134,7 @@ namespace Opc.Ua.PubSub.Tests
             PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];
             Assert.IsNotNull(publisherConnection1, "publisherConnection1 should not be null");
 
-            NetworkAddressUrlDataType networkAddressUrlState1 = ExtensionObject.ToEncodeable(publisherConnection1.Address)
+            NetworkAddressUrlDataType networkAddressUrlState1 = publisherConnection1.Address
                 as NetworkAddressUrlDataType;
             Assert.IsNotNull(networkAddressUrlState1, "networkAddressUrlState1 is null");
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Tests
             PubSubConnectionDataType publisherConnection2 = publisherConfiguration.Connections[1];
             Assert.IsNotNull(publisherConnection2, "publisherConnection2 should not be null");
 
-            NetworkAddressUrlDataType networkAddressUrlState2 = ExtensionObject.ToEncodeable(publisherConnection2.Address)
+            NetworkAddressUrlDataType networkAddressUrlState2 = publisherConnection2.Address
                 as NetworkAddressUrlDataType;
             Assert.IsNotNull(networkAddressUrlState2, "networkAddressUrlState2 is null");
 
