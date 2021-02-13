@@ -127,7 +127,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             // Leave empty to subscribe on all available local interfaces.
             address.NetworkInterface = String.Empty;
             address.Url = "opc.udp://239.0.0.1:4840";
-            pubSubConnection1.Address = new ExtensionObject(address);
+            pubSubConnection1.Address = address;
 
             #region  Define  'Simple' MetaData
             DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
@@ -265,8 +265,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.Name = "ReaderGroup 1";
             readerGroup1.Enabled = true;
             readerGroup1.MaxNetworkMessageSize = 1500;
-            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
-            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
+            readerGroup1.MessageSettings = new ReaderGroupMessageDataType();
+            readerGroup1.TransportSettings = new ReaderGroupTransportDataType();
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)100, DataSetWriterId = 1
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
@@ -288,7 +288,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | UadpNetworkMessageContentMask.NetworkMessageNumber | UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
-            dataSetReaderSimple.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
+            dataSetReaderSimple.MessageSettings = uadpDataSetReaderMessage;
             TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
             subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
             foreach (var fieldMetaData in simpleMetaData.Fields)
@@ -302,7 +302,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 });
             }
 
-            dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            dataSetReaderSimple.SubscribedDataSet = subscribedDataSet;
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
@@ -326,7 +326,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | UadpNetworkMessageContentMask.NetworkMessageNumber | UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
-            dataSetReaderAllTypes.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
+            dataSetReaderAllTypes.MessageSettings = uadpDataSetReaderMessage;
             subscribedDataSet = new TargetVariablesDataType();
             subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
             foreach (var fieldMetaData in allTypesMetaData.Fields)
@@ -340,7 +340,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 });
             }
 
-            dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            dataSetReaderAllTypes.SubscribedDataSet = subscribedDataSet;
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 
