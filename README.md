@@ -63,7 +63,7 @@ All the tools you need for .NET Standard come with the .NET Core tools. See [Get
 3. Hit `F5` to build and execute the sample.
 
 ## How to build and run the console samples on Windows, Linux and iOS
-This section describes how to run the and **NetCoreReferenceServer** sample application.
+This section describes how to run the and **ReferenceServer** sample application.
 
 Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Core SDK 2.1 is required.
 
@@ -72,8 +72,8 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 
 ### Start the server 
 1. Open a command prompt. 
-2. Navigate to the folder **Applications/NetCoreReferenceServer**. 
-3. To run the server sample type `dotnet run --project NetCoreReferenceServer.csproj -a`. 
+2. Navigate to the folder **Applications/ReferenceServer**. 
+3. To run the server sample type `dotnet run --project ReferenceServer.csproj -a`. 
     - The server is now running and waiting for connections. 
 
 ## Remarks
