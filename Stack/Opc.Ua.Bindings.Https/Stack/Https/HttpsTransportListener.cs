@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
             m_hostBuilder.UseKestrel(options => {
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
-                    listenOptions.NoDelay = true;
+                    // listenOptions.NoDelay = true;
                     listenOptions.UseHttps(httpsOptions);
                 });
             });
