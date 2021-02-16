@@ -144,7 +144,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Loads the dictionary from a file.
         /// </summary>
-        protected object Load(System.Type type, string namespaceUri, string path)
+        protected object Load(System.Type type, string namespaceUri, string path, Assembly assembly = null)
         {
             // check if already loaded.
             if (m_loadedFiles.ContainsKey(namespaceUri))
@@ -178,7 +178,7 @@ namespace Opc.Ua.Schema
                 }
 
                 // load embedded resource.
-                return LoadResource(type, location, null);
+                return LoadResource(type, location, assembly);
             }
 
             if (!String.IsNullOrEmpty(path))
@@ -186,7 +186,7 @@ namespace Opc.Ua.Schema
                 if (!File.Exists(path))
                 {
                     // load embedded resource.
-                    return LoadResource(type, path, null);
+                    return LoadResource(type, path, assembly);
                 }
 
                 // check for file in the same directory as the input file.
