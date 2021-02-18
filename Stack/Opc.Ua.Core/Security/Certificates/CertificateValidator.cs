@@ -194,7 +194,8 @@ namespace Opc.Ua
             }
 
             await Update(securityConfiguration);
-            await securityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            await securityConfiguration.ApplicationCertificate.LoadPrivateKey(
+                securityConfiguration.CertificatePasswordProvider);
 
             lock (m_callbackLock)
             {

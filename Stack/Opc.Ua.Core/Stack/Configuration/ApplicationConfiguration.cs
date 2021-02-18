@@ -303,8 +303,14 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType, bool applyTraceSettings)
+        public static async Task<ApplicationConfiguration> Load(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             ApplicationConfiguration configuration = null;
             systemType = systemType ?? typeof(ApplicationConfiguration);
@@ -334,6 +340,8 @@ namespace Opc.Ua
                 {
                     configuration.TraceConfiguration.ApplySettings();
                 }
+
+                configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
                 await configuration.Validate(applicationType);
 
@@ -396,7 +404,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(SecurityConfiguration.CertificatePasswordProvider);
 
             Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();
