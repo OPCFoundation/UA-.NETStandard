@@ -312,7 +312,7 @@ namespace Opc.Ua.Gds.Server
                 StorePath = m_authoritiesStorePath,
                 StoreType = m_authoritiesStoreType
             };
-            return await certIdentifier.LoadPrivateKey(new CertificatePasswordProvider(signingKeyPassword));
+            return await certIdentifier.LoadPrivateKey(signingKeyPassword);
         }
 
         /// <summary>
@@ -379,7 +379,7 @@ namespace Opc.Ua.Gds.Server
                     StorePath = storePath,
                     StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath)
                 };
-                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(new CertificatePasswordProvider(issuerKeyFilePassword));
+                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword);
 
                 if (certCAWithPrivateKey == null)
                 {

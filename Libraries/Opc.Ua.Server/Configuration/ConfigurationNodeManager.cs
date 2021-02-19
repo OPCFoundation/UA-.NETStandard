@@ -450,7 +450,7 @@ namespace Opc.Ua.Server
                     case null:
                     case "":
                     {
-                        X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(passwordProvider).Result;
+                        X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
                         updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, certWithPrivateKey);
                         break;
                     }
@@ -543,7 +543,7 @@ namespace Opc.Ua.Server
             // TODO: use nonce for generating the private key
 
             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
-            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(passwordProvider).Result;
+            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
             certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
             return ServiceResult.Good;
         }

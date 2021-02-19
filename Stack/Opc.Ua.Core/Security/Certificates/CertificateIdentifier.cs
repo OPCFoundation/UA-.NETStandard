@@ -162,7 +162,13 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(ICertificatePasswordProvider passwordProvider)
+        public Task<X509Certificate2> LoadPrivateKey(string password)
+            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null);
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
         {
             if (this.StoreType == CertificateStoreType.Directory)
             {

@@ -404,7 +404,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(SecurityConfiguration.CertificatePasswordProvider);
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider);
 
             Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();

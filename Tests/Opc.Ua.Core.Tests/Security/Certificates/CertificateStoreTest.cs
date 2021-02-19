@@ -155,11 +155,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKey(new CertificatePasswordProvider("123"));
+                    var nullKey = await id.LoadPrivateKey("123");
                     Assert.IsNull(nullKey);
                 }
 
-                var privateKey = await id.LoadPrivateKey(new CertificatePasswordProvider(password));
+                {
+                    // check invalid password fails to load
+                    var nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123"));
+                    Assert.IsNull(nullKey);
+                }
+
+                var privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password));
 
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
