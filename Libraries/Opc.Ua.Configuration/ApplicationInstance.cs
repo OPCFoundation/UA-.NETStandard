@@ -274,7 +274,9 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
         {
-            ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider).ConfigureAwait(false);
+            ApplicationConfiguration configuration = await LoadAppConfig(
+                silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                .ConfigureAwait(false);
 
             if (configuration == null)
             {
@@ -292,7 +294,9 @@ namespace Opc.Ua.Configuration
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
-            ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider).ConfigureAwait(false);
+            ApplicationConfiguration configuration = await LoadAppConfig(
+                silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                .ConfigureAwait(false);
 
             if (configuration == null)
             {

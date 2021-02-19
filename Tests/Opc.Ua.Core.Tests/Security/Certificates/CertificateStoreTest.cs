@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -109,6 +111,65 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     x509Store.Open(storePath);
                     await x509Store.Delete(publicKey.Thumbprint);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verify new app certificate is stored in Directory Store
+        /// with password for private key (PFX).
+        /// </summary>
+        [Test]
+        public async Task VerifyAppCertDirectoryStore()
+        {
+            var appCertificate = GetTestCert();
+            Assert.NotNull(appCertificate);
+            Assert.True(appCertificate.HasPrivateKey);
+
+            string password = Guid.NewGuid().ToString();
+
+            // pki directory root for app cert
+            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+            var storePath = pkiRoot + "own";
+            var storeType = CertificateStoreType.Directory;
+            appCertificate.AddToStore(
+                storeType, storePath, password
+                );
+
+            using (var publicKey = new X509Certificate2(appCertificate.RawData))
+            {
+                Assert.NotNull(publicKey);
+                Assert.False(publicKey.HasPrivateKey);
+
+                var id = new CertificateIdentifier() {
+                    Thumbprint = publicKey.Thumbprint,
+                    StorePath = storePath,
+                    StoreType = storeType
+                };
+
+                {
+                    // check no password fails to load
+                    var nullKey = await id.LoadPrivateKey(null);
+                    Assert.IsNull(nullKey);
+                }
+
+                {
+                    // check invalid password fails to load
+                    var nullKey = await id.LoadPrivateKey(new CertificatePasswordProvider("123"));
+                    Assert.IsNull(nullKey);
+                }
+
+                var privateKey = await id.LoadPrivateKey(new CertificatePasswordProvider(password));
+
+                Assert.NotNull(privateKey);
+                Assert.True(privateKey.HasPrivateKey);
+
+                X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
+
+                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                {
+                    store.Open(storePath);
+                    await store.Delete(publicKey.Thumbprint);
                 }
             }
         }

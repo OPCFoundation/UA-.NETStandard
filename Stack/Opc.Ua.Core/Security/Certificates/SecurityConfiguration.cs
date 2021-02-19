@@ -10,26 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-    #region ICertificatePasswordProvider Interface
-    /// <summary>
-    /// An interface for a password provider for private keys.
-    /// </summary>
-    public interface ICertificatePasswordProvider
-    {
-        /// <summary>
-        /// Return the password for a certificate private key.
-        /// </summary>
-        /// <param name="certificateIdentifier">The certificate identifier for which the password is needed.</param>
-        string GetPassword(CertificateIdentifier certificateIdentifier);
-    }
-    #endregion
-
     #region SecurityConfiguration Class
     /// <summary>
     /// The security configuration for the application.

@@ -237,7 +237,7 @@ namespace Quickstarts.ReferenceServer
         private async Task ConsoleSampleServer()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            PasswordProvider PasswordProvider = new PasswordProvider(Password);
+            CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = "Quickstart Reference Server",
                 ApplicationType = ApplicationType.Server,
@@ -339,26 +339,5 @@ namespace Quickstarts.ReferenceServer
                 await Task.Delay(1000).ConfigureAwait(false);
             }
         }
-    }
-
-    /// <summary>
-    /// The certificate password provider.
-    /// </summary>
-    public class PasswordProvider : ICertificatePasswordProvider
-    {
-        public PasswordProvider(string password)
-        {
-            m_password = password;
-        }
-
-        /// <summary>
-        /// Return the password used for the certificate.
-        /// </summary>
-        public string GetPassword(CertificateIdentifier certificateIdentifier)
-        {
-            return m_password;
-        }
-
-        private string m_password;
     }
 }
