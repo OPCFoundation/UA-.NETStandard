@@ -47,8 +47,8 @@ namespace Quickstarts.ConsoleReferenceClient
         /// </summary>
         public UAClient(ApplicationConfiguration configuration, IOutput output, Action<IList, IList> validateResponse)
         {
-            _validateResponse = validateResponse;
-            _output = output;
+            m_validateResponse = validateResponse;
+            m_output = output;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
         }
@@ -76,11 +76,11 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 if (m_session != null && m_session.Connected == true)
                 {
-                    _output.WriteLine("Session already connected!");
+                    m_output.WriteLine("Session already connected!");
                 }
                 else
                 {
-                    _output.WriteLine("Connecting...");
+                    m_output.WriteLine("Connecting...");
 
                     // Get the endpoint by connecting to server's discovery endpoint.
                     // Try to find the first endopint without security.
@@ -108,7 +108,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // Session created successfully.
-                    _output.WriteLine($"New Session Created with SessionName = {m_session.SessionName}");
+                    m_output.WriteLine($"New Session Created with SessionName = {m_session.SessionName}");
                 }
 
                 return true;
@@ -116,7 +116,7 @@ namespace Quickstarts.ConsoleReferenceClient
             catch (Exception ex)
             {
                 // Log Error
-                _output.WriteLine($"Create Session Error : {ex.Message}");
+                m_output.WriteLine($"Create Session Error : {ex.Message}");
                 return false;
             }
         }
@@ -130,24 +130,24 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 if (m_session != null)
                 {
-                    _output.WriteLine("Disconnecting...");
+                    m_output.WriteLine("Disconnecting...");
 
                     m_session.Close();
                     m_session.Dispose();
                     m_session = null;
 
                     // Log Session Disconnected event
-                    _output.WriteLine("Session Disconnected.");
+                    m_output.WriteLine("Session Disconnected.");
                 }
                 else
                 {
-                    _output.WriteLine("Session not created!");
+                    m_output.WriteLine("Session not created!");
                 }
             }
             catch (Exception ex)
             {
                 // Log Error
-                _output.WriteLine($"Disconnect Error : {ex.Message}");
+                m_output.WriteLine($"Disconnect Error : {ex.Message}");
             }
         }
 
@@ -158,7 +158,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             if (m_session == null || m_session.Connected == false)
             {
-                _output.WriteLine("Session not connected!");
+                m_output.WriteLine("Session not connected!");
                 return;
             }
 
@@ -178,7 +178,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 };
 
                 // Read the node attributes
-                _output.WriteLine("Reading nodes...");
+                m_output.WriteLine("Reading nodes...");
 
                 // Call Read Service
                 m_session.Read(
@@ -190,27 +190,27 @@ namespace Quickstarts.ConsoleReferenceClient
                     out DiagnosticInfoCollection diagnosticInfos);
 
                 // Validate the results
-                _validateResponse(resultsValues, nodesToRead);
+                m_validateResponse(resultsValues, nodesToRead);
 
                 // Display the results.
                 foreach (DataValue result in resultsValues)
                 {
-                    _output.WriteLine("Read Value = {0} , StatusCode = {1}", result.Value, result.StatusCode);
+                    m_output.WriteLine("Read Value = {0} , StatusCode = {1}", result.Value, result.StatusCode);
                 }
                 #endregion
 
                 #region Read the Value attribute of a node by calling the Session.ReadValue method
                 // Read Server NamespaceArray
-                _output.WriteLine("Reading Value of NamespaceArray node...");
+                m_output.WriteLine("Reading Value of NamespaceArray node...");
                 DataValue namespaceArray = m_session.ReadValue(Variables.Server_NamespaceArray);
                 // Display the result
-                _output.WriteLine($"NamespaceArray Value = {namespaceArray}");
+                m_output.WriteLine($"NamespaceArray Value = {namespaceArray}");
                 #endregion
             }
             catch (Exception ex)
             {
                 // Log Error
-                _output.WriteLine($"Read Nodes Error : {ex.Message}.");
+                m_output.WriteLine($"Read Nodes Error : {ex.Message}.");
             }
         }
 
@@ -221,7 +221,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             if (m_session == null || m_session.Connected == false)
             {
-                _output.WriteLine("Session not connected!");
+                m_output.WriteLine("Session not connected!");
                 return;
             }
 
@@ -257,7 +257,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 // Write the node attributes
                 StatusCodeCollection results = null;
                 DiagnosticInfoCollection diagnosticInfos;
-                _output.WriteLine("Writing nodes...");
+                m_output.WriteLine("Writing nodes...");
 
                 // Call Write Service
                 m_session.Write(null,
@@ -266,20 +266,20 @@ namespace Quickstarts.ConsoleReferenceClient
                                 out diagnosticInfos);
 
                 // Validate the response
-                _validateResponse(results, nodesToWrite);
+                m_validateResponse(results, nodesToWrite);
 
                 // Display the results.
-                _output.WriteLine("Write Results :");
+                m_output.WriteLine("Write Results :");
 
                 foreach (StatusCode writeResult in results)
                 {
-                    _output.WriteLine("     {0}", writeResult);
+                    m_output.WriteLine("     {0}", writeResult);
                 }
             }
             catch (Exception ex)
             {
                 // Log Error
-                _output.WriteLine($"Write Nodes Error : {ex.Message}.");
+                m_output.WriteLine($"Write Nodes Error : {ex.Message}.");
             }
         }
 
@@ -290,7 +290,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             if (m_session == null || m_session.Connected == false)
             {
-                _output.WriteLine("Session not connected!");
+                m_output.WriteLine("Session not connected!");
                 return;
             }
 
@@ -307,21 +307,21 @@ namespace Quickstarts.ConsoleReferenceClient
                 NodeId nodeToBrowse = ObjectIds.Server;
 
                 // Call Browse service
-                _output.WriteLine("Browsing {0} node...", nodeToBrowse);
+                m_output.WriteLine("Browsing {0} node...", nodeToBrowse);
                 ReferenceDescriptionCollection browseResults = browser.Browse(nodeToBrowse);
 
                 // Display the results
-                _output.WriteLine("Browse returned {0} results:", browseResults.Count);
+                m_output.WriteLine("Browse returned {0} results:", browseResults.Count);
 
                 foreach (ReferenceDescription result in browseResults)
                 {
-                    _output.WriteLine("     DisplayName = {0}, NodeClass = {1}", result.DisplayName.Text, result.NodeClass);
+                    m_output.WriteLine("     DisplayName = {0}, NodeClass = {1}", result.DisplayName.Text, result.NodeClass);
                 }
             }
             catch (Exception ex)
             {
                 // Log Error
-                _output.WriteLine($"Browse Error : {ex.Message}.");
+                m_output.WriteLine($"Browse Error : {ex.Message}.");
             }
         }
 
@@ -332,7 +332,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             if (m_session == null || m_session.Connected == false)
             {
-                _output.WriteLine("Session not connected!");
+                m_output.WriteLine("Session not connected!");
                 return;
             }
 
@@ -350,20 +350,20 @@ namespace Quickstarts.ConsoleReferenceClient
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
-                _output.WriteLine("Calling UAMethod for node {0} ...", methodId);
+                m_output.WriteLine("Calling UAMethod for node {0} ...", methodId);
                 outputArguments = m_session.Call(objectId, methodId, inputArguments);
 
                 // Display results
-                _output.WriteLine("Method call returned {0} output argument(s):", outputArguments.Count);
+                m_output.WriteLine("Method call returned {0} output argument(s):", outputArguments.Count);
 
                 foreach (var outputArgument in outputArguments)
                 {
-                    _output.WriteLine("     OutputValue = {0}", outputArgument.ToString());
+                    m_output.WriteLine("     OutputValue = {0}", outputArgument.ToString());
                 }
             }
             catch (Exception ex)
             {
-                _output.WriteLine("Method call error: {0}", ex.Message);
+                m_output.WriteLine("Method call error: {0}", ex.Message);
             }
         }
 
@@ -374,7 +374,7 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             if (m_session == null || m_session.Connected == false)
             {
-                _output.WriteLine("Session not connected!");
+                m_output.WriteLine("Session not connected!");
                 return;
             }
 
@@ -393,7 +393,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 // Create the subscription on Server side
                 subscription.Create();
-                _output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
+                m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
                 // Create MonitoredItems for data changes
 
@@ -429,11 +429,11 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 // Create the monitored items on Server side
                 subscription.ApplyChanges();
-                _output.WriteLine("MonitoredItems created for SubscriptionId = {0}.", subscription.Id);
+                m_output.WriteLine("MonitoredItems created for SubscriptionId = {0}.", subscription.Id);
             }
             catch (Exception ex)
             {
-                _output.WriteLine("Subscribe error: {0}", ex.Message);
+                m_output.WriteLine("Subscribe error: {0}", ex.Message);
             }
         }
         #endregion
@@ -449,11 +449,11 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 // Log MonitoredItem Notification event
                 MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-                _output.WriteLine("Notification Received for Variable \"{0}\" and Value = {1}.", monitoredItem.DisplayName, notification.Value);
+                m_output.WriteLine("Notification Received for Variable \"{0}\" and Value = {1}.", monitoredItem.DisplayName, notification.Value);
             }
             catch (Exception ex)
             {
-                _output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
+                m_output.WriteLine("OnMonitoredItemNotification error: {0}", ex.Message);
             }
         }
 
@@ -474,13 +474,13 @@ namespace Quickstarts.ConsoleReferenceClient
             ServiceResult error = e.Error;
             while (error != null)
             {
-                _output.WriteLine(error);
+                m_output.WriteLine(error);
                 error = error.InnerResult;
             }
 
             if (certificateAccepted)
             {
-                _output.WriteLine("Untrusted Certificate accepted. SubjectName = {0}", e.Certificate.SubjectName);
+                m_output.WriteLine("Untrusted Certificate accepted. SubjectName = {0}", e.Certificate.SubjectName);
             }
 
             e.AcceptAll = certificateAccepted;
@@ -493,9 +493,9 @@ namespace Quickstarts.ConsoleReferenceClient
 
         private Session m_session;
 
-        private readonly IOutput _output;
+        private readonly IOutput m_output;
 
-        private readonly Action<IList, IList> _validateResponse;
+        private readonly Action<IList, IList> m_validateResponse;
 
         #endregion
     }
