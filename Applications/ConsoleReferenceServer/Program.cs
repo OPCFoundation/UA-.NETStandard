@@ -169,7 +169,7 @@ namespace Quickstarts.ReferenceServer
             try
             {
                 ExitCode = ExitCode.ErrorServerNotStarted;
-                await ConsoleSampleServer().ConfigureAwait(false);
+                await StartConsoleReferenceServerAsync().ConfigureAwait(false);
                 Console.WriteLine("Server started. Press Ctrl-C to exit...");
                 ExitCode = ExitCode.ErrorServerRunning;
             }
@@ -234,7 +234,7 @@ namespace Quickstarts.ReferenceServer
             Utils.Trace(Utils.TraceMasks.Security, "Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
         }
 
-        private async Task ConsoleSampleServer()
+        private async Task StartConsoleReferenceServerAsync()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
@@ -286,7 +286,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // start the status thread
-            m_status = Task.Run(new Action(StatusThread));
+            m_status = Task.Run(new Action(StatusThreadAsync));
 
             // print notification on session events
             m_server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
@@ -322,7 +322,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private async void StatusThread()
+        private async void StatusThreadAsync()
         {
             while (m_server != null)
             {
