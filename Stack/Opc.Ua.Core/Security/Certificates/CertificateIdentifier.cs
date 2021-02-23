@@ -147,7 +147,7 @@ namespace Opc.Ua
         /// <value>The X509 certificate used by this instance.</value>
         public X509Certificate2 Certificate
         {
-            get { return m_certificate;  }
+            get { return m_certificate; }
             set { m_certificate = value; }
         }
 
@@ -162,18 +162,25 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKey(String password)
+        public Task<X509Certificate2> LoadPrivateKey(string password)
+            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null);
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
         {
             if (this.StoreType == CertificateStoreType.Directory)
-            {                
+            {
                 using (DirectoryCertificateStore store = new DirectoryCertificateStore())
                 {
                     store.Open(this.StorePath);
+                    string password = passwordProvider?.GetPassword(this);
                     m_certificate = store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password);
                     return m_certificate;
                 }
             }
-            
+
             return await Find(true);
         }
 
@@ -434,16 +441,16 @@ namespace Opc.Ua
 
             byte[] rawData = encodedData;
             byte[] data = certificate.RawData;
-        
+
             int processedBytes = data.Length;
-            
+
             if (encodedData.Length < processedBytes)
             {
-                byte[] buffer = new byte[encodedData.Length-processedBytes];
+                byte[] buffer = new byte[encodedData.Length - processedBytes];
 
                 do
                 {
-                    Array.Copy(encodedData, processedBytes, buffer, 0, encodedData.Length-processedBytes);
+                    Array.Copy(encodedData, processedBytes, buffer, 0, encodedData.Length - processedBytes);
 
                     if (!IsValidCertificateBlob(buffer))
                     {
@@ -504,7 +511,7 @@ namespace Opc.Ua
             {
                 length = octet & 0x7F;
 
-                if (2+length < rawData.Length)
+                if (2 + length < rawData.Length)
                 {
                     return false;
                 }
@@ -514,8 +521,8 @@ namespace Opc.Ua
 
             // extract number of bytes for the length.
             int lengthBytes = octet & 0x7F;
-            
-            if (rawData.Length <= 2+lengthBytes)
+
+            if (rawData.Length <= 2 + lengthBytes)
             {
                 return false;
             }
@@ -529,13 +536,13 @@ namespace Opc.Ua
             // extract length.
             length = rawData[2];
 
-            for (int ii = 0; ii < lengthBytes-1; ii++)
+            for (int ii = 0; ii < lengthBytes - 1; ii++)
             {
                 length <<= 8;
-                length |= rawData[ii+3];
+                length |= rawData[ii + 3];
             }
 
-            if (2+lengthBytes+length > rawData.Length)
+            if (2 + lengthBytes + length > rawData.Length)
             {
                 return false;
             }
@@ -569,13 +576,13 @@ namespace Opc.Ua
 
             return collection;
         }
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -725,7 +732,7 @@ namespace Opc.Ua
         {
             return StatusCodes.BadNotSupported;
         }
-        
+
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>$(AppTargetFrameWork)</TargetFramework>
-    <AssemblyName>NetCoreReferenceServer</AssemblyName>
+    <AssemblyName>ConsoleReferenceServer</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleReferenceServer</PackageId>
     <Company>OPC Foundation</Company>
