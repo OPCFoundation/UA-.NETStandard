@@ -32,7 +32,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
     /// This class handles the broadcast message sending.

@@ -38,6 +38,10 @@
   <ItemGroup>
     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Uadp\" />
+  </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
 

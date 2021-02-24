@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
@@ -35,12 +36,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
     /// UADP implementation of <see cref="UaPubSubConnection"/> class.
     /// </summary>
-    internal class UadpPubSubConnection : UaPubSubConnection
+    internal class UdpPubSubConnection : UaPubSubConnection
     {
         #region Private Fields       
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
@@ -60,11 +61,11 @@ namespace Opc.Ua.PubSub.Uadp
         #region Constructor
 
         /// <summary>
-        ///  Create new instance of <see cref="UadpPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
+        ///  Create new instance of <see cref="UdpPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
         /// <param name="pubSubConnectionDataType"></param>
-        public UadpPubSubConnection(UaPubSubApplication uaPubSubApplication,  PubSubConnectionDataType pubSubConnectionDataType)
+        public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication,  PubSubConnectionDataType pubSubConnectionDataType)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
             m_transportProtocol = TransportProtocol.UADP;

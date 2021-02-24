@@ -27,46 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Net;
-using System.Net.Sockets;
 
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
-    /// Represents a specialized <see cref="UdpClient"/> class, configured for Unicast
+    /// EventArgs class for UadpMessage received
     /// </summary>
-    internal class UdpClientUnicast : UdpClient
+    internal class UadpDataEventArgs : EventArgs
     {
-        internal IPAddress Address { get; }
-        internal int Port { get; }
+        /// <summary>
+        /// Uadp message bytes
+        /// </summary>
+        internal byte[] Message { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
+        /// Get the Source EndPoint
         /// </summary>
-        /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
-        /// <param name="port">The port.</param>       
-        /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
-        public UdpClientUnicast(IPAddress localAddress, int port) : base()
-        {
-            Address = localAddress;
-            Port = port;
-
-            try
-            {
-                // this might throw exception on some platforms
-                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            }
-            catch
-            { }
-            try
-            {
-                // this might throw exception on some platforms
-                ExclusiveAddressUse = false;
-            }
-            catch
-            { }
-
-            Client.Bind(new IPEndPoint(localAddress, port));
-        }
+        internal IPEndPoint SourceEndPoint { get; set; }
     }
 }

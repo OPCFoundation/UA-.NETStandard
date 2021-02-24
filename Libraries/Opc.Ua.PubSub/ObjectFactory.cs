@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.Uadp;
 using System;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub
 {
@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub
         {
             if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
             {
-                return new UadpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
+                return new UdpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
             }
             throw new ArgumentException("Invalid TransportProfileUri.", "pubSubConnectionDataType");
         }        

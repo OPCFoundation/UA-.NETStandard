@@ -32,7 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
     /// UADP Network Message

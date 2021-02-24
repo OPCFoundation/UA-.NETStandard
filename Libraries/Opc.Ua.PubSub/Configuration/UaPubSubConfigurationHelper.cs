@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Configuration
 
             XmlWriterSettings settings = new XmlWriterSettings();
 
-            settings.Encoding = Encoding.UTF8;
+            settings.Encoding = System.Text.Encoding.UTF8;
             settings.Indent = true;
             settings.CloseOutput = true;
 
