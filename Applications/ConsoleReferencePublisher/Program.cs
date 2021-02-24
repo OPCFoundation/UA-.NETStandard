@@ -91,9 +91,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "UADPConnection1";
+            pubSubConnection1.Name = "UADPConnection1 UDP UADP";
             pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)100;
+            pubSubConnection1.PublisherId = (UInt16)1;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubUdpUadpTransport;
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
             // Specify the local Network interface name to be used
@@ -344,9 +344,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "UADPConnection1";
+            pubSubConnection1.Name = "UADPConnection1 MQTT Uadp";
             pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)100;
+            pubSubConnection1.PublisherId = (UInt16)2;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
             // Specify the local Network interface name to be used
@@ -598,9 +598,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "UADPConnection1";
+            pubSubConnection1.Name = "UADPConnection1 MQTT Json";
             pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)100;
+            pubSubConnection1.PublisherId = (UInt16)3;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
             // Specify the local Network interface name to be used
@@ -610,7 +610,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.Url = "mqtts://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
 
-            #region Define WriterGroup1
+            #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
             writerGroup1.Name = "WriterGroup 1";
             writerGroup1.Enabled = true;
@@ -671,7 +671,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
-            #endregion
+            #endregion    
 
             #region  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = new PublishedDataSetDataType();
@@ -845,6 +845,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                     publishedDataSetSimple, publishedDataSetAllTypes
                 };
 
+            var c2 = CreatePublisherConfiguration_MqttUadp();
+            // add also uadp cnnection
+            pubSubConfiguration.Connections.Add(c2.Connections[0]);
             return pubSubConfiguration;
         }
     }

@@ -27,13 +27,59 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 namespace Opc.Ua.PubSub
 {
     /// <summary>
     /// Abstract class for an UA network message
     /// </summary>
-    public abstract class UaNetworkMessage 
+    public abstract class UaNetworkMessage
     {
+        /// <summary>
+        /// list of DataSet messages
+        /// </summary>
+        protected readonly List<UaDataSetMessage> m_uaDataSetMessages;
+
+        /// <summary>
+        /// Create instance of <see cref="UaNetworkMessage"/>.
+        /// </summary>
+        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>
+        /// <param name="uaDataSetMessages">The containing data set messages.</param>
+        protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> uaDataSetMessages)
+        {
+            WriterGroupConfiguration = writerGroupConfiguration;
+            m_uaDataSetMessages = uaDataSetMessages;
+        }
+
+        /// <summary>
+        /// Get the writer group configuration for this network message
+        /// </summary>
+        internal WriterGroupDataType WriterGroupConfiguration { get; set; }
+
+        /// <summary>
+        /// Get and Set WriterGroupId
+        /// </summary>
+        public UInt16 WriterGroupId { get; set; }
+
+        /// <summary>
+        /// Get and Set SequenceNumber
+        /// </summary>
+        public UInt16 SequenceNumber { get; set; }
+
+        /// <summary>
+        /// DataSet messages
+        /// </summary>
+        internal ReadOnlyCollection<UaDataSetMessage> DataSetMessages
+        {
+            get
+            {
+                return new ReadOnlyCollection<UaDataSetMessage>(m_uaDataSetMessages);
+            }
+        }
+
         /// <summary>
         /// Encodes the object in a stream.
         /// </summary>

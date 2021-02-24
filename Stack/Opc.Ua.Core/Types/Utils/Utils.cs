@@ -61,6 +61,11 @@ namespace Opc.Ua
         public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
+        /// The URI scheme for the MQTT protocol. 
+        /// </summary>
+        public const string UriSchemeMqtt = "mqtts";
+
+        /// <summary>
         /// The URI schemes which are supported in the core server. 
         /// </summary>
         public static readonly string[] DefaultUriSchemes = new string[]

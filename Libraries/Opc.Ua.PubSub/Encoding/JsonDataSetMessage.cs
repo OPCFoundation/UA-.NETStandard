@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// The UADPDataSetMessage class handler.
     /// It handles the UADPDataSetMessage encoding 
     /// </summary>
-    internal class UadpDataSetMessage : UaDataSetMessage
+    internal class JsonDataSetMessage : UaDataSetMessage
     {
         #region Fields
 
@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Constructor
         /// </summary>
-        public UadpDataSetMessage()
+        public JsonDataSetMessage()
         {
             ConfigurationMajorVersion = ConfigMajorVersion;
             ConfigurationMinorVersion = ConfigMinorVersion;
@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Constructor with DataSet parameter
         /// </summary>
         /// <param name="dataSet"></param>        
-        public UadpDataSetMessage(DataSet dataSet = null) : this()
+        public JsonDataSetMessage(DataSet dataSet = null) : this()
         {
             m_dataSet = dataSet;
         }
@@ -116,11 +116,11 @@ namespace Opc.Ua.PubSub.Encoding
         public DataSetFieldContentMask FieldContentMask { get; private set; }
 
         /// <summary>
-        /// Get UadpDataSetMessageContentMask
+        /// Get JsonDataSetMessageContentMask
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
-        /// The UADP message mapping specific flags are defined by the UadpDataSetMessageContentMask DataType.
+        /// The Json message mapping specific flags are defined by the <see cref="JsonDataSetMessageContentMask"/> enum.
         /// </summary>
-        public UadpDataSetMessageContentMask MessageContentMask { get; private set; }
+        public JsonDataSetMessageContentMask MessageContentMask { get; private set; }
 
         #endregion
 
@@ -250,82 +250,85 @@ namespace Opc.Ua.PubSub.Encoding
         /// Set MessageContentMask 
         /// </summary>
         /// <param name="messageContentMask"></param>
-        public void SetMessageContentMask(UadpDataSetMessageContentMask messageContentMask)
+        public void SetMessageContentMask(JsonDataSetMessageContentMask messageContentMask)
         {
             MessageContentMask = messageContentMask;
 
-            DataSetFlags1 &= PreservedDataSetFlags1UsedBits;
-            DataSetFlags2 = 0;
+            //DataSetFlags1 &= PreservedDataSetFlags1UsedBits;
+            //DataSetFlags2 = 0;
 
-            #region DataSetFlags1: Bit range 3-7: Enabled flags options
+            //#region DataSetFlags1: Bit range 3-7: Enabled flags options
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
-            {
-                DataSetFlags1 |= DataSetFlags1EncodingMask.SequenceNumber;
-            }
+            //if ((MessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
+            //{
+            //    DataSetFlags1 |= DataSetFlags1EncodingMask.SequenceNumber;
+            //}
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.Status) != 0)
-            {
-                DataSetFlags1 |= DataSetFlags1EncodingMask.Status;
-            }
+            //if ((MessageContentMask & UadpDataSetMessageContentMask.Status) != 0)
+            //{
+            //    DataSetFlags1 |= DataSetFlags1EncodingMask.Status;
+            //}
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0)
-            {
-                DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion;
-            }
+            //if ((MessageContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0)
+            //{
+            //    DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion;
+            //}
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.MinorVersion) != 0)
-            {
-                DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion;
-            }
+            //if ((MessageContentMask & UadpDataSetMessageContentMask.MinorVersion) != 0)
+            //{
+            //    DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion;
+            //}
 
-            #endregion
+            //#endregion
 
-            #region DataSetFlags2
+            //#region DataSetFlags2
 
-            // Bit range 0-3: UADP DataSetMessage type
-            // 0000 Data Key Frame (by default for now)
-            // 0001 Data Delta Frame
-            // 0010 Event
-            // 0011 Keep Alive
-            //Always Key frame is sent.
-            if ((MessageContentMask & UadpDataSetMessageContentMask.Timestamp) != 0)
-            {
-                DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
-                DataSetFlags2 |= DataSetFlags2EncodingMask.Timestamp;
-            }
+            //// Bit range 0-3: UADP DataSetMessage type
+            //// 0000 Data Key Frame (by default for now)
+            //// 0001 Data Delta Frame
+            //// 0010 Event
+            //// 0011 Keep Alive
+            ////Always Key frame is sent.
+            //if ((MessageContentMask & UadpDataSetMessageContentMask.Timestamp) != 0)
+            //{
+            //    DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
+            //    DataSetFlags2 |= DataSetFlags2EncodingMask.Timestamp;
+            //}
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) != 0)
-            {
-                DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
-                DataSetFlags2 |= DataSetFlags2EncodingMask.PicoSeconds;
-            }
+            //if ((MessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) != 0)
+            //{
+            //    DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
+            //    DataSetFlags2 |= DataSetFlags2EncodingMask.PicoSeconds;
+            //}
 
-            #endregion
+            //#endregion
         }
         /// <summary>
         /// Encode dataset
         /// </summary>
-        /// <param name="binaryEncoder"></param>
-        public void Encode(BinaryEncoder binaryEncoder)
+        /// <param name="jsonEncoder"></param>
+        public void Encode(JsonEncoder jsonEncoder)
         {
-            StartPositionInStream = binaryEncoder.Position;
-            if (DataSetOffset > 0 && StartPositionInStream < DataSetOffset)
-            {
-                StartPositionInStream = DataSetOffset;
-                binaryEncoder.Position = DataSetOffset;
-            }
+            //jsonEncoder.PushStructure("Payload");
+            EncodePayload(jsonEncoder);
+            // jsonEncoder.PopStructure();
+            //StartPositionInStream = jsonEncoder.Position;
+            //if (DataSetOffset > 0 && StartPositionInStream < DataSetOffset)
+            //{
+            //    StartPositionInStream = DataSetOffset;
+            //    jsonEncoder.Position = DataSetOffset;
+            //}           
 
-            EncodeDataSetMessageHeader(binaryEncoder);
-            EncodePayload(binaryEncoder);
+            //EncodeDataSetMessageHeader(jsonEncoder);
+            //EncodePayload(jsonEncoder);
 
-            PayloadSizeInStream = (UInt16)(binaryEncoder.Position - StartPositionInStream);
+            //PayloadSizeInStream = (UInt16)(jsonEncoder.Position - StartPositionInStream);
 
-            if (ConfiguredSize > 0 && PayloadSizeInStream < ConfiguredSize)
-            {
-                PayloadSizeInStream = ConfiguredSize;
-                binaryEncoder.Position = StartPositionInStream + PayloadSizeInStream;
-            }
+            //if (ConfiguredSize > 0 && PayloadSizeInStream < ConfiguredSize)
+            //{
+            //    PayloadSizeInStream = ConfiguredSize;
+            //    jsonEncoder.Position = StartPositionInStream + PayloadSizeInStream;
+            //}
         }
 
         /// <summary>
@@ -417,33 +420,33 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode payload data
         /// </summary>
-        /// <param name="binaryEncoder"></param>
-        private void EncodePayload(BinaryEncoder binaryEncoder)
+        /// <param name="jsonEncoder"></param>
+        private void EncodePayload(JsonEncoder jsonEncoder)
         {
             FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & FieldTypeUsedBits) >> 1);
             switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
-                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)m_dataSet.Fields.Length);
+                    jsonEncoder.WriteUInt16("DataSetFieldCount", (UInt16)m_dataSet.Fields.Length);
                     foreach (Field field in m_dataSet.Fields)
                     {
                         // 00 Variant type
-                        binaryEncoder.WriteVariant("Variant", field.Value.WrappedValue);
+                        jsonEncoder.WriteVariant("Variant", field.Value.WrappedValue);
                     }
                     break;
                 case FieldTypeEncodingMask.DataValue:
-                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)m_dataSet.Fields.Length);
+                    jsonEncoder.WriteUInt16("DataSetFieldCount", (UInt16)m_dataSet.Fields.Length);
                     foreach (Field field in m_dataSet.Fields)
                     {
                         // 10 DataValue type 
-                        binaryEncoder.WriteDataValue("DataValue", field.Value);
+                        jsonEncoder.WriteDataValue("DataValue", field.Value);
                     }
                     break;
                 case FieldTypeEncodingMask.RawData:
                     // DataSetFieldCount is not persisted for RawData
                     foreach (Field field in m_dataSet.Fields)
                     {
-                        EncodeFieldAsRawData(binaryEncoder, field);
+                        EncodeFieldAsRawData(jsonEncoder, field);
                     }
                     break;
                 case FieldTypeEncodingMask.Reserved:
@@ -600,9 +603,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes field value as RawData
         /// </summary>
-        /// <param name="binaryEncoder"></param>
+        /// <param name="jsonEncoder"></param>
         /// <param name="field"></param>
-        private void EncodeFieldAsRawData(BinaryEncoder binaryEncoder, Field field)
+        private void EncodeFieldAsRawData(JsonEncoder jsonEncoder, Field field)
         {
             try
             {
@@ -619,73 +622,73 @@ namespace Opc.Ua.PubSub.Encoding
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(variant.Value));
+                            jsonEncoder.WriteBoolean("Bool", Convert.ToBoolean(variant.Value));
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(variant.Value));
+                            jsonEncoder.WriteSByte("SByte", Convert.ToSByte(variant.Value));
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByte("Byte", Convert.ToByte(variant.Value));
+                            jsonEncoder.WriteByte("Byte", Convert.ToByte(variant.Value));
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(variant.Value));
+                            jsonEncoder.WriteInt16("Int16", Convert.ToInt16(variant.Value));
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(variant.Value));
+                            jsonEncoder.WriteUInt16("UInt16", Convert.ToUInt16(variant.Value));
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(variant.Value));
+                            jsonEncoder.WriteInt32("Int32", Convert.ToInt32(variant.Value));
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(variant.Value));
+                            jsonEncoder.WriteUInt32("UInt32", Convert.ToUInt32(variant.Value));
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(variant.Value));
+                            jsonEncoder.WriteInt64("Int64", Convert.ToInt64(variant.Value));
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(variant.Value));
+                            jsonEncoder.WriteUInt64("UInt64", Convert.ToUInt64(variant.Value));
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(variant.Value));
+                            jsonEncoder.WriteFloat("Float", Convert.ToSingle(variant.Value));
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(variant.Value));
+                            jsonEncoder.WriteDouble("Double", Convert.ToDouble(variant.Value));
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(variant.Value));
+                            jsonEncoder.WriteDateTime("DateTime", Convert.ToDateTime(variant.Value));
                             break;
                         case BuiltInType.Guid:
-                            binaryEncoder.WriteGuid("GUID", (Uuid)variant.Value);
+                            jsonEncoder.WriteGuid("GUID", (Uuid)variant.Value);
                             break;
                         case BuiltInType.String:
-                            binaryEncoder.WriteString("String", variant.Value as string);
+                            jsonEncoder.WriteString("String", variant.Value as string);
                             break;
                         case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteString("ByteString", (byte[])variant.Value);
+                            jsonEncoder.WriteByteString("ByteString", (byte[])variant.Value);
                             break;
                         case BuiltInType.QualifiedName:
-                            binaryEncoder.WriteQualifiedName("QualifiedName", variant.Value as QualifiedName);
+                            jsonEncoder.WriteQualifiedName("QualifiedName", variant.Value as QualifiedName);
                             break;
                         case BuiltInType.LocalizedText:
-                            binaryEncoder.WriteLocalizedText("LocalizedText", variant.Value as LocalizedText);
+                            jsonEncoder.WriteLocalizedText("LocalizedText", variant.Value as LocalizedText);
                             break;
                         case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeId("NodeId", variant.Value as NodeId);
+                            jsonEncoder.WriteNodeId("NodeId", variant.Value as NodeId);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            binaryEncoder.WriteExpandedNodeId("ExpandedNodeId", variant.Value as ExpandedNodeId);
+                            jsonEncoder.WriteExpandedNodeId("ExpandedNodeId", variant.Value as ExpandedNodeId);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)variant.Value);
+                            jsonEncoder.WriteStatusCode("StatusCode", (StatusCode)variant.Value);
                             break;
                         case BuiltInType.XmlElement:
-                            binaryEncoder.WriteXmlElement("XmlElement", variant.Value as XmlElement);
+                            jsonEncoder.WriteXmlElement("XmlElement", variant.Value as XmlElement);
                             break;
                         case BuiltInType.Enumeration:
-                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(variant.Value));
+                            jsonEncoder.WriteInt32("Enumeration", Convert.ToInt32(variant.Value));
                             break;
                         case BuiltInType.ExtensionObject:
-                            binaryEncoder.WriteExtensionObject("ExtensionObject", variant.Value as ExtensionObject);
+                            jsonEncoder.WriteExtensionObject("ExtensionObject", variant.Value as ExtensionObject);
                             break;
                     }
                 }
@@ -694,78 +697,78 @@ namespace Opc.Ua.PubSub.Encoding
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBooleanArray("BooleanArray", (bool[])variant.Value);
+                            jsonEncoder.WriteBooleanArray("BooleanArray", (bool[])variant.Value);
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByteArray("SByteArray", (sbyte[])variant.Value);
+                            jsonEncoder.WriteSByteArray("SByteArray", (sbyte[])variant.Value);
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByteArray("ByteArray", (byte[])variant.Value);
+                            jsonEncoder.WriteByteArray("ByteArray", (byte[])variant.Value);
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16Array("ByteArray", (short[])variant.Value);
+                            jsonEncoder.WriteInt16Array("ByteArray", (short[])variant.Value);
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16Array("UInt16Array", (ushort[])variant.Value);
+                            jsonEncoder.WriteUInt16Array("UInt16Array", (ushort[])variant.Value);
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32Array("Int32Array", (int[])variant.Value);
+                            jsonEncoder.WriteInt32Array("Int32Array", (int[])variant.Value);
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32Array("UInt32Array", (uint[])variant.Value);
+                            jsonEncoder.WriteUInt32Array("UInt32Array", (uint[])variant.Value);
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64Array("Int64Array", (long[])variant.Value);
+                            jsonEncoder.WriteInt64Array("Int64Array", (long[])variant.Value);
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64Array("UInt64Array", (ulong[])variant.Value);
+                            jsonEncoder.WriteUInt64Array("UInt64Array", (ulong[])variant.Value);
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloatArray("FloatArray", (float[])variant.Value);
+                            jsonEncoder.WriteFloatArray("FloatArray", (float[])variant.Value);
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDoubleArray("DoubleArray", (double[])variant.Value);
+                            jsonEncoder.WriteDoubleArray("DoubleArray", (double[])variant.Value);
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTimeArray("DateTimeArray", (DateTime[])variant.Value);
+                            jsonEncoder.WriteDateTimeArray("DateTimeArray", (DateTime[])variant.Value);
                             break;
                         case BuiltInType.Guid:
-                            binaryEncoder.WriteGuidArray("GuidArray", (Uuid[])variant.Value);
+                            jsonEncoder.WriteGuidArray("GuidArray", (Uuid[])variant.Value);
                             break;
                         case BuiltInType.String:
-                            binaryEncoder.WriteStringArray("StringArray", (string[])variant.Value);
+                            jsonEncoder.WriteStringArray("StringArray", (string[])variant.Value);
                             break;
                         case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteStringArray("StringArray", (byte[][])variant.Value);
+                            jsonEncoder.WriteByteStringArray("StringArray", (byte[][])variant.Value);
                             break;
                         case BuiltInType.QualifiedName:
-                            binaryEncoder.WriteQualifiedNameArray("QualifiedNameArray", (QualifiedName[])variant.Value);
+                            jsonEncoder.WriteQualifiedNameArray("QualifiedNameArray", (QualifiedName[])variant.Value);
                             break;
                         case BuiltInType.LocalizedText:
-                            binaryEncoder.WriteLocalizedTextArray("LocalizedTextArray", (LocalizedText[])variant.Value);
+                            jsonEncoder.WriteLocalizedTextArray("LocalizedTextArray", (LocalizedText[])variant.Value);
                             break;
                         case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeIdArray("NodeIdArray", (NodeId[])variant.Value);
+                            jsonEncoder.WriteNodeIdArray("NodeIdArray", (NodeId[])variant.Value);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            binaryEncoder.WriteExpandedNodeIdArray("ExpandedNodeIdArray", (ExpandedNodeId[])variant.Value);
+                            jsonEncoder.WriteExpandedNodeIdArray("ExpandedNodeIdArray", (ExpandedNodeId[])variant.Value);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCodeArray("StatusCodeArray", (StatusCode[])variant.Value);
+                            jsonEncoder.WriteStatusCodeArray("StatusCodeArray", (StatusCode[])variant.Value);
                             break;
                         case BuiltInType.XmlElement:
-                            binaryEncoder.WriteXmlElementArray("XmlElementArray", (System.Xml.XmlElement[])variant.Value);
+                            jsonEncoder.WriteXmlElementArray("XmlElementArray", (System.Xml.XmlElement[])variant.Value);
                             break;
                         case BuiltInType.Variant:
-                            binaryEncoder.WriteVariantArray("VariantArray", (Variant[])variant.Value);
+                            jsonEncoder.WriteVariantArray("VariantArray", (Variant[])variant.Value);
                             break;
                         case BuiltInType.Enumeration:
                             //TODO make this work
                             //binaryEncoder.WriteInt32Array("EnumerationArray", Convert.ToInt32(variant.Value));
-                            binaryEncoder.WriteVariantArray("EnumerationArray", (Variant[])variant.Value);
+                            jsonEncoder.WriteVariantArray("EnumerationArray", (Variant[])variant.Value);
                             break;
                         case BuiltInType.ExtensionObject:
-                            binaryEncoder.WriteExtensionObjectArray("ExtensionObjectArray", (ExtensionObject[])variant.Value);
+                            jsonEncoder.WriteExtensionObjectArray("ExtensionObjectArray", (ExtensionObject[])variant.Value);
                             break;
                     }
                 }
