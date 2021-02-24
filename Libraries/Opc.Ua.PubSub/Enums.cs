@@ -317,4 +317,14 @@ namespace Opc.Ua.PubSub
         /// </summary>
         AMQP
     }
+
+
+    /// <summary>
+    /// Enum that specifies the message mapping for a UaPubSub connection
+    /// </summary>
+    public enum MessageMapping
+    {
+        Uadp,
+        Json
+    }
 }

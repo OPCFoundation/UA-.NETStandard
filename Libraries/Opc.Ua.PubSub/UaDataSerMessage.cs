@@ -27,38 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.Transport;
-using Opc.Ua.PubSub.Encoding;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Implementation of Factory pattern - Used to create objects depending on used protocol
+    /// Base class for a DataSet message implementation
     /// </summary>
-    internal static class ObjectFactory
+    public abstract class UaDataSetMessage
     {
-        /// <summary>
-        /// Create connections from PubSubConnectionDataType configuration objects.
-        /// </summary>
-        /// <param name="uaPubSubApplication"></param>
-        /// <param name="pubSubConnectionDataType"></param>
-        /// <returns></returns>
-        public static UaPubSubConnection CreateConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
-        {
-            if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
-            {
-                return new UdpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
-            }
-            else if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubMqttUadpTransport)
-            {
-                return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Uadp);
-            }
-            else if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubMqttJsonTransport)
-            {
-                return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json);
-            }
-            throw new ArgumentException("Invalid TransportProfileUri.", "pubSubConnectionDataType");
-        }
     }
 }

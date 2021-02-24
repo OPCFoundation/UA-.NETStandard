@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.PubSub.Encoding;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Transport
         #region Private Fields       
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
         private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
-        
+
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
         /// <param name="pubSubConnectionDataType"></param>
-        public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication,  PubSubConnectionDataType pubSubConnectionDataType)
+        public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
             m_transportProtocol = TransportProtocol.UADP;
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             return true;
         }
-       
+
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -134,25 +134,25 @@ namespace Opc.Ua.PubSub.Transport
                 if (Publishers.Count > 0)
                 {
                     m_publisherUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState, NetworkAddressEndPoint);
-                }                
+                }
 
                 //subscriber initialization   
                 if (DataSetReaders.Count > 0)
-                {                    
+                {
                     m_subscriberUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Subscriber, networkAddressUrlState, NetworkAddressEndPoint);
-                  
-                    foreach(UdpClient subscriberUdpClient in m_subscriberUdpClients)
+
+                    foreach (UdpClient subscriberUdpClient in m_subscriberUdpClients)
                     {
                         try
                         {
                             subscriberUdpClient.BeginReceive(new AsyncCallback(OnUadpReceive), subscriberUdpClient);
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
                             Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
                               subscriberUdpClient.Client.LocalEndPoint, ex.Message);
                         }
-                    }                   
+                    }
                 }
             }
         }
@@ -194,16 +194,24 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         public override UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration)
         {
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) 
+            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
                 as UadpWriterGroupMessageDataType;
             if (messageSettings == null)
             {
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
+            DatagramWriterGroupTransportDataType transportSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings)
+                as DatagramWriterGroupTransportDataType;
+
+            if (transportSettings == null)
+            {
+                //Wrong configuration of writer group TransportSettings
+                return null;
+            }
 
             //Create list of dataSet messages to be sent
-            List<UadpDataSetMessage> dataSetMessages = new List<UadpDataSetMessage>();
+            List<UaDataSetMessage> dataSetMessages = new List<UaDataSetMessage>();
             foreach (DataSetWriterDataType dataSetWriter in writerGroupConfiguration.DataSetWriters)
             {
                 //check if dataSetWriter enabled
@@ -239,7 +247,7 @@ namespace Opc.Ua.PubSub.Transport
                 return null;
             }
 
-            UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(dataSetMessages);
+            UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, dataSetMessages);
             uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)messageSettings.NetworkMessageContentMask);
             uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
             // Network message header
@@ -249,7 +257,7 @@ namespace Opc.Ua.PubSub.Transport
             // Writer group header
             uadpNetworkMessage.GroupVersion = messageSettings.GroupVersion;
             uadpNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
-      
+
             return uadpNetworkMessage;
         }
 
@@ -269,7 +277,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 lock (m_lock)
                 {
-                   if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
+                    if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
                     {
                         ServiceMessageContext messageContext = new ServiceMessageContext();
 
@@ -278,13 +286,13 @@ namespace Opc.Ua.PubSub.Transport
                         byte[] bytes = ReadBytes(encoder.BaseStream);
                         encoder.Dispose();
 
-                        foreach(var udpClient in m_publisherUdpClients)
+                        foreach (var udpClient in m_publisherUdpClients)
                         {
                             try
                             {
                                 udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 Utils.Trace(ex, "UadpPubSubConnection.PublishNetworkMessage");
                                 return false;
@@ -324,14 +332,13 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     //trigger notification for received subscribed data set
                     Application.RaiseDataReceivedEvent(
-                        new SubscribedDataEventArgs()
-                        {
+                        new SubscribedDataEventArgs() {
                             NetworkMessageSequenceNumber = uadpNetworkMessage.SequenceNumber,
                             DataSets = subscribedDataSets,
                             SourceEndPoint = source
                         }
                         );
-                    Utils.Trace(Utils.TraceMasks.Information, 
+                    Utils.Trace(Utils.TraceMasks.Information,
                         "UadpPubSubConnection.RaiseDataReceivedEvent from source={0}, with {1} DataSets", source, subscribedDataSets.Count);
                 }
                 else
@@ -384,8 +391,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (message.Length > 1)
                     {
                         // call on a new thread
-                        Task.Run(() =>
-                        {
+                        Task.Run(() => {
                             ProcessReceivedMessage(message, source);
                         });
                     }
@@ -437,7 +443,7 @@ namespace Opc.Ua.PubSub.Transport
             socket.Close();
             socket.Dispose();
 
-            if(newsocket != null)
+            if (newsocket != null)
             {
                 newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
             }
