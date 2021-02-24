@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub
         /// <returns></returns>
         public static UaPubSubConnection CreateConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
-            if (pubSubConnectionDataType.TransportProfileUri == Profiles.UadpTransport)
+            if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
             {
                 return new UadpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
             }

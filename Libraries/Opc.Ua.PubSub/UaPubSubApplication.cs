@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public static string[] SupportedTransportProfiles
         {
-            get { return new string[] { Profiles.UadpTransport }; }
+            get { return new string[] { Profiles.PubSubUdpUadpTransport }; }
         }
 
         /// <summary>

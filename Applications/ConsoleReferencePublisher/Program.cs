@@ -95,7 +95,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             pubSubConnection1.Name = "UADPConnection1";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)100;
-            pubSubConnection1.TransportProfileUri = Profiles.UadpTransport;
+            pubSubConnection1.TransportProfileUri = Profiles.PubSubUdpUadpTransport;
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
             // Specify the local Network interface name to be used
             // e.g. address.NetworkInterface = "Ethernet";
