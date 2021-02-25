@@ -2625,6 +2625,17 @@ namespace Opc.Ua
         /// </summary>
         private Matrix ReadMatrix(string fieldName)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             Array elements = null;
             Int32Collection dimensions = null;
             TypeInfo typeInfo = null;
@@ -2646,6 +2657,8 @@ namespace Opc.Ua
 
                 EndField(fieldName);
             }
+
+            m_nestingLevel--;
 
             if (elements == null)
             {

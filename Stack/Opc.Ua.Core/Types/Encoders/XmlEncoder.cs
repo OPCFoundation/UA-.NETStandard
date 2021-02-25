@@ -1950,6 +1950,17 @@ namespace Opc.Ua
         /// </summary>
         private void WriteMatrix(string fieldName, Matrix value)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
             if (BeginField(fieldName, value == null, true, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
@@ -1967,6 +1978,8 @@ namespace Opc.Ua
 
                 EndField(fieldName);
             }
+
+            m_nestingLevel--;
         }
 
         /// <summary>
