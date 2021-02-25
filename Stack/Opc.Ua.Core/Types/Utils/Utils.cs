@@ -63,7 +63,12 @@ namespace Opc.Ua
         /// <summary>
         /// The URI scheme for the MQTT protocol. 
         /// </summary>
-        public const string UriSchemeMqtt = "mqtts";
+        public const string UriSchemeMqtt = "mqtt";
+
+        /// <summary>
+        /// The URI scheme for the MQTTS protocol. 
+        /// </summary>
+        public const string UriSchemeMqtts = "mqtts";
 
         /// <summary>
         /// The URI schemes which are supported in the core server. 
