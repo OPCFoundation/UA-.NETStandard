@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -346,7 +347,7 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
+                            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
 
                             // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
                             if (!String.IsNullOrEmpty(certificateApplicationUri) &&
@@ -2154,7 +2155,8 @@ namespace Opc.Ua.Server
         /// <returns>Boolean value.</returns>
         public async Task<bool> RegisterWithDiscoveryServer()
         {
-            ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ? base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false);
+            ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ?
+                base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false);
             CertificateValidationEventHandler registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
 
@@ -2272,7 +2274,7 @@ namespace Opc.Ua.Server
         {
             System.Net.IPAddress[] targetAddresses = Utils.GetHostAddresses(Utils.GetHostName());
 
-            foreach (string domain in Utils.GetDomainsFromCertficate(e.Certificate))
+            foreach (string domain in X509Utils.GetDomainsFromCertficate(e.Certificate))
             {
                 System.Net.IPAddress[] actualAddresses = Utils.GetHostAddresses(domain);
 
@@ -3141,7 +3143,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        protected readonly object m_lock = new object();
+        private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

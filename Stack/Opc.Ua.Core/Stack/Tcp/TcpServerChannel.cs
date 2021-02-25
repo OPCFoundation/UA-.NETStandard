@@ -99,7 +99,7 @@ namespace Opc.Ua.Bindings
         {
             ChannelId = channelId;
             ReverseConnectionUrl = endpointUrl;
-            SetEndpointUrl(m_listener.EndpointUrl.ToString());
+            SetEndpointUrl(Listener.EndpointUrl.ToString());
 
             var ar = new ReverseConnectAsyncResult(callback, callbackData, timeout);
 
@@ -231,8 +231,7 @@ namespace Opc.Ua.Bindings
                     SendOpenSecureChannelResponse(requestId, token, request);
 
                     // send any queue responses.
-                    Task.Factory.StartNew(OnChannelReconnected, m_queuedResponses);
-                    m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+                    ResetQueuedResponses(OnChannelReconnected);
                 }
                 catch (Exception e)
                 {
@@ -251,7 +250,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_responseRequired = true;
+                SetResponseRequired(true);
 
                 try
                 {
@@ -293,7 +292,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    m_responseRequired = false;
+                    SetResponseRequired(false);
                 }
             }
         }
@@ -507,6 +506,7 @@ namespace Opc.Ua.Bindings
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
@@ -614,7 +614,7 @@ namespace Opc.Ua.Bindings
                     if (State == TcpChannelState.Opening)
                     {
                         // tell the listener to find the channel that can process the request.
-                        m_listener.ReconnectToExistingChannel(
+                        Listener.ReconnectToExistingChannel(
                             Socket,
                             requestId,
                             sequenceNumber,
@@ -651,18 +651,18 @@ namespace Opc.Ua.Bindings
                 {
                     Opc.Ua.Security.Audit.SecureChannelCreated(
                         m_ImplementationString,
-                        this.m_listener.EndpointUrl.ToString(),
-                        Utils.Format("{0}", this.ChannelId),
-                        this.EndpointDescription,
-                        this.ClientCertificate,
-                        this.ServerCertificate,
+                        Listener.EndpointUrl.ToString(),
+                        Utils.Format("{0}", ChannelId),
+                        EndpointDescription,
+                        ClientCertificate,
+                        ServerCertificate,
                         BinaryEncodingSupport.Required);
                 }
                 else
                 {
                     Opc.Ua.Security.Audit.SecureChannelRenewed(
                         m_ImplementationString,
-                        Utils.Format("{0}", this.ChannelId));
+                        Utils.Format("{0}", ChannelId));
                 }
 
                 if (requestType == SecurityTokenRequestType.Renew)
@@ -936,7 +936,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // hand the request to the server.
-                m_RequestReceived?.Invoke(this, requestId, request);
+                RequestReceived?.Invoke(this, requestId, request);
 
                 return true;
             }

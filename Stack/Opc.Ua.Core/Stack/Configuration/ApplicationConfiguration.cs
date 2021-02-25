@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
-        public string SourceFilePath => m_sourceFilePath; 
+        public string SourceFilePath => m_sourceFilePath;
 
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
@@ -176,7 +176,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext(bool clonedFactory=false)
+        public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
@@ -239,11 +239,12 @@ namespace Opc.Ua
 
             if (!file.Exists)
             {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration file does not exist: {0}", filePath);
+                message.AppendLine();
+                message.AppendFormat("Current directory is: {1}", Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "Configuration file does not exist: {0}\r\nCurrent directory is: {1}",
-                    filePath,
-                    Directory.GetCurrentDirectory());
+                    StatusCodes.BadConfigurationError, message.ToString());
             }
 
             return Load(file, applicationType, systemType);
@@ -275,12 +276,12 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
+                    var message = new StringBuilder();
+                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendLine();
+                    message.AppendFormat("Error is: {1}", e.Message);
                     throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        e,
-                        "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                        file.FullName,
-                        e.Message);
+                        StatusCodes.BadConfigurationError, e, message.ToString());
                 }
             }
         }
@@ -302,8 +303,14 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType, bool applyTraceSettings)
+        public static async Task<ApplicationConfiguration> Load(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             ApplicationConfiguration configuration = null;
             systemType = systemType ?? typeof(ApplicationConfiguration);
@@ -317,12 +324,12 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
+                    var message = new StringBuilder();
+                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                    message.AppendLine();
+                    message.AppendFormat("Error is: {1}", e.Message);
                     throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError,
-                        e,
-                        "Configuration file could not be loaded: {0}\r\nError is: {1}",
-                        file.FullName,
-                        e.Message);
+                        StatusCodes.BadConfigurationError, e, message.ToString());
                 }
             }
 
@@ -333,6 +340,8 @@ namespace Opc.Ua
                 {
                     configuration.TraceConfiguration.ApplySettings();
                 }
+
+                configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
                 await configuration.Validate(applicationType);
 
@@ -395,7 +404,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider);
 
             Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();

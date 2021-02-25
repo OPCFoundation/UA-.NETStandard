@@ -23,7 +23,7 @@ jobs:
       filePath: ./.azurepipelines/get-matrix.ps1
       arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
 - job: testall${{ parameters.jobnamesuffix }}
-  displayName: Run Tests for (${{ parameters.framework }})
+  displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
   strategy:
     matrix: $[dependencies.testprep${{ parameters.jobnamesuffix }}.outputs['testmatrix.jobMatrix'] ]
@@ -35,7 +35,7 @@ jobs:
   steps:
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.4.x'
+      versionSpec: '>=5.8.x'
   - task: PowerShell@2
     displayName: Versioning
     inputs:
@@ -46,7 +46,7 @@ jobs:
     inputs:
       command: restore
       projects: '**/*.Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
+      arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 20

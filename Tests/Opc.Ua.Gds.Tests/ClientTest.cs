@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Opc.Ua.Gds.Tests
@@ -40,25 +41,42 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Test GDS Registration and Client Pull.
     /// </summary>
-    [TestFixture, Category("GDSRegistrationAndPull")]
+    [TestFixture, Category("GDSRegistrationAndPull"), Category("GDS")]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
     public class ClientTest
     {
         #region Test Setup
+        public class ConnectionProfile : IFormattable
+        {
+            public ConnectionProfile(string securityProfileUri, MessageSecurityMode messageSecurityMode)
+            {
+                SecurityProfileUri = securityProfileUri;
+                MessageSecurityMode = messageSecurityMode;
+            }
+
+            public string SecurityProfileUri { get; set; }
+            public MessageSecurityMode MessageSecurityMode { get; set; }
+
+            public string ToString(string format, IFormatProvider formatProvider)
+            {
+                return $"{SecurityProfileUri.Split('#').Last()}:{MessageSecurityMode}";
+            }
+
+        }
+
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
+        protected async Task OneTimeSetUp()
         {
-            // work around travis issue by selecting different ports on every run
-            int testPort = 50000 + (((Int32)DateTime.UtcNow.ToFileTimeUtc() / 10000) & 0x1fff);
-            _server = new GlobalDiscoveryTestServer(true);
-            _server.StartServer(true, testPort).Wait();
+            // start GDS
+            _server = await TestUtils.StartGDS(true);
 
             // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            _gdsClient.LoadClientConfiguration(testPort).Wait();
+            await _gdsClient.LoadClientConfiguration(_server.BasePort);
 
             // good applications test set
             _appTestDataGenerator = new ApplicationTestDataGenerator(1);
@@ -83,12 +101,24 @@ namespace Opc.Ua.Gds.Tests
             Thread.Sleep(1000);
         }
 
+        [SetUp]
+        protected void SetUp()
+        {
+            _server.ResetLogFile();
+        }
+
         [TearDown]
         protected void TearDown()
         {
             DisconnectGDS();
+            try
+            {
+                TestContext.AddTestAttachment(_server.GetLogFilePath(), "GDS Client and Server logs");
+            }
+            catch { }
         }
         #endregion
+
         #region Test Methods
         /// <summary>
         /// Clean the app database from application Uri used during test.
@@ -169,7 +199,7 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { NodeId id = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+                Assert.That(() => { _ = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
             }
             _invalidRegistrationOk = true;
         }
@@ -181,7 +211,7 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (var application in _invalidApplicationTestSet)
             {
-                Assert.That(() => { NodeId id = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
+                Assert.That(() => { _ = _gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord); }, Throws.Exception);
             }
         }
 
@@ -626,7 +656,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.Null(application.CertificateRequestId);
                 Assert.That(() => {
-                    NodeId requestId = _gdsClient.GDSClient.StartNewKeyPairRequest(
+                    _ = _gdsClient.GDSClient.StartNewKeyPairRequest(
                         application.ApplicationRecord.ApplicationId,
                         application.CertificateGroupId,
                         application.CertificateTypeId,
@@ -690,7 +720,7 @@ namespace Opc.Ua.Gds.Tests
                             }
                             else
                             {
-                                throw sre;
+                                throw;
                             }
                         }
 
@@ -714,7 +744,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => {
-                    byte[] certificate = _gdsClient.GDSClient.FinishRequest(
+                    _ = _gdsClient.GDSClient.FinishRequest(
                         application.ApplicationRecord.ApplicationId,
                         new NodeId(Guid.NewGuid()),
                         out byte[] privateKey,
@@ -736,7 +766,7 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2 csrCertificate;
                 if (application.PrivateKeyFormat == "PFX")
                 {
-                    csrCertificate = CertificateFactory.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
                 }
                 else
                 {
@@ -805,7 +835,7 @@ namespace Opc.Ua.Gds.Tests
                             }
                             else
                             {
-                                throw sre;
+                                throw;
                             }
                         }
 
@@ -833,7 +863,7 @@ namespace Opc.Ua.Gds.Tests
             var testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
             Assert.That(() => {
-                NodeId requestId = _gdsClient.GDSClient.StartSigningRequest(
+                _ = _gdsClient.GDSClient.StartSigningRequest(
                 application.ApplicationRecord.ApplicationId,
                 application.CertificateGroupId,
                 application.CertificateTypeId,
@@ -884,13 +914,13 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => {
-                    var trustListId = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
+                    _ = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
                 }, Throws.Exception);
                 Assert.That(() => {
-                    var trustListId = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid()));
+                    _ = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid()));
                 }, Throws.Exception);
                 Assert.That(() => {
-                    var certificateGroups = _gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
+                    _ = _gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId);
                 }, Throws.Exception);
             }
         }
@@ -909,6 +939,7 @@ namespace Opc.Ua.Gds.Tests
                     var trustListId = _gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
                     // Opc.Ua.TrustListDataType
                     var trustList = _gdsClient.GDSClient.ReadTrustList(trustListId);
+                    Assert.NotNull(trustList);
                 }
             }
         }
@@ -920,7 +951,8 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (var application in _goodApplicationTestSet)
             {
-                var certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                bool certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                Assert.False(certificateStatus);
             }
         }
 
@@ -932,7 +964,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (var application in _invalidApplicationTestSet)
             {
                 Assert.That(() => {
-                    var certificateStatus = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                    _ = _gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
                 }, Throws.Exception);
             }
         }
@@ -985,17 +1017,39 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+#if DEVOPS_LOG
+        [Test, Order(9998)]
+        public void ClientLogResult()
+        {
+            var log = _gdsClient.ReadLogFile();
+            TestContext.Progress.WriteLine(log);
+        }
+
+        [Test, Order(9999)]
+        public void ServerLogResult()
+        {
+            var log = _server.ReadLogFile();
+            TestContext.Progress.WriteLine(log);
+        }
+#endif
         #endregion
+
         #region Private Methods
-        private void ConnectGDS(bool admin)
+        private void ConnectGDS(bool admin,
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _gdsClient.GDSClient.AdminCredentials = admin ? _gdsClient.AdminUser : _gdsClient.AppUser;
             _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).Wait();
+            TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
-        private void DisconnectGDS()
+        private void DisconnectGDS(
+            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
+            )
         {
             _gdsClient.GDSClient.Disconnect();
+            TestContext.Progress.WriteLine($"GDS Client disconnected -- {memberName}");
         }
 
         private void AssertIgnoreTestWithoutGoodRegistration()
@@ -1028,6 +1082,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         #endregion
+
         #region Private Fields
         private const int goodApplicationsTestCount = 10;
         private const int invalidApplicationsTestCount = 10;

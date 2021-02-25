@@ -419,7 +419,7 @@ namespace Opc.Ua.Server
             // allocate a new table (using arrays instead of collections because lookup efficiency is critical).
             INodeManager[][] namespaceManagers = new INodeManager[m_server.NamespaceUris.Count][];
 
-            lock (m_namespaceManagers)
+            lock (m_namespaceManagers.SyncRoot)
             {
                 // copy existing values.
                 for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
 
-            lock (m_namespaceManagers)
+            lock (m_namespaceManagers.SyncRoot)
             {
                 // check if node managers are registered - use the core node manager if unknown.
                 if (index >= m_namespaceManagers.Length || m_namespaceManagers[index] == null)
@@ -798,6 +798,7 @@ namespace Opc.Ua.Server
                 if (NodeId.IsNull(element.ReferenceTypeId))
                 {
                     element.ReferenceTypeId = ReferenceTypeIds.References;
+                    element.IncludeSubtypes = true;
                 }
             }
             // validate access rights and role permissions

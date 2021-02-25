@@ -17,7 +17,9 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -92,10 +94,11 @@ namespace Opc.Ua
             }
             if (found == false)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Store location specified not available.\r\nStore location={0}",
-                    storeLocation);
+                var message = new StringBuilder();
+                message.AppendLine("Store location specified not available.");
+                message.AppendLine("Store location={0}");
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
+                    message.ToString(), storeLocation);
             }
 
             m_storeName = path.Substring(index + 1);
@@ -127,7 +130,23 @@ namespace Opc.Ua
                 store.Open(OpenFlags.ReadWrite);
                 if (!store.Certificates.Contains(certificate))
                 {
-                    store.Add(certificate);
+#if NETSTANDARD2_1
+                    if (certificate.HasPrivateKey &&
+                        (Environment.OSVersion.Platform == PlatformID.Win32NT))
+                    {
+                        // see https://github.com/dotnet/runtime/issues/29144
+                        var temp = Guid.NewGuid().ToString();
+                        using (var persistable = new X509Certificate2(certificate.Export(X509ContentType.Pfx, temp), temp,
+                            X509KeyStorageFlags.PersistKeySet))
+                        {
+                            store.Add(persistable);
+                        }
+                    }
+                    else
+#endif
+                    {
+                        store.Add(certificate);
+                    }
                     Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), store.Name);
                 }
             }

@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores a collection of nodes.
     /// </summary>
-    public class NodeStateCollection : List<NodeState>
+    public partial class NodeStateCollection : List<NodeState>
     {
         #region Constructors
         /// <summary>
