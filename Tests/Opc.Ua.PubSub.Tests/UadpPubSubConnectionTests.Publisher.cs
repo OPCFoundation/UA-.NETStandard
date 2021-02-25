@@ -31,7 +31,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Uadp;
+using Opc.Ua.PubSub.Transport;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -40,11 +40,11 @@ using System.Threading;
 namespace Opc.Ua.PubSub.Tests
 {
     
-    [TestFixture(Description = "Tests for UadpPubSubConnection class - Publisher ")]
-    public partial class UadpPubSubConnectionTests
+    [TestFixture(Description = "Tests for UdpPubSubConnection class - Publisher ")]
+    public partial class UdpPubSubConnectionTests
     {
         [Test(Description = "Validate unicast PublishNetworkMessage")]
-        public void ValidateUadpPubSubConnectionNetworkMessagePublishUnicast()
+        public void ValidateUdpPubSubConnectionNetworkMessagePublishUnicast()
         {
             //Arrange 
             var localhost = GetFirstNic();
@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UadpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -98,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate broadcast PublishNetworkMessage")]
-        public void ValidateUadpPubSubConnectionNetworkMessagePublishBroadcast() 
+        public void ValidateUdpPubSubConnectionNetworkMessagePublishBroadcast() 
         {
             //Arrange 
             var localhost = GetFirstNic();
@@ -121,7 +121,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UadpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate multicast PublishNetworkMessage")]
-        public void ValidateUadpPubSubConnectionNetworkMessagePublishMulticast()
+        public void ValidateUdpPubSubConnectionNetworkMessagePublishMulticast()
         {
             //Arrange 
             var localhost = GetFirstNic();
@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UadpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip

@@ -30,13 +30,13 @@
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Uadp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Opc.Ua.PubSub.PublishedData;
 using System.IO;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests
 {
@@ -1097,17 +1097,17 @@ namespace Opc.Ua.PubSub.Tests
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
                 // check the number of UadpDataSetMessage counts
-                Assert.AreEqual(uadpNetworkMessageEncode.UadpDataSetMessages.Count,
-                    uadpNetworkMessageDecoded.UadpDataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
+                Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
+                    uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
 
                 Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");
 
                 // check if the encoded match the decoded DataSetWriterId's
-                foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.UadpDataSetMessages)
+                foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
                 {
                     UadpDataSetMessage uadpDataSetMessageDecoded =
-                        uadpNetworkMessageDecoded.UadpDataSetMessages.FirstOrDefault(decoded =>
-                            decoded.DataSetWriterId == uadpDataSetMessage.DataSetWriterId);
+                        uadpNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>
+                            ((UadpDataSetMessage)decoded).DataSetWriterId == uadpDataSetMessage.DataSetWriterId) as UadpDataSetMessage;
 
                     Assert.IsNotNull(uadpDataSetMessageDecoded, "Decoded message did not found uadpDataSetMessage.DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
 

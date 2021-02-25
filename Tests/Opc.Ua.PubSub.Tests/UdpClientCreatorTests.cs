@@ -33,7 +33,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using NUnit.Framework;
-using Opc.Ua.PubSub.Uadp;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub.Tests
 {
@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
-            var localhost = UadpPubSubConnectionTests.GetFirstNic();
+            var localhost = UdpPubSubConnectionTests.GetFirstNic();
             if(localhost != null && localhost.Address != null)
             {
                 UrlHostName = localhost.Address.ToString();

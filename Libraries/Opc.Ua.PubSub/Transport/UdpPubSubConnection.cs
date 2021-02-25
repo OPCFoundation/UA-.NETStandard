@@ -294,7 +294,7 @@ namespace Opc.Ua.PubSub.Transport
                             }
                             catch (Exception ex)
                             {
-                                Utils.Trace(ex, "UadpPubSubConnection.PublishNetworkMessage");
+                                Utils.Trace(ex, "UdpPubSubConnection.PublishNetworkMessage");
                                 return false;
                             }
                         }
@@ -304,7 +304,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UadpPubSubConnection.PublishNetworkMessage");
+                Utils.Trace(ex, "UdpPubSubConnection.PublishNetworkMessage");
                 return false;
             }
 
@@ -320,7 +320,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="source"></param>
         private void ProcessReceivedMessage(byte[] message, IPEndPoint source)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "UadpPubSubConnection.ProcessReceivedMessage from source={0}", source);
+            Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
             using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
@@ -339,7 +339,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                         );
                     Utils.Trace(Utils.TraceMasks.Information,
-                        "UadpPubSubConnection.RaiseDataReceivedEvent from source={0}, with {1} DataSets", source, subscribedDataSets.Count);
+                        "UdpPubSubConnection.RaiseDataReceivedEvent from source={0}, with {1} DataSets", source, subscribedDataSets.Count);
                 }
                 else
                 {

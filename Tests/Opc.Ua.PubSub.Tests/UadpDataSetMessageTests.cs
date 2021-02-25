@@ -31,12 +31,12 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.PublishedData;
-using Opc.Ua.PubSub.Uadp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests
 {
@@ -482,13 +482,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             // read first dataset message
-            UadpDataSetMessage[] uadpDataSetMessages = uaNetworkMessage.UadpDataSetMessages.ToArray();
+            UaDataSetMessage[] uadpDataSetMessages = uaNetworkMessage.DataSetMessages.ToArray();
             Assert.IsNotEmpty(uadpDataSetMessages, "uadpDataSetMessages collection should not be empty");
 
-            UadpDataSetMessage uadpDataSetMessage = uadpDataSetMessages[0];
+            UaDataSetMessage uadpDataSetMessage = uadpDataSetMessages[0];
             Assert.IsNotNull(uadpDataSetMessage, "uadpDataSetMessage should not be null");
 
-            return uadpDataSetMessage;
+            return uadpDataSetMessage as UadpDataSetMessage;
         }
 
         /// <summary>
