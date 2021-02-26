@@ -58,10 +58,10 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType subscriberAddress = new NetworkAddressUrlDataType();
             subscriberAddress.Url = "opc.udp://" + localhost.Address.ToString() + ":4840";
-            subscriberConfiguration.Connections[0].Address = subscriberAddress;
+            subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
-
+            
             UadpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UadpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
@@ -72,7 +72,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = "opc.udp://" + localhost.Address.ToString() + ":4840";
-            publisherConfiguration.Connections[0].Address = publisherAddress;
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType subscriberAddress = new NetworkAddressUrlDataType();
             subscriberAddress.Url = "opc.udp://" + localhost.Address.ToString() + ":4840";
-            subscriberConfiguration.Connections[0].Address = subscriberAddress;
+            subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = "opc.udp://" + broadcastIPAddress.ToString() + ":4840";
-            publisherConfiguration.Connections[0].Address = publisherAddress;
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType subscriberAddress = new NetworkAddressUrlDataType();
             subscriberAddress.Url = "opc.udp://" + multicastIPAddress.ToString() + ":4840";
-            subscriberConfiguration.Connections[0].Address = subscriberAddress;
+            subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = "opc.udp://" + multicastIPAddress.ToString() + ":4840";
-            publisherConfiguration.Connections[0].Address = publisherAddress;
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 

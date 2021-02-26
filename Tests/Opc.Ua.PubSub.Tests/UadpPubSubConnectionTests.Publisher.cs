@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = "opc.udp://" + unicastIPAddress.ToString() + ":4840";
-            publisherConfiguration.Connections[0].Address = publisherAddress;
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = "opc.udp://" + broadcastIPAddress.ToString() + ":4840";
-            publisherConfiguration.Connections[0].Address = publisherAddress;
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests
 
             NetworkAddressUrlDataType publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = "opc.udp://" + multicastIPAddress.ToString() + ":4840";
-            publisherConfiguration.Connections[0].Address = publisherAddress;
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);

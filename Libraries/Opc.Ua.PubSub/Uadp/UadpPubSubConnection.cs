@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Uadp
                 //cleanup all existing UdpClient previously open
                 InternalStop();
 
-                NetworkAddressUrlDataType networkAddressUrlState = PubSubConnectionConfiguration.Address
+                NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                        as NetworkAddressUrlDataType;
                 if (networkAddressUrlState == null)
                 {
@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Uadp
         /// <returns></returns>
         public override UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration)
         {
-            UadpWriterGroupMessageDataType messageSettings = writerGroupConfiguration.MessageSettings 
+            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) 
                 as UadpWriterGroupMessageDataType;
             if (messageSettings == null)
             {
@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Uadp
                     if (dataSet != null)
                     {
                         UadpDataSetWriterMessageDataType dataSetMessageSettings =
-                            dataSetWriter.MessageSettings as
+                            ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) as
                                 UadpDataSetWriterMessageDataType;
                         // check MessageSettings to see how to encode DataSet
                         if (dataSetMessageSettings != null)

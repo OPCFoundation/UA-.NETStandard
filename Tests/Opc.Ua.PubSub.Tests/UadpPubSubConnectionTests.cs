@@ -126,10 +126,10 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateUadpPubSubConnectionCreateNetworkMessage()
         {
             Assert.IsNotNull(m_uadpPublisherConnection, "The UADP connection from standard configuration is invalid.");
-            
+             
             //Arrange
             WriterGroupDataType writerGroup0 = m_uadpPublisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
-            UadpWriterGroupMessageDataType messageSettings = writerGroup0.MessageSettings
+            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
                 as UadpWriterGroupMessageDataType;
 
             //Act  

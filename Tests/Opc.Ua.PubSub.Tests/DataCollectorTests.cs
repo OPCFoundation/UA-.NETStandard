@@ -150,8 +150,8 @@ namespace Opc.Ua.PubSub.Tests
                         AttributeId = Attributes.Value,
                     });
             }
-            publishedDataSetSimple.DataSetSource = publishedDataItems;
-            #endregion
+            publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
+            #endregion 
 
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Tests
                         SubstituteValue = new QualifiedName(field.Name)
                     });
             }
-            publishedDataSetSimple.DataSetSource = publishedDataItems;
+            publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
             #endregion
 
             //Act  
