@@ -31,5 +31,3 @@ DEXPI,Supports the DEXPI information model.
 IOLINK,Supports the IOLINK information model.
 VROBOT,Supports the VDMA ROBOTICS information model.
 PNO,Supports the ProfiNET information model.
-PADIM,Supports the information model for Process Automation Devices.
-
