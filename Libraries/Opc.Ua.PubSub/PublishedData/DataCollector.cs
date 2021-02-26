@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 Utils.Trace(Utils.TraceMasks.Error, "The DataSetMetaData field is null.");
                 return false;
             }
-            PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
+            PublishedDataItemsDataType publishedDataItems = publishedDataSet.DataSetSource as PublishedDataItemsDataType;
             if (publishedDataItems != null && publishedDataItems.PublishedData != null)
             {
                 if (publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields.Count)
@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.PublishedData
                 if (publishedDataSet.DataSetSource != null)
                 {
                     DataSet dataSet = new DataSet(dataSetName);
-                    PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
+                    PublishedDataItemsDataType publishedDataItems = publishedDataSet.DataSetSource as PublishedDataItemsDataType;
                     if (publishedDataItems != null && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];

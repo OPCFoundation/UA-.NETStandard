@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Tests
             
             //Arrange
             WriterGroupDataType writerGroup0 = m_uadpPublisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
+            UadpWriterGroupMessageDataType messageSettings = writerGroup0.MessageSettings
                 as UadpWriterGroupMessageDataType;
 
             //Act  

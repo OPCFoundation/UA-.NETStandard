@@ -102,7 +102,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             // Leave empty to publish on all available local interfaces.
             address.NetworkInterface = String.Empty;
             address.Url = "opc.udp://239.0.0.1:4840";
-            pubSubConnection1.Address = new ExtensionObject(address);
+            pubSubConnection1.Address = address;
 
             #region Define WriterGroup1
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -121,8 +121,8 @@ namespace Quickstarts.ConsoleReferencePublisher
                         | UadpNetworkMessageContentMask.NetworkMessageNumber | UadpNetworkMessageContentMask.SequenceNumber)
             };
 
-            writerGroup1.MessageSettings = new ExtensionObject(messageSettings);
-            writerGroup1.TransportSettings = new ExtensionObject(new DatagramWriterGroupTransportDataType());
+            writerGroup1.MessageSettings = messageSettings;
+            writerGroup1.TransportSettings = new DatagramWriterGroupTransportDataType();
 
             // Define DataSetWriter 'Simple'
             DataSetWriterDataType dataSetWriter1 = new DataSetWriterDataType();
@@ -138,7 +138,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 NetworkMessageNumber = 1,
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
-            dataSetWriter1.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
+            dataSetWriter1.MessageSettings = uadpDataSetWriterMessage;
             writerGroup1.DataSetWriters.Add(dataSetWriter1);
 
             // Define DataSetWriter 'AllTypes'
@@ -155,7 +155,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 NetworkMessageNumber = 1,
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
-            dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
+            dataSetWriter2.MessageSettings = uadpDataSetWriterMessage;
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
@@ -220,7 +220,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     });
             }
 
-            publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataSetSimpleSource);
+            publishedDataSetSimple.DataSetSource = publishedDataSetSimpleSource;
             #endregion
 
             #region  Define PublishedDataSet AllTypes
@@ -319,7 +319,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                         AttributeId = Attributes.Value,
                     });
             }
-            publishedDataSetAllTypes.DataSetSource = new ExtensionObject(publishedDataSetAllTypesSource);
+            publishedDataSetAllTypes.DataSetSource = publishedDataSetAllTypesSource;
             #endregion
 
             //create  the PubSub configuration root object

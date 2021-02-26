@@ -336,7 +336,7 @@ namespace Opc.Ua.PubSub.Uadp
         /// <returns></returns>
         public DataSet DecodePossibleDataSetReader(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
         {
-            UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings) 
+            UadpDataSetReaderMessageDataType messageSettings = dataSetReader.MessageSettings
                 as UadpDataSetReaderMessageDataType;
             if (messageSettings != null)
             {
@@ -527,7 +527,7 @@ namespace Opc.Ua.PubSub.Uadp
                 }
                 
                 TargetVariablesDataType targetVariablesData =
-                   ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
+                   dataSetReader.SubscribedDataSet as TargetVariablesDataType;
 
                 if (targetVariablesData == null || targetVariablesData.TargetVariables.Count != fieldCount)
                 {
