@@ -27,31 +27,28 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
+
 using System;
 using System.Collections.Generic;
-using System.Net;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// <see cref="EventArgs"/> class for <see cref="UaPubSubApplication.DataReceived"/> event
+    ///  Base Class for message decoding functionality
     /// </summary>
-    public class SubscribedDataEventArgs : EventArgs
+    internal abstract class UaPubSubMessageDecoder
     {
         /// <summary>
-        /// Get the SequenceNumber of the NetworkMessage.
+        /// Decodes the message using the provided list of DataSetReaders and returns the SubscribedDataEventArgs object.
         /// </summary>
-        public UInt16 NetworkMessageSequenceNumber { get; internal set; }
-
-        /// <summary>
-        /// Get the DataSet collection received
-        /// </summary>
-        public List<DataSet> DataSets { get; internal set; }       
-
-        /// <summary>
-        /// Get the source information
-        /// </summary>
-        public string Source { get; internal set; }
+        /// <param name="source"></param>
+        /// <param name="message"></param>
+        /// <param name="dataSetReaders"></param>
+        /// <returns></returns>
+        internal abstract SubscribedDataEventArgs Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
     }
 }

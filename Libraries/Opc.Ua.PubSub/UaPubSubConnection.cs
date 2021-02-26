@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub
         private PubSubConnectionDataType m_pubSubConnectionDataType;
         private UaPubSubApplication m_uaPubSubApplication;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
-       
+        protected UaPubSubMessageDecoder m_messageDecoder;
         #endregion
 
         #region Constructor
@@ -122,15 +122,7 @@ namespace Opc.Ua.PubSub
         internal IReadOnlyCollection<IUaPublisher> Publishers
         {
             get { return m_publishers.AsReadOnly(); }
-        }
-
-        /// <summary>
-        /// Get the read only list of dataset readers associated with this connection
-        /// </summary>
-        internal IReadOnlyCollection<DataSetReaderDataType> DataSetReaders
-        {
-            get { return GetDataSetReaders().AsReadOnly(); }
-        }
+        }       
         #endregion
 
         #region Public Methods
@@ -236,7 +228,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get current list of dataset readers available in this UaSubscriber component
         /// </summary>
-        protected List<DataSetReaderDataType> GetDataSetReaders()
+        protected List<DataSetReaderDataType> GetOperationalDataSetReaders()
         {
             List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
             if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
@@ -254,6 +246,27 @@ namespace Opc.Ua.PubSub
                             readersList.Add(reader);
                         }
                     }
+                }
+            }
+            return readersList;
+        }
+
+
+        /// <summary>
+        /// Get all dataset readers defined for this UaSubscriber component
+        /// </summary>
+        protected List<DataSetReaderDataType> GetAllDataSetReaders()
+        {
+            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
+            if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
+            {
+                return readersList;
+            }
+            foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
+            {
+                foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
+                {
+                    readersList.Add(reader);
                 }
             }
             return readersList;

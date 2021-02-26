@@ -426,9 +426,15 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        public List<DataSet> DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
+        public List<DataSet> DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IList<DataSetReaderDataType> dataSetReaders)
         {
             List<DataSet> subscribedDataSets = new List<DataSet>();
+
+            if (dataSetReaders == null || dataSetReaders.Count == 0)
+            {
+                return subscribedDataSets;
+            }
+
             try
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();

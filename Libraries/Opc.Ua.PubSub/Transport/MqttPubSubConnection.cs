@@ -58,6 +58,7 @@ namespace Opc.Ua.PubSub.Transport
         private int m_brokerPort = 1883;
 
         private IMqttClient m_publisherMqttClient;
+        private IMqttClient m_subscriberMqttClient;
         private MessageMapping m_messageMapping;
         #region Constructor
 
@@ -71,6 +72,14 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_transportProtocol = TransportProtocol.MQTT;
             m_messageMapping = messageMapping;
+            if (m_messageMapping == MessageMapping.Uadp)
+            {
+                m_messageDecoder = new UadpMessageDecoder();
+            }
+            else if (m_messageMapping == MessageMapping.Json)
+            {
+                m_messageDecoder = new JsonMessageDecoder();
+            }
         }
 
         #endregion
@@ -341,6 +350,43 @@ namespace Opc.Ua.PubSub.Transport
                     Console.WriteLine(exception);
                 }
 
+                //subscriber initialization   
+                if (GetAllDataSetReaders().Count > 0)
+                {
+                    var options = new MqttClientOptions {
+                        ChannelOptions = new MqttClientTcpOptions {
+                            Server = m_brokerHostName,
+                            Port = m_brokerPort,
+                        },
+                        CleanSession = true,                        
+                    };
+
+                    m_subscriberMqttClient = new MqttFactory().CreateMqttClient();
+                    m_subscriberMqttClient.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(
+                        (MqttApplicationMessageReceivedEventArgs e) => {
+                            ProcessMqttMessage(e);
+                        }
+                        );
+
+                    m_subscriberMqttClient.ConnectAsync(options).GetAwaiter().GetResult();
+
+                    var topicFilter = new MqttTopicFilter { Topic = "#" };
+                    m_subscriberMqttClient.SubscribeAsync(topicFilter).GetAwaiter().GetResult();
+
+
+                    //foreach (UdpClient subscriberUdpClient in m_subscriberUdpClients)
+                    //{
+                    //    try
+                    //    {
+                    //        subscriberUdpClient.BeginReceive(new AsyncCallback(OnUadpReceive), subscriberUdpClient);
+                    //    }
+                    //    catch (Exception ex)
+                    //    {
+                    //        Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
+                    //          subscriberUdpClient.Client.LocalEndPoint, ex.Message);
+                    //    }
+                    //}
+                }
 
 
 
@@ -480,6 +526,53 @@ namespace Opc.Ua.PubSub.Transport
                 //    }
                 //}
             }
+        }
+
+        void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
+        {
+            string topic = eventArgs.ApplicationMessage.Topic;
+            Utils.Trace(Utils.TraceMasks.Information, "MqttPubSubConnection.ProcessReceivedMessage from topic={0}", topic);
+
+            // get the datasetreaders for received message topic
+            List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
+            foreach(DataSetReaderDataType dsReader in GetOperationalDataSetReaders())
+            {
+                if (dsReader == null) continue;
+                BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
+                    ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
+                if (brokerDataSetReaderTransportDataType == null || brokerDataSetReaderTransportDataType.QueueName != topic)
+                {
+                    continue;
+                }
+                dataSetReaders.Add(dsReader);
+            }
+
+            if (dataSetReaders.Count > 0)
+            {
+                // tregger message decoding
+                SubscribedDataEventArgs subscribedDataEventArgs = m_messageDecoder.Decode(eventArgs.ApplicationMessage.Topic,
+                    eventArgs.ApplicationMessage.Payload, dataSetReaders);
+                if (subscribedDataEventArgs != null)
+                {
+                    //trigger notification for received subscribed data set
+                    Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
+                    Utils.Trace(Utils.TraceMasks.Information,
+                        "UdpPubSubConnection.RaiseDataReceivedEvent from source={0}, with {1} DataSets", topic, subscribedDataEventArgs.DataSets.Count);
+                }
+                else
+                {
+                    Utils.Trace(Utils.TraceMasks.Information, "Message from source={0} cannot be decoded.", topic);
+                }
+            }
+            else
+            {
+                Utils.Trace(Utils.TraceMasks.Information, "No DataSetReader is registered for topic={0}.", topic);
+            }
+        }
+        private void HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs x)
+        {
+            var item = $"Timestamp: {DateTime.Now:O} | Topic: {x.ApplicationMessage.Topic} | Payload: {x.ApplicationMessage.ConvertPayloadToString()} | QoS: {x.ApplicationMessage.QualityOfServiceLevel}";
+           // this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item + Environment.NewLine + this.TextBoxSubscriber.Text; });
         }
 
         protected override void InternalStop()

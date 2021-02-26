@@ -84,7 +84,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         }
 
         /// <summary>
-        /// Creates a PubSubConfiguration object programmatically.
+        /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
         /// <returns></returns>
         public static PubSubConfigurationDataType CreatePublisherConfiguration_UdpUadp()
@@ -340,6 +340,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             return pubSubConfiguration;
         }
 
+        /// <summary>
+        /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
+        /// </summary>
+        /// <returns></returns>
         public static PubSubConfigurationDataType CreatePublisherConfiguration_MqttUadp()
         {
             // Define a PubSub connection with PublisherId 100
@@ -353,7 +357,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to publish on all available local interfaces.
             address.NetworkInterface = String.Empty;
-            address.Url = "mqtts://localhost:1883";
+            address.Url = "mqtt://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
 
             #region Define WriterGroup1
@@ -594,6 +598,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             return pubSubConfiguration;
         }
 
+        /// <summary>
+        /// Creates a PubSubConfiguration object for MQTT & Json programmatically.
+        /// </summary>
+        /// <returns></returns>
         public static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson()
         {
             // Define a PubSub connection with PublisherId 100

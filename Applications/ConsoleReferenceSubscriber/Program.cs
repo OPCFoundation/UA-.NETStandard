@@ -49,7 +49,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             try
             {
                 // Define the configuration of UA Subscriber application
-                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration();
+                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
 
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
@@ -93,7 +93,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             lock (m_lock)
             {
                 Console.WriteLine("Data Received from Source={0}, SequenceNumber={1}, DataSet count={2}",
-                    e.SourceEndPoint, e.NetworkMessageSequenceNumber, e.DataSets.Count);
+                    e.Source, e.NetworkMessageSequenceNumber, e.DataSets.Count);
 
                 foreach (DataSet dataSet in e.DataSets)
                 {
@@ -110,10 +110,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         }
 
         /// <summary>
-        /// Creates a PubSubConfiguration object programmatically.
+        /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateSubscriberConfiguration()
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration_UdpUadp()
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -270,14 +270,15 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)100, DataSetWriterId = 1
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
-            dataSetReaderSimple.Name = "Reader 1";
-            dataSetReaderSimple.PublisherId = (UInt16)100;
+            dataSetReaderSimple.Name = "Reader 1 UDP UADP";
+            dataSetReaderSimple.PublisherId = (UInt16)1;
             dataSetReaderSimple.WriterGroupId = 0;
             dataSetReaderSimple.DataSetWriterId = 0;
             dataSetReaderSimple.Enabled = true;
             dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderSimple.KeyFrameCount = 1;
             dataSetReaderSimple.DataSetMetaData = simpleMetaData;
+            dataSetReaderSimple.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
@@ -308,14 +309,15 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)100, DataSetWriterId = 2
             DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
-            dataSetReaderAllTypes.Name = "Reader 2";
-            dataSetReaderAllTypes.PublisherId = (UInt16)100;
+            dataSetReaderAllTypes.Name = "Reader 2 UDP UADP";
+            dataSetReaderAllTypes.PublisherId = (UInt16)1;
             dataSetReaderAllTypes.WriterGroupId = 0;
             dataSetReaderAllTypes.DataSetWriterId = 0;
             dataSetReaderAllTypes.Enabled = true;
             dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderAllTypes.KeyFrameCount = 1;
             dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
+            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
@@ -327,6 +329,527 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
             dataSetReaderAllTypes.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
+            subscribedDataSet = new TargetVariablesDataType();
+            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
+            foreach (var fieldMetaData in allTypesMetaData.Fields)
+            {
+                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                    DataSetFieldId = fieldMetaData.DataSetFieldId,
+                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
+                    AttributeId = Attributes.Value,
+                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
+                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                });
+            }
+
+            dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            #endregion
+            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
+
+            #endregion
+            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+
+            //create  pub sub configuration root object
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection1
+                };
+
+            return pubSubConfiguration;
+        }
+
+
+        /// <summary>
+        /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
+        /// </summary>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttUadp()
+        {
+            // Define a PubSub connection with PublisherId 100
+            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
+            pubSubConnection1.Name = "UADPConnection1 MQTT Uadp";
+            pubSubConnection1.Enabled = true;
+            pubSubConnection1.PublisherId = (UInt16)100;
+            pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;
+            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
+            // Specify the local Network interface name to be used
+            // e.g. address.NetworkInterface = "Ethernet";
+            // Leave empty to subscribe on all available local interfaces.
+            address.NetworkInterface = String.Empty;
+            address.Url = "mqtt://localhost:1883";
+            pubSubConnection1.Address = new ExtensionObject(address);
+
+            #region  Define  'Simple' MetaData
+            DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
+            simpleMetaData.DataSetClassId = new Uuid(Guid.Empty);
+            simpleMetaData.Name = "Simple";
+            simpleMetaData.Fields = new FieldMetaDataCollection()
+                {
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32Fast",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DateTime",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                };
+            simpleMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
+            #endregion
+
+            #region Define 'AllTypes' Metadata
+            DataSetMetaDataType allTypesMetaData = new DataSetMetaDataType();
+            allTypesMetaData.DataSetClassId = new Uuid(Guid.Empty);
+            allTypesMetaData.Name = "AllTypes";
+            allTypesMetaData.Fields = new FieldMetaDataCollection()
+            {
+                 new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Byte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Byte,
+                        DataType = DataTypeIds.Byte,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int16,
+                        DataType = DataTypeIds.Int16,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "SByte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.SByte,
+                        DataType = DataTypeIds.SByte,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.UInt16,
+                        DataType = DataTypeIds.UInt16,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Float",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Float,
+                        DataType = DataTypeIds.Float,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Double",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Double,
+                        DataType = DataTypeIds.Double,
+                        ValueRank = ValueRanks.Scalar
+                    },
+
+            };
+            allTypesMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
+            #endregion
+
+            #region Define ReaderGroup1
+            ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
+            readerGroup1.Name = "ReaderGroup 1";
+            readerGroup1.Enabled = true;
+            readerGroup1.MaxNetworkMessageSize = 1500;
+            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
+            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
+
+            #region Define DataSetReader 'Simple' for PublisherId = (UInt16)100, DataSetWriterId = 1
+            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
+            dataSetReaderSimple.Name = "Reader 1 MQTT UADP";
+            dataSetReaderSimple.PublisherId = (UInt16)2;
+            dataSetReaderSimple.WriterGroupId = 0;
+            dataSetReaderSimple.DataSetWriterId = 0;
+            dataSetReaderSimple.Enabled = true;
+            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderSimple.KeyFrameCount = 1;
+            dataSetReaderSimple.DataSetMetaData = simpleMetaData;
+            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = "Uadp_WriterGroup_1",
+            };            
+
+            dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
+                GroupVersion = 0,
+                DataSetOffset = 15,
+                NetworkMessageNumber = 0,
+                NetworkMessageContentMask = (uint)(UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.GroupHeader
+                        | UadpNetworkMessageContentMask.WriterGroupId | UadpNetworkMessageContentMask.GroupVersion
+                        | UadpNetworkMessageContentMask.NetworkMessageNumber | UadpNetworkMessageContentMask.SequenceNumber),
+                DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
+            };
+            dataSetReaderSimple.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
+            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
+            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
+            foreach (var fieldMetaData in simpleMetaData.Fields)
+            {
+                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                    DataSetFieldId = fieldMetaData.DataSetFieldId,
+                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
+                    AttributeId = Attributes.Value,
+                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
+                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                });
+            }
+
+            dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            #endregion
+            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+
+            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)100, DataSetWriterId = 2
+            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
+            dataSetReaderAllTypes.Name = "Reader 2 MQTT UADP";
+            dataSetReaderAllTypes.PublisherId = (UInt16)2;
+            dataSetReaderAllTypes.WriterGroupId = 0;
+            dataSetReaderAllTypes.DataSetWriterId = 0;
+            dataSetReaderAllTypes.Enabled = true;
+            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderAllTypes.KeyFrameCount = 1;
+            dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
+            brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = "Uadp_WriterGroup_1",
+            };
+
+            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
+                GroupVersion = 0,
+                DataSetOffset = 47,
+                NetworkMessageNumber = 0,
+                NetworkMessageContentMask = (uint)(uint)(UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.GroupHeader
+                        | UadpNetworkMessageContentMask.WriterGroupId | UadpNetworkMessageContentMask.GroupVersion
+                        | UadpNetworkMessageContentMask.NetworkMessageNumber | UadpNetworkMessageContentMask.SequenceNumber),
+                DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
+            };
+            dataSetReaderAllTypes.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
+            subscribedDataSet = new TargetVariablesDataType();
+            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
+            foreach (var fieldMetaData in allTypesMetaData.Fields)
+            {
+                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                    DataSetFieldId = fieldMetaData.DataSetFieldId,
+                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
+                    AttributeId = Attributes.Value,
+                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
+                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                });
+            }
+
+            dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            #endregion
+            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
+
+            #endregion
+            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+
+            //create  pub sub configuration root object
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection1
+                };
+
+            return pubSubConfiguration;
+        }
+
+        /// <summary>
+        /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
+        /// </summary>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson()
+        {
+            // Define a PubSub connection with PublisherId 100
+            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
+            pubSubConnection1.Name = "UADPConnection1 MQTT Uadp";
+            pubSubConnection1.Enabled = true;
+            pubSubConnection1.PublisherId = (UInt16)100;
+            pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
+            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
+            // Specify the local Network interface name to be used
+            // e.g. address.NetworkInterface = "Ethernet";
+            // Leave empty to subscribe on all available local interfaces.
+            address.NetworkInterface = String.Empty;
+            address.Url = "mqtt://localhost:1883";
+            pubSubConnection1.Address = new ExtensionObject(address);
+
+            #region  Define  'Simple' MetaData
+            DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
+            simpleMetaData.DataSetClassId = new Uuid(Guid.Empty);
+            simpleMetaData.Name = "Simple";
+            simpleMetaData.Fields = new FieldMetaDataCollection()
+                {
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32Fast",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DateTime",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                };
+            simpleMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
+            #endregion
+
+            #region Define 'AllTypes' Metadata
+            DataSetMetaDataType allTypesMetaData = new DataSetMetaDataType();
+            allTypesMetaData.DataSetClassId = new Uuid(Guid.Empty);
+            allTypesMetaData.Name = "AllTypes";
+            allTypesMetaData.Fields = new FieldMetaDataCollection()
+            {
+                 new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Byte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Byte,
+                        DataType = DataTypeIds.Byte,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int16,
+                        DataType = DataTypeIds.Int16,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "SByte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.SByte,
+                        DataType = DataTypeIds.SByte,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.UInt16,
+                        DataType = DataTypeIds.UInt16,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Float",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Float,
+                        DataType = DataTypeIds.Float,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Double",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte) DataTypes.Double,
+                        DataType = DataTypeIds.Double,
+                        ValueRank = ValueRanks.Scalar
+                    },
+
+            };
+            allTypesMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
+            #endregion
+
+            #region Define ReaderGroup1
+            ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
+            readerGroup1.Name = "ReaderGroup 1";
+            readerGroup1.Enabled = true;
+            readerGroup1.MaxNetworkMessageSize = 1500;
+            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
+            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
+
+            #region Define DataSetReader 'Simple' for PublisherId = (UInt16)100, DataSetWriterId = 1
+            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
+            dataSetReaderSimple.Name = "Reader 1 MQTT JSON";
+            dataSetReaderSimple.PublisherId = (UInt16)3;
+            dataSetReaderSimple.WriterGroupId = 0;
+            dataSetReaderSimple.DataSetWriterId = 0;
+            dataSetReaderSimple.Enabled = true;
+            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderSimple.KeyFrameCount = 1;
+            dataSetReaderSimple.DataSetMetaData = simpleMetaData;
+            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = "Json_WriterGroup_1",
+            };
+
+            dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            JsonDataSetReaderMessageDataType jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetClassId
+                | JsonNetworkMessageContentMask.DataSetMessageHeader
+                       | JsonNetworkMessageContentMask.NetworkMessageHeader
+                       | JsonNetworkMessageContentMask.PublisherId
+                       | JsonNetworkMessageContentMask.ReplyTo
+                       | JsonNetworkMessageContentMask.SingleDataSetMessage),
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
+            };
+            dataSetReaderSimple.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
+            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
+            foreach (var fieldMetaData in simpleMetaData.Fields)
+            {
+                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                    DataSetFieldId = fieldMetaData.DataSetFieldId,
+                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
+                    AttributeId = Attributes.Value,
+                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
+                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                });
+            }
+
+            dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            #endregion
+            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+
+            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)100, DataSetWriterId = 2
+            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
+            dataSetReaderAllTypes.Name = "Reader 2 MQTT JSON";
+            dataSetReaderAllTypes.PublisherId = (UInt16)3;
+            dataSetReaderAllTypes.WriterGroupId = 0;
+            dataSetReaderAllTypes.DataSetWriterId = 0;
+            dataSetReaderAllTypes.Enabled = true;
+            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderAllTypes.KeyFrameCount = 1;
+            dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
+            brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = "Json_WriterGroup_1",
+            };
+
+            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetClassId
+                | JsonNetworkMessageContentMask.DataSetMessageHeader
+                       | JsonNetworkMessageContentMask.NetworkMessageHeader
+                       | JsonNetworkMessageContentMask.PublisherId
+                       | JsonNetworkMessageContentMask.ReplyTo
+                       | JsonNetworkMessageContentMask.SingleDataSetMessage),
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                 | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
+            };
+            dataSetReaderAllTypes.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
             subscribedDataSet = new TargetVariablesDataType();
             subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
             foreach (var fieldMetaData in allTypesMetaData.Fields)

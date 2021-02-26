@@ -402,74 +402,74 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode the stream from decoder parameter and produce a Dataset 
         /// </summary> 
-        /// <param name="binaryDecoder"></param>
+        /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        public List<DataSet> DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
+        public List<DataSet> DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
         {
             List<DataSet> subscribedDataSets = new List<DataSet>();
             try
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
 
-                // 1. decode network message header (PublisherId & DataSetClassId)
-                DecodeNetworkMessageHeader(binaryDecoder);
+                //// 1. decode network message header (PublisherId & DataSetClassId)
+                //DecodeNetworkMessageHeader(jsonDecoder);
 
-                //ignore network messages that are not dataSet messages
-                if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage
-                    || PublisherId == null)
-                {
-                    return subscribedDataSets;
-                }
+                ////ignore network messages that are not dataSet messages
+                //if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage
+                //    || PublisherId == null)
+                //{
+                //    return subscribedDataSets;
+                //}
 
-                /* 6.2.8.1 PublisherId
-                 The parameter PublisherId defines the Publisher to receive NetworkMessages from.
-                 If the value is null, the parameter shall be ignored and all received NetworkMessages pass the PublisherId filter. */
-                foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-                {
-                    //check Enabled & publisher id
-                    if (PublisherId.Equals(dataSetReader.PublisherId.Value))
-                    {
-                        dataSetReadersFiltered.Add(dataSetReader);
-                    }
-                }
-                if (dataSetReadersFiltered.Count == 0)
-                {
-                    return subscribedDataSets;
-                }
-                dataSetReaders = dataSetReadersFiltered;
+                ///* 6.2.8.1 PublisherId
+                // The parameter PublisherId defines the Publisher to receive NetworkMessages from.
+                // If the value is null, the parameter shall be ignored and all received NetworkMessages pass the PublisherId filter. */
+                //foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
+                //{
+                //    //check Enabled & publisher id
+                //    if (PublisherId.Equals(dataSetReader.PublisherId.Value))
+                //    {
+                //        dataSetReadersFiltered.Add(dataSetReader);
+                //    }
+                //}
+                //if (dataSetReadersFiltered.Count == 0)
+                //{
+                //    return subscribedDataSets;
+                //}
+                //dataSetReaders = dataSetReadersFiltered;
 
-                //continue filtering
-                dataSetReadersFiltered = new List<DataSetReaderDataType>();
+                ////continue filtering
+                //dataSetReadersFiltered = new List<DataSetReaderDataType>();
 
-                // 2. decode WriterGroupId
-                DecodeGroupMessageHeader(binaryDecoder);
-                /* 6.2.8.2 WriterGroupId
-                The parameter WriterGroupId with DataType UInt16 defines the identifier of the corresponding WriterGroup.
-                The default value 0 is defined as null value, and means this parameter shall be ignored.*/
-                foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-                {
-                    //check WriterGroupId id
-                    if (dataSetReader.WriterGroupId == 0 || dataSetReader.WriterGroupId == WriterGroupId)
-                    {
-                        dataSetReadersFiltered.Add(dataSetReader);
-                    }
-                }
-                if (dataSetReadersFiltered.Count == 0)
-                {
-                    return subscribedDataSets;
-                }
-                dataSetReaders = dataSetReadersFiltered;
+                //// 2. decode WriterGroupId
+                //DecodeGroupMessageHeader(jsonDecoder);
+                ///* 6.2.8.2 WriterGroupId
+                //The parameter WriterGroupId with DataType UInt16 defines the identifier of the corresponding WriterGroup.
+                //The default value 0 is defined as null value, and means this parameter shall be ignored.*/
+                //foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
+                //{
+                //    //check WriterGroupId id
+                //    if (dataSetReader.WriterGroupId == 0 || dataSetReader.WriterGroupId == WriterGroupId)
+                //    {
+                //        dataSetReadersFiltered.Add(dataSetReader);
+                //    }
+                //}
+                //if (dataSetReadersFiltered.Count == 0)
+                //{
+                //    return subscribedDataSets;
+                //}
+                //dataSetReaders = dataSetReadersFiltered;
 
-                // 3. decode payload header
-                DecodePayloadHeader(binaryDecoder);
-                // 4.
-                DecodeExtendedNetworkMessageHeader(binaryDecoder);
-                // 5.
-                DecodeSecurityHeader(binaryDecoder);
+                //// 3. decode payload header
+                //DecodePayloadHeader(jsonDecoder);
+                //// 4.
+                //DecodeExtendedNetworkMessageHeader(jsonDecoder);
+                //// 5.
+                //DecodeSecurityHeader(jsonDecoder);
 
-                //6.1
-                DecodePayloadSize(binaryDecoder);
+                ////6.1
+                //DecodePayloadSize(jsonDecoder);
 
                 /* 6.2.8.3 DataSetWriterId
                 The parameter DataSetWriterId with DataType UInt16 defines the DataSet selected in the Publisher for the DataSetReader.
