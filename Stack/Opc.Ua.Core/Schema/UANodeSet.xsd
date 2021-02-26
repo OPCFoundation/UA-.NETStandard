@@ -257,12 +257,6 @@
     </xs:sequence>
   </xs:complexType>
 
-  <xs:complexType name="ListOfConformanceUnits">
-    <xs:sequence>
-      <xs:element name="ConformanceUnit" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
-    </xs:sequence>
-  </xs:complexType>
-
   <xs:complexType name="RolePermission">
     <xs:simpleContent>
       <xs:extension base="NodeId">
@@ -305,7 +299,6 @@
       <xs:element name="Documentation" type="xs:string" minOccurs="0" />
       <xs:element name="References" type="ListOfReferences" minOccurs="0" />
       <xs:element name="RolePermissions" type="ListOfRolePermissions" minOccurs="0" />
-      <xs:element name="ConformanceUnits" type="ListOfConformanceUnits" minOccurs="0" />
       <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0" />
     </xs:sequence>
     <xs:attribute name="NodeId" type="NodeId" use="required" />
