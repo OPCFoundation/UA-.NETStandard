@@ -271,6 +271,22 @@ namespace Opc.Ua.PubSub
             }
             return readersList;
         }
+
+        /// <summary>
+        /// Get the maximum KeepAlive value from all present WriterGroups
+        /// </summary>
+        protected double GetWriterGroupsMaxKeepAlive()
+        {
+            double maxKeepAlive = 0;
+            foreach (WriterGroupDataType writerGroup in m_pubSubConnectionDataType.WriterGroups)
+            {
+                if (maxKeepAlive < writerGroup.KeepAliveTime)
+                {
+                    maxKeepAlive = writerGroup.KeepAliveTime;
+                }
+            }
+            return maxKeepAlive;
+        }
         #endregion
 
         #region IDisposable Implementation
