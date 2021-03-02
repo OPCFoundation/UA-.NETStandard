@@ -112,7 +112,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         /// <summary>
         /// Create the default RSA certificate.
         /// </summary>
-        [Theory]
+        [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
         {
             // default cert
@@ -145,7 +145,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.True(X509Utils.VerifySelfSigned(cert), "Verify self signed.");
         }
 
-        [Theory]
+        [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaAllFields(
             ECCurveHashPair ecCurveHashPair
             )
@@ -182,7 +182,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
-        [Theory]
+        [Theory, Repeat(10)]
         public void CreateCACertForECDsa(
             ECCurveHashPair ecCurveHashPair
             )

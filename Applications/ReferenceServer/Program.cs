@@ -33,6 +33,7 @@ using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Controls;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -55,9 +56,14 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-
                 // load the application configuration.
-                application.LoadApplicationConfiguration(false).Wait();
+                ApplicationConfiguration config = application.LoadApplicationConfiguration(false).Result;
+
+                LoggerConfiguration loggerConfiguration = new LoggerConfiguration();
+#if DEBUG
+                loggerConfiguration.WriteTo.Debug(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning);
+#endif
+                SerilogTraceLogger.Create(loggerConfiguration, config);
 
                 // check the application certificate.
                 bool certOk = application.CheckApplicationInstanceCertificate(false, 0).Result;

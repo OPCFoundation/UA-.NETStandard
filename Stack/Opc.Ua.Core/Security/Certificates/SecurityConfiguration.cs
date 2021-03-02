@@ -70,6 +70,12 @@ namespace Opc.Ua
 
             return new CertificateTrustList();
         }
+
+        /// <summary>
+        /// Get the provider which is invoked when a password
+        /// for a private key is requested.
+        /// </summary>
+        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
         #endregion
     }
     #endregion

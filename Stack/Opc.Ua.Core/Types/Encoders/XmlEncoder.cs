@@ -39,6 +39,8 @@ namespace Opc.Ua
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.CheckCharacters = false;
             settings.ConformanceLevel = ConformanceLevel.Auto;
+            settings.NamespaceHandling = NamespaceHandling.OmitDuplicates;
+            settings.NewLineHandling = NewLineHandling.Replace;
 
             m_writer = XmlWriter.Create(m_destination, settings);
         }
@@ -435,7 +437,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteString(string fieldName, string value)
         {
-            if (BeginField(fieldName, value == null, true))
+            WriteString(fieldName, value, false);
+        }
+
+        private void WriteString(string fieldName, string value, bool isArrayElement)
+        {
+            if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
                 if (m_context.MaxStringLength > 0 && m_context.MaxStringLength < value.Length)
@@ -443,7 +450,11 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteString(value);
+                if (!String.IsNullOrWhiteSpace(value))
+                {
+                    m_writer.WriteString(value);
+                }
+
                 EndField(fieldName);
             }
         }
@@ -496,7 +507,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteString(string fieldName, byte[] value)
         {
-            if (BeginField(fieldName, value == null, true))
+            WriteByteString(fieldName, value, false);
+        }
+
+        private void WriteByteString(string fieldName, byte[] value, bool isArrayElement = false)
+        {
+            if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
                 if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < value.Length)
@@ -504,7 +520,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteValue(Convert.ToBase64String(value));
+                m_writer.WriteValue(Convert.ToBase64String(value, Base64FormattingOptions.InsertLineBreaks));
                 EndField(fieldName);
             }
         }
@@ -514,7 +530,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElement(string fieldName, XmlElement value)
         {
-            if (BeginField(fieldName, value == null, true))
+            WriteXmlElement(fieldName, value, false);
+        }
+
+        private void WriteXmlElement(string fieldName, XmlElement value, bool isArrayElement)
+        {
+            if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 m_writer.WriteRaw(value.OuterXml);
                 EndField(fieldName);
@@ -684,8 +705,15 @@ namespace Opc.Ua
 
                 if (value != null)
                 {
-                    WriteString("Locale", value.Locale);
-                    WriteString("Text", value.Text);
+                    if (!String.IsNullOrEmpty(value.Locale))
+                    {
+                        WriteString("Locale", value.Locale);
+                    }
+
+                    if (!String.IsNullOrEmpty(value.Text))
+                    {
+                        WriteString("Text", value.Text);
+                    }
                 }
 
                 PopNamespace();
@@ -884,7 +912,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteBooleanArray(string fieldName, IList<bool> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -913,7 +941,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteSByteArray(string fieldName, IList<sbyte> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -942,7 +970,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteArray(string fieldName, IList<byte> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -971,7 +999,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt16Array(string fieldName, IList<short> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1000,7 +1028,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt16Array(string fieldName, IList<ushort> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1029,7 +1057,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt32Array(string fieldName, IList<int> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1058,7 +1086,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt32Array(string fieldName, IList<uint> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1087,7 +1115,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteInt64Array(string fieldName, IList<long> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1116,7 +1144,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteUInt64Array(string fieldName, IList<ulong> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1145,7 +1173,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteFloatArray(string fieldName, IList<float> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1174,7 +1202,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDoubleArray(string fieldName, IList<double> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1203,7 +1231,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStringArray(string fieldName, IList<string> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1217,7 +1245,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteString("String", values[ii]);
+                        WriteString("String", values[ii], true);
                     }
                 }
 
@@ -1232,7 +1260,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDateTimeArray(string fieldName, IList<DateTime> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1261,7 +1289,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Uuid> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1290,7 +1318,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteGuidArray(string fieldName, IList<Guid> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1319,7 +1347,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteByteStringArray(string fieldName, IList<byte[]> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1333,7 +1361,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteByteString("ByteString", values[ii]);
+                        WriteByteString("ByteString", values[ii], true);
                     }
                 }
 
@@ -1348,7 +1376,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteXmlElementArray(string fieldName, IList<XmlElement> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1362,7 +1390,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteXmlElement("XmlElement", values[ii]);
+                        WriteXmlElement("XmlElement", values[ii], true);
                     }
                 }
 
@@ -1377,7 +1405,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteNodeIdArray(string fieldName, IList<NodeId> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1406,7 +1434,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExpandedNodeIdArray(string fieldName, IList<ExpandedNodeId> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1435,7 +1463,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteStatusCodeArray(string fieldName, IList<StatusCode> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1464,7 +1492,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDiagnosticInfoArray(string fieldName, IList<DiagnosticInfo> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1493,7 +1521,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteQualifiedNameArray(string fieldName, IList<QualifiedName> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1522,7 +1550,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteLocalizedTextArray(string fieldName, IList<LocalizedText> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1551,7 +1579,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariantArray(string fieldName, IList<Variant> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1580,7 +1608,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDataValueArray(string fieldName, IList<DataValue> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1609,7 +1637,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteExtensionObjectArray(string fieldName, IList<ExtensionObject> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1638,7 +1666,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1685,7 +1713,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteEnumeratedArray(string fieldName, Array values, System.Type systemType)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Length)
@@ -1817,6 +1845,7 @@ namespace Opc.Ua
                                     ints[ii] = (int)(object)enums[ii];
                                 }
                             }
+
                             WriteInt32Array("ListOfInt32", ints);
                             return;
                         }
@@ -1882,7 +1911,7 @@ namespace Opc.Ua
             if (bytes != null)
             {
                 m_writer.WriteStartElement("ByteString", Namespaces.OpcUaXsd);
-                m_writer.WriteString(Convert.ToBase64String(bytes));
+                m_writer.WriteString(Convert.ToBase64String(bytes, Base64FormattingOptions.InsertLineBreaks));
                 m_writer.WriteEndElement();
                 return;
             }
@@ -1921,7 +1950,18 @@ namespace Opc.Ua
         /// </summary>
         private void WriteMatrix(string fieldName, Matrix value)
         {
-            if (BeginField(fieldName, value == null, true))
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
+            if (BeginField(fieldName, value == null, true, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -1938,6 +1978,8 @@ namespace Opc.Ua
 
                 EndField(fieldName);
             }
+
+            m_nestingLevel--;
         }
 
         /// <summary>
@@ -1945,7 +1987,7 @@ namespace Opc.Ua
         /// </summary>
         public void WriteObjectArray(string fieldName, IList<object> values)
         {
-            if (BeginField(fieldName, values == null, true))
+            if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
                 if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
@@ -1972,11 +2014,16 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the start element for a field.
         /// </summary>
-        private bool BeginField(string fieldName, bool isDefault, bool isNillable)
+        private bool BeginField(string fieldName, bool isDefault, bool isNillable, bool isArrayElement = false)
         {
             // specifying a null field name means the start/end tags should not be written.
             if (!String.IsNullOrEmpty(fieldName))
             {
+                if (isNillable && isDefault && !isArrayElement)
+                {
+                    return false;
+                }
+
                 m_writer.WriteStartElement(fieldName, m_namespaces.Peek());
 
                 if (isDefault)

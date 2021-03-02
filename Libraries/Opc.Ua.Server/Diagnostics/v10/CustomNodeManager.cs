@@ -371,7 +371,7 @@ namespace Opc.Ua.Server
                 AddPredefinedNode(context, predefinedNodes[ii]);
             }
 
-            // ensure the reverse refernces exist.
+            // ensure the reverse references exist.
             AddReverseReferences(externalReferences);
         }
 
@@ -399,7 +399,7 @@ namespace Opc.Ua.Server
                 AddPredefinedNode(context, predefinedNodes[ii]);
             }
 
-            // ensure the reverse refernces exist.
+            // ensure the reverse references exist.
             AddReverseReferences(externalReferences);
         }
 

@@ -143,6 +143,11 @@ namespace Opc.Ua.Configuration
         /// Get or set the message dialog.
         /// </summary>
         public static IApplicationMessageDlg MessageDlg { get; set; }
+
+        /// <summary>
+        /// Get or set the certificate password provider.
+        /// </summary>
+        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
         #endregion
 
         #region Public Methods
@@ -177,7 +182,7 @@ namespace Opc.Ua.Configuration
 
             if (m_applicationConfiguration == null)
             {
-                await LoadApplicationConfiguration(false);
+                await LoadApplicationConfiguration(false).ConfigureAwait(false);
             }
 
             if (m_applicationConfiguration.CertificateValidator != null)
@@ -227,7 +232,8 @@ namespace Opc.Ua.Configuration
             string filePath,
             ApplicationType applicationType,
             Type configurationType,
-            bool applyTraceSettings)
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             Utils.Trace(Utils.TraceMasks.Information, "Loading application configuration file. {0}", filePath);
 
@@ -238,7 +244,9 @@ namespace Opc.Ua.Configuration
                     new System.IO.FileInfo(filePath),
                     applicationType,
                     configurationType,
-                    applyTraceSettings);
+                    applyTraceSettings,
+                    certificatePasswordProvider)
+                    .ConfigureAwait(false);
 
                 if (configuration == null)
                 {
@@ -253,7 +261,7 @@ namespace Opc.Ua.Configuration
                 if (!silent && MessageDlg != null)
                 {
                     MessageDlg.Message("Load Application Configuration: " + e.Message);
-                    await MessageDlg.ShowAsync();
+                    await MessageDlg.ShowAsync().ConfigureAwait(false);
                 }
 
                 Utils.Trace(e, "Could not load configuration file. {0}", filePath);
@@ -266,7 +274,9 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
         {
-            ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, ApplicationType, ConfigurationType, true);
+            ApplicationConfiguration configuration = await LoadAppConfig(
+                silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                .ConfigureAwait(false);
 
             if (configuration == null)
             {
@@ -284,7 +294,9 @@ namespace Opc.Ua.Configuration
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
-            ApplicationConfiguration configuration = await LoadAppConfig(silent, filePath, ApplicationType, ConfigurationType, true);
+            ApplicationConfiguration configuration = await LoadAppConfig(
+                silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                .ConfigureAwait(false);
 
             if (configuration == null)
             {
@@ -320,15 +332,12 @@ namespace Opc.Ua.Configuration
             ushort lifeTimeInMonths)
         {
             Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate.");
-
-            ApplicationConfiguration configuration = null;
-
             if (m_applicationConfiguration == null)
             {
-                await LoadApplicationConfiguration(silent);
+                await LoadApplicationConfiguration(silent).ConfigureAwait(false);
             }
 
-            configuration = m_applicationConfiguration;
+            ApplicationConfiguration configuration = m_applicationConfiguration;
             bool certificateValid = false;
 
             // find the existing certificate.
@@ -340,17 +349,17 @@ namespace Opc.Ua.Configuration
                     "Configuration file does not specify a certificate.");
             }
 
-            X509Certificate2 certificate = await id.Find(true);
+            X509Certificate2 certificate = await id.Find(true).ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
             {
-                certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize);
+                certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize).ConfigureAwait(false);
             }
             else
             {
                 // check for missing private key.
-                certificate = await id.Find(false);
+                certificate = await id.Find(false).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -367,7 +376,7 @@ namespace Opc.Ua.Configuration
                         id2.StoreType = id.StoreType;
                         id2.StorePath = id.StorePath;
                         id2.SubjectName = id.SubjectName;
-                        certificate = await id2.Find(true);
+                        certificate = await id2.Find(true).ConfigureAwait(false);
                     }
 
                     if (certificate != null)
@@ -641,13 +650,15 @@ namespace Opc.Ua.Configuration
                 serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths)
                 .SetRSAKeySize(keySize)
-                .CreateForRSA()
-                .AddToStore(
-                    id.StoreType,
-                    id.StorePath
-                );
+                .CreateForRSA();
 
             id.Certificate = certificate;
+            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
+            certificate.AddToStore(
+                id.StoreType,
+                id.StorePath,
+                passwordProvider?.GetPassword(id)
+                );
 
             // ensure the certificate is trusted.
             if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
@@ -660,7 +671,7 @@ namespace Opc.Ua.Configuration
             Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
 
             // reload the certificate from disk.
-            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKey(null);
+            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider);
 
             return certificate;
         }
