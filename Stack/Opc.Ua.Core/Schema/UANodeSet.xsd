@@ -225,13 +225,9 @@
   </xs:simpleType>
 
   <xs:simpleType name="SymbolicName">
-    <xs:list>
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:list>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
+    </xs:restriction>
   </xs:simpleType>
 
   <xs:simpleType name="Duration">

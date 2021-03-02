@@ -409,6 +409,7 @@
     <opc:EnumeratedValue Name="Paused" Value="1" />
     <opc:EnumeratedValue Name="Operational" Value="2" />
     <opc:EnumeratedValue Name="Error" Value="3" />
+    <opc:EnumeratedValue Name="PreOperational" Value="4" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="DataSetMetaDataType" BaseType="tns:DataTypeSchemaHeader">

@@ -934,6 +934,7 @@
       <xs:enumeration value="Paused_1" />
       <xs:enumeration value="Operational_2" />
       <xs:enumeration value="Error_3" />
+      <xs:enumeration value="PreOperational_4" />
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="PubSubState" type="tns:PubSubState" />
