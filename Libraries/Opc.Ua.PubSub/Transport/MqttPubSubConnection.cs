@@ -43,6 +43,8 @@ using MQTTnet.Protocol;
 using MQTTnet.Server;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Mqtt;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -56,10 +58,19 @@ namespace Opc.Ua.PubSub.Transport
 
         private string m_brokerHostName = "localhost";
         private int m_brokerPort = 1883;
+        private int m_reconnectIntervalSeconds = 5;
 
         private IMqttClient m_publisherMqttClient;
         private IMqttClient m_subscriberMqttClient;
         private MessageMapping m_messageMapping;
+
+        #region Constants
+        /// <summary>
+        /// Value in seconds with which to surpass the max keep alive value found.
+        /// </summary>
+        private readonly int MaxKeepAliveIncrement = 5;
+        #endregion
+
         #region Constructor
 
         /// <summary>
@@ -307,12 +318,18 @@ namespace Opc.Ua.PubSub.Transport
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Perform specific Start tasks
+        /// </summary>
         protected override void InternalStart()
         {
+            int nrOfPublishers = 0;
+            int nrOfSubscribers = 0;
+
             lock (m_lock)
             {
                 //cleanup all existing UdpClient previously open
-                //InternalStop();
+                InternalStop();
 
                 NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
                        as NetworkAddressUrlDataType;
@@ -332,201 +349,49 @@ namespace Opc.Ua.PubSub.Transport
                         m_brokerPort = connectionUri.Port;
                     }
                 }
-                try
-                {
-                    var options = new MqttClientOptions {
-                        ChannelOptions = new MqttClientTcpOptions {
-                            Server = m_brokerHostName,
-                            Port = m_brokerPort,
-                        },
-                        CleanSession = true
-                    };
 
-                    m_publisherMqttClient = new MqttFactory().CreateMqttClient();
-                    m_publisherMqttClient.ConnectAsync(options).GetAwaiter().GetResult();
-                }
-                catch (Exception exception)
-                {
-                    Console.WriteLine(exception);
-                }
-
-                //subscriber initialization   
-                if (GetAllDataSetReaders().Count > 0)
-                {
-                    var options = new MqttClientOptions {
-                        ChannelOptions = new MqttClientTcpOptions {
-                            Server = m_brokerHostName,
-                            Port = m_brokerPort,
-                        },
-                        CleanSession = true,                        
-                    };
-
-                    m_subscriberMqttClient = new MqttFactory().CreateMqttClient();
-                    m_subscriberMqttClient.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(
-                        (MqttApplicationMessageReceivedEventArgs e) => {
-                            ProcessMqttMessage(e);
-                        }
-                        );
-
-                    m_subscriberMqttClient.ConnectAsync(options).GetAwaiter().GetResult();
-
-                    var topicFilter = new MqttTopicFilter { Topic = "#" };
-                    m_subscriberMqttClient.SubscribeAsync(topicFilter).GetAwaiter().GetResult();
-
-
-                    //foreach (UdpClient subscriberUdpClient in m_subscriberUdpClients)
-                    //{
-                    //    try
-                    //    {
-                    //        subscriberUdpClient.BeginReceive(new AsyncCallback(OnUadpReceive), subscriberUdpClient);
-                    //    }
-                    //    catch (Exception ex)
-                    //    {
-                    //        Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
-                    //          subscriberUdpClient.Client.LocalEndPoint, ex.Message);
-                    //    }
-                    //}
-                }
-
-
-
-
-                //try
-                //    {
-                //        var options = new MqttServerOptions {
-                //            ConnectionValidator = new MqttServerConnectionValidatorDelegate(p => {
-                //                if (p.ClientId == "SpecialClient")
-                //                {
-                //                    if (p.Username != "" || p.Password != "")
-                //                    {
-                //                        p.ReasonCode = MqttConnectReasonCode.BadUserNameOrPassword;
-                //                    }
-                //                }
-                //            }),
-
-                //            //Storage = new RetainedMessageHandler(),
-
-                //            ApplicationMessageInterceptor = new MqttServerApplicationMessageInterceptorDelegate(context => {
-                //                if (MqttTopicFilterComparer.IsMatch(context.ApplicationMessage.Topic, "/myTopic/WithTimestamp/#"))
-                //                {
-                //                    // Replace the payload with the timestamp. But also extending a JSON 
-                //                    // based payload with the timestamp is a suitable use case.
-                //                    context.ApplicationMessage.Payload = Encoding.UTF8.GetBytes(DateTime.Now.ToString("O"));
-                //                }
-
-                //                if (context.ApplicationMessage.Topic == "not_allowed_topic")
-                //                {
-                //                    context.AcceptPublish = false;
-                //                    context.CloseConnection = true;
-                //                }
-                //            }),
-
-                //            SubscriptionInterceptor = new MqttServerSubscriptionInterceptorDelegate(context => {
-                //                if (context.TopicFilter.Topic.StartsWith("admin/foo/bar") && context.ClientId != "theAdmin")
-                //                {
-                //                    context.AcceptSubscription = false;
-                //                }
-
-                //                if (context.TopicFilter.Topic.StartsWith("the/secret/stuff") && context.ClientId != "Imperator")
-                //                {
-                //                    context.AcceptSubscription = false;
-                //                    context.CloseConnection = true;
-                //                }
-                //            })
-                //        };
-
-                //        // Extend the timestamp for all messages from clients.
-                //        // Protect several topics from being subscribed from every client.
-
-                //        //var certificate = new X509Certificate(@"C:\certs\test\test.cer", "");
-                //        //options.TlsEndpointOptions.Certificate = certificate.Export(X509ContentType.Cert);
-                //        //options.ConnectionBacklog = 5;
-                //        //options.DefaultEndpointOptions.IsEnabled = true;
-                //        //options.TlsEndpointOptions.IsEnabled = false;
-
-                //        var mqttServer = new MqttFactory().CreateMqttServer();
-
-                //        mqttServer.ApplicationMessageReceivedHandler = new MqttApplicationMessageReceivedHandlerDelegate(e => {
-                //            Console.WriteLine(
-                //                $"'{e.ClientId}' reported '{e.ApplicationMessage.Topic}' > '{Encoding.UTF8.GetString(e.ApplicationMessage.Payload ?? new byte[0])}'",
-                //                ConsoleColor.Magenta);
-                //        });
-
-                //        //options.ApplicationMessageInterceptor = c =>
-                //        //{
-                //        //    if (c.ApplicationMessage.Payload == null || c.ApplicationMessage.Payload.Length == 0)
-                //        //    {
-                //        //        return;
-                //        //    }
-
-                //        //    try
-                //        //    {
-                //        //        var content = JObject.Parse(Encoding.UTF8.GetString(c.ApplicationMessage.Payload));
-                //        //        var timestampProperty = content.Property("timestamp");
-                //        //        if (timestampProperty != null && timestampProperty.Value.Type == JTokenType.Null)
-                //        //        {
-                //        //            timestampProperty.Value = DateTime.Now.ToString("O");
-                //        //            c.ApplicationMessage.Payload = Encoding.UTF8.GetBytes(content.ToString());
-                //        //        }
-                //        //    }
-                //        //    catch (Exception)
-                //        //    {
-                //        //    }
-                //        //};
-
-                //        mqttServer.ClientConnectedHandler = new MqttServerClientConnectedHandlerDelegate(e => {
-                //            Console.Write("Client disconnected event fired.");
-                //        });
-
-                //        mqttServer.StartAsync(options).GetAwaiter().GetResult();
-
-                //        Console.WriteLine("Press any key to exit.");
-                //        Console.ReadLine();
-
-                //        // await mqttServer.StopAsync();
-                //    }
-                //    catch (Exception e)
-                //    {
-                //        Console.WriteLine(e);
-                //    }
-
-
-
-                //    NetworkAddressEndPoint = UdpClientCreator.GetEndPoint(networkAddressUrlState.Url);
-
-                //if (NetworkAddressEndPoint == null)
-                //{
-                //    Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} with Url:'{1}' resulted in an invalid endpoint.",
-                //              this.PubSubConnectionConfiguration.Name, networkAddressUrlState.Url);
-                //    return;
-                //}
-
-                ////publisher initialization    
-                //if (Publishers.Count > 0)
-                //{
-                //    m_publisherUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState, NetworkAddressEndPoint);
-                //}
-
-                ////subscriber initialization   
-                //if (DataSetReaders.Count > 0)
-                //{
-                //    m_subscriberUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Subscriber, networkAddressUrlState, NetworkAddressEndPoint);
-
-                //    foreach (UdpClient subscriberUdpClient in m_subscriberUdpClients)
-                //    {
-                //        try
-                //        {
-                //            subscriberUdpClient.BeginReceive(new AsyncCallback(OnUadpReceive), subscriberUdpClient);
-                //        }
-                //        catch (Exception ex)
-                //        {
-                //            Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
-                //              subscriberUdpClient.Client.LocalEndPoint, ex.Message);
-                //        }
-                //    }
-                //}
+                nrOfPublishers = Publishers.Count;
+                nrOfSubscribers = GetAllDataSetReaders().Count;
             }
+
+            MqttClient pubClient = null;
+            MqttClient subClient = null;
+
+            TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
+
+            var mqttOptions = new MqttClientOptionsBuilder()
+                    .WithTcpServer(m_brokerHostName, m_brokerPort)
+                    .WithKeepAlivePeriod(mqttKeepAlive)
+                    .Build();
+
+            //publisher initialization    
+            if (nrOfPublishers > 0)
+            {
+                pubClient = Task.Run(async () =>
+                          (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
+                                                                                 mqttOptions,
+                                                                                 null).ConfigureAwait(false)).Result;
+            }
+
+            //subscriber initialization   
+            if (nrOfSubscribers > 0)
+            {
+                subClient = Task.Run(async () =>
+                     (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
+                                                                            mqttOptions,
+                                                                            ProcessMqttMessage).ConfigureAwait(false)).Result;          
+            }
+
+            lock (m_lock)
+            {
+                m_publisherMqttClient = pubClient;
+                m_subscriberMqttClient = subClient;
+            }
+
         }
+
+        #region Private methods
+
 
         void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
@@ -575,9 +440,32 @@ namespace Opc.Ua.PubSub.Transport
            // this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item + Environment.NewLine + this.TextBoxSubscriber.Text; });
         }
 
+        #endregion Private methods
+        /// <summary>
+        /// Perform specific Stop tasks
+        /// </summary>
         protected override void InternalStop()
         {
-            throw new NotImplementedException();
+            lock (m_lock)
+            {
+                if (m_publisherMqttClient != null)
+                {
+                    if (m_publisherMqttClient.IsConnected)
+                    {
+                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync());
+                    }
+                    m_publisherMqttClient.Dispose();
+                }
+
+                if (m_subscriberMqttClient != null)
+                {
+                    if (m_subscriberMqttClient.IsConnected)
+                    {
+                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync());
+                    }
+                    m_subscriberMqttClient.Dispose();
+                }
+            }
         }
     }
 }
