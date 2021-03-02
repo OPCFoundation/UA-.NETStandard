@@ -225,13 +225,9 @@
   </xs:simpleType>
 
   <xs:simpleType name="SymbolicName">
-    <xs:list>
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:list>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
+    </xs:restriction>
   </xs:simpleType>
 
   <xs:simpleType name="Duration">
@@ -254,12 +250,6 @@
   <xs:complexType name="ListOfReferences">
     <xs:sequence>
       <xs:element name="Reference" type="Reference" minOccurs="0" maxOccurs="unbounded" />
-    </xs:sequence>
-  </xs:complexType>
-
-  <xs:complexType name="ListOfConformanceUnits">
-    <xs:sequence>
-      <xs:element name="ConformanceUnit" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
   </xs:complexType>
 
@@ -305,7 +295,6 @@
       <xs:element name="Documentation" type="xs:string" minOccurs="0" />
       <xs:element name="References" type="ListOfReferences" minOccurs="0" />
       <xs:element name="RolePermissions" type="ListOfRolePermissions" minOccurs="0" />
-      <xs:element name="ConformanceUnits" type="ListOfConformanceUnits" minOccurs="0" />
       <xs:element name="Extensions" type="ListOfExtensions" minOccurs="0" />
     </xs:sequence>
     <xs:attribute name="NodeId" type="NodeId" use="required" />

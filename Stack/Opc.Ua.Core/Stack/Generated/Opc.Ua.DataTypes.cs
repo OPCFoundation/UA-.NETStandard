@@ -6090,6 +6090,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "Error_3")]
         Error = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "PreOperational_4")]
+        PreOperational = 4,
     }
 
     #region PubSubStateCollection Class
