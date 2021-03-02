@@ -244,6 +244,210 @@ namespace Opc.Ua
     #endif
     #endregion
 
+    #region Union Class
+    #if (!OPCUA_EXCLUDE_Union)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class Union : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public Union()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.Union; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.Union_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.Union_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            Union value = encodeable as Union;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (Union)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            Union clone = (Union)base.MemberwiseClone();
+
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        #endregion
+    }
+
+    #region UnionCollection Class
+    /// <summary>
+    /// A collection of Union objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Union")]
+    #if !NET_STANDARD
+    public partial class UnionCollection : List<Union>, ICloneable
+    #else
+    public partial class UnionCollection : List<Union>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public UnionCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public UnionCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public UnionCollection(IEnumerable<Union> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator UnionCollection(Union[] values)
+        {
+            if (values != null)
+            {
+                return new UnionCollection(values);
+            }
+
+            return new UnionCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator Union[](UnionCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (UnionCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UnionCollection clone = new UnionCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((Union)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
     #region KeyValuePair Class
     #if (!OPCUA_EXCLUDE_KeyValuePair)
     /// <summary>
@@ -3234,6 +3438,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "AuthenticatedUser_6")]
         AuthenticatedUser = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "Application_7")]
+        Application = 7,
     }
 
     #region IdentityCriteriaTypeCollection Class
@@ -19380,6 +19588,14 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "Union_2")]
         Union = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "StructureWithSubtypedValues_3")]
+        StructureWithSubtypedValues = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "UnionWithSubtypedValues_4")]
+        UnionWithSubtypedValues = 4,
     }
     #endif
     #endregion
@@ -23441,210 +23657,6 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((OptionSet)Utils.Clone(this[ii]));
-            }
-
-            return clone;
-        }
-    }
-    #endregion
-    #endif
-    #endregion
-
-    #region Union Class
-    #if (!OPCUA_EXCLUDE_Union)
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
-    public partial class Union : IEncodeable
-    {
-        #region Constructors
-        /// <summary>
-        /// The default constructor.
-        /// </summary>
-        public Union()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Called by the .NET framework during deserialization.
-        /// </summary>
-        [OnDeserializing]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
-        #endregion
-
-        #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
-        public virtual ExpandedNodeId TypeId
-        {
-            get { return DataTypeIds.Union; }
-        }
-
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
-        public virtual ExpandedNodeId BinaryEncodingId
-        {
-            get { return ObjectIds.Union_Encoding_DefaultBinary; }
-        }
-
-        /// <summary cref="IEncodeable.XmlEncodingId" />
-        public virtual ExpandedNodeId XmlEncodingId
-        {
-            get { return ObjectIds.Union_Encoding_DefaultXml; }
-        }
-
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
-        public virtual void Encode(IEncoder encoder)
-        {
-            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-
-            encoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
-        public virtual void Decode(IDecoder decoder)
-        {
-            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
-
-
-            decoder.PopNamespace();
-        }
-
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
-        public virtual bool IsEqual(IEncodeable encodeable)
-        {
-            if (Object.ReferenceEquals(this, encodeable))
-            {
-                return true;
-            }
-
-            Union value = encodeable as Union;
-
-            if (value == null)
-            {
-                return false;
-            }
-
-
-            return true;
-        }
-
-        #if !NET_STANDARD
-        /// <summary cref="ICloneable.Clone" />
-        public virtual object Clone()
-        {
-            return (Union)this.MemberwiseClone();
-        }
-        #endif
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            Union clone = (Union)base.MemberwiseClone();
-
-
-            return clone;
-        }
-        #endregion
-
-        #region Private Fields
-        #endregion
-    }
-
-    #region UnionCollection Class
-    /// <summary>
-    /// A collection of Union objects.
-    /// </summary>
-    /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    [CollectionDataContract(Name = "ListOfUnion", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Union")]
-    #if !NET_STANDARD
-    public partial class UnionCollection : List<Union>, ICloneable
-    #else
-    public partial class UnionCollection : List<Union>
-    #endif
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes the collection with default values.
-        /// </summary>
-        public UnionCollection() {}
-
-        /// <summary>
-        /// Initializes the collection with an initial capacity.
-        /// </summary>
-        public UnionCollection(int capacity) : base(capacity) {}
-
-        /// <summary>
-        /// Initializes the collection with another collection.
-        /// </summary>
-        public UnionCollection(IEnumerable<Union> collection) : base(collection) {}
-        #endregion
-
-        #region Static Operators
-        /// <summary>
-        /// Converts an array to a collection.
-        /// </summary>
-        public static implicit operator UnionCollection(Union[] values)
-        {
-            if (values != null)
-            {
-                return new UnionCollection(values);
-            }
-
-            return new UnionCollection();
-        }
-
-        /// <summary>
-        /// Converts a collection to an array.
-        /// </summary>
-        public static explicit operator Union[](UnionCollection values)
-        {
-            if (values != null)
-            {
-                return values.ToArray();
-            }
-
-            return null;
-        }
-        #endregion
-
-        #if !NET_STANDARD
-        #region ICloneable Methods
-        /// <summary>
-        /// Creates a deep copy of the collection.
-        /// </summary>
-        public object Clone()
-        {
-            return (UnionCollection)this.MemberwiseClone();
-        }
-        #endregion
-        #endif
-
-        /// <summary cref="Object.MemberwiseClone" />
-        public new object MemberwiseClone()
-        {
-            UnionCollection clone = new UnionCollection(this.Count);
-
-            for (int ii = 0; ii < this.Count; ii++)
-            {
-                clone.Add((Union)Utils.Clone(this[ii]));
             }
 
             return clone;
@@ -68384,7 +68396,7 @@ namespace Opc.Ua
             m_lastMethodInputValues = new VariantCollection();
             m_lastMethodOutputValues = new VariantCollection();
             m_lastMethodCallTime = DateTime.MinValue;
-            m_lastMethodReturnStatus = new StatusResult();
+            m_lastMethodReturnStatus = StatusCodes.Good;
         }
         #endregion
 
@@ -68533,26 +68545,12 @@ namespace Opc.Ua
             set { m_lastMethodCallTime = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <remarks />
         [DataMember(Name = "LastMethodReturnStatus", IsRequired = false, Order = 12)]
-        public StatusResult LastMethodReturnStatus
+        public StatusCode LastMethodReturnStatus
         {
-            get
-            {
-                return m_lastMethodReturnStatus;
-            }
-
-            set
-            {
-                m_lastMethodReturnStatus = value;
-
-                if (value == null)
-                {
-                    m_lastMethodReturnStatus = new StatusResult();
-                }
-            }
+            get { return m_lastMethodReturnStatus;  }
+            set { m_lastMethodReturnStatus = value; }
         }
         #endregion
 
@@ -68591,7 +68589,7 @@ namespace Opc.Ua
             encoder.WriteVariantArray("LastMethodInputValues", LastMethodInputValues);
             encoder.WriteVariantArray("LastMethodOutputValues", LastMethodOutputValues);
             encoder.WriteDateTime("LastMethodCallTime", LastMethodCallTime);
-            encoder.WriteEncodeable("LastMethodReturnStatus", LastMethodReturnStatus, typeof(StatusResult));
+            encoder.WriteStatusCode("LastMethodReturnStatus", LastMethodReturnStatus);
 
             encoder.PopNamespace();
         }
@@ -68612,7 +68610,7 @@ namespace Opc.Ua
             LastMethodInputValues = decoder.ReadVariantArray("LastMethodInputValues");
             LastMethodOutputValues = decoder.ReadVariantArray("LastMethodOutputValues");
             LastMethodCallTime = decoder.ReadDateTime("LastMethodCallTime");
-            LastMethodReturnStatus = (StatusResult)decoder.ReadEncodeable("LastMethodReturnStatus", typeof(StatusResult));
+            LastMethodReturnStatus = decoder.ReadStatusCode("LastMethodReturnStatus");
 
             decoder.PopNamespace();
         }
@@ -68672,7 +68670,7 @@ namespace Opc.Ua
             clone.m_lastMethodInputValues = (VariantCollection)Utils.Clone(this.m_lastMethodInputValues);
             clone.m_lastMethodOutputValues = (VariantCollection)Utils.Clone(this.m_lastMethodOutputValues);
             clone.m_lastMethodCallTime = (DateTime)Utils.Clone(this.m_lastMethodCallTime);
-            clone.m_lastMethodReturnStatus = (StatusResult)Utils.Clone(this.m_lastMethodReturnStatus);
+            clone.m_lastMethodReturnStatus = (StatusCode)Utils.Clone(this.m_lastMethodReturnStatus);
 
             return clone;
         }
@@ -68690,7 +68688,7 @@ namespace Opc.Ua
         private VariantCollection m_lastMethodInputValues;
         private VariantCollection m_lastMethodOutputValues;
         private DateTime m_lastMethodCallTime;
-        private StatusResult m_lastMethodReturnStatus;
+        private StatusCode m_lastMethodReturnStatus;
         #endregion
     }
     #endif

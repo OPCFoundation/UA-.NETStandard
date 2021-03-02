@@ -234,6 +234,9 @@
   <opc:OpaqueType Name="AudioDataType">
   </opc:OpaqueType>
 
+  <opc:StructuredType Name="Union" BaseType="ua:ExtensionObject">
+  </opc:StructuredType>
+
   <opc:OpaqueType Name="BitFieldMaskDataType">
   </opc:OpaqueType>
 
@@ -313,6 +316,7 @@
     <opc:EnumeratedValue Name="GroupId" Value="4" />
     <opc:EnumeratedValue Name="Anonymous" Value="5" />
     <opc:EnumeratedValue Name="AuthenticatedUser" Value="6" />
+    <opc:EnumeratedValue Name="Application" Value="7" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="IdentityMappingRuleType" BaseType="ua:ExtensionObject">
@@ -922,6 +926,8 @@
     <opc:EnumeratedValue Name="Structure" Value="0" />
     <opc:EnumeratedValue Name="StructureWithOptionalFields" Value="1" />
     <opc:EnumeratedValue Name="Union" Value="2" />
+    <opc:EnumeratedValue Name="StructureWithSubtypedValues" Value="3" />
+    <opc:EnumeratedValue Name="UnionWithSubtypedValues" Value="4" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="StructureField" BaseType="ua:ExtensionObject">
@@ -1193,9 +1199,6 @@
   <opc:StructuredType Name="OptionSet" BaseType="ua:ExtensionObject">
     <opc:Field Name="Value" TypeName="opc:ByteString" />
     <opc:Field Name="ValidBits" TypeName="opc:ByteString" />
-  </opc:StructuredType>
-
-  <opc:StructuredType Name="Union" BaseType="ua:ExtensionObject">
   </opc:StructuredType>
 
   <opc:OpaqueType Name="NormalizedString">
@@ -3041,7 +3044,7 @@
     <opc:Field Name="NoOfLastMethodOutputValues" TypeName="opc:Int32" />
     <opc:Field Name="LastMethodOutputValues" TypeName="ua:Variant" LengthField="NoOfLastMethodOutputValues" />
     <opc:Field Name="LastMethodCallTime" TypeName="opc:DateTime" />
-    <opc:Field Name="LastMethodReturnStatus" TypeName="tns:StatusResult" />
+    <opc:Field Name="LastMethodReturnStatus" TypeName="ua:StatusCode" />
   </opc:StructuredType>
 
   <opc:StructuredType Name="Annotation" BaseType="ua:ExtensionObject">

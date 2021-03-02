@@ -519,6 +519,19 @@
 
   <xs:element name="AudioDataType" type="xs:base64Binary" />
 
+  <xs:complexType name="Union">
+    <xs:sequence>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Union" type="tns:Union" />
+
+  <xs:complexType name="ListOfUnion">
+    <xs:sequence>
+      <xs:element name="Union" type="tns:Union" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUnion" type="tns:ListOfUnion" nillable="true"></xs:element>
+
   <xs:element name="BitFieldMaskDataType" type="xs:unsignedLong" />
 
   <xs:complexType name="KeyValuePair">
@@ -739,6 +752,7 @@
       <xs:enumeration value="GroupId_4" />
       <xs:enumeration value="Anonymous_5" />
       <xs:enumeration value="AuthenticatedUser_6" />
+      <xs:enumeration value="Application_7" />
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="IdentityCriteriaType" type="tns:IdentityCriteriaType" />
@@ -1975,6 +1989,8 @@
       <xs:enumeration value="Structure_0" />
       <xs:enumeration value="StructureWithOptionalFields_1" />
       <xs:enumeration value="Union_2" />
+      <xs:enumeration value="StructureWithSubtypedValues_3" />
+      <xs:enumeration value="UnionWithSubtypedValues_4" />
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="StructureType" type="tns:StructureType" />
@@ -2269,19 +2285,6 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfOptionSet" type="tns:ListOfOptionSet" nillable="true"></xs:element>
-
-  <xs:complexType name="Union">
-    <xs:sequence>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="Union" type="tns:Union" />
-
-  <xs:complexType name="ListOfUnion">
-    <xs:sequence>
-      <xs:element name="Union" type="tns:Union" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfUnion" type="tns:ListOfUnion" nillable="true"></xs:element>
 
   <xs:element name="NormalizedString" type="xs:string" />
 
@@ -5094,7 +5097,7 @@
       <xs:element name="LastMethodInputValues" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
       <xs:element name="LastMethodOutputValues" type="ua:ListOfVariant" minOccurs="0" nillable="true" />
       <xs:element name="LastMethodCallTime" type="xs:dateTime" minOccurs="0" />
-      <xs:element name="LastMethodReturnStatus" type="tns:StatusResult" minOccurs="0" nillable="true" />
+      <xs:element name="LastMethodReturnStatus" type="ua:StatusCode" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ProgramDiagnostic2DataType" type="tns:ProgramDiagnostic2DataType" />

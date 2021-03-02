@@ -43849,7 +43849,7 @@ namespace Opc.Ua
            "AAAAAA==";
 
         private const string AudibleSound_InitializationString =
-           "//////////8VYIkKAgAAAAAADAAAAEF1ZGlibGVTb3VuZAEABkAALgEAQkYGQAAAAQCzP/////8BAf//" +
+           "//////////8VYIkKAgAAAAAADAAAAEF1ZGlibGVTb3VuZAEABkAALwEAQkYGQAAAAQCzP/////8BAf//" +
            "//8AAAAA";
 
         private const string SilenceState_InitializationString =
@@ -43981,7 +43981,7 @@ namespace Opc.Ua
            "AQCEC/wjAAABAQEAAAABAPkLAAEAVSsAAAAAFWCJCgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVk" +
            "AQD/IwAuAET/IwAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATWF4VGltZVNoZWx2ZWQBAAAk" +
            "AC4ARAAkAAABACIB/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAEF1ZGlibGVFbmFibGVkAQAFQAAu" +
-           "AEQFQAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQXVkaWJsZVNvdW5kAQAGQAAuAQBCRgZA" +
+           "AEQFQAAAAAH/////AQH/////AAAAABVgiQoCAAAAAAAMAAAAQXVkaWJsZVNvdW5kAQAGQAAvAQBCRgZA" +
            "AAABALM//////wEB/////wAAAAAVYIkKAgAAAAAADAAAAFNpbGVuY2VTdGF0ZQEA/D8ALwEAIyP8PwAA" +
            "ABX/////AQH/////BAAAABVgiQoCAAAAAAACAAAASWQBAP0/AC4ARP0/AAAAAf////8BAf////8AAAAA" +
            "FWCJCgIAAAAAAA4AAABUcmFuc2l0aW9uVGltZQEAAUAALgBEAUAAAAEAJgH/////AQH/////AAAAABVg" +
@@ -52570,7 +52570,7 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string ProgramDiagnostic_InitializationString =
-           "//////////8VYIkKAgAAAAAAEQAAAFByb2dyYW1EaWFnbm9zdGljAQBfCQAvAQAXPF8JAAABACQ8////" +
+           "//////////8VYIkKAgAAAAAAEQAAAFByb2dyYW1EaWFnbm9zdGljAQBfCQAvAQAXPF8JAAABAOFd////" +
            "/wEB/////wwAAAAVYIkKAgAAAAAADwAAAENyZWF0ZVNlc3Npb25JZAEAAA8ALwA/AA8AAAAR/////wEB" +
            "/////wAAAAAVYIkKAgAAAAAAEAAAAENyZWF0ZUNsaWVudE5hbWUBAAEPAC8APwEPAAAADP////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAABYAAABJbnZvY2F0aW9uQ3JlYXRpb25UaW1lAQACDwAvAD8CDwAAAQAmAf//" +
@@ -52600,7 +52600,7 @@ namespace Opc.Ua
            "Af////8AAAAAFWCJCgIAAAAAAAkAAABEZWxldGFibGUBAFkJAC4ARFkJAAAAAf////8BAf////8AAAAA" +
            "FWCJCgIAAAAAAAoAAABBdXRvRGVsZXRlAQBaCQAuAERaCQAAAAH/////AQH/////AAAAABVgiQoCAAAA" +
            "AAAMAAAAUmVjeWNsZUNvdW50AQBbCQAuAERbCQAAAAb/////AQH/////AAAAABVgiQoCAAAAAAARAAAA" +
-           "UHJvZ3JhbURpYWdub3N0aWMBAF8JAC8BABc8XwkAAAEAJDz/////AQH/////DAAAABVgiQoCAAAAAAAP" +
+           "UHJvZ3JhbURpYWdub3N0aWMBAF8JAC8BABc8XwkAAAEA4V3/////AQH/////DAAAABVgiQoCAAAAAAAP" +
            "AAAAQ3JlYXRlU2Vzc2lvbklkAQAADwAvAD8ADwAAABH/////AQH/////AAAAABVgiQoCAAAAAAAQAAAA" +
            "Q3JlYXRlQ2xpZW50TmFtZQEAAQ8ALwA/AQ8AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAAFgAAAElu" +
            "dm9jYXRpb25DcmVhdGlvblRpbWUBAAIPAC8APwIPAAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAA" +
@@ -54632,7 +54632,7 @@ namespace Opc.Ua
         #region Initialization String
         private const string InitializationString =
            "//////////8VYIkCAgAAAAAAHgAAAFByb2dyYW1EaWFnbm9zdGljMlR5cGVJbnN0YW5jZQEAFzwBABc8" +
-           "FzwAAAEAJDz/////AQH/////DAAAABVgiQoCAAAAAAAPAAAAQ3JlYXRlU2Vzc2lvbklkAQAYPAAvAD8Y" +
+           "FzwAAAEA4V3/////AQH/////DAAAABVgiQoCAAAAAAAPAAAAQ3JlYXRlU2Vzc2lvbklkAQAYPAAvAD8Y" +
            "PAAAABH/////AQH/////AAAAABVgiQoCAAAAAAAQAAAAQ3JlYXRlQ2xpZW50TmFtZQEAGTwALwA/GTwA" +
            "AAAM/////wEB/////wAAAAAVYIkKAgAAAAAAFgAAAEludm9jYXRpb25DcmVhdGlvblRpbWUBABo8AC8A" +
            "Pxo8AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAAEgAAAExhc3RUcmFuc2l0aW9uVGltZQEAGzwA" +
@@ -55876,7 +55876,7 @@ namespace Opc.Ua
         {
             lock (Lock)
             {
-                m_value.LastMethodReturnStatus = (StatusResult)Write(value);
+                m_value.LastMethodReturnStatus = (StatusCode)Write(value);
             }
 
             return ServiceResult.Good;
@@ -73365,7 +73365,7 @@ namespace Opc.Ua
         }
 
         /// <remarks />
-        public PubSubGroupTypeAddWriterrMethodState AddDataSetWriter
+        public PubSubGroupTypeAddWriterMethodState AddDataSetWriter
         {
             get
             {
@@ -73686,11 +73686,11 @@ namespace Opc.Ua
                         {
                             if (replacement == null)
                             {
-                                AddDataSetWriter = new PubSubGroupTypeAddWriterrMethodState(this);
+                                AddDataSetWriter = new PubSubGroupTypeAddWriterMethodState(this);
                             }
                             else
                             {
-                                AddDataSetWriter = (PubSubGroupTypeAddWriterrMethodState)replacement;
+                                AddDataSetWriter = (PubSubGroupTypeAddWriterMethodState)replacement;
                             }
                         }
                     }
@@ -73740,27 +73740,27 @@ namespace Opc.Ua
         private WriterGroupTransportState m_transportSettings;
         private WriterGroupMessageState m_messageSettings;
         private PubSubDiagnosticsWriterGroupState m_diagnostics;
-        private PubSubGroupTypeAddWriterrMethodState m_addDataSetWriterMethod;
+        private PubSubGroupTypeAddWriterMethodState m_addDataSetWriterMethod;
         private PubSubGroupTypeRemoveWriterMethodState m_removeDataSetWriterMethod;
         #endregion
     }
     #endif
     #endregion
 
-    #region PubSubGroupTypeAddWriterrMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterrMethodState)
+    #region PubSubGroupTypeAddWriterMethodState Class
+    #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterMethodState)
     /// <summary>
-    /// Stores an instance of the PubSubGroupTypeAddWriterrMethodType Method.
+    /// Stores an instance of the PubSubGroupTypeAddWriterMethodType Method.
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-    public partial class PubSubGroupTypeAddWriterrMethodState : MethodState
+    public partial class PubSubGroupTypeAddWriterMethodState : MethodState
     {
         #region Constructors
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public PubSubGroupTypeAddWriterrMethodState(NodeState parent) : base(parent)
+        public PubSubGroupTypeAddWriterMethodState(NodeState parent) : base(parent)
         {
         }
 
@@ -73771,7 +73771,7 @@ namespace Opc.Ua
         /// <returns>The new node.</returns>
         public new static NodeState Construct(NodeState parent)
         {
-            return new PubSubGroupTypeAddWriterrMethodState(parent);
+            return new PubSubGroupTypeAddWriterMethodState(parent);
         }
 
         #if (!OPCUA_EXCLUDE_InitializationStrings)
@@ -73795,12 +73795,12 @@ namespace Opc.Ua
 
         #region Initialization String
         private const string InitializationString =
-           "//////////8EYYIKBAAAAAAAIwAAAFB1YlN1Ykdyb3VwVHlwZUFkZFdyaXRlcnJNZXRob2RUeXBlAQBK" +
-           "RgAvAQBKRkpGAAABAf////8CAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAS0YALgBES0YA" +
-           "AJYBAAAAAQAqAQEeAAAADQAAAENvbmZpZ3VyYXRpb24BAO08/////wAAAAAAAQAoAQEAAAABAAAAAAAA" +
-           "AAEB/////wAAAAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEATEYALgBETEYAAJYBAAAAAQAq" +
-           "AQEiAAAAEwAAAERhdGFTZXRXcml0ZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf//" +
-           "//8AAAAA";
+           "//////////8EYYIKBAAAAAAAIgAAAFB1YlN1Ykdyb3VwVHlwZUFkZFdyaXRlck1ldGhvZFR5cGUBAEpG" +
+           "AC8BAEpGSkYAAAEB/////wIAAAAXYKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQBLRgAuAERLRgAA" +
+           "lgEAAAABACoBAR4AAAANAAAAQ29uZmlndXJhdGlvbgEA7Tz/////AAAAAAABACgBAQAAAAEAAAAAAAAA" +
+           "AQH/////AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBMRgAuAERMRgAAlgEAAAABACoB" +
+           "ASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB////" +
+           "/wAAAAA=";
         #endregion
         #endif
         #endregion
@@ -73809,7 +73809,7 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the the method is called.
         /// </summary>
-        public PubSubGroupTypeAddWriterrMethodStateMethodCallHandler OnCall;
+        public PubSubGroupTypeAddWriterMethodStateMethodCallHandler OnCall;
         #endregion
 
         #region Public Properties
@@ -73860,7 +73860,7 @@ namespace Opc.Ua
     /// Used to receive notifications when the method is called.
     /// </summary>
     /// <exclude />
-    public delegate ServiceResult PubSubGroupTypeAddWriterrMethodStateMethodCallHandler(
+    public delegate ServiceResult PubSubGroupTypeAddWriterMethodStateMethodCallHandler(
         ISystemContext _context,
         MethodState _method,
         NodeId _objectId,
