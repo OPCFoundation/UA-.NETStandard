@@ -334,10 +334,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode dataset
         /// </summary>
-        /// <param name="binaryDecoder"></param>
+        /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReader"></param>
         /// <returns></returns>
-        public DataSet DecodePossibleDataSetReader(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
+        public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
             UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
                 as UadpDataSetReaderMessageDataType;
@@ -358,13 +358,13 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                 }
             }
-            if (binaryDecoder.BaseStream.Length <= StartPositionInStream)
-            {
-                return null;
-            }
-            binaryDecoder.BaseStream.Position = StartPositionInStream;
-            DecodeDataSetMessageHeader(binaryDecoder);
-            return DecodeFieldMessageData(binaryDecoder, dataSetReader);
+            //if (jsonDecoder.Context.Length <= StartPositionInStream)
+            //{
+            //    return null;
+            //}
+            //jsonDecoder.BaseStream.Position = StartPositionInStream;
+            DecodeDataSetMessageHeader(jsonDecoder);
+            return DecodeFieldMessageData(jsonDecoder, dataSetReader);
         }
         #endregion
 
@@ -512,7 +512,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         /// <param name="dataSetReader"></param>
         /// <returns></returns>
-        private DataSet DecodeFieldMessageData(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
+        private DataSet DecodeFieldMessageData(JsonDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
         {
             DataSetMetaDataType metaDataType = dataSetReader.DataSetMetaData;
             try
@@ -595,7 +595,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UadpDataSetMessage.DecodeFieldMessageData");
+                Utils.Trace(ex, "JsonDataSetMessage.DecodeFieldMessageData");
                 return null;
             }
         }
@@ -782,10 +782,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode RawData type (for SimpleTypeDescription!?)
         /// </summary>
-        /// <param name="binaryDecoder"></param>
+        /// <param name="jsonDecoder"></param>
         /// <param name="fieldMetaData"></param>
         /// <returns></returns>
-        private object DecodeRawData(BinaryDecoder binaryDecoder, FieldMetaData fieldMetaData)
+        private object DecodeRawData(JsonDecoder jsonDecoder, FieldMetaData fieldMetaData)
         {
             if (fieldMetaData.BuiltInType != 0)// && fieldMetaData.DataType.Equals(new NodeId(fieldMetaData.BuiltInType)))
             {
@@ -795,10 +795,10 @@ namespace Opc.Ua.PubSub.Encoding
                     {
 
                         case ValueRanks.Scalar:
-                            return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
+                            return DecodeRawScalar(jsonDecoder, fieldMetaData.BuiltInType);
 
                         case ValueRanks.OneDimension:
-                            return DecodeRawArrayOneDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType);
+                            return DecodeRawArrayOneDimension(jsonDecoder, (BuiltInType)fieldMetaData.BuiltInType);
 
                         case ValueRanks.TwoDimensions:
                         case ValueRanks.OneOrMoreDimensions:
@@ -825,66 +825,66 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode an array type according to dimensions constraints specified in 6.2.2.1.3 FieldMetaData
         /// </summary>
-        /// <param name="binaryDecoder"></param>
+        /// <param name="jsonDecoder"></param>
         /// <param name="builtInType"></param>
         /// <returns></returns>
-        private object DecodeRawArrayOneDimension(BinaryDecoder binaryDecoder, BuiltInType builtInType)
+        private object DecodeRawArrayOneDimension(JsonDecoder jsonDecoder, BuiltInType builtInType)
         {
 
             switch ((BuiltInType)builtInType)
             {
                 case BuiltInType.Boolean:
-                    return binaryDecoder.ReadBooleanArray(null);
+                    return jsonDecoder.ReadBooleanArray(null);
                 case BuiltInType.SByte:
-                    return binaryDecoder.ReadSByteArray(null);
+                    return jsonDecoder.ReadSByteArray(null);
                 case BuiltInType.Byte:
-                    return binaryDecoder.ReadByteArray(null);
+                    return jsonDecoder.ReadByteArray(null);
                 case BuiltInType.Int16:
-                    return binaryDecoder.ReadInt16Array(null);
+                    return jsonDecoder.ReadInt16Array(null);
                 case BuiltInType.UInt16:
-                    return binaryDecoder.ReadUInt16Array(null);
+                    return jsonDecoder.ReadUInt16Array(null);
                 case BuiltInType.Int32:
-                    return binaryDecoder.ReadInt32Array(null);
+                    return jsonDecoder.ReadInt32Array(null);
                 case BuiltInType.UInt32:
-                    return binaryDecoder.ReadUInt32Array(null);
+                    return jsonDecoder.ReadUInt32Array(null);
                 case BuiltInType.Int64:
-                    return binaryDecoder.ReadInt64Array(null);
+                    return jsonDecoder.ReadInt64Array(null);
                 case BuiltInType.UInt64:
-                    return binaryDecoder.ReadUInt64Array(null);
+                    return jsonDecoder.ReadUInt64Array(null);
                 case BuiltInType.Float:
-                    return binaryDecoder.ReadFloatArray(null);
+                    return jsonDecoder.ReadFloatArray(null);
                 case BuiltInType.Double:
-                    return binaryDecoder.ReadDoubleArray(null);
+                    return jsonDecoder.ReadDoubleArray(null);
                 case BuiltInType.String:
-                    return binaryDecoder.ReadStringArray(null);
+                    return jsonDecoder.ReadStringArray(null);
                 case BuiltInType.DateTime:
-                    return binaryDecoder.ReadDateTimeArray(null);
+                    return jsonDecoder.ReadDateTimeArray(null);
                 case BuiltInType.Guid:
-                    return binaryDecoder.ReadGuidArray(null);
+                    return jsonDecoder.ReadGuidArray(null);
                 case BuiltInType.ByteString:
-                    return binaryDecoder.ReadByteStringArray(null);
+                    return jsonDecoder.ReadByteStringArray(null);
                 case BuiltInType.XmlElement:
-                    return binaryDecoder.ReadXmlElementArray(null);
+                    return jsonDecoder.ReadXmlElementArray(null);
                 case BuiltInType.NodeId:
-                    return binaryDecoder.ReadNodeIdArray(null);
+                    return jsonDecoder.ReadNodeIdArray(null);
                 case BuiltInType.ExpandedNodeId:
-                    return binaryDecoder.ReadExpandedNodeIdArray(null);
+                    return jsonDecoder.ReadExpandedNodeIdArray(null);
                 case BuiltInType.StatusCode:
-                    return binaryDecoder.ReadStatusCodeArray(null);
+                    return jsonDecoder.ReadStatusCodeArray(null);
                 case BuiltInType.QualifiedName:
-                    return binaryDecoder.ReadQualifiedNameArray(null);
+                    return jsonDecoder.ReadQualifiedNameArray(null);
                 case BuiltInType.LocalizedText:
-                    return binaryDecoder.ReadLocalizedTextArray(null);
+                    return jsonDecoder.ReadLocalizedTextArray(null);
                 case BuiltInType.DataValue:
-                    return binaryDecoder.ReadDataValueArray(null);
+                    return jsonDecoder.ReadDataValueArray(null);
                 case BuiltInType.Enumeration:
                     //return binaryDecoder.ReadInt32Array(null);
                     //return binaryDecoder.ReadEnumeratedArray(null, typeof(Int32));
-                    return binaryDecoder.ReadVariantArray(null);
+                    return jsonDecoder.ReadVariantArray(null);
                 case BuiltInType.Variant:
-                    return binaryDecoder.ReadVariantArray(null);
+                    return jsonDecoder.ReadVariantArray(null);
                 case BuiltInType.ExtensionObject:
-                    return binaryDecoder.ReadExtensionObjectArray(null);
+                    return jsonDecoder.ReadExtensionObjectArray(null);
 
                 default:
                     return null;
@@ -894,63 +894,63 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode a scalar type
         /// </summary>
-        /// <param name="binaryDecoder"></param>
+        /// <param name="jsonDecoder"></param>
         /// <param name="builtInType"></param>
         /// <returns>The decoded object</returns>
-        private object DecodeRawScalar(BinaryDecoder binaryDecoder, byte builtInType)
+        private object DecodeRawScalar(JsonDecoder jsonDecoder, byte builtInType)
         {
             switch ((BuiltInType)builtInType)
             {
                 case BuiltInType.Boolean:
-                    return binaryDecoder.ReadBoolean(null);
+                    return jsonDecoder.ReadBoolean(null);
                 case BuiltInType.SByte:
-                    return binaryDecoder.ReadSByte(null);
+                    return jsonDecoder.ReadSByte(null);
                 case BuiltInType.Byte:
-                    return binaryDecoder.ReadByte(null);
+                    return jsonDecoder.ReadByte(null);
                 case BuiltInType.Int16:
-                    return binaryDecoder.ReadInt16(null);
+                    return jsonDecoder.ReadInt16(null);
                 case BuiltInType.UInt16:
-                    return binaryDecoder.ReadUInt16(null);
+                    return jsonDecoder.ReadUInt16(null);
                 case BuiltInType.Int32:
-                    return binaryDecoder.ReadInt32(null);
+                    return jsonDecoder.ReadInt32(null);
                 case BuiltInType.UInt32:
-                    return binaryDecoder.ReadUInt32(null);
+                    return jsonDecoder.ReadUInt32(null);
                 case BuiltInType.Int64:
-                    return binaryDecoder.ReadInt64(null);
+                    return jsonDecoder.ReadInt64(null);
                 case BuiltInType.UInt64:
-                    return binaryDecoder.ReadUInt64(null);
+                    return jsonDecoder.ReadUInt64(null);
                 case BuiltInType.Float:
-                    return binaryDecoder.ReadFloat(null);
+                    return jsonDecoder.ReadFloat(null);
                 case BuiltInType.Double:
-                    return binaryDecoder.ReadDouble(null);
+                    return jsonDecoder.ReadDouble(null);
                 case BuiltInType.String:
-                    return binaryDecoder.ReadString(null);
+                    return jsonDecoder.ReadString(null);
                 case BuiltInType.DateTime:
-                    return binaryDecoder.ReadDateTime(null);
+                    return jsonDecoder.ReadDateTime(null);
                 case BuiltInType.Guid:
-                    return binaryDecoder.ReadGuid(null);
+                    return jsonDecoder.ReadGuid(null);
                 case BuiltInType.ByteString:
-                    return binaryDecoder.ReadByteString(null);
+                    return jsonDecoder.ReadByteString(null);
                 case BuiltInType.XmlElement:
-                    return binaryDecoder.ReadXmlElement(null);
+                    return jsonDecoder.ReadXmlElement(null);
                 case BuiltInType.NodeId:
-                    return binaryDecoder.ReadNodeId(null);
+                    return jsonDecoder.ReadNodeId(null);
                 case BuiltInType.ExpandedNodeId:
-                    return binaryDecoder.ReadExpandedNodeId(null);
+                    return jsonDecoder.ReadExpandedNodeId(null);
                 case BuiltInType.StatusCode:
-                    return binaryDecoder.ReadStatusCode(null);
+                    return jsonDecoder.ReadStatusCode(null);
                 case BuiltInType.QualifiedName:
-                    return binaryDecoder.ReadQualifiedName(null);
+                    return jsonDecoder.ReadQualifiedName(null);
                 case BuiltInType.LocalizedText:
-                    return binaryDecoder.ReadLocalizedText(null);
+                    return jsonDecoder.ReadLocalizedText(null);
                 case BuiltInType.DataValue:
-                    return binaryDecoder.ReadDataValue(null);
+                    return jsonDecoder.ReadDataValue(null);
                 case BuiltInType.Enumeration:
-                    return binaryDecoder.ReadInt32(null);
+                    return jsonDecoder.ReadInt32(null);
                 case BuiltInType.Variant:
-                    return binaryDecoder.ReadVariant(null);
+                    return jsonDecoder.ReadVariant(null);
                 case BuiltInType.ExtensionObject:
-                    return binaryDecoder.ReadExtensionObject(null);
+                    return jsonDecoder.ReadExtensionObject(null);
                 default:
                     return null;
             }

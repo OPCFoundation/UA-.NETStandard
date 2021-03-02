@@ -43,15 +43,15 @@ namespace Opc.Ua.PubSub.Encoding
         private const string DefaultMessageType = "ua-data";
 
         // The UADPVersion for this specification version is 1.
-        private const byte UadpVersion = 1;
+        private const byte JsonVersion = 1;
         private const byte PublishedIdTypeUsedBits = 0x07;
-        private const byte UADPVersionBitMask = 0x0F;
+        //private const byte JSONVersionBitMask = 0x0F;
         private const byte PublishedIdResetMask = 0xFC;
-        private const byte UADPMessageTypeMask = 0x1C;
+        private const byte JSONMessageTypeMask = 0x3F;
 
-        private byte m_uadpVersion;
+        //private byte m_uadpVersion;
         private object m_publisherId;
-        private UADPNetworkMessageType m_uadpNetworkMessageType;
+        private JSONNetworkMessageType m_jsonNetworkMessageType;
         #endregion
 
         #region Constructor
@@ -74,7 +74,7 @@ namespace Opc.Ua.PubSub.Encoding
             MessageType = DefaultMessageType;
 
             DataSetClassId = string.Empty;
-            Timestamp = DateTime.UtcNow;
+            //Timestamp = DateTime.UtcNow;
         }
         #endregion
 
@@ -95,18 +95,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set PublisherId type
         /// </summary>
         public string PublisherId { get; set; }
-
-
+        
         /// <summary>
         /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage  
         /// </summary>
         public JsonNetworkMessageContentMask NetworkMessageContentMask { get; private set; }
-
+        
         #region NetworkMessage Header
         /// <summary>
         /// Get Uadp Flags
         /// </summary>
-        public UADPFlagsEncodingMask UADPFlags { get; private set; }
+        public JSONFlagsEncodingMask JSONFlags { get; private set; }
 
         /// <summary>
         /// Get ExtendedFlags1
@@ -123,6 +122,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public string DataSetClassId { get; set; }
 
+        /// <summary>
+        /// Get and Set SingleDataSetMessage
+        /// </summary>
+        public string SingleDataSetMessage { get; set; }
+        
         #endregion
 
         #region Group Header
@@ -149,61 +153,16 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set Timestamp
         /// </summary>
-        public DateTime Timestamp { get; set; }
+        //public DateTime Timestamp { get; set; }
 
         /// <summary>
         /// PicoSeconds
         /// </summary>
-        public UInt16 PicoSeconds { get; set; }
+        //public UInt16 PicoSeconds { get; set; }
 
         #endregion
 
-        #region Security Header
-
-        /// <summary>
-        /// Get and Set SecurityFlags
-        /// </summary>
-        public SecurityFlagsEncodingMask SecurityFlags { get; set; }
-
-        /// <summary>
-        /// Get and Set SecurityTokenId has IntegerId type
-        /// </summary>
-        public uint SecurityTokenId { get; set; }
-
-        /// <summary>
-        /// Get and Set NonceLength
-        /// </summary>
-        public byte NonceLength { get; set; }
-
-        /// <summary>
-        /// Get and Set MessageNonce contains [NonceLength]
-        /// </summary>
-        public byte[] MessageNonce { get; set; }
-
-        /// <summary>
-        /// Get and Set SecurityFooterSize
-        /// </summary>
-        public UInt16 SecurityFooterSize { get; set; }
-
-        #endregion
-
-        #region Security footer
-
-        /// <summary>
-        /// Get and Set SecurityFooter
-        /// </summary>
-        public byte[] SecurityFooter { get; set; }
-
-        #endregion
-
-        #region Signature
-
-        /// <summary>
-        /// Get and Set Signature
-        /// </summary>
-        public byte[] Signature { get; set; }
-
-        #endregion
+        
 
         #endregion
 
@@ -244,24 +203,17 @@ namespace Opc.Ua.PubSub.Encoding
 
             jsonEncoder.WriteString("MessageId", MessageId);
             jsonEncoder.WriteString("MessageType", MessageType);
-            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
             {
-                jsonEncoder.WriteString("PublisherId", PublisherId);
-            }
-            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-            {
-                jsonEncoder.WriteString("DataSetClassId", DataSetClassId.ToString());
+                EncodeNetworkMessageHeader(jsonEncoder);
             }
 
-            // jsonEncoder.
-            //EncodeNetworkMessageHeader(jsonEncoder);
             //EncodeGroupMessageHeader(jsonEncoder);
             //EncodePayloadHeader(jsonEncoder);
             //EncodeExtendedNetworkMessageHeader(jsonEncoder);
-            //EncodeSecurityHeader(jsonEncoder);
+            
             EncodePayload(jsonEncoder);
-            //EncodeSecurityFooter(jsonEncoder);
-            //EncodeSignature(encoder);
         }
 
 
@@ -270,12 +222,18 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private void SetFlags()
         {
-            UADPFlags = 0;
-            ExtendedFlags1 &= (ExtendedFlags1EncodingMask)PublishedIdTypeUsedBits;
-            ExtendedFlags2 = 0;
+            JSONFlags = 0;
+            //ExtendedFlags1 &= (ExtendedFlags1EncodingMask)PublishedIdTypeUsedBits;
+            //ExtendedFlags2 = 0;
             GroupFlags = 0;
 
-            //#region Network Message Header
+            // bit 0    1-included in network message header
+            //2-0 - SingleDataSetMessage not included
+            //4-0 - DataSetClassId not included
+            #region Network Message Header
+            // 1 included in network message
+            // 2-0 - json fla =0
+            // 4-0 dataset class id 0 nu e in network message
 
             //if ((NetworkMessageContentMask & (UadpNetworkMessageContentMask.PublisherId |
             //                                  UadpNetworkMessageContentMask.DataSetClassId)) != 0)
@@ -284,20 +242,66 @@ namespace Opc.Ua.PubSub.Encoding
             //    // Enable ExtendedFlags1 usage
             //    UADPFlags |= UADPFlagsEncodingMask.ExtendedFlags1;
             //}
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
+            {
+                // Enable ExtendedFlags1 usage
+                JSONFlags |= JSONFlagsEncodingMask.NetworkMessageHeader;
 
-            //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
-            //{
-            //    // UADPFlags: Bit 4: PublisherId enabled
-            //    UADPFlags |= UADPFlagsEncodingMask.PublisherId;
-            //}
+                #region SingleDataSetMessage 
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+                {
+                    JSONFlags |= JSONFlagsEncodingMask.SingleDataSetMessage;
+                }
+                #endregion
 
-            //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetClassId) != 0)
-            //{
-            //    // ExtendedFlags1 Bit 3: DataSetClassId enabled
-            //    ExtendedFlags1 |= ExtendedFlags1EncodingMask.DataSetClassId;
-            //}
+                #region DataSetClassId in network message
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+                {
+                    JSONFlags |= JSONFlagsEncodingMask.DataSetClassId;
+                }
+                #endregion
+            }
+            else
+            {
+                // Enable ExtendedFlags1 usage
+                JSONFlags &= ~JSONFlagsEncodingMask.NetworkMessageHeader;
 
-            //#endregion
+                #region SingleDataSetMessage 
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+                {
+                    JSONFlags &= ~JSONFlagsEncodingMask.SingleDataSetMessage;
+                }
+                #endregion
+
+                #region DataSetClassId in network message
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+                {
+                    JSONFlags &= ~JSONFlagsEncodingMask.DataSetClassId;
+                }
+                #endregion
+            }
+            #endregion
+
+            #region DataSet Message Header
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
+            {
+                JSONFlags |= JSONFlagsEncodingMask.DataSetMessageHeader;
+            }
+            #endregion
+
+            #region PublisherId in network message
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+            {
+                JSONFlags |= JSONFlagsEncodingMask.PublishedId;
+            }
+            #endregion
+
+            #region DataSetClassId in network message
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)
+            {
+                JSONFlags |= JSONFlagsEncodingMask.ReplyTo;
+            }
+            #endregion
 
             //#region Group Message Header
 
@@ -412,35 +416,35 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
 
-                //// 1. decode network message header (PublisherId & DataSetClassId)
-                //DecodeNetworkMessageHeader(jsonDecoder);
+                // 1. decode network message header (PublisherId & DataSetClassId)
+                DecodeNetworkMessageHeader(jsonDecoder);
 
                 ////ignore network messages that are not dataSet messages
-                //if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage
-                //    || PublisherId == null)
-                //{
-                //    return subscribedDataSets;
-                //}
+                if (m_jsonNetworkMessageType != JSONNetworkMessageType.DataSetMessage
+                    || PublisherId == null)
+                {
+                   return subscribedDataSets;
+                }
 
-                ///* 6.2.8.1 PublisherId
+                //* 6.2.8.1 PublisherId
                 // The parameter PublisherId defines the Publisher to receive NetworkMessages from.
                 // If the value is null, the parameter shall be ignored and all received NetworkMessages pass the PublisherId filter. */
-                //foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-                //{
-                //    //check Enabled & publisher id
-                //    if (PublisherId.Equals(dataSetReader.PublisherId.Value))
-                //    {
-                //        dataSetReadersFiltered.Add(dataSetReader);
-                //    }
-                //}
-                //if (dataSetReadersFiltered.Count == 0)
-                //{
-                //    return subscribedDataSets;
-                //}
-                //dataSetReaders = dataSetReadersFiltered;
+                foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
+                {
+                    //check Enabled & publisher id
+                    if (PublisherId.Equals(dataSetReader.PublisherId.Value))
+                    {
+                        dataSetReadersFiltered.Add(dataSetReader);
+                    }
+                }
+                if (dataSetReadersFiltered.Count == 0)
+                {
+                    return subscribedDataSets;
+                }
+                dataSetReaders = dataSetReadersFiltered;
 
-                ////continue filtering
-                //dataSetReadersFiltered = new List<DataSetReaderDataType>();
+                //continue filtering
+                dataSetReadersFiltered = new List<DataSetReaderDataType>();
 
                 //// 2. decode WriterGroupId
                 //DecodeGroupMessageHeader(jsonDecoder);
@@ -462,46 +466,46 @@ namespace Opc.Ua.PubSub.Encoding
                 //dataSetReaders = dataSetReadersFiltered;
 
                 //// 3. decode payload header
-                //DecodePayloadHeader(jsonDecoder);
+                DecodePayloadHeader(jsonDecoder);
                 //// 4.
                 //DecodeExtendedNetworkMessageHeader(jsonDecoder);
                 //// 5.
                 //DecodeSecurityHeader(jsonDecoder);
 
                 ////6.1
-                //DecodePayloadSize(jsonDecoder);
+                DecodePayloadSize(jsonDecoder);
 
                 /* 6.2.8.3 DataSetWriterId
                 The parameter DataSetWriterId with DataType UInt16 defines the DataSet selected in the Publisher for the DataSetReader.
                 If the value is 0 (null), the parameter shall be ignored and all received DataSetMessages pass the DataSetWriterId filter.*/
-                //foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-                //{
-                //    List<JsonDataSetMessage> jsonDataSetMessages = new List<JsonDataSetMessage>(DataSetMetaDataType);
-                //    //if there is no information regarding dataSet in network message, add dummy datasetMessage to try decoding
-                //    if (jsonDataSetMessages.Count == 0)
-                //    {
-                //        jsonDataSetMessages.Add(new JsonDataSetMessage());
-                //    }
-                //    // 6.2 Decode payload into DataSets 
-                //    // Restore the encoded fields (into dataset for now) for each possible dataset reader
-                //    foreach (JsonDataSetMessage jsonDataSetMessage in jsonDataSetMessages)
-                //    {
-                //        if (dataSetReader.DataSetWriterId == 0 || jsonDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId)
-                //        {
-                //            //decode dataset message using the reader
-                //            DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(binaryDecoder, dataSetReader);
-                //            if (dataSet != null)
-                //            {
-                //                subscribedDataSets.Add(dataSet);
-                //            }
-                //        }
-                //    }
-                //}
+                foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
+                {
+                    List<UaDataSetMessage> jsonDataSetMessages = new List<UaDataSetMessage>(DataSetMessages);
+                    //if there is no information regarding dataSet in network message, add dummy datasetMessage to try decoding
+                    if (jsonDataSetMessages.Count == 0)
+                    {
+                        jsonDataSetMessages.Add(new JsonDataSetMessage());
+                    }
+                    // 6.2 Decode payload into DataSets 
+                    // Restore the encoded fields (into dataset for now) for each possible dataset reader
+                    foreach (JsonDataSetMessage jsonDataSetMessage in jsonDataSetMessages)
+                    {
+                        if (dataSetReader.DataSetWriterId == 0 || jsonDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId)
+                        {
+                            //decode dataset message using the reader
+                            DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
+                            if (dataSet != null)
+                            {
+                                subscribedDataSets.Add(dataSet);
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
-                Utils.Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
+                Utils.Trace(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
             }
             return subscribedDataSets;
         }
@@ -510,7 +514,7 @@ namespace Opc.Ua.PubSub.Encoding
         ///  Encode Network Message Header
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodeNetworkMessageHeader(BinaryEncoder encoder)
+        private void EncodeNetworkMessageHeader(JsonEncoder encoder)
         {
             //// byte[0..3] UADPVersion value 1 (for now)
             //// byte[4..7] UADPFlags
@@ -526,45 +530,49 @@ namespace Opc.Ua.PubSub.Encoding
             //    encoder.WriteByte("ExtendedFlags2", (byte)ExtendedFlags2);
             //}
 
-            //if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
-            //{
-            //    PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & PublishedIdTypeUsedBits);
-            //    switch (publisherIdType)
-            //    {
-            //        case PublisherIdTypeEncodingMask.Byte:
-            //            encoder.WriteByte("PublisherId", Convert.ToByte(PublisherId));
-            //            break;
-            //        case PublisherIdTypeEncodingMask.UInt16:
-            //            encoder.WriteUInt16("PublisherId", Convert.ToUInt16(PublisherId));
-            //            break;
-            //        case PublisherIdTypeEncodingMask.UInt32:
-            //            encoder.WriteUInt32("PublisherId", Convert.ToUInt32(PublisherId));
-            //            break;
-            //        case PublisherIdTypeEncodingMask.UInt64:
-            //            encoder.WriteUInt64("PublisherId", Convert.ToUInt64(PublisherId));
-            //            break;
-            //        case PublisherIdTypeEncodingMask.String:
-            //            encoder.WriteString("PublisherId", Convert.ToString(PublisherId));
-            //            break;
-            //        default:
-            //            // Reserved - no type provided
-            //            break;
-            //    }
-            //}
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+            {
+                PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & PublishedIdTypeUsedBits);
+                switch (publisherIdType)
+                {
+                    case PublisherIdTypeEncodingMask.Byte:
+                        encoder.WriteByte("PublisherId", Convert.ToByte(PublisherId));
+                        break;
+                    case PublisherIdTypeEncodingMask.UInt16:
+                        encoder.WriteUInt16("PublisherId", Convert.ToUInt16(PublisherId));
+                        break;
+                    case PublisherIdTypeEncodingMask.UInt32:
+                        encoder.WriteUInt32("PublisherId", Convert.ToUInt32(PublisherId));
+                        break;
+                    case PublisherIdTypeEncodingMask.UInt64:
+                        encoder.WriteUInt64("PublisherId", Convert.ToUInt64(PublisherId));
+                        break;
+                    case PublisherIdTypeEncodingMask.String:
+                        encoder.WriteString("PublisherId", Convert.ToString(PublisherId));
+                        break;
+                    default:
+                        // Reserved - no type provided
+                        break;
+                }
+            }
 
-            //if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-            //{
-            //    encoder.WriteGuid("DataSetClassId", DataSetClassId);
-            //}
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+            {
+                encoder.WriteString("SingleDataSetMessage", SingleDataSetMessage);
+            }
 
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+            {
+                encoder.WriteString("DataSetClassId", DataSetClassId);
+            }
         }
 
         /// <summary>
         /// Encode Group Message Header
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodeGroupMessageHeader(BinaryEncoder encoder)
-        {
+        //private void EncodeGroupMessageHeader(BinaryEncoder encoder)
+        //{
             //if ((NetworkMessageContentMask & (JsonNetworkMessageContentMask.GroupHeader |
             //                                  JsonNetworkMessageContentMask.WriterGroupId |
             //                                  JsonNetworkMessageContentMask.GroupVersion |
@@ -589,88 +597,60 @@ namespace Opc.Ua.PubSub.Encoding
             //{
             //    encoder.WriteUInt16("SequenceNumber", SequenceNumber);
             //}
-        }
+        //}
 
         /// <summary>
         /// Encode Payload Header
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodePayloadHeader(BinaryEncoder encoder)
-        {
-            //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
-            //{
-            //    encoder.WriteByte("Count", (byte) m_uadpDataSetMessages.Count);
+        //private void EncodePayloadHeader(JsonEncoder encoder)
+        //{
+        //    if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PayloadHeader) != 0)
+        //    {
+        //    //    encoder.WriteByte("Count", (byte) m_uadpDataSetMessages.Count);
 
-            //    // Collect DataSetSetMessages headers
-            //    for (int index = 0; index < m_uadpDataSetMessages.Count; index++)
-            //    {
-            //        UadpDataSetMessage uadpDataSetMessage = m_uadpDataSetMessages[index];
-            //        if (uadpDataSetMessage.DataSet != null)
-            //        {
-            //            encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
-            //        }
-            //    }
-            //}
-        }
+        //    //    // Collect DataSetSetMessages headers
+        //    //    for (int index = 0; index < m_uadpDataSetMessages.Count; index++)
+        //    //    {
+        //    //        UadpDataSetMessage uadpDataSetMessage = m_uadpDataSetMessages[index];
+        //    //        if (uadpDataSetMessage.DataSet != null)
+        //    //        {
+        //    //            encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
+        //    //        }
+        //    //    }
+        //    }
+        //}
 
         /// <summary>
         ///  Encode Extended network message header
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodeExtendedNetworkMessageHeader(BinaryEncoder encoder)
-        {
-            //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
-            //{
-            //    encoder.WriteDateTime("Timestamp", Timestamp);
-            //}
+        //private void EncodeExtendedNetworkMessageHeader(BinaryEncoder encoder)
+        //{
+        //    //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
+        //    //{
+        //    //    encoder.WriteDateTime("Timestamp", Timestamp);
+        //    //}
 
-            //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PicoSeconds) != 0)
-            //{
-            //    encoder.WriteUInt16("PicoSeconds", PicoSeconds);
-            //}
+        //    //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PicoSeconds) != 0)
+        //    //{
+        //    //    encoder.WriteUInt16("PicoSeconds", PicoSeconds);
+        //    //}
 
-            //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PromotedFields) != 0)
-            //{
-            //    EncodePromotedFields(encoder);
-            //}
-        }
+        //    //if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PromotedFields) != 0)
+        //    //{
+        //    //    EncodePromotedFields(encoder);
+        //    //}
+        //}
 
-        /// <summary>
-        /// Encode promoted fields
-        /// </summary>
-        /// <param name="encoder"></param>
-        private void EncodePromotedFields(BinaryEncoder encoder)
-        {
-            // todo: Promnoted fields not supported
-        }
+        
 
-        /// <summary>
-        /// Encode security header 
-        /// </summary>
-        /// <param name="encoder"></param>
-        private void EncodeSecurityHeader(BinaryEncoder encoder)
-        {
-            //if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.Security) != 0)
-            //{
-            //    encoder.WriteByte("SecurityFlags", (byte)SecurityFlags);
-
-            //    encoder.WriteUInt32("SecurityTokenId", SecurityTokenId);
-            //    encoder.WriteByte("NonceLength", NonceLength);
-            //    MessageNonce = new byte[NonceLength];
-            //    encoder.WriteByteArray("MessageNonce", MessageNonce);
-
-            //    if ((SecurityFlags & SecurityFlagsEncodingMask.SecurityFooter) != 0)
-            //    {
-            //        encoder.WriteUInt16("SecurityFooterSize", SecurityFooterSize);
-            //    }
-            //}
-        }
-
+        
         /// <summary>
         /// Encode payload
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodePayload(JsonEncoder jsonEncoder)
+        private void EncodePayload(JsonEncoder encoder)
         {
             //int payloadStartPositionInStream = encoder.Position;
             //if (m_uadpDataSetMessages.Count > 1
@@ -680,12 +660,29 @@ namespace Opc.Ua.PubSub.Encoding
             //    encoder.Position = encoder.Position + 2 * m_uadpDataSetMessages.Count;               
             //}
             //encode dataset message payload
-            foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
+            encoder.PushStructure("DataSet Payload");
+            if ((NetworkMessageContentMask &
+                    (JsonNetworkMessageContentMask.NetworkMessageHeader &
+                    JsonNetworkMessageContentMask.SingleDataSetMessage)) != 0)
             {
-                jsonEncoder.PushStructure("Payload");
-                jsonDataSetMessage.Encode(jsonEncoder);
-                jsonEncoder.PopStructure();
+                if (DataSetMessages.Count > 0)
+                {
+                    encoder.PushStructure("DataSetMessage");
+                    JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+                    encoder.PopStructure();
+                }
+                encoder.PopStructure();
             }
+            else
+            {
+                foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
+                {
+                    encoder.PushStructure("DataSetMessage");
+                    jsonDataSetMessage.Encode(encoder);
+                    encoder.PopStructure();
+                }
+            }
+            encoder.PopStructure();
 
             //if (m_uadpDataSetMessages.Count > 1
             //    && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
@@ -700,26 +697,7 @@ namespace Opc.Ua.PubSub.Encoding
             //}
         }
 
-        /// <summary>
-        /// Encode security footer
-        /// </summary>
-        /// <param name="encoder"></param>
-        private void EncodeSecurityFooter(BinaryEncoder encoder)
-        {
-            if ((SecurityFlags & SecurityFlagsEncodingMask.SecurityFooter) != 0)
-            {
-                encoder.WriteByteArray("SecurityFooter", SecurityFooter);
-            }
-        }
-
-        /// <summary>
-        /// Encode signature
-        /// </summary>
-        /// <param name="encoder"></param>
-        private void EncodeSignature(BinaryEncoder encoder)
-        {
-            // encoder.WriteByteArray("Signature", Signature);
-        }
+        
 
         #endregion
 
@@ -729,14 +707,14 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encode Network Message Header
         /// </summary>
         /// <param name="decoder"></param>
-        private void DecodeNetworkMessageHeader(BinaryDecoder decoder)
+        private void DecodeNetworkMessageHeader(JsonDecoder decoder)
         {
             // byte[0..3] UADPVersion value 1 (for now)
             // byte[4..7] UADPFlags
             //byte versionFlags = decoder.ReadByte("VersionFlags");
             //UADPVersion = (byte)(versionFlags & UADPVersionBitMask);
             //// Decode UADPFlags
-            //UADPFlags = (UADPFlagsEncodingMask)(versionFlags & 0xF0);
+            //JSONFlags = (JSONFlagsEncodingMask)(versionFlags & 0xF0);
 
             //// Decode the ExtendedFlags1
             //if ((UADPFlags & UADPFlagsEncodingMask.ExtendedFlags1) != 0)
@@ -763,39 +741,39 @@ namespace Opc.Ua.PubSub.Encoding
             //    m_uadpNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
             //}
 
-            //// Decode PublisherId
-            //if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
-            //{
-            //    PublisherIdTypeEncodingMask publishedIdTypeType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & PublishedIdTypeUsedBits);
+            // Decode PublisherId
+            if ((JSONFlags & JSONFlagsEncodingMask.PublishedId) != 0)
+            {
+                PublisherIdTypeEncodingMask publishedIdTypeType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & PublishedIdTypeUsedBits);
 
-            //    switch (publishedIdTypeType)
-            //    {
-            //        case PublisherIdTypeEncodingMask.UInt16:
-            //            m_publisherId = decoder.ReadUInt16("PublisherId");
-            //            break;
-            //        case PublisherIdTypeEncodingMask.UInt32:
-            //            m_publisherId = decoder.ReadUInt32("PublisherId");
-            //            break;
-            //        case PublisherIdTypeEncodingMask.UInt64:
-            //            m_publisherId = decoder.ReadUInt64("PublisherId");
-            //            break;
-            //        case PublisherIdTypeEncodingMask.String:
-            //            m_publisherId = decoder.ReadString("PublisherId");
-            //            break;
-            //        case PublisherIdTypeEncodingMask.Byte:
-            //        default:
-            //            // 000 The PublisherId is of DataType Byte
-            //            // This is the default value if ExtendedFlags1 is omitted
-            //            m_publisherId = decoder.ReadByte("PublisherId");
-            //            break;
-            //    }
-            //}
+                switch (publishedIdTypeType)
+                {
+                    case PublisherIdTypeEncodingMask.UInt16:
+                        m_publisherId = decoder.ReadUInt16("PublisherId");
+                        break;
+                    case PublisherIdTypeEncodingMask.UInt32:
+                        m_publisherId = decoder.ReadUInt32("PublisherId");
+                        break;
+                    case PublisherIdTypeEncodingMask.UInt64:
+                        m_publisherId = decoder.ReadUInt64("PublisherId");
+                        break;
+                    case PublisherIdTypeEncodingMask.String:
+                        m_publisherId = decoder.ReadString("PublisherId");
+                        break;
+                    case PublisherIdTypeEncodingMask.Byte:
+                    default:
+                        // 000 The PublisherId is of DataType Byte
+                        // This is the default value if ExtendedFlags1 is omitted
+                        m_publisherId = decoder.ReadByte("PublisherId");
+                        break;
+                }
+            }
 
-            //// Decode DataSetClassId
-            //if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.DataSetClassId) != 0)
-            //{
-            //    DataSetClassId = decoder.ReadGuid("DataSetClassId");
-            //}
+            // Decode DataSetClassId
+            if ((JSONFlags & JSONFlagsEncodingMask.DataSetClassId) != 0)
+            {
+                DataSetClassId = decoder.ReadString("DataSetClassId");
+            }
         }
 
         /// <summary>
@@ -805,164 +783,90 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodeGroupMessageHeader(BinaryDecoder decoder)
         {
             // Decode GroupHeader (that holds GroupFlags)
-            if ((UADPFlags & UADPFlagsEncodingMask.GroupHeader) != 0)
-            {
-                GroupFlags = (GroupFlagsEncodingMask)decoder.ReadByte("GroupFlags");
-            }
+            //if ((JSONFlags & JSONFlagsEncodingMask.GroupHeader) != 0)
+            //{
+            //    GroupFlags = (GroupFlagsEncodingMask)decoder.ReadByte("GroupFlags");
+            //}
 
             // Decode WriterGroupId
-            if ((GroupFlags & GroupFlagsEncodingMask.WriterGroupId) != 0)
-            {
-                WriterGroupId = decoder.ReadUInt16("WriterGroupId");
-            }
+            //if ((GroupFlags & GroupFlagsEncodingMask.WriterGroupId) != 0)
+            //{
+            //    WriterGroupId = decoder.ReadUInt16("WriterGroupId");
+            //}
 
-            // Decode GroupVersion
-            if ((GroupFlags & GroupFlagsEncodingMask.GroupVersion) != 0)
-            {
-                GroupVersion = decoder.ReadUInt32("GroupVersion");
-            }
+            //// Decode GroupVersion
+            //if ((GroupFlags & GroupFlagsEncodingMask.GroupVersion) != 0)
+            //{
+            //    GroupVersion = decoder.ReadUInt32("GroupVersion");
+            //}
 
-            // Decode NetworkMessageNumber
-            if ((GroupFlags & GroupFlagsEncodingMask.NetworkMessageNumber) != 0)
-            {
-                NetworkMessageNumber = decoder.ReadUInt16("NetworkMessageNumber");
-            }
+            //// Decode NetworkMessageNumber
+            //if ((GroupFlags & GroupFlagsEncodingMask.NetworkMessageNumber) != 0)
+            //{
+            //    NetworkMessageNumber = decoder.ReadUInt16("NetworkMessageNumber");
+            //}
 
-            // Decode SequenceNumber
-            if ((GroupFlags & GroupFlagsEncodingMask.SequenceNumber) != 0)
-            {
-                SequenceNumber = decoder.ReadUInt16("SequenceNumber");
-            }
+            //// Decode SequenceNumber
+            //if ((GroupFlags & GroupFlagsEncodingMask.SequenceNumber) != 0)
+            //{
+            //    SequenceNumber = decoder.ReadUInt16("SequenceNumber");
+            //}
         }
 
         /// <summary>
         /// Decode Payload Header
         /// </summary>
         /// <param name="decoder"></param>
-        private void DecodePayloadHeader(BinaryDecoder decoder)
+        private void DecodePayloadHeader(JsonDecoder decoder)
         {
             // Decode PayloadHeader
-            //if ((UADPFlags & UADPFlagsEncodingMask.PayloadHeader) != 0)
-            //{
-            //    byte count = decoder.ReadByte("Count");
-            //    for (int idx = 0; idx < count; idx++)
-            //    {
-            //        m_uadpDataSetMessages.Add(new UadpDataSetMessage());
-            //    }
-
-            //    // collect DataSetSetMessages headers
-            //    foreach (UadpDataSetMessage uadpDataSetMessage in m_uadpDataSetMessages)
-            //    {
-            //        uadpDataSetMessage.DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
-            //    }
-            //}
-        }
-
-        /// <summary>
-        /// Decode extended network message header
-        /// </summary>
-        private void DecodeExtendedNetworkMessageHeader(BinaryDecoder decoder)
-        {
-            // Decode Timestamp
-            if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.Timestamp) != 0)
+            if ((JSONFlags & JSONFlagsEncodingMask.DataSetMessageHeader) != 0)
             {
-                Timestamp = decoder.ReadDateTime("Timestamp");
-            }
+                byte count = decoder.ReadByte("Count");
+                for (int idx = 0; idx < count; idx++)
+                {
+                    m_uaDataSetMessages.Add(new JsonDataSetMessage());
+                }
 
-            // Decode PicoSeconds
-            if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.PicoSeconds) != 0)
-            {
-                PicoSeconds = decoder.ReadUInt16("PicoSeconds");
+                // collect DataSetSetMessages headers
+                foreach (JsonDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
+                {
+                    uadpDataSetMessage.DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+                }
             }
-
-            // Decode Promoted Fields
-            if ((ExtendedFlags2 & ExtendedFlags2EncodingMask.PromotedFields) != 0)
-            {
-                DecodePromotedFields(decoder);
-            }
-        }
-
-        /// <summary>
-        /// Decode promoted fields
-        /// </summary>
-        /// <param name="decoder"></param>
-        private void DecodePromotedFields(BinaryDecoder decoder)
-        {
-            // todo:
         }
 
         /// <summary>
         /// Decode  payload size and prepare for decoding payload
         /// </summary>
         /// <param name="decoder"></param>
-        private void DecodePayloadSize(BinaryDecoder decoder)
+        private void DecodePayloadSize(JsonDecoder decoder)
         {
-            //if (m_uadpDataSetMessages.Count > 1)
-            //{                
-            //    // Decode PayloadHeader Size
-            //    if ((UADPFlags & UADPFlagsEncodingMask.PayloadHeader) != 0)
-            //    {
-            //        foreach (UadpDataSetMessage uadpDataSetMessage in m_uadpDataSetMessages)
-            //        {
-            //            // Save the size
-            //            uadpDataSetMessage.PayloadSizeInStream = decoder.ReadUInt16("Size");                       
-            //        }
-            //    }
-            //}
-            //BinaryDecoder binaryDecoder = decoder as BinaryDecoder;
-            //if (binaryDecoder != null)
-            //{
-            //    int offset = 0;
-            //    // set start position of dataset message in binary stream 
-            //    foreach (UadpDataSetMessage uadpDataSetMessage in m_uadpDataSetMessages)
-            //    {
-            //        uadpDataSetMessage.StartPositionInStream = binaryDecoder.Position + offset;
-            //        offset += uadpDataSetMessage.PayloadSizeInStream;
-            //    }
-            //}    
-        }
-
-        /// <summary>
-        /// Decode security header 
-        /// </summary>
-        /// <param name="decoder"></param>
-        private void DecodeSecurityHeader(BinaryDecoder decoder)
-        {
-            if ((ExtendedFlags1 & ExtendedFlags1EncodingMask.Security) != 0)
+            if (m_uaDataSetMessages.Count > 1)
             {
-                SecurityFlags = (SecurityFlagsEncodingMask)decoder.ReadByte("SecurityFlags");
-
-                SecurityTokenId = decoder.ReadUInt32("SecurityTokenId");
-                NonceLength = decoder.ReadByte("NonceLength");
-                MessageNonce = decoder.ReadByteArray("MessageNonce").ToArray();
-
-                if ((SecurityFlags & SecurityFlagsEncodingMask.SecurityFooter) != 0)
+                // Decode PayloadHeader Size
+                if ((JSONFlags & JSONFlagsEncodingMask.DataSetMessageHeader) != 0)
                 {
-                    SecurityFooterSize = decoder.ReadUInt16("SecurityFooterSize");
+                    foreach (UadpDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
+                    {
+                        // Save the size
+                        uadpDataSetMessage.PayloadSizeInStream = decoder.ReadUInt16("Size");
+                    }
+                }
+            }
+            JsonDecoder jsonDecoder = decoder as JsonDecoder;
+            if (jsonDecoder != null)
+            {
+                int offset = 0;
+                // set start position of dataset message in binary stream 
+                foreach (JsonDataSetMessage jsonDataSetMessage in m_uaDataSetMessages)
+                {
+                    //jsonDataSetMessage.StartPositionInStream = jsonDecoder.Position + offset;
+                    offset += jsonDataSetMessage.PayloadSizeInStream;
                 }
             }
         }
 
-        /// <summary>
-        /// Decode security footer
-        /// </summary>
-        /// <param name="decoder"></param>
-        private void DecodeSecurityFooter(BinaryDecoder decoder)
-        {
-            if ((SecurityFlags & SecurityFlagsEncodingMask.SecurityFooter) != 0)
-            {
-                SecurityFooter = decoder.ReadByteArray("SecurityFooter").ToArray();
-            }
-        }
-
-        /// <summary>
-        /// Decode signature
-        /// </summary>
-        /// <param name="decoder"></param>
-        private void DecodeSignature(BinaryDecoder decoder)
-        {
-            // Signature = decoder.ReadByteArray("Signature").ToArray();
-        }
         #endregion
     }
 }

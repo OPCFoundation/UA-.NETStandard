@@ -629,12 +629,13 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.HeaderLayoutUri = "UADP-Cyclic-Fixed";
 
             JsonWriterGroupMessageDataType jsonMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetClassId
-                | JsonNetworkMessageContentMask.DataSetMessageHeader
-                       | JsonNetworkMessageContentMask.NetworkMessageHeader
-                       | JsonNetworkMessageContentMask.PublisherId
-                       | JsonNetworkMessageContentMask.ReplyTo
-                       | JsonNetworkMessageContentMask.SingleDataSetMessage)
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
+                        | JsonNetworkMessageContentMask.DataSetMessageHeader
+                        | JsonNetworkMessageContentMask.SingleDataSetMessage
+                        | JsonNetworkMessageContentMask.PublisherId
+                        | JsonNetworkMessageContentMask.DataSetClassId
+                        | JsonNetworkMessageContentMask.ReplyTo
+                        )
             };
 
             writerGroup1.MessageSettings = new ExtensionObject(jsonMessageSettings);
@@ -672,8 +673,9 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
-                 | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
+                | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp),
             };
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
