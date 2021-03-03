@@ -658,7 +658,6 @@ namespace Opc.Ua.Export {
         private string baseTypeField;
         
         public DataTypeDefinition() {
-            this.symbolicNameField = "";
             this.isUnionField = false;
             this.isOptionSetField = false;
             this.baseTypeField = "";
@@ -688,7 +687,6 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute("")]
         public string SymbolicName {
             get {
                 return this.symbolicNameField;
