@@ -128,17 +128,14 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <returns></returns>
         public DataSet CollectData(string dataSetName)
         {   
-            if(dataSetName == null)
-            {
-                throw new ArgumentException(nameof(dataSetName));
-            }
-            if (m_publishedDataSetsByName.ContainsKey(dataSetName))
+            PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
+            if (publishedDataSet != null)
             {               
-                PublishedDataSetDataType publishedDataSet = m_publishedDataSetsByName[dataSetName];
                 if (publishedDataSet.DataSetSource != null)
                 {
                     DataSet dataSet = new DataSet(dataSetName);
                     PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
+
                     if (publishedDataItems != null && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
                     {
                         dataSet.Fields = new Field[publishedDataItems.PublishedData.Count];
@@ -283,7 +280,27 @@ namespace Opc.Ua.PubSub.PublishedData
                 }
             }
             return null;
-        }        
+        }
+
+        /// <summary>
+        /// Get The <see cref="PublishedDataSetDataType"/> for a DataSetName
+        /// </summary>
+        /// <param name="dataSetName"></param>
+        /// <returns></returns>
+        public PublishedDataSetDataType GetPublishedDataSet(string dataSetName)
+        {
+            if (dataSetName == null)
+            {
+                throw new ArgumentException(nameof(dataSetName));
+            }
+
+            if (m_publishedDataSetsByName.ContainsKey(dataSetName))
+            {
+                return m_publishedDataSetsByName[dataSetName];
+            }
+            return null;
+        }
+
         #endregion
     }
 }

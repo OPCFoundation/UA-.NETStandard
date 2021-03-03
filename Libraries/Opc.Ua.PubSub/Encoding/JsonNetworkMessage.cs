@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Encoding
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
                         {
-                            jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                            jsonDataSetMessage.Encode(encoder);
                         }                        
                         encoder.PopStructure();
                     }
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Encoding
                             if (jsonDataSetMessage != null)
                             {
                                 encoder.PushStructure(null);
-                                jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                                jsonDataSetMessage.Encode(encoder);
                                 encoder.PopStructure();
                             }                            
                         }
@@ -425,32 +425,42 @@ namespace Opc.Ua.PubSub.Encoding
         { 
             if (DataSetMessages != null && DataSetMessages.Count > 0)
             {
-                
+               
                 if (HasSingleDataSetMessage)
                 {
-                    // encode single dataset message
-                    encoder.PushStructure(null);
+                    // encode single dataset message                   
                     JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                     if (jsonDataSetMessage != null)
                     {
-                        jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
-                    }
-                    encoder.PopStructure();
+                        // If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
+                        // and SingleDataSetMessage bit is set, the NetworkMessage
+                        // is a JSON object containing the set of name/value pairs defined for a single DataSet.
+                        if (!jsonDataSetMessage.HasDataSetMessageHeader && !HasDataSetMessageHeader)
+                        {
+                            jsonDataSetMessage.EncodePayload(encoder, false);
+                        }
+                        else
+                        {
+                            encoder.PushStructure("Messages");
+                            jsonDataSetMessage.Encode(encoder);
+                            encoder.PopStructure();
+                        }
+                    }                   
                 }
                 else
                 {
                     encoder.PushStructure("Messages");
                     foreach (var message in DataSetMessages)
-                    {
-                       
+                    {                       
                         JsonDataSetMessage jsonDataSetMessage = message as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
                         {
-                            jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                            jsonDataSetMessage.Encode(encoder);
                         }
                     }
                     encoder.PopStructure();
-                }                
+                }
+                
             }
 
 

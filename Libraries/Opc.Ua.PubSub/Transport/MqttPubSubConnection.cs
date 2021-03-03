@@ -121,8 +121,10 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
+                    PublishedDataSetDataType publishedDataSet = Application.DataCollector.GetPublishedDataSet(dataSetWriter.DataSetName);
                     DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
-                    if (dataSet != null)
+
+                    if (publishedDataSet != null && dataSet != null)
                     {
                         if (m_messageMapping == MessageMapping.Uadp && uadpMessageSettings != null)
                         {
@@ -156,7 +158,12 @@ namespace Opc.Ua.PubSub.Transport
                                 jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
                                 jsonDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
 
-                                jsonDataSetMessage.TimeStamp = DateTime.UtcNow;
+                                if (publishedDataSet.DataSetMetaData != null)
+                                {
+                                    jsonDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
+                                }
+
+                                jsonDataSetMessage.Timestamp = DateTime.UtcNow;
                                 jsonDataSetMessage.Status = (ushort)StatusCodes.Good;
                                 dataSetMessages.Add(jsonDataSetMessage);
                             }

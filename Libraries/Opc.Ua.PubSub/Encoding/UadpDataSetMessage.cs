@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
         /// The UADP message mapping specific flags are defined by the UadpDataSetMessageContentMask DataType.
         /// </summary>
-        public UadpDataSetMessageContentMask MessageContentMask { get; private set; }
+        public UadpDataSetMessageContentMask DataSetMessageContentMask { get; private set; }
 
         #endregion
 
@@ -252,29 +252,29 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="messageContentMask"></param>
         public void SetMessageContentMask(UadpDataSetMessageContentMask messageContentMask)
         {
-            MessageContentMask = messageContentMask;
+            DataSetMessageContentMask = messageContentMask;
 
             DataSetFlags1 &= PreservedDataSetFlags1UsedBits;
             DataSetFlags2 = 0;
 
             #region DataSetFlags1: Bit range 3-7: Enabled flags options
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.SequenceNumber;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.Status) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.Status) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.Status;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.MinorVersion) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion;
             }
@@ -289,13 +289,13 @@ namespace Opc.Ua.PubSub.Encoding
             // 0010 Event
             // 0011 Keep Alive
             //Always Key frame is sent.
-            if ((MessageContentMask & UadpDataSetMessageContentMask.Timestamp) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
                 DataSetFlags2 |= DataSetFlags2EncodingMask.Timestamp;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
                 DataSetFlags2 |= DataSetFlags2EncodingMask.PicoSeconds;
