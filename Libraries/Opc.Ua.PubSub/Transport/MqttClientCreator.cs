@@ -42,7 +42,6 @@ namespace Opc.Ua.PubSub.Mqtt
     internal class MqttClientCreator
     {
 
-
         #region Private
         private static readonly Lazy<MqttFactory> mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
         #endregion
@@ -60,30 +59,6 @@ namespace Opc.Ua.PubSub.Mqtt
         {
 
             IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
-
-
-            async void Connect()
-            {
-                try
-                {
-                    var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
-                    if (MqttClientConnectResultCode.Success == result.ResultCode)
-                    {
-                        Utils.Trace("MQTT client {0} successfully connected", mqttClient?.Options?.ClientId);
-                    }
-                    else
-                    {
-                        Utils.Trace("MQTT client {0} connect atempt returned {0}", mqttClient?.Options?.ClientId, result?.ResultCode);
-                    }
-                }
-                catch (Exception e) when (e is MqttCommunicationException)
-                {
-                    Utils.Trace("MQTT client {0} connect atempt returned {1} will try to reconnect in {2} seconds",
-                        mqttClient?.Options?.ClientId,
-                        e.Message,
-                        reconnectInterval);
-                }
-            }
 
             // Hook the receiveMessageHandler in case we deal with a subscriber
             if (receiveMessageHandler != null)
@@ -105,7 +80,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
             while (mqttClient.IsConnected == false)
             {
-               Connect();
+               Connect(reconnectInterval, mqttClientOptions, mqttClient);
                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
             }
 
@@ -118,7 +93,7 @@ namespace Opc.Ua.PubSub.Mqtt
                         mqttClient?.Options?.ClientId,
                         e.Reason,
                         e.ClientWasConnected);
-                    Connect();
+                    Connect(reconnectInterval, mqttClientOptions, mqttClient);
                 }
                 catch (Exception excOnDisconnect)
                 {
@@ -127,6 +102,35 @@ namespace Opc.Ua.PubSub.Mqtt
             });
 
             return mqttClient;
+        }
+
+        /// <summary>
+        /// Perform the connection to the MQTTBroker
+        /// </summary>
+        /// <param name="reconnectInterval"></param>
+        /// <param name="mqttClientOptions"></param>
+        /// <param name="mqttClient"></param>
+        private static async void Connect(int reconnectInterval, IMqttClientOptions mqttClientOptions, IMqttClient mqttClient)
+        {
+            try
+            {
+                var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+                if (MqttClientConnectResultCode.Success == result.ResultCode)
+                {
+                    Utils.Trace("MQTT client {0} successfully connected", mqttClient?.Options?.ClientId);
+                }
+                else
+                {
+                    Utils.Trace("MQTT client {0} connect atempt returned {0}", mqttClient?.Options?.ClientId, result?.ResultCode);
+                }
+            }
+            catch (Exception e) 
+            {
+                Utils.Trace("MQTT client {0} connect atempt returned {1} will try to reconnect in {2} seconds",
+                    mqttClient?.Options?.ClientId,
+                    e.Message,
+                    reconnectInterval);
+            }
         }
     }
 }
