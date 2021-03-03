@@ -626,7 +626,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "UADPConnection1 MQTT Uadp";
+            pubSubConnection1.Name = "UADPConnection1 MQTT Json";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)100;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
@@ -877,6 +877,9 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     pubSubConnection1
                 };
 
+            var c2 = CreateSubscriberConfiguration_MqttUadp();
+            // add also uadp cnnection
+            pubSubConfiguration.Connections.Add(c2.Connections[0]);
             return pubSubConfiguration;
         }
     }

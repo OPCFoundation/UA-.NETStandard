@@ -282,11 +282,7 @@ namespace Opc.Ua.PubSub.Tests
                 WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
                 UaNetworkMessage message = publisherConnection.CreateNetworkMessage(writerGroup0);
 
-                ServiceMessageContext messageContext = new ServiceMessageContext();
-                BinaryEncoder encoder = new BinaryEncoder(messageContext);
-                message.Encode(encoder);
-                byte[] bytes = ReadBytes(encoder.BaseStream);
-                encoder.Dispose();
+                byte[] bytes = message.Encode();               
 
                 return bytes;
             }
@@ -297,19 +293,6 @@ namespace Opc.Ua.PubSub.Tests
             return new byte[0];
         }
 
-        /// <summary>
-        /// Read All bytes from a given stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        private byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
+        
     }
 }

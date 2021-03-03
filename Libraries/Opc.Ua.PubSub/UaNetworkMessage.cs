@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
@@ -70,6 +72,11 @@ namespace Opc.Ua.PubSub
         public UInt16 SequenceNumber { get; set; }
 
         /// <summary>
+        /// Get the received <see cref="DataSet"/> collection 
+        /// </summary>
+        public List<DataSet> ReceivedDataSets { get; internal set; }
+
+        /// <summary>
         /// DataSet messages
         /// </summary>
         internal ReadOnlyCollection<UaDataSetMessage> DataSetMessages
@@ -81,9 +88,32 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Encodes the object in a stream.
+        /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        /// <param name="encoder">The encoder to be used for encoding the current value.</param>
-        public abstract void Encode(IEncoder encoder);
+        /// <returns></returns>
+        public abstract byte[] Encode();
+
+        /// <summary>
+        /// Decodes the message 
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="message"></param>
+        /// <param name="dataSetReaders"></param>
+        public abstract void Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
+
+        /// <summary>
+        /// Read the bytes from a Stream
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        protected byte[] ReadBytes(Stream stream)
+        {
+            stream.Position = 0;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                stream.CopyTo(ms);
+                return ms.ToArray();
+            }
+        }
     }
 }

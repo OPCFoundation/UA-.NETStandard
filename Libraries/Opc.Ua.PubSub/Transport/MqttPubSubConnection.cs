@@ -82,15 +82,7 @@ namespace Opc.Ua.PubSub.Transport
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
             m_transportProtocol = TransportProtocol.MQTT;
-            m_messageMapping = messageMapping;
-            if (m_messageMapping == MessageMapping.Uadp)
-            {
-                m_messageDecoder = new UadpMessageDecoder();
-            }
-            else if (m_messageMapping == MessageMapping.Json)
-            {
-                m_messageDecoder = new JsonMessageDecoder();
-            }
+            m_messageMapping = messageMapping;           
         }
 
         #endregion
@@ -229,23 +221,8 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_publisherMqttClient != null && m_publisherMqttClient.IsConnected)
                     {
-                        ServiceMessageContext messageContext = new ServiceMessageContext();
-                        byte[] bytes = null;
-                        if (m_messageMapping == MessageMapping.Uadp)
-                        {
-                            BinaryEncoder encoder = new BinaryEncoder(messageContext);
-                            networkMessage.Encode(encoder);
-                            bytes = ReadBytes(encoder.BaseStream);
-                            encoder.Dispose();
-                        }
-                        else if (m_messageMapping == MessageMapping.Json)
-                        {
-                            JsonEncoder encoderJson = new JsonEncoder(messageContext, true);
-                            networkMessage.Encode(encoderJson);
-                            bytes = System.Text.Encoding.ASCII.GetBytes(encoderJson.CloseAndReturnText());
-                            encoderJson.Dispose();
-                        }
-
+                        // get rthe encoded bytes
+                        byte[] bytes = networkMessage.Encode();
 
                         try
                         {
@@ -302,16 +279,7 @@ namespace Opc.Ua.PubSub.Transport
                 default:
                     return MqttQualityOfServiceLevel.AtLeastOnce;
             }
-        }
-        private byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
+        }        
 
         protected override bool InternalInitialize()
         {
@@ -414,30 +382,31 @@ namespace Opc.Ua.PubSub.Transport
 
             if (dataSetReaders.Count > 0)
             {
-                // tregger message decoding
-                SubscribedDataEventArgs subscribedDataEventArgs = m_messageDecoder.Decode(eventArgs.ApplicationMessage.Topic,
-                    eventArgs.ApplicationMessage.Payload, dataSetReaders);
-                if (subscribedDataEventArgs != null)
+                // iniaialize the expected NetworkMessage
+                UaNetworkMessage networkMessage = null;
+                if (m_messageMapping == MessageMapping.Uadp)
                 {
-                    //trigger notification for received subscribed data set
-                    Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
-                    Utils.Trace(Utils.TraceMasks.Information,
-                        "UdpPubSubConnection.RaiseDataReceivedEvent from source={0}, with {1} DataSets", topic, subscribedDataEventArgs.DataSets.Count);
+                    networkMessage = new UadpNetworkMessage();
                 }
-                else
+                else if (m_messageMapping == MessageMapping.Json)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "Message from source={0} cannot be decoded.", topic);
+                    networkMessage = new JsonNetworkMessage();
                 }
+                // trigger message decoding
+                if (networkMessage != null)
+                {
+                    networkMessage.Decode(eventArgs.ApplicationMessage.Topic,
+                        eventArgs.ApplicationMessage.Payload,
+                        dataSetReaders);
+
+                    // Raise rthe DataReceived event 
+                    RaiseNetworkMessageDataReceivedEvent(networkMessage, topic);
+                }                
             }
             else
             {
                 Utils.Trace(Utils.TraceMasks.Information, "No DataSetReader is registered for topic={0}.", topic);
             }
-        }
-        private void HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs x)
-        {
-            var item = $"Timestamp: {DateTime.Now:O} | Topic: {x.ApplicationMessage.Topic} | Payload: {x.ApplicationMessage.ConvertPayloadToString()} | QoS: {x.ApplicationMessage.QualityOfServiceLevel}";
-           // this.BeginInvoke((MethodInvoker)delegate { this.TextBoxSubscriber.Text = item + Environment.NewLine + this.TextBoxSubscriber.Text; });
         }
 
         #endregion Private methods

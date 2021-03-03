@@ -50,7 +50,6 @@ namespace Opc.Ua.PubSub.Transport
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
-
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
@@ -69,8 +68,6 @@ namespace Opc.Ua.PubSub.Transport
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
             m_transportProtocol = TransportProtocol.UADP;
-            // initialize message decoder
-            m_messageDecoder = new UadpMessageDecoder();
         }
 
         #endregion
@@ -281,12 +278,8 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
                     {
-                        ServiceMessageContext messageContext = new ServiceMessageContext();
-
-                        BinaryEncoder encoder = new BinaryEncoder(messageContext);
-                        networkMessage.Encode(encoder);
-                        byte[] bytes = ReadBytes(encoder.BaseStream);
-                        encoder.Dispose();
+                        // Get encoded bytes
+                        byte[] bytes = networkMessage.Encode();                        
 
                         foreach (var udpClient in m_publisherUdpClients)
                         {
@@ -324,19 +317,11 @@ namespace Opc.Ua.PubSub.Transport
         {
             Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
 
-            SubscribedDataEventArgs subscribedDataEventArgs = m_messageDecoder.Decode(source.ToString(), message, GetOperationalDataSetReaders());
-            if (subscribedDataEventArgs != null)
-            {
-                //trigger notification for received subscribed data set
-                Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
-                Utils.Trace(Utils.TraceMasks.Information,
-                    "UdpPubSubConnection.RaiseDataReceivedEvent from source={0}, with {1} DataSets", source, subscribedDataEventArgs.DataSets.Count);
-            }
-            else
-            {
-                Utils.Trace(Utils.TraceMasks.Information,
-                    "Message from source={0} cannot be decoded.", source);
-            }            
+            UadpNetworkMessage networkMessage = new UadpNetworkMessage();
+            networkMessage.Decode(source.ToString(), message, GetOperationalDataSetReaders());
+
+            // Raise rthe DataReceived event 
+            RaiseNetworkMessageDataReceivedEvent(networkMessage, source.ToString());
         }
 
         /// <summary>

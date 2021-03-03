@@ -969,19 +969,14 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="uadpNetworkMessageDecoded"></param>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
         {
-            ServiceMessageContext messageContextEncode = new ServiceMessageContext();
-            BinaryEncoder encoder = new BinaryEncoder(messageContextEncode);
-            uadpNetworkMessage.Encode(encoder);
-            byte[] bytes = ReadBytes(encoder.BaseStream);
-            encoder.Dispose();
+            byte[] bytes = uadpNetworkMessage.Encode();
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
-            List<DataSet> subscribedDataSets = uaNetworkMessageDecoded.DecodeSubscribedDataSets(decoder, m_firstDataSetReadersType);
-            decoder.Dispose();
+            uaNetworkMessageDecoded.Decode("Test", bytes, m_firstDataSetReadersType);            
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
-            Compare(uadpNetworkMessage, uaNetworkMessageDecoded, subscribedDataSets);
+            // TODO Fix: this might be broken after refactor
+            Compare(uadpNetworkMessage, uaNetworkMessageDecoded, uaNetworkMessageDecoded.ReceivedDataSets);
         }
 
         /// <summary>
@@ -991,18 +986,13 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="uadpNetworkMessageDecoded"></param>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
         {
-            ServiceMessageContext messageContextEncode = new ServiceMessageContext();
-            BinaryEncoder encoder = new BinaryEncoder(messageContextEncode);
-            uadpNetworkMessage.Encode(encoder);
-            byte[] bytes = ReadBytes(encoder.BaseStream);
-            encoder.Dispose();
+            byte[] bytes = uadpNetworkMessage.Encode();
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
-            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
-            uaNetworkMessageDecoded.DecodeSubscribedDataSets(decoder, m_firstDataSetReadersType);
-            decoder.Dispose();
+            uaNetworkMessageDecoded.Decode("Test", bytes, m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
+            // TODO Fix: this might be broken after refactor
             InvalidCompare(uadpNetworkMessage, uaNetworkMessageDecoded);
         }
 

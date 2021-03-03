@@ -254,12 +254,44 @@ namespace Opc.Ua.PubSub.Encoding
             SetFlags();
         }
 
+
         /// <summary>
-        /// Encodes the object in a stream.
+        /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        public override void Encode(IEncoder encoder)
+        /// <returns></returns>
+        public override byte[] Encode()
         {
-            Encode(encoder as BinaryEncoder);
+            ServiceMessageContext messageContext = new ServiceMessageContext();
+            byte[] bytes = null;
+            using (BinaryEncoder encoder = new BinaryEncoder(messageContext))
+            {
+                Encode(encoder);
+                bytes = ReadBytes(encoder.BaseStream);
+
+                return bytes;
+            }
+        }
+
+        /// <summary>
+        /// Decodes the message 
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="message"></param>
+        /// <param name="dataSetReaders"></param>
+        public override void Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        {
+            if (dataSetReaders == null || dataSetReaders.Count == 0)
+            {
+                return;
+            }
+
+            ServiceMessageContext messageContext = new ServiceMessageContext();
+
+            using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
+            {                
+                //decode bytes using dataset reader information
+                DecodeSubscribedDataSets(decoder, dataSetReaders);
+            }
         }
 
         #endregion
@@ -426,13 +458,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        public List<DataSet> DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IList<DataSetReaderDataType> dataSetReaders)
+        public void DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IList<DataSetReaderDataType> dataSetReaders)
         {
-            List<DataSet> subscribedDataSets = new List<DataSet>();
+            ReceivedDataSets = new List<DataSet>();
 
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
-                return subscribedDataSets;
+                return;
             }
 
             try
@@ -446,7 +478,7 @@ namespace Opc.Ua.PubSub.Encoding
                 if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage
                     || PublisherId == null)
                 {
-                    return subscribedDataSets;
+                    return;
                 }
 
                 /* 6.2.8.1 PublisherId
@@ -462,7 +494,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 if (dataSetReadersFiltered.Count == 0)
                 {
-                    return subscribedDataSets;
+                    return;
                 }
                 dataSetReaders = dataSetReadersFiltered;
 
@@ -484,7 +516,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 if (dataSetReadersFiltered.Count == 0)
                 {
-                    return subscribedDataSets;
+                    return;
                 }
                 dataSetReaders = dataSetReadersFiltered;
 
@@ -519,7 +551,7 @@ namespace Opc.Ua.PubSub.Encoding
                             DataSet dataSet = uadpDataSetMessage.DecodePossibleDataSetReader(binaryDecoder, dataSetReader);
                             if (dataSet != null)
                             {
-                                subscribedDataSets.Add(dataSet);
+                                ReceivedDataSets.Add(dataSet);
                             }
                         }
                     }
@@ -530,7 +562,6 @@ namespace Opc.Ua.PubSub.Encoding
                 // Unexpected exception in DecodeSubscribedDataSets
                 Utils.Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
             }
-            return subscribedDataSets;
         }
 
         /// <summary>

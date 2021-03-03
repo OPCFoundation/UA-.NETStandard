@@ -180,13 +180,47 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Encodes the object in a stream.
+        /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        public override void Encode(IEncoder encoder)
+        /// <returns></returns>
+        public override byte[] Encode()
         {
-            Encode(encoder as JsonEncoder);
+            ServiceMessageContext messageContext = new ServiceMessageContext();
+            byte[] bytes = null;
+            using (JsonEncoder encoder = new JsonEncoder(messageContext, true))
+            {
+                Encode(encoder);
+                bytes = System.Text.Encoding.ASCII.GetBytes(encoder.CloseAndReturnText());
+
+                return bytes;
+            }
         }
 
+        /// <summary>
+        /// Decodes the message 
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="message"></param>
+        /// <param name="dataSetReaders"></param>
+        public override void Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        {
+            if (dataSetReaders == null || dataSetReaders.Count == 0)
+            {
+                return;
+            }
+
+            ServiceMessageContext messageContext = new ServiceMessageContext();
+            string json = System.Text.Encoding.ASCII.GetString(message);
+
+            // TODO temporary display message until decoding is in place
+            Console.WriteLine("Decoding from source: {0}; json\n{1}", source, json);
+
+            using (JsonDecoder decoder = new JsonDecoder(json, messageContext))
+            {                
+                //decode bytes using dataset reader information
+                DecodeSubscribedDataSets(decoder, dataSetReaders);                
+            }
+        }
         #endregion
 
         #region Private Methods - Encoding
@@ -409,9 +443,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        public List<DataSet> DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
+        public void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
         {
-            List<DataSet> subscribedDataSets = new List<DataSet>();
+            ReceivedDataSets = new List<DataSet>();
             try
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
@@ -423,7 +457,7 @@ namespace Opc.Ua.PubSub.Encoding
                 if (m_jsonNetworkMessageType != JSONNetworkMessageType.DataSetMessage
                     || PublisherId == null)
                 {
-                   return subscribedDataSets;
+                   return;
                 }
 
                 //* 6.2.8.1 PublisherId
@@ -439,7 +473,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 if (dataSetReadersFiltered.Count == 0)
                 {
-                    return subscribedDataSets;
+                    return;
                 }
                 dataSetReaders = dataSetReadersFiltered;
 
@@ -496,7 +530,7 @@ namespace Opc.Ua.PubSub.Encoding
                             DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
                             if (dataSet != null)
                             {
-                                subscribedDataSets.Add(dataSet);
+                                ReceivedDataSets.Add(dataSet);
                             }
                         }
                     }
@@ -507,7 +541,6 @@ namespace Opc.Ua.PubSub.Encoding
                 // Unexpected exception in DecodeSubscribedDataSets
                 Utils.Trace(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
             }
-            return subscribedDataSets;
         }
 
         /// <summary>

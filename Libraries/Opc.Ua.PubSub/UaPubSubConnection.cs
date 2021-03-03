@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub
         private PubSubConnectionDataType m_pubSubConnectionDataType;
         private UaPubSubApplication m_uaPubSubApplication;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
-        protected UaPubSubMessageDecoder m_messageDecoder;
+      //  protected UaPubSubMessageDecoder m_messageDecoder;
         #endregion
 
         #region Constructor
@@ -221,6 +221,33 @@ namespace Opc.Ua.PubSub
         /// Perform specific Stop tasks
         /// </summary>
         protected abstract void InternalStop();
+
+        /// <summary>
+        /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.
+        /// </summary>
+        /// <param name="networkMessage"></param>
+        /// <param name="source"></param>
+        protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
+        {
+            if (networkMessage.ReceivedDataSets != null && networkMessage.ReceivedDataSets.Count > 0)
+            {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                    NetworkMessageSequenceNumber = networkMessage.SequenceNumber,
+                    DataSets = networkMessage.ReceivedDataSets,
+                    Source = source
+                };
+
+                //trigger notification for received subscribed data set
+                Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
+                Utils.Trace(Utils.TraceMasks.Information,
+                    "UaPubSubConnection.RaiseNetworkMessageDataReceivedEvent from source={0}, with {1} DataSets", source, subscribedDataEventArgs.DataSets.Count);
+            }
+            else
+            {
+                Utils.Trace(Utils.TraceMasks.Information,
+                    "Message from source={0} cannot be decoded.", source);
+            }
+        }
 
         #endregion
 
