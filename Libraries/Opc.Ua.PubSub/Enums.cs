@@ -345,11 +345,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Discovery Request message
         /// </summary>
-        //DiscoveryRequest = 4,
+        DiscoveryRequest = 4,
         /// <summary>
         /// Discovery Response message
         /// </summary>
-        //DiscoveryResponse = 8
+        DiscoveryResponse = 8
     }
 
     /// <summary>
@@ -386,23 +386,5 @@ namespace Opc.Ua.PubSub
         /// The ReplyTo is included in the NetworkMessages
         /// </summary>
         ReplyTo = 32
-
-
-        /// <summary>
-        /// UADP PublisherId option is used.
-        /// </summary>
-        //PublisherId = 16,
-        /// <summary>
-        /// UADP GroupHeader option is used.
-        /// </summary>
-        //GroupHeader = 32,
-        /// <summary>
-        /// UADP PayloadHeader option is used.
-        /// </summary>
-        //PayloadHeader = 64,
-        /// <summary>
-        /// UADP ExtendedFlags1 option is used.
-        /// </summary>
-        //ExtendedFlags1 = 128
     }
 }

@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub.Transport
                 jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
 
                 // Writer group header
-                jsonNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
+                //jsonNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
                 networkMessage = jsonNetworkMessage;
             }
