@@ -351,40 +351,5 @@ namespace Opc.Ua.PubSub
         /// </summary>
         DiscoveryResponse = 8
     }
-
-    /// <summary>
-    /// The possible values for the NetworkMessage JSONFlags encoding byte.
-    /// </summary>
-    [Flags]
-    public enum JSONFlagsEncodingMask : byte
-    {
-        /// <summary>
-        /// No UADP flag usage.
-        /// </summary>
-        None = 0,
-        /// <summary>
-        /// The JSON NetworkMessage header is included in the NetworkMessages
-        /// </summary>
-        NetworkMessageHeader = 1,
-        /// <summary>
-        /// DataSet message header included in network message
-        /// </summary>
-        DataSetMessageHeader = 2,
-        /// <summary>
-        /// Each JSON NetworkMessage contains only one DataSetMessage
-        /// </summary>
-        SingleDataSetMessage = 4,
-        /// <summary>
-        /// The PublisherId is included in the NetworkMessages
-        /// </summary>
-        PublishedId = 8,
-        /// <summary>
-        /// The DataSetClassId is included in the NetworkMessages
-        /// </summary>
-        DataSetClassId = 16,
-        /// <summary>
-        /// The ReplyTo is included in the NetworkMessages
-        /// </summary>
-        ReplyTo = 32
-    }
+ 
 }

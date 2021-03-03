@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get Json Flags
         /// </summary>
-        public JSONFlagsEncodingMask JSONFlags { get; private set; }
+        public JsonNetworkMessageContentMask JSONFlags { get; private set; }
 
         /// <summary>
         /// A globally unique identifier for the message.
@@ -205,26 +205,26 @@ namespace Opc.Ua.PubSub.Encoding
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
             {
                 // Enable NetworkMessageHeader usage
-                JSONFlags |= JSONFlagsEncodingMask.NetworkMessageHeader;
+                JSONFlags |= JsonNetworkMessageContentMask.NetworkMessageHeader;
 
                 #region SingleDataSetMessage 
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {
-                    JSONFlags |= JSONFlagsEncodingMask.SingleDataSetMessage;
+                    JSONFlags |= JsonNetworkMessageContentMask.SingleDataSetMessage;
                 }
                 #endregion
 
                 #region PublisherId in network message
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
                 {
-                    JSONFlags |= JSONFlagsEncodingMask.PublishedId;
+                    JSONFlags |= JsonNetworkMessageContentMask.PublisherId;
                 }
                 #endregion
 
                 #region DataSetClassId in network message
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
                 {
-                    JSONFlags |= JSONFlagsEncodingMask.DataSetClassId;
+                    JSONFlags |= JsonNetworkMessageContentMask.DataSetClassId;
                 }
                 #endregion
 
@@ -232,26 +232,26 @@ namespace Opc.Ua.PubSub.Encoding
             else
             {
                 // Enable ExtendedFlags1 usage
-                JSONFlags &= ~JSONFlagsEncodingMask.NetworkMessageHeader;
+                JSONFlags &= ~JsonNetworkMessageContentMask.NetworkMessageHeader;
 
                 #region SingleDataSetMessage 
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {
-                    JSONFlags &= ~JSONFlagsEncodingMask.SingleDataSetMessage;
+                    JSONFlags &= ~JsonNetworkMessageContentMask.SingleDataSetMessage;
                 }
                 #endregion
 
                 #region PublisherId in network message
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
                 {
-                    JSONFlags &= ~JSONFlagsEncodingMask.PublishedId;
+                    JSONFlags &= ~JsonNetworkMessageContentMask.PublisherId;
                 }
                 #endregion
 
                 #region DataSetClassId in network message
                 if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
                 {
-                    JSONFlags &= ~JSONFlagsEncodingMask.DataSetClassId;
+                    JSONFlags &= ~JsonNetworkMessageContentMask.DataSetClassId;
                 }
                 #endregion
             }
@@ -260,14 +260,14 @@ namespace Opc.Ua.PubSub.Encoding
             #region DataSet Message Header
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
             {
-                JSONFlags |= JSONFlagsEncodingMask.DataSetMessageHeader;
+                JSONFlags |= JsonNetworkMessageContentMask.DataSetMessageHeader;
             }
             #endregion
 
             #region DataSetClassId in network message
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)
             {
-                JSONFlags |= JSONFlagsEncodingMask.ReplyTo;
+                JSONFlags |= JsonNetworkMessageContentMask.ReplyTo;
             }
             #endregion
 
@@ -512,21 +512,23 @@ namespace Opc.Ua.PubSub.Encoding
         {
             // temporary restore mask
             byte networkMessageContentMask = jsonDecoder.ReadByte("NetworkMessageContentMask");
-            JSONFlags = (JSONFlagsEncodingMask)(networkMessageContentMask & 0x3F);
+            JSONFlags = (JsonNetworkMessageContentMask)(networkMessageContentMask & 0x3F);
+            
 
-            if ((JSONFlags & JSONFlagsEncodingMask.NetworkMessageHeader) != 0)
+
+            if ((JSONFlags & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
             {
                 jsonDecoder.ReadString("MessageId");
                 jsonDecoder.ReadString("MessageType");
 
                 // Decode PublisherId
-                if ((JSONFlags & JSONFlagsEncodingMask.PublishedId) != 0)
+                if ((JSONFlags & JsonNetworkMessageContentMask.PublisherId) != 0)
                 {
                     PublisherId = jsonDecoder.ReadString("PublisherId");
                 }
 
                 // Decode DataSetClassId
-                if ((JSONFlags & JSONFlagsEncodingMask.DataSetClassId) != 0)
+                if ((JSONFlags & JsonNetworkMessageContentMask.DataSetClassId) != 0)
                 {
                     DataSetClassId = jsonDecoder.ReadString("DataSetClassId");
                 }
@@ -540,7 +542,7 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodePayloadHeader(JsonDecoder decoder)
         {
             // Decode PayloadHeader
-            if ((JSONFlags & JSONFlagsEncodingMask.DataSetMessageHeader) != 0)
+            if ((JSONFlags & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
             {
                 byte count = decoder.ReadByte("Count");
                 for (int idx = 0; idx < count; idx++)
@@ -565,7 +567,7 @@ namespace Opc.Ua.PubSub.Encoding
             if (m_uaDataSetMessages.Count > 1)
             {
                 // Decode PayloadHeader Size
-                if ((JSONFlags & JSONFlagsEncodingMask.DataSetMessageHeader) != 0)
+                if ((JSONFlags & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
                 {
                     foreach (UadpDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
                     {
