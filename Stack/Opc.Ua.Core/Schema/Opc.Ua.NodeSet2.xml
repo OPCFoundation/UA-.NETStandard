@@ -515,7 +515,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=62</Reference>
     </References>
   </UAVariableType>
-  <UAVariableType NodeId="i=69" BrowseName="DataTypeDescriptionType" DataType="String">
+  <UAVariableType NodeId="i=69" BrowseName="DataTypeDescriptionType" ReleaseStatus="Deprecated" DataType="String">
     <DisplayName>DataTypeDescriptionType</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.3</Documentation>
     <References>
@@ -524,7 +524,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
     </References>
   </UAVariableType>
-  <UAVariable NodeId="i=104" BrowseName="DataTypeVersion" ParentNodeId="i=69" DataType="String">
+  <UAVariable NodeId="i=104" BrowseName="DataTypeVersion" ReleaseStatus="Deprecated" ParentNodeId="i=69" DataType="String">
     <DisplayName>DataTypeVersion</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -532,7 +532,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=69</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=105" BrowseName="DictionaryFragment" ParentNodeId="i=69" DataType="ByteString">
+  <UAVariable NodeId="i=105" BrowseName="DictionaryFragment" ReleaseStatus="Deprecated" ParentNodeId="i=69" DataType="ByteString">
     <DisplayName>DictionaryFragment</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -540,7 +540,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=69</Reference>
     </References>
   </UAVariable>
-  <UAVariableType NodeId="i=72" BrowseName="DataTypeDictionaryType" DataType="ByteString">
+  <UAVariableType NodeId="i=72" BrowseName="DataTypeDictionaryType" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>DataTypeDictionaryType</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.2</Documentation>
     <References>
@@ -550,7 +550,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
     </References>
   </UAVariableType>
-  <UAVariable NodeId="i=106" BrowseName="DataTypeVersion" ParentNodeId="i=72" DataType="String">
+  <UAVariable NodeId="i=106" BrowseName="DataTypeVersion" ReleaseStatus="Deprecated" ParentNodeId="i=72" DataType="String">
     <DisplayName>DataTypeVersion</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -558,7 +558,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=72</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=107" BrowseName="NamespaceUri" ParentNodeId="i=72" DataType="String">
+  <UAVariable NodeId="i=107" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="i=72" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -566,7 +566,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=72</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="i=15001" BrowseName="Deprecated" ParentNodeId="i=72" DataType="Boolean">
+  <UAVariable NodeId="i=15001" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="i=72" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -574,7 +574,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=72</Reference>
     </References>
   </UAVariable>
-  <UAObjectType NodeId="i=75" BrowseName="DataTypeSystemType">
+  <UAObjectType NodeId="i=75" BrowseName="DataTypeSystemType" ReleaseStatus="Deprecated">
     <DisplayName>DataTypeSystemType</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.4</Documentation>
     <References>
@@ -843,7 +843,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=92" BrowseName="XML Schema" SymbolicName="XmlSchema_TypeSystem">
+  <UAObject NodeId="i=92" BrowseName="XML Schema" SymbolicName="XmlSchema_TypeSystem" ReleaseStatus="Deprecated">
     <DisplayName>XML Schema</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.6</Documentation>
     <References>
@@ -851,7 +851,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=75</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="i=93" BrowseName="OPC Binary" SymbolicName="OPCBinarySchema_TypeSystem">
+  <UAObject NodeId="i=93" BrowseName="OPC Binary" SymbolicName="OPCBinarySchema_TypeSystem" ReleaseStatus="Deprecated">
     <DisplayName>OPC Binary</DisplayName>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/D.5.5</Documentation>
     <References>
@@ -42996,7 +42996,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="i=7617" BrowseName="Opc.Ua" SymbolicName="OpcUa_BinarySchema" DataType="ByteString">
+  <UAVariable NodeId="i=7617" BrowseName="Opc.Ua" SymbolicName="OpcUa_BinarySchema" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>Opc.Ua</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=7619</Reference>
@@ -46252,7 +46252,7 @@ OkVudW1lcmF0ZWRWYWx1ZSBOYW1lPSJVbmtub3duIiBWYWx1ZT0iNCIgLz4NCiAgPC9vcGM6RW51
 bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7619" BrowseName="NamespaceUri" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7619" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -46262,7 +46262,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15037" BrowseName="Deprecated" ParentNodeId="i=7617" DataType="Boolean">
+  <UAVariable NodeId="i=15037" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -46272,7 +46272,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12770" BrowseName="Union" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12770" BrowseName="Union" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Union</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46282,7 +46282,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Union</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14873" BrowseName="KeyValuePair" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14873" BrowseName="KeyValuePair" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>KeyValuePair</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46292,7 +46292,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">KeyValuePair</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17538" BrowseName="AdditionalParametersType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=17538" BrowseName="AdditionalParametersType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AdditionalParametersType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46302,7 +46302,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AdditionalParametersType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17550" BrowseName="EphemeralKeyType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=17550" BrowseName="EphemeralKeyType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EphemeralKeyType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46312,7 +46312,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EphemeralKeyType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15734" BrowseName="EndpointType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15734" BrowseName="EndpointType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EndpointType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46322,7 +46322,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EndpointType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18824" BrowseName="RationalNumber" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18824" BrowseName="RationalNumber" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>RationalNumber</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46332,7 +46332,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">RationalNumber</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18827" BrowseName="Vector" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18827" BrowseName="Vector" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Vector</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46342,7 +46342,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Vector</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18830" BrowseName="3DVector" SymbolicName="ThreeDVector" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18830" BrowseName="3DVector" SymbolicName="ThreeDVector" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>3DVector</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46352,7 +46352,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ThreeDVector</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18833" BrowseName="CartesianCoordinates" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18833" BrowseName="CartesianCoordinates" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>CartesianCoordinates</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46362,7 +46362,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">CartesianCoordinates</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18836" BrowseName="3DCartesianCoordinates" SymbolicName="ThreeDCartesianCoordinates" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18836" BrowseName="3DCartesianCoordinates" SymbolicName="ThreeDCartesianCoordinates" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>3DCartesianCoordinates</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46372,7 +46372,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ThreeDCartesianCoordinates</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18839" BrowseName="Orientation" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18839" BrowseName="Orientation" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Orientation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46382,7 +46382,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Orientation</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18842" BrowseName="3DOrientation" SymbolicName="ThreeDOrientation" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18842" BrowseName="3DOrientation" SymbolicName="ThreeDOrientation" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>3DOrientation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46392,7 +46392,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ThreeDOrientation</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18845" BrowseName="Frame" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18845" BrowseName="Frame" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Frame</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46402,7 +46402,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Frame</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18848" BrowseName="3DFrame" SymbolicName="ThreeDFrame" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18848" BrowseName="3DFrame" SymbolicName="ThreeDFrame" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>3DFrame</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46412,7 +46412,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ThreeDFrame</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15738" BrowseName="IdentityMappingRuleType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15738" BrowseName="IdentityMappingRuleType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>IdentityMappingRuleType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46422,7 +46422,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">IdentityMappingRuleType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=23514" BrowseName="CurrencyUnitType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=23514" BrowseName="CurrencyUnitType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>CurrencyUnitType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46432,7 +46432,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">CurrencyUnitType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12681" BrowseName="TrustListDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12681" BrowseName="TrustListDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>TrustListDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46442,7 +46442,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">TrustListDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15741" BrowseName="DataTypeSchemaHeader" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15741" BrowseName="DataTypeSchemaHeader" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataTypeSchemaHeader</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46452,7 +46452,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataTypeSchemaHeader</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14855" BrowseName="DataTypeDescription" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14855" BrowseName="DataTypeDescription" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataTypeDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46462,7 +46462,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataTypeDescription</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15599" BrowseName="StructureDescription" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15599" BrowseName="StructureDescription" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>StructureDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46472,7 +46472,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">StructureDescription</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15602" BrowseName="EnumDescription" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15602" BrowseName="EnumDescription" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EnumDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46482,7 +46482,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EnumDescription</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15501" BrowseName="SimpleTypeDescription" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15501" BrowseName="SimpleTypeDescription" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SimpleTypeDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46492,7 +46492,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SimpleTypeDescription</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15521" BrowseName="UABinaryFileDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15521" BrowseName="UABinaryFileDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UABinaryFileDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46502,7 +46502,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UABinaryFileDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14849" BrowseName="DataSetMetaDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14849" BrowseName="DataSetMetaDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetMetaDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46512,7 +46512,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetMetaDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14852" BrowseName="FieldMetaData" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14852" BrowseName="FieldMetaData" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>FieldMetaData</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46522,7 +46522,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">FieldMetaData</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14876" BrowseName="ConfigurationVersionDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14876" BrowseName="ConfigurationVersionDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ConfigurationVersionDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46532,7 +46532,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ConfigurationVersionDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15766" BrowseName="PublishedDataSetDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15766" BrowseName="PublishedDataSetDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PublishedDataSetDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46542,7 +46542,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PublishedDataSetDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15769" BrowseName="PublishedDataSetSourceDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15769" BrowseName="PublishedDataSetSourceDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PublishedDataSetSourceDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46552,7 +46552,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PublishedDataSetSourceDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14324" BrowseName="PublishedVariableDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14324" BrowseName="PublishedVariableDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PublishedVariableDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46562,7 +46562,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PublishedVariableDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15772" BrowseName="PublishedDataItemsDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15772" BrowseName="PublishedDataItemsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PublishedDataItemsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46572,7 +46572,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PublishedDataItemsDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15775" BrowseName="PublishedEventsDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15775" BrowseName="PublishedEventsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PublishedEventsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46582,7 +46582,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PublishedEventsDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15778" BrowseName="DataSetWriterDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15778" BrowseName="DataSetWriterDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetWriterDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46592,7 +46592,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetWriterDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15781" BrowseName="DataSetWriterTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15781" BrowseName="DataSetWriterTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetWriterTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46602,7 +46602,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetWriterTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15784" BrowseName="DataSetWriterMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15784" BrowseName="DataSetWriterMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetWriterMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46612,7 +46612,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetWriterMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15787" BrowseName="PubSubGroupDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15787" BrowseName="PubSubGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PubSubGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46622,7 +46622,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PubSubGroupDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21156" BrowseName="WriterGroupDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21156" BrowseName="WriterGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>WriterGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46632,7 +46632,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">WriterGroupDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15793" BrowseName="WriterGroupTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15793" BrowseName="WriterGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>WriterGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46642,7 +46642,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">WriterGroupTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15854" BrowseName="WriterGroupMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15854" BrowseName="WriterGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>WriterGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46652,7 +46652,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">WriterGroupMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15857" BrowseName="PubSubConnectionDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15857" BrowseName="PubSubConnectionDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PubSubConnectionDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46662,7 +46662,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PubSubConnectionDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15860" BrowseName="ConnectionTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15860" BrowseName="ConnectionTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ConnectionTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46672,7 +46672,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ConnectionTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21159" BrowseName="NetworkAddressDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21159" BrowseName="NetworkAddressDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>NetworkAddressDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46682,7 +46682,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">NetworkAddressDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21162" BrowseName="NetworkAddressUrlDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21162" BrowseName="NetworkAddressUrlDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>NetworkAddressUrlDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46692,7 +46692,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">NetworkAddressUrlDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21165" BrowseName="ReaderGroupDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21165" BrowseName="ReaderGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ReaderGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46702,7 +46702,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ReaderGroupDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15866" BrowseName="ReaderGroupTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15866" BrowseName="ReaderGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ReaderGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46712,7 +46712,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ReaderGroupTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15869" BrowseName="ReaderGroupMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15869" BrowseName="ReaderGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ReaderGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46722,7 +46722,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ReaderGroupMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15872" BrowseName="DataSetReaderDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15872" BrowseName="DataSetReaderDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetReaderDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46732,7 +46732,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetReaderDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15877" BrowseName="DataSetReaderTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15877" BrowseName="DataSetReaderTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetReaderTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46742,7 +46742,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetReaderTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15880" BrowseName="DataSetReaderMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15880" BrowseName="DataSetReaderMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataSetReaderMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46752,7 +46752,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataSetReaderMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15883" BrowseName="SubscribedDataSetDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15883" BrowseName="SubscribedDataSetDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SubscribedDataSetDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46762,7 +46762,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SubscribedDataSetDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15886" BrowseName="TargetVariablesDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15886" BrowseName="TargetVariablesDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>TargetVariablesDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46772,7 +46772,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">TargetVariablesDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21002" BrowseName="FieldTargetDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21002" BrowseName="FieldTargetDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>FieldTargetDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46782,7 +46782,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">FieldTargetDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15889" BrowseName="SubscribedDataSetMirrorDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15889" BrowseName="SubscribedDataSetMirrorDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SubscribedDataSetMirrorDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46792,7 +46792,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SubscribedDataSetMirrorDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21168" BrowseName="PubSubConfigurationDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21168" BrowseName="PubSubConfigurationDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>PubSubConfigurationDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46802,7 +46802,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">PubSubConfigurationDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15895" BrowseName="UadpWriterGroupMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15895" BrowseName="UadpWriterGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UadpWriterGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46812,7 +46812,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UadpWriterGroupMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15898" BrowseName="UadpDataSetWriterMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15898" BrowseName="UadpDataSetWriterMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UadpDataSetWriterMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46822,7 +46822,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UadpDataSetWriterMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15919" BrowseName="UadpDataSetReaderMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15919" BrowseName="UadpDataSetReaderMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UadpDataSetReaderMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46832,7 +46832,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UadpDataSetReaderMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15922" BrowseName="JsonWriterGroupMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15922" BrowseName="JsonWriterGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>JsonWriterGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46842,7 +46842,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">JsonWriterGroupMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15925" BrowseName="JsonDataSetWriterMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15925" BrowseName="JsonDataSetWriterMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>JsonDataSetWriterMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46852,7 +46852,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">JsonDataSetWriterMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15931" BrowseName="JsonDataSetReaderMessageDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15931" BrowseName="JsonDataSetReaderMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>JsonDataSetReaderMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46862,7 +46862,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">JsonDataSetReaderMessageDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17469" BrowseName="DatagramConnectionTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=17469" BrowseName="DatagramConnectionTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DatagramConnectionTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46872,7 +46872,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DatagramConnectionTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21171" BrowseName="DatagramWriterGroupTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=21171" BrowseName="DatagramWriterGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DatagramWriterGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46882,7 +46882,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DatagramWriterGroupTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15524" BrowseName="BrokerConnectionTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15524" BrowseName="BrokerConnectionTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>BrokerConnectionTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46892,7 +46892,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">BrokerConnectionTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15940" BrowseName="BrokerWriterGroupTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15940" BrowseName="BrokerWriterGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>BrokerWriterGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46902,7 +46902,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">BrokerWriterGroupTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15943" BrowseName="BrokerDataSetWriterTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15943" BrowseName="BrokerDataSetWriterTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>BrokerDataSetWriterTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46912,7 +46912,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">BrokerDataSetWriterTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15946" BrowseName="BrokerDataSetReaderTransportDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=15946" BrowseName="BrokerDataSetReaderTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>BrokerDataSetReaderTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46922,7 +46922,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">BrokerDataSetReaderTransportDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=23502" BrowseName="AliasNameDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=23502" BrowseName="AliasNameDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AliasNameDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46932,7 +46932,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AliasNameDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16131" BrowseName="RolePermissionType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=16131" BrowseName="RolePermissionType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>RolePermissionType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46942,7 +46942,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">RolePermissionType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18178" BrowseName="DataTypeDefinition" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18178" BrowseName="DataTypeDefinition" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DataTypeDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46952,7 +46952,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DataTypeDefinition</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18181" BrowseName="StructureField" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18181" BrowseName="StructureField" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>StructureField</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46962,7 +46962,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">StructureField</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18184" BrowseName="StructureDefinition" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18184" BrowseName="StructureDefinition" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>StructureDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46972,7 +46972,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">StructureDefinition</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18187" BrowseName="EnumDefinition" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=18187" BrowseName="EnumDefinition" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EnumDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46982,7 +46982,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EnumDefinition</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7650" BrowseName="Argument" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7650" BrowseName="Argument" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Argument</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -46992,7 +46992,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Argument</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7656" BrowseName="EnumValueType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7656" BrowseName="EnumValueType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EnumValueType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47002,7 +47002,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EnumValueType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14870" BrowseName="EnumField" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=14870" BrowseName="EnumField" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EnumField</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47012,7 +47012,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EnumField</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12767" BrowseName="OptionSet" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12767" BrowseName="OptionSet" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>OptionSet</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47022,7 +47022,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">OptionSet</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8914" BrowseName="TimeZoneDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8914" BrowseName="TimeZoneDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>TimeZoneDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47032,7 +47032,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">TimeZoneDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7665" BrowseName="ApplicationDescription" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7665" BrowseName="ApplicationDescription" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ApplicationDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47042,7 +47042,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ApplicationDescription</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12213" BrowseName="ServerOnNetwork" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12213" BrowseName="ServerOnNetwork" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ServerOnNetwork</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47052,7 +47052,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ServerOnNetwork</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7662" BrowseName="UserTokenPolicy" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7662" BrowseName="UserTokenPolicy" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UserTokenPolicy</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47062,7 +47062,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserTokenPolicy</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7668" BrowseName="EndpointDescription" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7668" BrowseName="EndpointDescription" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EndpointDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47072,7 +47072,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EndpointDescription</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7782" BrowseName="RegisteredServer" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7782" BrowseName="RegisteredServer" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>RegisteredServer</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47082,7 +47082,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">RegisteredServer</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12902" BrowseName="DiscoveryConfiguration" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12902" BrowseName="DiscoveryConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DiscoveryConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47092,7 +47092,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DiscoveryConfiguration</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12905" BrowseName="MdnsDiscoveryConfiguration" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12905" BrowseName="MdnsDiscoveryConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>MdnsDiscoveryConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47102,7 +47102,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">MdnsDiscoveryConfiguration</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7698" BrowseName="SignedSoftwareCertificate" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7698" BrowseName="SignedSoftwareCertificate" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SignedSoftwareCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47112,7 +47112,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SignedSoftwareCertificate</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7671" BrowseName="UserIdentityToken" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7671" BrowseName="UserIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UserIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47122,7 +47122,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserIdentityToken</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7674" BrowseName="AnonymousIdentityToken" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7674" BrowseName="AnonymousIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AnonymousIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47132,7 +47132,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AnonymousIdentityToken</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7677" BrowseName="UserNameIdentityToken" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7677" BrowseName="UserNameIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>UserNameIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47142,7 +47142,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserNameIdentityToken</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7680" BrowseName="X509IdentityToken" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7680" BrowseName="X509IdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>X509IdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47152,7 +47152,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">X509IdentityToken</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7683" BrowseName="IssuedIdentityToken" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7683" BrowseName="IssuedIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>IssuedIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47162,7 +47162,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">IssuedIdentityToken</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7728" BrowseName="AddNodesItem" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7728" BrowseName="AddNodesItem" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AddNodesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47172,7 +47172,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AddNodesItem</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7731" BrowseName="AddReferencesItem" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7731" BrowseName="AddReferencesItem" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AddReferencesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47182,7 +47182,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AddReferencesItem</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7734" BrowseName="DeleteNodesItem" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7734" BrowseName="DeleteNodesItem" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DeleteNodesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47192,7 +47192,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DeleteNodesItem</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7737" BrowseName="DeleteReferencesItem" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7737" BrowseName="DeleteReferencesItem" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DeleteReferencesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47202,7 +47202,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DeleteReferencesItem</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12718" BrowseName="RelativePathElement" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12718" BrowseName="RelativePathElement" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>RelativePathElement</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47212,7 +47212,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">RelativePathElement</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12721" BrowseName="RelativePath" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12721" BrowseName="RelativePath" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>RelativePath</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47222,7 +47222,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">RelativePath</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7686" BrowseName="EndpointConfiguration" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7686" BrowseName="EndpointConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EndpointConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47232,7 +47232,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EndpointConfiguration</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7929" BrowseName="ContentFilterElement" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7929" BrowseName="ContentFilterElement" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ContentFilterElement</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47242,7 +47242,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ContentFilterElement</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7932" BrowseName="ContentFilter" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7932" BrowseName="ContentFilter" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ContentFilter</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47252,7 +47252,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ContentFilter</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7935" BrowseName="FilterOperand" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7935" BrowseName="FilterOperand" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>FilterOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47262,7 +47262,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">FilterOperand</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7938" BrowseName="ElementOperand" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7938" BrowseName="ElementOperand" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ElementOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47272,7 +47272,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ElementOperand</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7941" BrowseName="LiteralOperand" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7941" BrowseName="LiteralOperand" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>LiteralOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47282,7 +47282,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">LiteralOperand</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7944" BrowseName="AttributeOperand" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7944" BrowseName="AttributeOperand" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AttributeOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47292,7 +47292,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AttributeOperand</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7947" BrowseName="SimpleAttributeOperand" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7947" BrowseName="SimpleAttributeOperand" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SimpleAttributeOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47302,7 +47302,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SimpleAttributeOperand</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8004" BrowseName="HistoryEvent" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8004" BrowseName="HistoryEvent" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>HistoryEvent</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47312,7 +47312,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">HistoryEvent</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8067" BrowseName="MonitoringFilter" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8067" BrowseName="MonitoringFilter" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>MonitoringFilter</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47322,7 +47322,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">MonitoringFilter</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8073" BrowseName="EventFilter" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8073" BrowseName="EventFilter" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EventFilter</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47332,7 +47332,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EventFilter</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8076" BrowseName="AggregateConfiguration" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8076" BrowseName="AggregateConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AggregateConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47342,7 +47342,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AggregateConfiguration</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8172" BrowseName="HistoryEventFieldList" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8172" BrowseName="HistoryEventFieldList" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>HistoryEventFieldList</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47352,7 +47352,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">HistoryEventFieldList</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7692" BrowseName="BuildInfo" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7692" BrowseName="BuildInfo" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>BuildInfo</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47362,7 +47362,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">BuildInfo</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8208" BrowseName="RedundantServerDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8208" BrowseName="RedundantServerDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>RedundantServerDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47372,7 +47372,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">RedundantServerDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=11959" BrowseName="EndpointUrlListDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=11959" BrowseName="EndpointUrlListDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EndpointUrlListDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47382,7 +47382,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EndpointUrlListDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=11962" BrowseName="NetworkGroupDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=11962" BrowseName="NetworkGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>NetworkGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47392,7 +47392,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">NetworkGroupDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8211" BrowseName="SamplingIntervalDiagnosticsDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8211" BrowseName="SamplingIntervalDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SamplingIntervalDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47402,7 +47402,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SamplingIntervalDiagnosticsDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8214" BrowseName="ServerDiagnosticsSummaryDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8214" BrowseName="ServerDiagnosticsSummaryDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ServerDiagnosticsSummaryDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47412,7 +47412,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ServerDiagnosticsSummaryDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8217" BrowseName="ServerStatusDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8217" BrowseName="ServerStatusDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ServerStatusDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47422,7 +47422,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ServerStatusDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8220" BrowseName="SessionDiagnosticsDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8220" BrowseName="SessionDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SessionDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47432,7 +47432,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SessionDiagnosticsDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8223" BrowseName="SessionSecurityDiagnosticsDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8223" BrowseName="SessionSecurityDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SessionSecurityDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47442,7 +47442,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SessionSecurityDiagnosticsDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8226" BrowseName="ServiceCounterDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8226" BrowseName="ServiceCounterDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ServiceCounterDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47452,7 +47452,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ServiceCounterDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=7659" BrowseName="StatusResult" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=7659" BrowseName="StatusResult" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>StatusResult</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47462,7 +47462,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">StatusResult</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8229" BrowseName="SubscriptionDiagnosticsDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8229" BrowseName="SubscriptionDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SubscriptionDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47472,7 +47472,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SubscriptionDiagnosticsDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8232" BrowseName="ModelChangeStructureDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8232" BrowseName="ModelChangeStructureDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ModelChangeStructureDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47482,7 +47482,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ModelChangeStructureDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8235" BrowseName="SemanticChangeStructureDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8235" BrowseName="SemanticChangeStructureDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>SemanticChangeStructureDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47492,7 +47492,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">SemanticChangeStructureDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8238" BrowseName="Range" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8238" BrowseName="Range" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Range</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47502,7 +47502,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Range</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8241" BrowseName="EUInformation" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8241" BrowseName="EUInformation" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>EUInformation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47512,7 +47512,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">EUInformation</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12183" BrowseName="ComplexNumberType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12183" BrowseName="ComplexNumberType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ComplexNumberType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47522,7 +47522,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ComplexNumberType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12186" BrowseName="DoubleComplexNumberType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12186" BrowseName="DoubleComplexNumberType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>DoubleComplexNumberType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47532,7 +47532,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">DoubleComplexNumberType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12091" BrowseName="AxisInformation" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12091" BrowseName="AxisInformation" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>AxisInformation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47542,7 +47542,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">AxisInformation</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12094" BrowseName="XVType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=12094" BrowseName="XVType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>XVType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47552,7 +47552,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">XVType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8247" BrowseName="ProgramDiagnosticDataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8247" BrowseName="ProgramDiagnosticDataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ProgramDiagnosticDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47562,7 +47562,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ProgramDiagnosticDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=24035" BrowseName="ProgramDiagnostic2DataType" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=24035" BrowseName="ProgramDiagnostic2DataType" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>ProgramDiagnostic2DataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -47572,7 +47572,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ProgramDiagnostic2DataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8244" BrowseName="Annotation" ParentNodeId="i=7617" DataType="String">
+  <UAVariable NodeId="i=8244" BrowseName="Annotation" ReleaseStatus="Deprecated" ParentNodeId="i=7617" DataType="String">
     <DisplayName>Annotation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -48630,7 +48630,7 @@ bWVyYXRlZFR5cGU+DQoNCjwvb3BjOlR5cGVEaWN0aW9uYXJ5Pg==</ByteString>
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="i=8252" BrowseName="Opc.Ua" SymbolicName="OpcUa_XmlSchema" DataType="ByteString">
+  <UAVariable NodeId="i=8252" BrowseName="Opc.Ua" SymbolicName="OpcUa_XmlSchema" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>Opc.Ua</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">i=8254</Reference>
@@ -53248,7 +53248,7 @@ ZW1lbnQgbmFtZT0iRXhjZXB0aW9uRGV2aWF0aW9uRm9ybWF0IiB0eXBlPSJ0bnM6RXhjZXB0aW9u
 RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8254" BrowseName="NamespaceUri" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8254" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -53258,7 +53258,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/2008/02/Types.xsd</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15039" BrowseName="Deprecated" ParentNodeId="i=8252" DataType="Boolean">
+  <UAVariable NodeId="i=15039" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -53268,7 +53268,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12762" BrowseName="Union" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12762" BrowseName="Union" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Union</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53278,7 +53278,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Union']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14829" BrowseName="KeyValuePair" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14829" BrowseName="KeyValuePair" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>KeyValuePair</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53288,7 +53288,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='KeyValuePair']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17542" BrowseName="AdditionalParametersType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=17542" BrowseName="AdditionalParametersType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AdditionalParametersType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53298,7 +53298,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AdditionalParametersType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17554" BrowseName="EphemeralKeyType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=17554" BrowseName="EphemeralKeyType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EphemeralKeyType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53308,7 +53308,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EphemeralKeyType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16024" BrowseName="EndpointType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16024" BrowseName="EndpointType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EndpointType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53318,7 +53318,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EndpointType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18860" BrowseName="RationalNumber" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18860" BrowseName="RationalNumber" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>RationalNumber</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53328,7 +53328,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='RationalNumber']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18863" BrowseName="Vector" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18863" BrowseName="Vector" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Vector</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53338,7 +53338,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Vector']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18866" BrowseName="3DVector" SymbolicName="ThreeDVector" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18866" BrowseName="3DVector" SymbolicName="ThreeDVector" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>3DVector</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53348,7 +53348,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ThreeDVector']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18869" BrowseName="CartesianCoordinates" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18869" BrowseName="CartesianCoordinates" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>CartesianCoordinates</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53358,7 +53358,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='CartesianCoordinates']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19049" BrowseName="3DCartesianCoordinates" SymbolicName="ThreeDCartesianCoordinates" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=19049" BrowseName="3DCartesianCoordinates" SymbolicName="ThreeDCartesianCoordinates" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>3DCartesianCoordinates</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53368,7 +53368,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ThreeDCartesianCoordinates']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19052" BrowseName="Orientation" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=19052" BrowseName="Orientation" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Orientation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53378,7 +53378,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Orientation']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19055" BrowseName="3DOrientation" SymbolicName="ThreeDOrientation" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=19055" BrowseName="3DOrientation" SymbolicName="ThreeDOrientation" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>3DOrientation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53388,7 +53388,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ThreeDOrientation']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19058" BrowseName="Frame" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=19058" BrowseName="Frame" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Frame</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53398,7 +53398,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Frame']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=19061" BrowseName="3DFrame" SymbolicName="ThreeDFrame" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=19061" BrowseName="3DFrame" SymbolicName="ThreeDFrame" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>3DFrame</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53408,7 +53408,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ThreeDFrame']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15730" BrowseName="IdentityMappingRuleType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=15730" BrowseName="IdentityMappingRuleType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>IdentityMappingRuleType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53418,7 +53418,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='IdentityMappingRuleType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=23522" BrowseName="CurrencyUnitType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=23522" BrowseName="CurrencyUnitType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>CurrencyUnitType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53428,7 +53428,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='CurrencyUnitType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12677" BrowseName="TrustListDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12677" BrowseName="TrustListDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>TrustListDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53438,7 +53438,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='TrustListDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16027" BrowseName="DataTypeSchemaHeader" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16027" BrowseName="DataTypeSchemaHeader" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataTypeSchemaHeader</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53448,7 +53448,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataTypeSchemaHeader']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14811" BrowseName="DataTypeDescription" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14811" BrowseName="DataTypeDescription" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataTypeDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53458,7 +53458,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataTypeDescription']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15591" BrowseName="StructureDescription" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=15591" BrowseName="StructureDescription" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>StructureDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53468,7 +53468,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='StructureDescription']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15594" BrowseName="EnumDescription" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=15594" BrowseName="EnumDescription" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EnumDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53478,7 +53478,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EnumDescription']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15585" BrowseName="SimpleTypeDescription" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=15585" BrowseName="SimpleTypeDescription" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SimpleTypeDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53488,7 +53488,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SimpleTypeDescription']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15588" BrowseName="UABinaryFileDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=15588" BrowseName="UABinaryFileDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UABinaryFileDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53498,7 +53498,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UABinaryFileDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14805" BrowseName="DataSetMetaDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14805" BrowseName="DataSetMetaDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetMetaDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53508,7 +53508,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetMetaDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14808" BrowseName="FieldMetaData" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14808" BrowseName="FieldMetaData" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>FieldMetaData</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53518,7 +53518,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='FieldMetaData']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14832" BrowseName="ConfigurationVersionDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14832" BrowseName="ConfigurationVersionDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ConfigurationVersionDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53528,7 +53528,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ConfigurationVersionDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16030" BrowseName="PublishedDataSetDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16030" BrowseName="PublishedDataSetDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PublishedDataSetDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53538,7 +53538,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PublishedDataSetDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16033" BrowseName="PublishedDataSetSourceDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16033" BrowseName="PublishedDataSetSourceDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PublishedDataSetSourceDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53548,7 +53548,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PublishedDataSetSourceDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14320" BrowseName="PublishedVariableDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14320" BrowseName="PublishedVariableDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PublishedVariableDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53558,7 +53558,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PublishedVariableDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16037" BrowseName="PublishedDataItemsDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16037" BrowseName="PublishedDataItemsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PublishedDataItemsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53568,7 +53568,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PublishedDataItemsDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16040" BrowseName="PublishedEventsDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16040" BrowseName="PublishedEventsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PublishedEventsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53578,7 +53578,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PublishedEventsDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16047" BrowseName="DataSetWriterDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16047" BrowseName="DataSetWriterDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetWriterDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53588,7 +53588,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetWriterDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16050" BrowseName="DataSetWriterTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16050" BrowseName="DataSetWriterTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetWriterTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53598,7 +53598,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetWriterTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16053" BrowseName="DataSetWriterMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16053" BrowseName="DataSetWriterMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetWriterMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53608,7 +53608,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetWriterMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16056" BrowseName="PubSubGroupDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16056" BrowseName="PubSubGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PubSubGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53618,7 +53618,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PubSubGroupDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21180" BrowseName="WriterGroupDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=21180" BrowseName="WriterGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>WriterGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53628,7 +53628,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='WriterGroupDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16062" BrowseName="WriterGroupTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16062" BrowseName="WriterGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>WriterGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53638,7 +53638,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='WriterGroupTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16065" BrowseName="WriterGroupMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16065" BrowseName="WriterGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>WriterGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53648,7 +53648,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='WriterGroupMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16068" BrowseName="PubSubConnectionDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16068" BrowseName="PubSubConnectionDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PubSubConnectionDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53658,7 +53658,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PubSubConnectionDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16071" BrowseName="ConnectionTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16071" BrowseName="ConnectionTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ConnectionTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53668,7 +53668,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ConnectionTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21183" BrowseName="NetworkAddressDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=21183" BrowseName="NetworkAddressDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>NetworkAddressDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53678,7 +53678,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='NetworkAddressDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21186" BrowseName="NetworkAddressUrlDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=21186" BrowseName="NetworkAddressUrlDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>NetworkAddressUrlDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53688,7 +53688,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='NetworkAddressUrlDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21189" BrowseName="ReaderGroupDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=21189" BrowseName="ReaderGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ReaderGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53698,7 +53698,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ReaderGroupDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16077" BrowseName="ReaderGroupTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16077" BrowseName="ReaderGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ReaderGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53708,7 +53708,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ReaderGroupTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16080" BrowseName="ReaderGroupMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16080" BrowseName="ReaderGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ReaderGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53718,7 +53718,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ReaderGroupMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16083" BrowseName="DataSetReaderDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16083" BrowseName="DataSetReaderDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetReaderDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53728,7 +53728,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetReaderDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16086" BrowseName="DataSetReaderTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16086" BrowseName="DataSetReaderTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetReaderTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53738,7 +53738,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetReaderTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16089" BrowseName="DataSetReaderMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16089" BrowseName="DataSetReaderMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataSetReaderMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53748,7 +53748,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataSetReaderMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16092" BrowseName="SubscribedDataSetDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16092" BrowseName="SubscribedDataSetDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SubscribedDataSetDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53758,7 +53758,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SubscribedDataSetDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16095" BrowseName="TargetVariablesDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16095" BrowseName="TargetVariablesDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>TargetVariablesDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53768,7 +53768,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='TargetVariablesDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14835" BrowseName="FieldTargetDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14835" BrowseName="FieldTargetDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>FieldTargetDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53778,7 +53778,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='FieldTargetDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16098" BrowseName="SubscribedDataSetMirrorDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16098" BrowseName="SubscribedDataSetMirrorDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SubscribedDataSetMirrorDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53788,7 +53788,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SubscribedDataSetMirrorDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21192" BrowseName="PubSubConfigurationDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=21192" BrowseName="PubSubConfigurationDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>PubSubConfigurationDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53798,7 +53798,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='PubSubConfigurationDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16104" BrowseName="UadpWriterGroupMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16104" BrowseName="UadpWriterGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UadpWriterGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53808,7 +53808,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UadpWriterGroupMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16107" BrowseName="UadpDataSetWriterMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16107" BrowseName="UadpDataSetWriterMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UadpDataSetWriterMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53818,7 +53818,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UadpDataSetWriterMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16110" BrowseName="UadpDataSetReaderMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16110" BrowseName="UadpDataSetReaderMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UadpDataSetReaderMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53828,7 +53828,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UadpDataSetReaderMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16113" BrowseName="JsonWriterGroupMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16113" BrowseName="JsonWriterGroupMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>JsonWriterGroupMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53838,7 +53838,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='JsonWriterGroupMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16116" BrowseName="JsonDataSetWriterMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16116" BrowseName="JsonDataSetWriterMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>JsonDataSetWriterMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53848,7 +53848,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='JsonDataSetWriterMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16119" BrowseName="JsonDataSetReaderMessageDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16119" BrowseName="JsonDataSetReaderMessageDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>JsonDataSetReaderMessageDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53858,7 +53858,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='JsonDataSetReaderMessageDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=17473" BrowseName="DatagramConnectionTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=17473" BrowseName="DatagramConnectionTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DatagramConnectionTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53868,7 +53868,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DatagramConnectionTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=21195" BrowseName="DatagramWriterGroupTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=21195" BrowseName="DatagramWriterGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DatagramWriterGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53878,7 +53878,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DatagramWriterGroupTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=15640" BrowseName="BrokerConnectionTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=15640" BrowseName="BrokerConnectionTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>BrokerConnectionTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53888,7 +53888,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='BrokerConnectionTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16125" BrowseName="BrokerWriterGroupTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16125" BrowseName="BrokerWriterGroupTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>BrokerWriterGroupTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53898,7 +53898,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='BrokerWriterGroupTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16144" BrowseName="BrokerDataSetWriterTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16144" BrowseName="BrokerDataSetWriterTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>BrokerDataSetWriterTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53908,7 +53908,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='BrokerDataSetWriterTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16147" BrowseName="BrokerDataSetReaderTransportDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16147" BrowseName="BrokerDataSetReaderTransportDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>BrokerDataSetReaderTransportDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53918,7 +53918,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='BrokerDataSetReaderTransportDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=23508" BrowseName="AliasNameDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=23508" BrowseName="AliasNameDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AliasNameDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53928,7 +53928,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AliasNameDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=16127" BrowseName="RolePermissionType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=16127" BrowseName="RolePermissionType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>RolePermissionType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53938,7 +53938,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='RolePermissionType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18166" BrowseName="DataTypeDefinition" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18166" BrowseName="DataTypeDefinition" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DataTypeDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53948,7 +53948,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DataTypeDefinition']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18169" BrowseName="StructureField" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18169" BrowseName="StructureField" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>StructureField</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53958,7 +53958,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='StructureField']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18172" BrowseName="StructureDefinition" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18172" BrowseName="StructureDefinition" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>StructureDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53968,7 +53968,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='StructureDefinition']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=18175" BrowseName="EnumDefinition" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=18175" BrowseName="EnumDefinition" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EnumDefinition</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53978,7 +53978,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EnumDefinition']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8285" BrowseName="Argument" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8285" BrowseName="Argument" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Argument</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53988,7 +53988,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Argument']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8291" BrowseName="EnumValueType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8291" BrowseName="EnumValueType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EnumValueType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -53998,7 +53998,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EnumValueType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=14826" BrowseName="EnumField" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=14826" BrowseName="EnumField" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EnumField</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54008,7 +54008,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EnumField']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12759" BrowseName="OptionSet" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12759" BrowseName="OptionSet" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>OptionSet</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54018,7 +54018,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='OptionSet']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8918" BrowseName="TimeZoneDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8918" BrowseName="TimeZoneDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>TimeZoneDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54028,7 +54028,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='TimeZoneDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8300" BrowseName="ApplicationDescription" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8300" BrowseName="ApplicationDescription" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ApplicationDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54038,7 +54038,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ApplicationDescription']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12201" BrowseName="ServerOnNetwork" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12201" BrowseName="ServerOnNetwork" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ServerOnNetwork</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54048,7 +54048,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ServerOnNetwork']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8297" BrowseName="UserTokenPolicy" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8297" BrowseName="UserTokenPolicy" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UserTokenPolicy</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54058,7 +54058,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserTokenPolicy']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8303" BrowseName="EndpointDescription" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8303" BrowseName="EndpointDescription" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EndpointDescription</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54068,7 +54068,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EndpointDescription']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8417" BrowseName="RegisteredServer" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8417" BrowseName="RegisteredServer" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>RegisteredServer</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54078,7 +54078,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='RegisteredServer']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12894" BrowseName="DiscoveryConfiguration" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12894" BrowseName="DiscoveryConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DiscoveryConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54088,7 +54088,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DiscoveryConfiguration']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12897" BrowseName="MdnsDiscoveryConfiguration" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12897" BrowseName="MdnsDiscoveryConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>MdnsDiscoveryConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54098,7 +54098,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='MdnsDiscoveryConfiguration']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8333" BrowseName="SignedSoftwareCertificate" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8333" BrowseName="SignedSoftwareCertificate" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SignedSoftwareCertificate</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54108,7 +54108,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SignedSoftwareCertificate']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8306" BrowseName="UserIdentityToken" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8306" BrowseName="UserIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UserIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54118,7 +54118,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserIdentityToken']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8309" BrowseName="AnonymousIdentityToken" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8309" BrowseName="AnonymousIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AnonymousIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54128,7 +54128,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AnonymousIdentityToken']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8312" BrowseName="UserNameIdentityToken" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8312" BrowseName="UserNameIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>UserNameIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54138,7 +54138,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserNameIdentityToken']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8315" BrowseName="X509IdentityToken" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8315" BrowseName="X509IdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>X509IdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54148,7 +54148,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='X509IdentityToken']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8318" BrowseName="IssuedIdentityToken" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8318" BrowseName="IssuedIdentityToken" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>IssuedIdentityToken</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54158,7 +54158,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='IssuedIdentityToken']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8363" BrowseName="AddNodesItem" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8363" BrowseName="AddNodesItem" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AddNodesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54168,7 +54168,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AddNodesItem']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8366" BrowseName="AddReferencesItem" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8366" BrowseName="AddReferencesItem" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AddReferencesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54178,7 +54178,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AddReferencesItem']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8369" BrowseName="DeleteNodesItem" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8369" BrowseName="DeleteNodesItem" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DeleteNodesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54188,7 +54188,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DeleteNodesItem']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8372" BrowseName="DeleteReferencesItem" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8372" BrowseName="DeleteReferencesItem" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DeleteReferencesItem</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54198,7 +54198,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DeleteReferencesItem']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12712" BrowseName="RelativePathElement" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12712" BrowseName="RelativePathElement" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>RelativePathElement</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54208,7 +54208,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='RelativePathElement']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12715" BrowseName="RelativePath" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12715" BrowseName="RelativePath" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>RelativePath</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54218,7 +54218,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='RelativePath']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8321" BrowseName="EndpointConfiguration" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8321" BrowseName="EndpointConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EndpointConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54228,7 +54228,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EndpointConfiguration']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8564" BrowseName="ContentFilterElement" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8564" BrowseName="ContentFilterElement" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ContentFilterElement</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54238,7 +54238,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ContentFilterElement']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8567" BrowseName="ContentFilter" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8567" BrowseName="ContentFilter" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ContentFilter</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54248,7 +54248,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ContentFilter']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8570" BrowseName="FilterOperand" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8570" BrowseName="FilterOperand" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>FilterOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54258,7 +54258,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='FilterOperand']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8573" BrowseName="ElementOperand" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8573" BrowseName="ElementOperand" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ElementOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54268,7 +54268,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ElementOperand']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8576" BrowseName="LiteralOperand" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8576" BrowseName="LiteralOperand" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>LiteralOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54278,7 +54278,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='LiteralOperand']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8579" BrowseName="AttributeOperand" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8579" BrowseName="AttributeOperand" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AttributeOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54288,7 +54288,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AttributeOperand']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8582" BrowseName="SimpleAttributeOperand" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8582" BrowseName="SimpleAttributeOperand" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SimpleAttributeOperand</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54298,7 +54298,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SimpleAttributeOperand']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8639" BrowseName="HistoryEvent" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8639" BrowseName="HistoryEvent" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>HistoryEvent</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54308,7 +54308,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='HistoryEvent']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8702" BrowseName="MonitoringFilter" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8702" BrowseName="MonitoringFilter" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>MonitoringFilter</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54318,7 +54318,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='MonitoringFilter']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8708" BrowseName="EventFilter" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8708" BrowseName="EventFilter" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EventFilter</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54328,7 +54328,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EventFilter']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8711" BrowseName="AggregateConfiguration" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8711" BrowseName="AggregateConfiguration" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AggregateConfiguration</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54338,7 +54338,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AggregateConfiguration']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8807" BrowseName="HistoryEventFieldList" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8807" BrowseName="HistoryEventFieldList" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>HistoryEventFieldList</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54348,7 +54348,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='HistoryEventFieldList']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8327" BrowseName="BuildInfo" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8327" BrowseName="BuildInfo" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>BuildInfo</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54358,7 +54358,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='BuildInfo']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8843" BrowseName="RedundantServerDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8843" BrowseName="RedundantServerDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>RedundantServerDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54368,7 +54368,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='RedundantServerDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=11951" BrowseName="EndpointUrlListDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=11951" BrowseName="EndpointUrlListDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EndpointUrlListDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54378,7 +54378,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EndpointUrlListDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=11954" BrowseName="NetworkGroupDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=11954" BrowseName="NetworkGroupDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>NetworkGroupDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54388,7 +54388,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='NetworkGroupDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8846" BrowseName="SamplingIntervalDiagnosticsDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8846" BrowseName="SamplingIntervalDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SamplingIntervalDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54398,7 +54398,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SamplingIntervalDiagnosticsDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8849" BrowseName="ServerDiagnosticsSummaryDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8849" BrowseName="ServerDiagnosticsSummaryDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ServerDiagnosticsSummaryDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54408,7 +54408,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ServerDiagnosticsSummaryDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8852" BrowseName="ServerStatusDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8852" BrowseName="ServerStatusDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ServerStatusDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54418,7 +54418,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ServerStatusDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8855" BrowseName="SessionDiagnosticsDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8855" BrowseName="SessionDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SessionDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54428,7 +54428,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SessionDiagnosticsDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8858" BrowseName="SessionSecurityDiagnosticsDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8858" BrowseName="SessionSecurityDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SessionSecurityDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54438,7 +54438,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SessionSecurityDiagnosticsDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8861" BrowseName="ServiceCounterDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8861" BrowseName="ServiceCounterDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ServiceCounterDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54448,7 +54448,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ServiceCounterDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8294" BrowseName="StatusResult" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8294" BrowseName="StatusResult" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>StatusResult</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54458,7 +54458,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='StatusResult']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8864" BrowseName="SubscriptionDiagnosticsDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8864" BrowseName="SubscriptionDiagnosticsDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SubscriptionDiagnosticsDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54468,7 +54468,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SubscriptionDiagnosticsDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8867" BrowseName="ModelChangeStructureDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8867" BrowseName="ModelChangeStructureDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ModelChangeStructureDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54478,7 +54478,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ModelChangeStructureDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8870" BrowseName="SemanticChangeStructureDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8870" BrowseName="SemanticChangeStructureDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>SemanticChangeStructureDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54488,7 +54488,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='SemanticChangeStructureDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8873" BrowseName="Range" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8873" BrowseName="Range" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Range</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54498,7 +54498,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Range']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8876" BrowseName="EUInformation" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8876" BrowseName="EUInformation" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>EUInformation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54508,7 +54508,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='EUInformation']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12175" BrowseName="ComplexNumberType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12175" BrowseName="ComplexNumberType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ComplexNumberType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54518,7 +54518,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ComplexNumberType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12178" BrowseName="DoubleComplexNumberType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12178" BrowseName="DoubleComplexNumberType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>DoubleComplexNumberType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54528,7 +54528,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='DoubleComplexNumberType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12083" BrowseName="AxisInformation" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12083" BrowseName="AxisInformation" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>AxisInformation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54538,7 +54538,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='AxisInformation']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=12086" BrowseName="XVType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=12086" BrowseName="XVType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>XVType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54548,7 +54548,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='XVType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8882" BrowseName="ProgramDiagnosticDataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8882" BrowseName="ProgramDiagnosticDataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ProgramDiagnosticDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54558,7 +54558,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ProgramDiagnosticDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=24039" BrowseName="ProgramDiagnostic2DataType" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=24039" BrowseName="ProgramDiagnostic2DataType" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>ProgramDiagnostic2DataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -54568,7 +54568,7 @@ RGV2aWF0aW9uRm9ybWF0IiAvPg0KDQo8L3hzOnNjaGVtYT4=</ByteString>
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ProgramDiagnostic2DataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="i=8879" BrowseName="Annotation" ParentNodeId="i=8252" DataType="String">
+  <UAVariable NodeId="i=8879" BrowseName="Annotation" ReleaseStatus="Deprecated" ParentNodeId="i=8252" DataType="String">
     <DisplayName>Annotation</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
