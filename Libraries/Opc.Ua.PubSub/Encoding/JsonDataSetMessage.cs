@@ -189,43 +189,10 @@ namespace Opc.Ua.PubSub.Encoding
             if (DataSet != null)
             {
                 EncodePayload(jsonEncoder);
-            }
-            // jsonEncoder.PopStructure();
-            //StartPositionInStream = jsonEncoder.Position;
-            //if (DataSetOffset > 0 && StartPositionInStream < DataSetOffset)
-            //{
-            //    StartPositionInStream = DataSetOffset;
-            //    jsonEncoder.Position = DataSetOffset;
-            //}           
-
-            //EncodeDataSetMessageHeader(jsonEncoder);
-            //EncodePayload(jsonEncoder);
-
-            //PayloadSizeInStream = (UInt16)(jsonEncoder.Position - StartPositionInStream);
-
-            //if (ConfiguredSize > 0 && PayloadSizeInStream < ConfiguredSize)
-            //{
-            //    PayloadSizeInStream = ConfiguredSize;
-            //    jsonEncoder.Position = StartPositionInStream + PayloadSizeInStream;
-            //}
+            }            
         }
 
-        internal void EncodePayload(JsonEncoder jsonEncoder, bool pushStructure = true)
-        {
-            if (pushStructure)
-            {
-                jsonEncoder.PushStructure("Payload");
-            }
-            foreach (var field in DataSet.Fields)
-            {
-                EncodeField(jsonEncoder, field);
-            }
-            if (pushStructure)
-            {
-                jsonEncoder.PopStructure();
-            }
-        }
-
+        
 
         /// <summary>
         /// Decode dataset
@@ -356,6 +323,27 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
+        /// Encodes The DataSet message payload
+        /// </summary>
+        /// <param name="jsonEncoder"></param>
+        /// <param name="pushStructure"></param>
+        internal void EncodePayload(JsonEncoder jsonEncoder, bool pushStructure = true)
+        {
+            if (pushStructure)
+            {
+                jsonEncoder.PushStructure("Payload");
+            }
+            foreach (var field in DataSet.Fields)
+            {
+                EncodeField(jsonEncoder, field);
+            }
+            if (pushStructure)
+            {
+                jsonEncoder.PopStructure();
+            }
+        }
+
+        /// <summary>
         /// Encodes a dataSet field
         /// </summary>
         /// <param name="encoder"></param>
@@ -405,151 +393,6 @@ namespace Opc.Ua.PubSub.Encoding
                     break;
             }
         }
-        #endregion
-
-        #region Decode header & payload
-
-        /// <summary>
-        /// Decode DataSet message header
-        /// </summary>
-        /// <param name="decoder"></param>
-        private void DecodeDataSetMessageHeader(IDecoder decoder)
-        {
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.MessageIsValid) != 0)
-            //{
-            //    DataSetFlags1 = (DataSetFlags1EncodingMask)decoder.ReadByte("DataSetFlags1");
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.DataSetFlags2) != 0)
-            //{
-            //    DataSetFlags2 = (DataSetFlags2EncodingMask)decoder.ReadByte("DataSetFlags2");
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.SequenceNumber) != 0)
-            //{
-            //    SequenceNumber = decoder.ReadUInt16("SequenceNumber");
-            //}
-
-            //if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
-            //{
-            //    TimeStamp = decoder.ReadDateTime("Timestamp");
-            //}
-
-            //if ((DataSetFlags2 & DataSetFlags2EncodingMask.PicoSeconds) != 0)
-            //{
-            //    PicoSeconds = decoder.ReadUInt16("Picoseconds");
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.Status) != 0)
-            //{
-            //    Status = decoder.ReadUInt16("Status");
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
-            //{
-            //    ConfigurationMajorVersion = decoder.ReadUInt32("ConfigurationMajorVersion");
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion) != 0)
-            //{
-            //    ConfigurationMinorVersion = decoder.ReadUInt32("ConfigurationMinorVersion");
-            //}
-        }
-
-        /// <summary>
-        ///  Decode field message data from decoder and using a DataSetReader
-        /// </summary>
-        /// <param name="binaryDecoder"></param>
-        /// <param name="dataSetReader"></param>
-        /// <returns></returns>
-        private DataSet DecodeFieldMessageData(JsonDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
-        {
-            //DataSetMetaDataType metaDataType = dataSetReader.DataSetMetaData;
-            //try
-            //{
-            //    ushort fieldCount = 0;
-            //    FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & FieldTypeUsedBits) >> 1);
-            //    if (fieldType == FieldTypeEncodingMask.RawData)
-            //    {
-            //        if (metaDataType != null)
-            //        {
-            //            // metadata should provide field count 
-            //            fieldCount = (ushort)metaDataType.Fields.Count;
-            //        }
-            //    }
-            //    else
-            //    {
-            //        fieldCount = binaryDecoder.ReadUInt16("DataSetFieldCount");
-            //    }
-
-            //    TargetVariablesDataType targetVariablesData =
-            //       ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
-
-            //    if (targetVariablesData == null || targetVariablesData.TargetVariables.Count != fieldCount)
-            //    {
-            //        // dataset cannot be decoded because the configuration is not for TargetVariables 
-            //        return null;
-            //    }
-
-            //    // check configuration version
-            //    List<DataValue> dataValues = new List<DataValue>();
-            //    switch (fieldType)
-            //    {
-            //        case FieldTypeEncodingMask.Variant:
-            //            for (int i = 0; i < fieldCount; i++)
-            //            {
-            //                dataValues.Add(new DataValue(binaryDecoder.ReadVariant("Variant")));
-            //            }
-            //            break;
-            //        case FieldTypeEncodingMask.DataValue:
-            //            for (int i = 0; i < fieldCount; i++)
-            //            {
-            //                dataValues.Add(binaryDecoder.ReadDataValue("DataValue"));
-            //            }
-            //            break;
-            //        case FieldTypeEncodingMask.RawData:
-            //            if (metaDataType != null)
-            //            {
-            //                for (int i = 0; i < fieldCount; i++)
-            //                {
-            //                    FieldMetaData fieldMetaData = metaDataType.Fields[i];
-            //                    if (fieldMetaData != null)
-            //                    {
-            //                        var decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
-            //                        dataValues.Add(new DataValue(new Variant(decodedValue)));
-            //                    }
-            //                }
-            //            }
-            //            // else the decoding is compromised for RawData type
-            //            break;
-            //        case FieldTypeEncodingMask.Reserved:
-            //            // ignore
-            //            break;
-            //    }
-
-            //    List<Field> dataFields = new List<Field>();
-
-            //    for (int i = 0; i < dataValues.Count; i++)
-            //    {
-            //        Field dataField = new Field();
-            //        dataField.Value = dataValues[i];
-            //        dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
-            //        dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
-            //        dataFields.Add(dataField);
-            //    }
-            //    DataSet dataSet = new DataSet(metaDataType?.Name);
-            //    dataSet.Fields = dataFields.ToArray();
-            //    dataSet.DataSetWriterId = DataSetWriterId;
-            //    dataSet.SequenceNumber = SequenceNumber;
-            //    return dataSet;
-            //}
-            //catch (Exception ex)
-            //{
-            //    Utils.Trace(ex, "JsonDataSetMessage.DecodeFieldMessageData");
-            //    return null;
-            //}
-            return null;
-        }
 
         /// <summary>
         /// Encodes field value as RawData
@@ -562,7 +405,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 // 01 RawData Field Encoding (TODO: StructuredValue)
-                var variant = field.Value.WrappedValue;                
+                var variant = field.Value.WrappedValue;
 
                 if (variant.TypeInfo == null || variant.TypeInfo.BuiltInType == BuiltInType.Null)
                 {
@@ -730,6 +573,153 @@ namespace Opc.Ua.PubSub.Encoding
                 Utils.Trace("Error encoding field {0} - {1}", fieldName, ex);
             }
         }
+        #endregion
+
+        #region Decode header & payload
+
+        /// <summary>
+        /// Decode DataSet message header
+        /// </summary>
+        /// <param name="decoder"></param>
+        private void DecodeDataSetMessageHeader(IDecoder decoder)
+        {
+            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.MessageIsValid) != 0)
+            //{
+            //    DataSetFlags1 = (DataSetFlags1EncodingMask)decoder.ReadByte("DataSetFlags1");
+            //}
+
+            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.DataSetFlags2) != 0)
+            //{
+            //    DataSetFlags2 = (DataSetFlags2EncodingMask)decoder.ReadByte("DataSetFlags2");
+            //}
+
+            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.SequenceNumber) != 0)
+            //{
+            //    SequenceNumber = decoder.ReadUInt16("SequenceNumber");
+            //}
+
+            //if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
+            //{
+            //    TimeStamp = decoder.ReadDateTime("Timestamp");
+            //}
+
+            //if ((DataSetFlags2 & DataSetFlags2EncodingMask.PicoSeconds) != 0)
+            //{
+            //    PicoSeconds = decoder.ReadUInt16("Picoseconds");
+            //}
+
+            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.Status) != 0)
+            //{
+            //    Status = decoder.ReadUInt16("Status");
+            //}
+
+            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
+            //{
+            //    ConfigurationMajorVersion = decoder.ReadUInt32("ConfigurationMajorVersion");
+            //}
+
+            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion) != 0)
+            //{
+            //    ConfigurationMinorVersion = decoder.ReadUInt32("ConfigurationMinorVersion");
+            //}
+        }
+
+        /// <summary>
+        ///  Decode field message data from decoder and using a DataSetReader
+        /// </summary>
+        /// <param name="binaryDecoder"></param>
+        /// <param name="dataSetReader"></param>
+        /// <returns></returns>
+        private DataSet DecodeFieldMessageData(JsonDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
+        {
+            //DataSetMetaDataType metaDataType = dataSetReader.DataSetMetaData;
+            //try
+            //{
+            //    ushort fieldCount = 0;
+            //    FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & FieldTypeUsedBits) >> 1);
+            //    if (fieldType == FieldTypeEncodingMask.RawData)
+            //    {
+            //        if (metaDataType != null)
+            //        {
+            //            // metadata should provide field count 
+            //            fieldCount = (ushort)metaDataType.Fields.Count;
+            //        }
+            //    }
+            //    else
+            //    {
+            //        fieldCount = binaryDecoder.ReadUInt16("DataSetFieldCount");
+            //    }
+
+            //    TargetVariablesDataType targetVariablesData =
+            //       ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
+
+            //    if (targetVariablesData == null || targetVariablesData.TargetVariables.Count != fieldCount)
+            //    {
+            //        // dataset cannot be decoded because the configuration is not for TargetVariables 
+            //        return null;
+            //    }
+
+            //    // check configuration version
+            //    List<DataValue> dataValues = new List<DataValue>();
+            //    switch (fieldType)
+            //    {
+            //        case FieldTypeEncodingMask.Variant:
+            //            for (int i = 0; i < fieldCount; i++)
+            //            {
+            //                dataValues.Add(new DataValue(binaryDecoder.ReadVariant("Variant")));
+            //            }
+            //            break;
+            //        case FieldTypeEncodingMask.DataValue:
+            //            for (int i = 0; i < fieldCount; i++)
+            //            {
+            //                dataValues.Add(binaryDecoder.ReadDataValue("DataValue"));
+            //            }
+            //            break;
+            //        case FieldTypeEncodingMask.RawData:
+            //            if (metaDataType != null)
+            //            {
+            //                for (int i = 0; i < fieldCount; i++)
+            //                {
+            //                    FieldMetaData fieldMetaData = metaDataType.Fields[i];
+            //                    if (fieldMetaData != null)
+            //                    {
+            //                        var decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
+            //                        dataValues.Add(new DataValue(new Variant(decodedValue)));
+            //                    }
+            //                }
+            //            }
+            //            // else the decoding is compromised for RawData type
+            //            break;
+            //        case FieldTypeEncodingMask.Reserved:
+            //            // ignore
+            //            break;
+            //    }
+
+            //    List<Field> dataFields = new List<Field>();
+
+            //    for (int i = 0; i < dataValues.Count; i++)
+            //    {
+            //        Field dataField = new Field();
+            //        dataField.Value = dataValues[i];
+            //        dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
+            //        dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+            //        dataFields.Add(dataField);
+            //    }
+            //    DataSet dataSet = new DataSet(metaDataType?.Name);
+            //    dataSet.Fields = dataFields.ToArray();
+            //    dataSet.DataSetWriterId = DataSetWriterId;
+            //    dataSet.SequenceNumber = SequenceNumber;
+            //    return dataSet;
+            //}
+            //catch (Exception ex)
+            //{
+            //    Utils.Trace(ex, "JsonDataSetMessage.DecodeFieldMessageData");
+            //    return null;
+            //}
+            return null;
+        }
+
+        
 
         /// <summary>
         /// Decode RawData type (for SimpleTypeDescription!?)

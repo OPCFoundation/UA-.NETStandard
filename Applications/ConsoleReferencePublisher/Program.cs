@@ -626,7 +626,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.PublishingInterval = 5000;
             writerGroup1.KeepAliveTime = 5000;
             writerGroup1.MaxNetworkMessageSize = 1500;
-            writerGroup1.HeaderLayoutUri = "UADP-Cyclic-Fixed";
 
             JsonWriterGroupMessageDataType jsonMessageSettings = new JsonWriterGroupMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
@@ -639,7 +638,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             writerGroup1.MessageSettings = new ExtensionObject(jsonMessageSettings);
             writerGroup1.TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType() {
-                QueueName = "Json_WriterGroup_1",
+                QueueName = "Json_WriterGroup_RawData",
             }
             );
 

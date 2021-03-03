@@ -49,7 +49,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             try
             {
                 // Define the configuration of UA Subscriber application
-                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
+                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson_RawData();
 
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
@@ -622,7 +622,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson()
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson_RawData()
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -788,7 +788,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.KeyFrameCount = 1;
             dataSetReaderSimple.DataSetMetaData = simpleMetaData;
             BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "Json_WriterGroup_1",
+                QueueName = "Json_WriterGroup_RawData",
             };
 
             dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);

@@ -396,43 +396,20 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Encode Payload Header
-        /// </summary>
-        /// <param name="encoder"></param>
-        //private void EncodePayloadHeader(JsonEncoder encoder)
-        //{
-        //    if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PayloadHeader) != 0)
-        //    {
-        //    //    encoder.WriteByte("Count", (byte) m_uadpDataSetMessages.Count);
-
-        //    //    // Collect DataSetSetMessages headers
-        //    //    for (int index = 0; index < m_uadpDataSetMessages.Count; index++)
-        //    //    {
-        //    //        UadpDataSetMessage uadpDataSetMessage = m_uadpDataSetMessages[index];
-        //    //        if (uadpDataSetMessage.DataSet != null)
-        //    //        {
-        //    //            encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
-        //    //        }
-        //    //    }
-        //    }
-        //}
-
-        /// <summary>
         /// Encode payload
         /// </summary>
         /// <param name="encoder"></param>
         private void EncodePayload(JsonEncoder encoder)
         { 
             if (DataSetMessages != null && DataSetMessages.Count > 0)
-            {
-               
+            {               
                 if (HasSingleDataSetMessage)
                 {
                     // encode single dataset message                   
                     JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                     if (jsonDataSetMessage != null)
                     {
-                        // If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
+                        // (UA Specs:) If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
                         // and SingleDataSetMessage bit is set, the NetworkMessage
                         // is a JSON object containing the set of name/value pairs defined for a single DataSet.
                         if (!jsonDataSetMessage.HasDataSetMessageHeader && !HasDataSetMessageHeader)
