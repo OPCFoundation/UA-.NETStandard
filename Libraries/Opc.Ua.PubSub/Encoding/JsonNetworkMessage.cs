@@ -75,13 +75,40 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public JsonNetworkMessageContentMask NetworkMessageContentMask { get; private set; }
 
-        #region NetworkMessage Header
+        /// <summary>
+        /// Get flag that indicates if message has network message header
+        /// </summary>
+        public bool HasNetworkMessageHeader
+        {
+            get
+            {
+                return (NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
+            }
+        }
 
         /// <summary>
-        /// Get Json Flags
+        /// Flag that indicates if the Network message contains a single dataset message 
         /// </summary>
-        public JsonNetworkMessageContentMask JSONFlags { get; private set; }
+        public bool HasSingleDataSetMessage
+        {
+            get
+            {
+                return (NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
+            }
+        }
 
+        /// <summary>
+        /// Flag that indicates if the Network message dataSets have header
+        /// </summary>
+        public bool HasDataSetMessageHeader
+        {
+            get
+            {
+                return (NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
+            }
+        }
+
+        #region NetworkMessage Header
         /// <summary>
         /// A globally unique identifier for the message.
         /// This value is mandatory.
@@ -128,7 +155,10 @@ namespace Opc.Ua.PubSub.Encoding
         {
             NetworkMessageContentMask = networkMessageContentMask;
 
-            SetFlags();
+            foreach(JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
+            {
+                jsonDataSetMessage.HasDataSetMessageHeader = HasDataSetMessageHeader;
+            }
         }
 
         /// <summary>
@@ -138,11 +168,44 @@ namespace Opc.Ua.PubSub.Encoding
         public override byte[] Encode()
         {
             ServiceMessageContext messageContext = new ServiceMessageContext();
-            byte[] bytes = null;
-            using (JsonEncoder encoder = new JsonEncoder(messageContext, true))
+            bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage;
+
+            using (JsonEncoder encoder = new JsonEncoder(messageContext, false, null, topLevelIsArray))
             {
-                Encode(encoder);
-                bytes = System.Text.Encoding.ASCII.GetBytes(encoder.CloseAndReturnText());
+                // handle no header
+                if (HasNetworkMessageHeader)
+                {
+                    Encode(encoder);
+                }
+                else if (DataSetMessages != null && DataSetMessages.Count > 0)
+                {
+                    if (HasSingleDataSetMessage)
+                    {
+                        // encode single dataset message
+                        encoder.PushStructure(null);
+                        JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+                        if (jsonDataSetMessage != null)
+                        {
+                            jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                        }                        
+                        encoder.PopStructure();
+                    }
+                    else
+                    {
+                        foreach (var message in DataSetMessages)
+                        {
+                            JsonDataSetMessage jsonDataSetMessage = message as JsonDataSetMessage;
+                            if (jsonDataSetMessage != null)
+                            {
+                                encoder.PushStructure(null);
+                                jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                                encoder.PopStructure();
+                            }                            
+                        }
+                    }
+                }
+                
+                byte[] bytes = System.Text.Encoding.ASCII.GetBytes(encoder.CloseAndReturnText());
 
                 return bytes;
             }
@@ -186,92 +249,17 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 throw new ArgumentException(nameof(jsonEncoder));
             }
+            // temporary save the mask
+            jsonEncoder.WriteUInt32("NetworkMessageContentMask", (UInt32)NetworkMessageContentMask);
 
-            EncodeNetworkMessageHeader(jsonEncoder);
+            if (HasNetworkMessageHeader)
+            {
+                EncodeNetworkMessageHeader(jsonEncoder);
+            }
             EncodePayload(jsonEncoder);
             EncodeReplyTo(jsonEncoder);
         }
 
-
-        /// <summary>
-        /// Set All flags before encode/decode
-        /// </summary>
-        private void SetFlags()
-        {
-            JSONFlags = 0;
-
-            #region Network Message Header
-
-            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
-            {
-                // Enable NetworkMessageHeader usage
-                JSONFlags |= JsonNetworkMessageContentMask.NetworkMessageHeader;
-
-                #region SingleDataSetMessage 
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
-                {
-                    JSONFlags |= JsonNetworkMessageContentMask.SingleDataSetMessage;
-                }
-                #endregion
-
-                #region PublisherId in network message
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
-                {
-                    JSONFlags |= JsonNetworkMessageContentMask.PublisherId;
-                }
-                #endregion
-
-                #region DataSetClassId in network message
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-                {
-                    JSONFlags |= JsonNetworkMessageContentMask.DataSetClassId;
-                }
-                #endregion
-
-            }
-            else
-            {
-                // Enable ExtendedFlags1 usage
-                JSONFlags &= ~JsonNetworkMessageContentMask.NetworkMessageHeader;
-
-                #region SingleDataSetMessage 
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
-                {
-                    JSONFlags &= ~JsonNetworkMessageContentMask.SingleDataSetMessage;
-                }
-                #endregion
-
-                #region PublisherId in network message
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
-                {
-                    JSONFlags &= ~JsonNetworkMessageContentMask.PublisherId;
-                }
-                #endregion
-
-                #region DataSetClassId in network message
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-                {
-                    JSONFlags &= ~JsonNetworkMessageContentMask.DataSetClassId;
-                }
-                #endregion
-            }
-            #endregion
-
-            #region DataSet Message Header
-            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
-            {
-                JSONFlags |= JsonNetworkMessageContentMask.DataSetMessageHeader;
-            }
-            #endregion
-
-            #region DataSetClassId in network message
-            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)
-            {
-                JSONFlags |= JsonNetworkMessageContentMask.ReplyTo;
-            }
-            #endregion
-
-        }
 
         /// <summary>
         /// Decode the stream from decoder parameter and produce a Dataset 
@@ -385,33 +373,25 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonEncoder"></param>
         private void EncodeNetworkMessageHeader(JsonEncoder jsonEncoder)
         {
-            // temporary save the mask
-            jsonEncoder.WriteByte("NetworkMessageContentMask", (byte)JSONFlags);
+            jsonEncoder.WriteString("MessageId", MessageId);
+            jsonEncoder.WriteString("MessageType", MessageType);
 
-            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
             {
-                jsonEncoder.WriteString("MessageId", MessageId);
-                jsonEncoder.WriteString("MessageType", MessageType);
-
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
-                {
-                    jsonEncoder.WriteString("PublisherId", PublisherId);
-                }
-
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-                {
-                    jsonEncoder.WriteString("DataSetClassId", DataSetClassId);
-                }
+                jsonEncoder.WriteString("PublisherId", PublisherId);
             }
             else
             {
-                // If the NetworkMessageHeader bit of the NetworkMessageContentMask is not set,
-                // the NetworkMessage is the contents of the Messages field (e.g. a JSON array of DataSetMessages).
+                jsonEncoder.WriteString("PublisherId", null);
+            }
 
-                //jsonEncoder.WriteString("MessageId", null);
-                //jsonEncoder.WriteString("MessageType", null);
-                //jsonEncoder.WriteString("PublisherId", null);
-                //jsonEncoder.WriteString("DataSetClassId", null);
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+            {
+                jsonEncoder.WriteString("DataSetClassId", DataSetClassId);
+            }
+            else
+            {
+                jsonEncoder.WriteString("DataSetClassId", DataSetClassId);
             }
         }
 
@@ -442,7 +422,39 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="encoder"></param>
         private void EncodePayload(JsonEncoder encoder)
-        {
+        { 
+            if (DataSetMessages != null && DataSetMessages.Count > 0)
+            {
+                
+                if (HasSingleDataSetMessage)
+                {
+                    // encode single dataset message
+                    encoder.PushStructure(null);
+                    JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+                    if (jsonDataSetMessage != null)
+                    {
+                        jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                    }
+                    encoder.PopStructure();
+                }
+                else
+                {
+                    encoder.PushStructure("Messages");
+                    foreach (var message in DataSetMessages)
+                    {
+                       
+                        JsonDataSetMessage jsonDataSetMessage = message as JsonDataSetMessage;
+                        if (jsonDataSetMessage != null)
+                        {
+                            jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+                        }
+                    }
+                    encoder.PopStructure();
+                }                
+            }
+
+
+
             //int payloadStartPositionInStream = encoder.Position;
             //if (m_uadpDataSetMessages.Count > 1
             //    && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
@@ -451,29 +463,27 @@ namespace Opc.Ua.PubSub.Encoding
             //    encoder.Position = encoder.Position + 2 * m_uadpDataSetMessages.Count;               
             //}
             //encode dataset message payload
-            encoder.PushStructure("DataSet Payload");
-            if ((NetworkMessageContentMask &
-                    (JsonNetworkMessageContentMask.NetworkMessageHeader &
-                    JsonNetworkMessageContentMask.SingleDataSetMessage)) != 0)
-            {
-                if (DataSetMessages.Count > 0)
-                {
-                    encoder.PushStructure("DataSetMessage");
-                    JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
-                    encoder.PopStructure();
-                }
-                encoder.PopStructure();
-            }
-            else
-            {
-                foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
-                {
-                    encoder.PushStructure("DataSetMessage");
-                    jsonDataSetMessage.Encode(encoder);
-                    encoder.PopStructure();
-                }
-            }
-            encoder.PopStructure();
+            
+            //if (HasNetworkMessageHeader & HasSingleDataSetMessage)
+            //{
+            //    if (DataSetMessages.Count > 0)
+            //    {
+            //        encoder.PushStructure("DataSetMessage");
+            //        JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+            //        encoder.PopStructure();
+            //    }
+            //    encoder.PopStructure();
+            //}
+            //else
+            //{
+            //    foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
+            //    {
+            //        encoder.PushStructure("DataSetMessage");
+            //        jsonDataSetMessage.Encode(encoder, HasDataSetMessageHeader);
+            //        encoder.PopStructure();
+            //    }
+            //}
+            //encoder.PopStructure();
 
             //if (m_uadpDataSetMessages.Count > 1
             //    && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
@@ -510,29 +520,29 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
-            // temporary restore mask
-            byte networkMessageContentMask = jsonDecoder.ReadByte("NetworkMessageContentMask");
-            JSONFlags = (JsonNetworkMessageContentMask)(networkMessageContentMask & 0x3F);
+            //// temporary restore mask
+            //byte networkMessageContentMask = jsonDecoder.ReadByte("NetworkMessageContentMask");
+            //JSONFlags = (JsonNetworkMessageContentMask)(networkMessageContentMask & 0x3F);
             
 
 
-            if ((JSONFlags & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
-            {
-                jsonDecoder.ReadString("MessageId");
-                jsonDecoder.ReadString("MessageType");
+            //if ((JSONFlags & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
+            //{
+            //    jsonDecoder.ReadString("MessageId");
+            //    jsonDecoder.ReadString("MessageType");
 
-                // Decode PublisherId
-                if ((JSONFlags & JsonNetworkMessageContentMask.PublisherId) != 0)
-                {
-                    PublisherId = jsonDecoder.ReadString("PublisherId");
-                }
+            //    // Decode PublisherId
+            //    if ((JSONFlags & JsonNetworkMessageContentMask.PublisherId) != 0)
+            //    {
+            //        PublisherId = jsonDecoder.ReadString("PublisherId");
+            //    }
 
-                // Decode DataSetClassId
-                if ((JSONFlags & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-                {
-                    DataSetClassId = jsonDecoder.ReadString("DataSetClassId");
-                }
-            }
+            //    // Decode DataSetClassId
+            //    if ((JSONFlags & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+            //    {
+            //        DataSetClassId = jsonDecoder.ReadString("DataSetClassId");
+            //    }
+            //}
         }
 
         /// <summary>
@@ -542,20 +552,20 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodePayloadHeader(JsonDecoder decoder)
         {
             // Decode PayloadHeader
-            if ((JSONFlags & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
-            {
-                byte count = decoder.ReadByte("Count");
-                for (int idx = 0; idx < count; idx++)
-                {
-                    m_uaDataSetMessages.Add(new JsonDataSetMessage());
-                }
+            //if ((JSONFlags & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
+            //{
+            //    byte count = decoder.ReadByte("Count");
+            //    for (int idx = 0; idx < count; idx++)
+            //    {
+            //        m_uaDataSetMessages.Add(new JsonDataSetMessage());
+            //    }
 
-                // collect DataSetSetMessages headers
-                foreach (JsonDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
-                {
-                    uadpDataSetMessage.DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
-                }
-            }
+            //    // collect DataSetSetMessages headers
+            //    foreach (JsonDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
+            //    {
+            //        uadpDataSetMessage.DataSetWriterId = decoder.ReadUInt16("DataSetWriterId");
+            //    }
+            //}
         }
 
         /// <summary>
@@ -564,29 +574,29 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="decoder"></param>
         private void DecodePayloadSize(JsonDecoder decoder)
         {
-            if (m_uaDataSetMessages.Count > 1)
-            {
-                // Decode PayloadHeader Size
-                if ((JSONFlags & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
-                {
-                    foreach (UadpDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
-                    {
-                        // Save the size
-                        uadpDataSetMessage.PayloadSizeInStream = decoder.ReadUInt16("Size");
-                    }
-                }
-            }
-            JsonDecoder jsonDecoder = decoder as JsonDecoder;
-            if (jsonDecoder != null)
-            {
-                int offset = 0;
-                // set start position of dataset message in binary stream 
-                foreach (JsonDataSetMessage jsonDataSetMessage in m_uaDataSetMessages)
-                {
-                    //jsonDataSetMessage.StartPositionInStream = jsonDecoder.Position + offset;
-                    offset += jsonDataSetMessage.PayloadSizeInStream;
-                }
-            }
+            //if (m_uaDataSetMessages.Count > 1)
+            //{
+            //    // Decode PayloadHeader Size
+            //    if ((JSONFlags & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
+            //    {
+            //        foreach (UadpDataSetMessage uadpDataSetMessage in m_uaDataSetMessages)
+            //        {
+            //            // Save the size
+            //            uadpDataSetMessage.PayloadSizeInStream = decoder.ReadUInt16("Size");
+            //        }
+            //    }
+            //}
+            //JsonDecoder jsonDecoder = decoder as JsonDecoder;
+            //if (jsonDecoder != null)
+            //{
+            //    int offset = 0;
+            //    // set start position of dataset message in binary stream 
+            //    foreach (JsonDataSetMessage jsonDataSetMessage in m_uaDataSetMessages)
+            //    {
+            //        //jsonDataSetMessage.StartPositionInStream = jsonDecoder.Position + offset;
+            //        offset += jsonDataSetMessage.PayloadSizeInStream;
+            //    }
+            //}
         }
 
         #endregion

@@ -634,8 +634,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                         | JsonNetworkMessageContentMask.SingleDataSetMessage
                         | JsonNetworkMessageContentMask.PublisherId
                         | JsonNetworkMessageContentMask.DataSetClassId
-                        | JsonNetworkMessageContentMask.ReplyTo
-                        )
+                        | JsonNetworkMessageContentMask.ReplyTo)
             };
 
             writerGroup1.MessageSettings = new ExtensionObject(jsonMessageSettings);
@@ -680,8 +679,68 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
-            pubSubConnection1.WriterGroups.Add(writerGroup1);
+            // pubSubConnection1.WriterGroups.Add(writerGroup1);
+            #endregion
+
+            #region Define WriterGroup2 - Json
+            WriterGroupDataType writerGroup2 = new WriterGroupDataType();
+            writerGroup2.Name = "WriterGroup 2";
+            writerGroup2.Enabled = true;
+            writerGroup2.WriterGroupId = 2;
+            writerGroup2.PublishingInterval = 5000;
+            writerGroup2.KeepAliveTime = 5000;
+            writerGroup2.MaxNetworkMessageSize = 1500;
+
+            jsonMessageSettings = new JsonWriterGroupMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetMessageHeader
+                        | JsonNetworkMessageContentMask.ReplyTo)
+            };
+
+            writerGroup2.MessageSettings = new ExtensionObject(jsonMessageSettings);
+            writerGroup2.TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType() {
+                QueueName = "Json_WriterGroup_2",
+            }
+            );
+
+            // Define DataSetWriter 'Simple'
+            DataSetWriterDataType dataSetWriter21 = new DataSetWriterDataType();
+            dataSetWriter21.Name = "Writer 2";
+            dataSetWriter21.DataSetWriterId = 21;
+            dataSetWriter21.Enabled = true;
+            dataSetWriter21.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetWriter21.DataSetName = "Simple";
+            dataSetWriter21.KeyFrameCount = 1;
+
+            jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
+            };
+
+            dataSetWriter21.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
+            writerGroup2.DataSetWriters.Add(dataSetWriter21);
+
+            // Define DataSetWriter 'AllTypes'
+            DataSetWriterDataType dataSetWriter22 = new DataSetWriterDataType();
+            dataSetWriter22.Name = "Writer 22";
+            dataSetWriter22.DataSetWriterId = 22;
+            dataSetWriter22.Enabled = true;
+            dataSetWriter22.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetWriter22.DataSetName = "AllTypes";
+            dataSetWriter22.KeyFrameCount = 1;
+
+            jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp),
+            };
+            dataSetWriter22.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
+            writerGroup2.DataSetWriters.Add(dataSetWriter22);
+
+            pubSubConnection1.WriterGroups.Add(writerGroup2);
             #endregion    
+
 
             #region  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = new PublishedDataSetDataType();
@@ -857,7 +916,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             var c2 = CreatePublisherConfiguration_MqttUadp();
             // add also uadp cnnection
-            pubSubConfiguration.Connections.Add(c2.Connections[0]);
+            //  pubSubConfiguration.Connections.Add(c2.Connections[0]);
             return pubSubConfiguration;
         }
     }

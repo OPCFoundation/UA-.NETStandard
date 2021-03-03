@@ -122,6 +122,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public JsonDataSetMessageContentMask MessageContentMask { get; private set; }
 
+        /// <summary>
+        /// Flag that indicates if the dataset message header is encoded
+        /// </summary>
+        public bool HasDataSetMessageHeader { get; set; }
         #endregion
 
         #region DataSetMessage settings
@@ -304,10 +308,11 @@ namespace Opc.Ua.PubSub.Encoding
             //#endregion
         }
         /// <summary>
-        /// Encode dataset
+        /// Encode dataset message
         /// </summary>
         /// <param name="jsonEncoder"></param>
-        public void Encode(JsonEncoder jsonEncoder)
+        /// <param name="hasDataSetMessageHeader"></param>
+        public void Encode(JsonEncoder jsonEncoder, bool hasDataSetMessageHeader)
         {
             //jsonEncoder.PushStructure("Payload");
             EncodePayload(jsonEncoder);
