@@ -508,28 +508,26 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
             //// temporary restore mask
-            //byte networkMessageContentMask = jsonDecoder.ReadByte("NetworkMessageContentMask");
-            //JSONFlags = (JsonNetworkMessageContentMask)(networkMessageContentMask & 0x3F);
-            
+            byte networkMessageContentMask = jsonDecoder.ReadByte("NetworkMessageContentMask");
+            NetworkMessageContentMask = (JsonNetworkMessageContentMask)(networkMessageContentMask & 0x3F);
 
+            if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
+            {
+                jsonDecoder.ReadString("MessageId");
+                jsonDecoder.ReadString("MessageType");
 
-            //if ((JSONFlags & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
-            //{
-            //    jsonDecoder.ReadString("MessageId");
-            //    jsonDecoder.ReadString("MessageType");
+                // Decode PublisherId
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+                {
+                    PublisherId = jsonDecoder.ReadString("PublisherId");
+                }
 
-            //    // Decode PublisherId
-            //    if ((JSONFlags & JsonNetworkMessageContentMask.PublisherId) != 0)
-            //    {
-            //        PublisherId = jsonDecoder.ReadString("PublisherId");
-            //    }
-
-            //    // Decode DataSetClassId
-            //    if ((JSONFlags & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-            //    {
-            //        DataSetClassId = jsonDecoder.ReadString("DataSetClassId");
-            //    }
-            //}
+                // Decode DataSetClassId
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+                {
+                    DataSetClassId = jsonDecoder.ReadString("DataSetClassId");
+                }
+            }
         }
 
         /// <summary>
