@@ -632,7 +632,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
             pubSubConnection1.Name = "UADPConnection1 MQTT Json";
             pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)100;
+            pubSubConnection1.PublisherId = (UInt16)3;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
             // Specify the local Network interface name to be used
@@ -837,7 +837,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.KeyFrameCount = 1;
             dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
             brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "Json_WriterGroup_1",
+                QueueName = "Json_WriterGroup_RawData",
             };
 
             dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);

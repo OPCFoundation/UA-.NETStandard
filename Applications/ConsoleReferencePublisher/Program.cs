@@ -44,7 +44,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             try
             {
                 // Define the configuration of UA Publisher application
-                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson_DataValue();
+                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson_RawData();
 
                 // Configure the mqtt specific configuration with the MQTTbroker
                 ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
@@ -634,7 +634,6 @@ namespace Quickstarts.ConsoleReferencePublisher
             JsonWriterGroupMessageDataType jsonMessageSettings = new JsonWriterGroupMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
                         | JsonNetworkMessageContentMask.DataSetMessageHeader
-                        | JsonNetworkMessageContentMask.SingleDataSetMessage
                         | JsonNetworkMessageContentMask.PublisherId
                         | JsonNetworkMessageContentMask.DataSetClassId
                         | JsonNetworkMessageContentMask.ReplyTo)
@@ -682,7 +681,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
-            // pubSubConnection1.WriterGroups.Add(writerGroup1);
+            pubSubConnection1.WriterGroups.Add(writerGroup1);
             #endregion
 
             #region Define WriterGroup2 - Json
@@ -741,7 +740,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter22.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup2.DataSetWriters.Add(dataSetWriter22);
 
-            pubSubConnection1.WriterGroups.Add(writerGroup2);
+            //pubSubConnection1.WriterGroups.Add(writerGroup2);
             #endregion    
 
 

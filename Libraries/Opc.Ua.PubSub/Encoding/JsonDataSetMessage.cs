@@ -181,6 +181,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonEncoder"></param>
         public void Encode(JsonEncoder jsonEncoder)
         {
+            jsonEncoder.PushStructure(null);
             if (HasDataSetMessageHeader)
             {
                 EncodeDataSetMessageHeader(jsonEncoder);
@@ -189,43 +190,28 @@ namespace Opc.Ua.PubSub.Encoding
             if (DataSet != null)
             {
                 EncodePayload(jsonEncoder);
-            }            
+            }
+
+            jsonEncoder.PopStructure();
         }
 
-        
+
 
         /// <summary>
         /// Decode dataset
         /// </summary>
-        /// <param name="jsonDecoder"></param>
+        /// <param name="messagesList"></param>
         /// <param name="dataSetReader"></param>
         /// <returns></returns>
-        public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
+        public DataSet DecodePossibleDataSetReader(List<object> messagesList, DataSetReaderDataType dataSetReader)
         {
-            //UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
-            //    as UadpDataSetReaderMessageDataType;
-            //if (messageSettings != null)
-            //{
-            //    //StartPositionInStream is calculated but different from reader configuration dataset cannot be decoded
-            //    if (StartPositionInStream != messageSettings.DataSetOffset)
-            //    {
-            //        if (StartPositionInStream == 0)
-            //        {
-            //            //use configured offset from reader
-            //            StartPositionInStream = messageSettings.DataSetOffset;
-            //        }
-            //        else if (messageSettings.DataSetOffset != 0)
-            //        {
-            //            //configuration is different from real position in message, the dataset cannot be decoded
-            //            return null;
-            //        }
-            //    }
-            //}
-            ////if (jsonDecoder.Context.Length <= StartPositionInStream)
-            ////{
-            ////    return null;
-            ////}
-            ////jsonDecoder.BaseStream.Position = StartPositionInStream;
+            foreach(object message in messagesList)
+            {
+                Dictionary<string, object> keyValuePairs = message as Dictionary<string, object>;
+            }
+            //JsonDataSetReaderMessageDataType jsonMessageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
+            //           as JsonDataSetReaderMessageDataType;
+            
             //DecodeDataSetMessageHeader(jsonDecoder);
             //return DecodeFieldMessageData(jsonDecoder, dataSetReader);
 
@@ -583,6 +569,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="decoder"></param>
         private void DecodeDataSetMessageHeader(IDecoder decoder)
         {
+            //DataSetMessageContentMask.
             //if ((DataSetFlags1 & DataSetFlags1EncodingMask.MessageIsValid) != 0)
             //{
             //    DataSetFlags1 = (DataSetFlags1EncodingMask)decoder.ReadByte("DataSetFlags1");
