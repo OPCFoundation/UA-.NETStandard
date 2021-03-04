@@ -45,6 +45,7 @@ using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt;
 using static Opc.Ua.Utils;
+using MQTTnet.Formatter;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -286,7 +287,81 @@ namespace Opc.Ua.PubSub.Transport
                 default:
                     return MqttQualityOfServiceLevel.AtLeastOnce;
             }
-        }        
+        }
+
+        /// <summary>
+        /// Get apropriate IMqttClientOptions with which to connect to the MQTTBroker
+        /// </summary>
+        /// <returns></returns>
+        private IMqttClientOptions GetMqttClientOptions()
+        {
+            IMqttClientOptions mqttOptions = null;
+            TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
+
+            if (Application.TransportProtocolConfiguration != null)
+            {
+                MqttClientProtocolConfiguration mqttProtocolConfiguration = Application.TransportProtocolConfiguration as MqttClientProtocolConfiguration;
+                if (mqttProtocolConfiguration != null)
+                {
+                    MqttProtocolVersion mqttProtocolVersion = (MqttProtocolVersion)((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).ProtocolVersion;
+                    if (((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseSSL &&
+                        ((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseCredentials)
+                    {
+                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                            .WithTcpServer(m_brokerHostName, m_brokerPort)
+                            .WithCredentials(mqttProtocolConfiguration.UserName.ToString(),
+                                             mqttProtocolConfiguration.Password.ToString())
+                            .WithKeepAlivePeriod(mqttKeepAlive)
+                            .WithProtocolVersion(mqttProtocolVersion)
+                            .WithTls()
+                            .Build();
+                    }
+                    else if (!((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseSSL &&
+                             ((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseCredentials)
+                    {
+                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                            .WithTcpServer(m_brokerHostName, m_brokerPort)
+                            .WithCredentials(mqttProtocolConfiguration.UserName.ToString(),
+                                             mqttProtocolConfiguration.Password.ToString())
+                            .WithKeepAlivePeriod(mqttKeepAlive)
+                            .WithProtocolVersion(mqttProtocolVersion)
+                            .Build();
+                    }
+                    else if (((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseSSL &&
+                             !((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseCredentials)
+                    {
+                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                            .WithTcpServer(m_brokerHostName, m_brokerPort)
+                            .WithKeepAlivePeriod(mqttKeepAlive)
+                            .WithProtocolVersion(mqttProtocolVersion)
+                            .WithTls()
+                            .Build();
+                    }
+                    //if (!((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseTLS &&
+                    //        !((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseCredentials)
+                    else
+                    {
+                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                            .WithTcpServer(m_brokerHostName, m_brokerPort)
+                            .WithKeepAlivePeriod(mqttKeepAlive)
+                            .WithProtocolVersion(mqttProtocolVersion)
+                            .Build();
+                    }
+
+                }
+            }
+            else
+            {
+                mqttOptions = new MqttClientOptionsBuilder()
+                    .WithTcpServer(m_brokerHostName, m_brokerPort)
+                    .WithKeepAlivePeriod(mqttKeepAlive)
+                    .Build();
+            }
+
+
+            return mqttOptions;
+
+        }
 
         protected override bool InternalInitialize()
         {
@@ -331,13 +406,7 @@ namespace Opc.Ua.PubSub.Transport
 
             MqttClient pubClient = null;
             MqttClient subClient = null;
-
-            TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
-
-            var mqttOptions = new MqttClientOptionsBuilder()
-                    .WithTcpServer(m_brokerHostName, m_brokerPort)
-                    .WithKeepAlivePeriod(mqttKeepAlive)
-                    .Build();
+            IMqttClientOptions mqttOptions = GetMqttClientOptions();
 
             //publisher initialization    
             if (nrOfPublishers > 0)

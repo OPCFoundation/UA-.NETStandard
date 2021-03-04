@@ -46,6 +46,7 @@ namespace Opc.Ua.PubSub
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
         private UaPubSubConfigurator m_uaPubSubConfigurator;
+        private ITransportProtocolConfiguration m_transportProtocolConfiguration;
         #endregion
 
         #region Events
@@ -90,6 +91,11 @@ namespace Opc.Ua.PubSub
         {
             get { return new string[] { Profiles.PubSubUdpUadpTransport }; }
         }
+
+        /// <summary>
+        /// Get assigned transport protocol configuration for all connection instances
+        /// </summary>
+        public ITransportProtocolConfiguration TransportProtocolConfiguration { get { return m_transportProtocolConfiguration; } }
 
         /// <summary>
         /// Get reference to the associated <see cref="UaPubSubConfigurator"/> instance.
@@ -159,8 +165,11 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object.</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
+        /// <param name="transportProtocolConfiguration">The current implementation of  <see cref="ITransportProtocolConfiguration"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null, IUaPubSubDataStore dataStore = null)
+        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null,
+            IUaPubSubDataStore dataStore = null,
+            ITransportProtocolConfiguration transportProtocolConfiguration = null)
         {
             // if no argument received, start with empty configuration
             if (pubSubConfiguration == null)
@@ -169,7 +178,8 @@ namespace Opc.Ua.PubSub
             }
 
             UaPubSubApplication uaPubSubApplication = new UaPubSubApplication(dataStore);
-            uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);            
+            uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
+            uaPubSubApplication.m_transportProtocolConfiguration = transportProtocolConfiguration;
             return uaPubSubApplication;
         }
         #endregion
