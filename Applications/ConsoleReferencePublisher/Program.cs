@@ -632,8 +632,11 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.MaxNetworkMessageSize = 1500;
 
             JsonWriterGroupMessageDataType jsonMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
-                        | JsonNetworkMessageContentMask.DataSetMessageHeader
+                NetworkMessageContentMask = (uint)(
+                // JsonNetworkMessageContentMask.NetworkMessageHeader |
+                       //JsonNetworkMessageContentMask.DataSetMessageHeader
+                       //|
+                       JsonNetworkMessageContentMask.SingleDataSetMessage
                         | JsonNetworkMessageContentMask.PublisherId
                         | JsonNetworkMessageContentMask.DataSetClassId
                         | JsonNetworkMessageContentMask.ReplyTo)
@@ -694,8 +697,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup2.MaxNetworkMessageSize = 1500;
 
             jsonMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetMessageHeader
-                        | JsonNetworkMessageContentMask.ReplyTo)
+                NetworkMessageContentMask = 0
+                //(uint)(
+                //JsonNetworkMessageContentMask.DataSetMessageHeader
+                //        | JsonNetworkMessageContentMask.ReplyTo)
             };
 
             writerGroup2.MessageSettings = new ExtensionObject(jsonMessageSettings);

@@ -183,14 +183,22 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     if (HasSingleDataSetMessage)
                     {
-                        // encode single dataset message
-                        encoder.PushStructure(null);
+                        // encode single dataset message                        
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
                         {
-                            jsonDataSetMessage.Encode(encoder);
-                        }                        
-                        encoder.PopStructure();
+                            // (UA Specs:) If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
+                            // and SingleDataSetMessage bit is set, the NetworkMessage
+                            // is a JSON object containing the set of name/value pairs defined for a single DataSet.
+                            if (!jsonDataSetMessage.HasDataSetMessageHeader)
+                            {
+                                jsonDataSetMessage.EncodePayload(encoder, false);
+                            }
+                            else
+                            {
+                                jsonDataSetMessage.Encode(encoder);
+                            }
+                        } 
                     }
                     else
                     {
@@ -198,10 +206,8 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             JsonDataSetMessage jsonDataSetMessage = message as JsonDataSetMessage;
                             if (jsonDataSetMessage != null)
-                            {
-                                encoder.PushStructure(null);
+                            {                                
                                 jsonDataSetMessage.Encode(encoder);
-                                encoder.PopStructure();
                             }                            
                         }
                     }
@@ -251,9 +257,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 throw new ArgumentException(nameof(jsonEncoder));
             }
-            // temporary save the mask
-            jsonEncoder.WriteUInt32("NetworkMessageContentMask", (UInt32)NetworkMessageContentMask);
-
+           
             if (HasNetworkMessageHeader)
             {
                 EncodeNetworkMessageHeader(jsonEncoder);
@@ -261,7 +265,6 @@ namespace Opc.Ua.PubSub.Encoding
             EncodeMessages(jsonEncoder);
             EncodeReplyTo(jsonEncoder);
         }
-
 
         /// <summary>
         /// Decode the stream from decoder parameter and produce a Dataset 
@@ -395,20 +398,10 @@ namespace Opc.Ua.PubSub.Encoding
                     JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                     if (jsonDataSetMessage != null)
                     {
-                        // (UA Specs:) If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
-                        // and SingleDataSetMessage bit is set, the NetworkMessage
-                        // is a JSON object containing the set of name/value pairs defined for a single DataSet.
-                        if (!jsonDataSetMessage.HasDataSetMessageHeader && !HasDataSetMessageHeader)
-                        {
-                            jsonDataSetMessage.EncodePayload(encoder, false);
-                        }
-                        else
-                        {
-                            encoder.PushArray(FieldMessages);
-                            jsonDataSetMessage.Encode(encoder);
-                            encoder.PopArray();
-                        }
-                    }                   
+                        encoder.PushArray(FieldMessages);
+                        jsonDataSetMessage.Encode(encoder);
+                        encoder.PopArray();
+                    }                 
                 }
                 else
                 {
