@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Transport
                                 }
 
                                 jsonDataSetMessage.Timestamp = DateTime.UtcNow;
-                                jsonDataSetMessage.Status = (ushort)StatusCodes.Good;
+                                jsonDataSetMessage.Status = StatusCodes.BadUnexpectedError;
                                 dataSetMessages.Add(jsonDataSetMessage);
                             }
                         }

@@ -41,6 +41,13 @@ namespace Opc.Ua.PubSub.Encoding
     internal class JsonDataSetMessage : UaDataSetMessage
     {
         #region Fields
+        private const string FieldDataSetWriterId = "DataSetWriterId";
+        private const string FieldSequenceNumber = "SequenceNumber";
+        private const string FieldMetaDataVersion = "MetaDataVersion";
+        private const string FieldTimestamp = "Timestamp";
+        private const string FieldStatus = "Status";
+        private const string FieldPayload = "Payload";
+
         private DataSet m_dataSet;
         private FieldTypeEncodingMask m_fieldTypeEncoding;
          
@@ -116,7 +123,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set Status
         /// </summary>
-        public UInt16 Status { get; set; }
+        public StatusCode Status { get; set; }
 
         /// <summary>
         /// Get DataSet
@@ -126,13 +133,6 @@ namespace Opc.Ua.PubSub.Encoding
             get { return m_dataSet; }
         }
 
-        /// <summary>
-        /// Get decoded data DataSets from possible dataset readers
-        /// </summary>
-        public List<DataSet> DecodedDataSets
-        {
-            get; private set;
-        }
         #endregion
         #endregion Properties
 
@@ -195,8 +195,6 @@ namespace Opc.Ua.PubSub.Encoding
             jsonEncoder.PopStructure();
         }
 
-
-
         /// <summary>
         /// Decode dataset
         /// </summary>
@@ -207,20 +205,160 @@ namespace Opc.Ua.PubSub.Encoding
         {
             foreach(object message in messagesList)
             {
+                // attempt decoding the keyvaluePairs
                 Dictionary<string, object> keyValuePairs = message as Dictionary<string, object>;
-            }
-            //JsonDataSetReaderMessageDataType jsonMessageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
-            //           as JsonDataSetReaderMessageDataType;
-            
-            //DecodeDataSetMessageHeader(jsonDecoder);
-            //return DecodeFieldMessageData(jsonDecoder, dataSetReader);
 
+                if (keyValuePairs != null)
+                {
+                    DataSet dataSet = DecodePossibleDataSetReader(keyValuePairs, dataSetReader);
+                    if (dataSet != null)
+                    {
+                        return dataSet;
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Decode dataset from the Keyvalue pairs
+        /// </summary>
+        /// <param name="keyValuePairs"></param>
+        /// <param name="dataSetReader"></param>
+        /// <returns></returns>
+        public DataSet DecodePossibleDataSetReader(Dictionary<string, object> keyValuePairs, DataSetReaderDataType dataSetReader)
+        {
+            object value = null;
+            // check if there shall be a dataset header 
+            if (HasDataSetMessageHeader)
+            {
+                #region Decode DataSet message header                
+                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
+                {
+                    if (keyValuePairs.TryGetValue(FieldDataSetWriterId, out value))
+                    {
+                        DataSetWriterId = Convert.ToUInt16( value.ToString());
+
+                        // check if the reader matches
+                        if (dataSetReader.DataSetWriterId != 0 && dataSetReader.DataSetWriterId != DataSetWriterId)
+                        {
+                            // the Writer id does not match
+                            return null;
+                        }
+                    }
+                }
+
+                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
+                {
+                    if (keyValuePairs.TryGetValue(FieldSequenceNumber, out value))
+                    {
+                        SequenceNumber = Convert.ToUInt32(value.ToString());
+                    }
+                }
+
+                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
+                {
+                    if (keyValuePairs.TryGetValue(FieldMetaDataVersion, out value))
+                    {
+                        Dictionary<string, object> metadata = value as Dictionary<string, object>;
+                        if (metadata != null && metadata.ContainsKey("MinorVersion") && metadata.ContainsKey("MajorVersion"))
+                        {
+                            MetaDataVersion = new ConfigurationVersionDataType() {
+                                MinorVersion = Convert.ToUInt32(metadata["MinorVersion"].ToString()),
+                                MajorVersion = Convert.ToUInt32(metadata["MajorVersion"].ToString()),
+                            };
+                        }                        
+                    }
+                }
+
+                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
+                {
+                    if (keyValuePairs.TryGetValue(FieldTimestamp, out value))
+                    {
+                        if (value is DateTime)
+                        {
+                            Timestamp = (DateTime)value;
+                        }
+                        else
+                        {
+                            Timestamp = XmlConvert.ToDateTime(value.ToString(), XmlDateTimeSerializationMode.Utc);
+                        }                        
+                    }
+                }
+
+                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
+                {
+                    if (keyValuePairs.TryGetValue(FieldStatus, out value))
+                    {
+                        Dictionary<string, object> status = value as Dictionary<string, object>;
+                        if (status != null && status.ContainsKey("Code"))
+                        {
+                            Status = new StatusCode(Convert.ToUInt32(status["Code"].ToString()));
+                        }
+                    }
+                }
+                #endregion
+
+                if (keyValuePairs.TryGetValue(FieldPayload, out value))
+                {
+                    Dictionary<string, object> payload = value as Dictionary<string, object>;
+                    if (payload != null)
+                    {
+                        TargetVariablesDataType targetVariablesData =
+                            ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
+                        DataSetMetaDataType metaDataType = dataSetReader.DataSetMetaData;
+
+                        if (targetVariablesData == null || metaDataType == null
+                            || metaDataType.Fields.Count != payload.Count
+                            || targetVariablesData.TargetVariables.Count != payload.Count)
+                        {
+                            // dataset cannot be decoded because the configuration is not for TargetVariables 
+                            return null;
+                        }
+                        List<DataValue> dataValues = new List<DataValue>();
+                        for (int i = 0; i < metaDataType.Fields.Count; i++)
+                        {
+                            payload.TryGetValue(metaDataType.Fields[i].Name, out value);
+                            switch (m_fieldTypeEncoding)
+                            {
+                                case FieldTypeEncodingMask.Variant:
+                                    //encoder.WriteVariant(field.FieldMetaData.Name, field.Value.WrappedValue);
+                                    break;
+                                case FieldTypeEncodingMask.RawData:
+                                    dataValues.Add(new DataValue(new Variant(value)));
+                                    break;
+                                case FieldTypeEncodingMask.DataValue:
+                                    //DataValue dataValue = new DataValue();
+                                    break;
+                            }
+                        }
+                        // build the dataset fields
+                        List<Field> dataFields = new List<Field>();
+
+                        for (int i = 0; i < dataValues.Count; i++)
+                        {
+                            Field dataField = new Field();
+                            dataField.Value = dataValues[i];
+                            // todo investigate if Target attribute and node id are mandatory
+                            dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
+                            dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+                            dataFields.Add(dataField);
+                        }
+                        DataSet dataSet = new DataSet(metaDataType?.Name);
+                        dataSet.Fields = dataFields.ToArray();
+                        dataSet.DataSetWriterId = DataSetWriterId;
+                        dataSet.SequenceNumber = SequenceNumber;
+                        return dataSet;
+                    }
+                    return null;     
+                }
+            }
             return null;
         }
         #endregion
 
         #region Encode header & payload
-
+        
         /// <summary>
         /// Encode DataSet message header
         /// </summary>
@@ -228,84 +366,29 @@ namespace Opc.Ua.PubSub.Encoding
         private void EncodeDataSetMessageHeader(JsonEncoder encoder)
         {
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
-            {
-                encoder.WriteString("DataSetWriterId", DataSetWriterId.ToString());
+            {                
+                encoder.WriteString(FieldDataSetWriterId, DataSetWriterId.ToString());
             }
-            else
-            {
-                encoder.WriteString("DataSetWriterId", null);
-            }
+           
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
             {
-                encoder.WriteUInt32("SequenceNumber", SequenceNumber);
-            }
-            else
-            {
-                encoder.WriteUInt32("SequenceNumber", 0);
-            }
+                encoder.WriteUInt32(FieldSequenceNumber, SequenceNumber);
+            }            
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
             {
-                encoder.WriteEncodeable("MetaDataVersion", MetaDataVersion, typeof(ConfigurationVersionDataType));
+                encoder.WriteEncodeable(FieldMetaDataVersion, MetaDataVersion, typeof(ConfigurationVersionDataType));
             }
-            else
-            {
-                encoder.WriteEncodeable("MetaDataVersion", null, typeof(ConfigurationVersionDataType));
-            }
+
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
             {
-                encoder.WriteDateTime("Timestamp", Timestamp);
-            }
-            else
-            {
-                encoder.WriteDateTime("Timestamp", DateTime.MinValue);
+                encoder.WriteDateTime(FieldTimestamp, Timestamp);
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
             {
-                encoder.WriteStatusCode("Status", Status);
+                encoder.WriteStatusCode(FieldStatus, Status);
             }
-            else
-            {
-                encoder.WriteStatusCode("Status", StatusCodes.Good);
-            }
-
-
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.DataSetFlags2) != 0)
-            //{
-            //    encoder.WriteByte("DataSetFlags2", (byte)DataSetFlags2);
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.SequenceNumber) != 0)
-            //{
-            //    encoder.WriteUInt16("SequenceNumber", (UInt16)SequenceNumber);
-            //}
-
-            //if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
-            //{
-            //    encoder.WriteDateTime("Timestamp", TimeStamp);
-            //}
-
-            //if ((DataSetFlags2 & DataSetFlags2EncodingMask.PicoSeconds) != 0)
-            //{
-            //    encoder.WriteUInt16("Picoseconds", PicoSeconds);
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.Status) != 0)
-            //{
-            //    encoder.WriteUInt16("Status", Status);
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
-            //{
-            //    encoder.WriteUInt32("ConfigurationMajorVersion", ConfigurationMajorVersion);
-            //}
-
-            //if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion) != 0)
-            //{
-            //    encoder.WriteUInt32("ConfigurationMinorVersion", ConfigurationMinorVersion);
-            //}
         }
 
         /// <summary>
@@ -317,7 +400,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if (pushStructure)
             {
-                jsonEncoder.PushStructure("Payload");
+                jsonEncoder.PushStructure(FieldPayload);
             }
             foreach (var field in DataSet.Fields)
             {

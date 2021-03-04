@@ -268,6 +268,13 @@ namespace Opc.Ua.PubSub
                 {
                     foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
                     {
+                        // check if reader is properlly configuread to receive data
+                        if (reader.DataSetMetaData == null
+                            || reader.DataSetMetaData.Fields == null
+                            || reader.DataSetMetaData.Fields.Count == 0)
+                        {
+                            continue;
+                        }
                         if (Application.UaPubSubConfigurator.FindStateForObject(reader) == PubSubState.Operational)
                         {
                             readersList.Add(reader);

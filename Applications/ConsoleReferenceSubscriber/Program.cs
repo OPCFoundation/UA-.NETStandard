@@ -803,7 +803,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                        | JsonNetworkMessageContentMask.NetworkMessageHeader
                        | JsonNetworkMessageContentMask.PublisherId
                        | JsonNetworkMessageContentMask.ReplyTo
-                       | JsonNetworkMessageContentMask.SingleDataSetMessage),
+                       //| JsonNetworkMessageContentMask.SingleDataSetMessage
+                       ),
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
                 | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
                 | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
@@ -848,7 +849,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                        | JsonNetworkMessageContentMask.NetworkMessageHeader
                        | JsonNetworkMessageContentMask.PublisherId
                        | JsonNetworkMessageContentMask.ReplyTo
-                       | JsonNetworkMessageContentMask.SingleDataSetMessage),
+                       //| JsonNetworkMessageContentMask.SingleDataSetMessage
+                       ),
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
                  | JsonDataSetMessageContentMask.SequenceNumber
                 | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),

@@ -184,14 +184,6 @@ namespace Opc.Ua.PubSub.Encoding
         {
             get { return m_dataSet; }
         }
-
-        /// <summary>
-        /// Get decoded data DataSets from possible dataset readers
-        /// </summary>
-        public List<DataSet> DecodedDataSets
-        {
-            get; private set;
-        }
         #endregion
 
         /// <summary>
@@ -532,6 +524,7 @@ namespace Opc.Ua.PubSub.Encoding
                 TargetVariablesDataType targetVariablesData =
                    ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
 
+                // todo investigate if Target attribute and node id are mandatory
                 if (targetVariablesData == null || targetVariablesData.TargetVariables.Count != fieldCount)
                 {
                     // dataset cannot be decoded because the configuration is not for TargetVariables 
@@ -580,6 +573,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     Field dataField = new Field();
                     dataField.Value = dataValues[i];
+                    // todo investigate if Target attribute and node id are mandatory
                     dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
                     dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
                     dataFields.Add(dataField);

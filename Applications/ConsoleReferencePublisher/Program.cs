@@ -632,11 +632,9 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.MaxNetworkMessageSize = 1500;
 
             JsonWriterGroupMessageDataType jsonMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = (uint)(
-                // JsonNetworkMessageContentMask.NetworkMessageHeader |
-                       //JsonNetworkMessageContentMask.DataSetMessageHeader
-                       //|
-                       JsonNetworkMessageContentMask.SingleDataSetMessage
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader 
+                       | JsonNetworkMessageContentMask.DataSetMessageHeader
+                      // | JsonNetworkMessageContentMask.SingleDataSetMessage
                         | JsonNetworkMessageContentMask.PublisherId
                         | JsonNetworkMessageContentMask.DataSetClassId
                         | JsonNetworkMessageContentMask.ReplyTo)
@@ -660,7 +658,8 @@ namespace Quickstarts.ConsoleReferencePublisher
             JsonDataSetWriterMessageDataType jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
                 | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp),
             };
 
             dataSetWriter1.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
@@ -697,10 +696,9 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup2.MaxNetworkMessageSize = 1500;
 
             jsonMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = 0
-                //(uint)(
-                //JsonNetworkMessageContentMask.DataSetMessageHeader
-                //        | JsonNetworkMessageContentMask.ReplyTo)
+                NetworkMessageContentMask = (uint)(
+                JsonNetworkMessageContentMask.DataSetMessageHeader
+                        | JsonNetworkMessageContentMask.ReplyTo)
             };
 
             writerGroup2.MessageSettings = new ExtensionObject(jsonMessageSettings);
