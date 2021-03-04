@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
+using Opc.Ua.PubSub.Mqtt;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Quickstarts.ConsoleReferenceSubscriber
@@ -51,8 +52,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 // Define the configuration of UA Subscriber application
                 PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson_RawData();
 
+                // Configure the mqtt specific configuration with the MQTTbroker
+                ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+
                 // Create the UA Publisher application
-                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, transportProtocolConfiguration: mqttConfiguration))
                 {
                     // Subscribte to DataReceived event
                     uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;

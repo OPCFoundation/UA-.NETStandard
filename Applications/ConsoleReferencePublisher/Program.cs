@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
+using Opc.Ua.PubSub.Mqtt;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
@@ -45,8 +46,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                 // Define the configuration of UA Publisher application
                 PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson_DataValue();
 
+                // Configure the mqtt specific configuration with the MQTTbroker
+                ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+
                 // Create the UA Publisher application
-                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, transportProtocolConfiguration: mqttConfiguration))
                 {
                     // Start values simulator
                     PublishedValuesWrites valuesSimulator = new PublishedValuesWrites(uaPubSubApplication);
