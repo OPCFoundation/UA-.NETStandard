@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Mqtt
         #region Public Properties
         public SecureString UserName { get => m_userName; set => m_userName = value; }
 
-        public SecureString Password { get => m_userName; set => m_userName = value; }
+        public SecureString Password { get => m_password; set => m_password = value; }
 
         public bool CleanSession { get => m_cleanSession; set => m_cleanSession = value; }
 

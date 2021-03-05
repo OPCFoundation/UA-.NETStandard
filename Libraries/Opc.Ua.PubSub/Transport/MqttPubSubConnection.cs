@@ -309,8 +309,8 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
-                            .WithCredentials(mqttProtocolConfiguration.UserName.ToString(),
-                                             mqttProtocolConfiguration.Password.ToString())
+                            .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
+                                             new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
                             .WithTls()
@@ -321,8 +321,8 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
-                            .WithCredentials(mqttProtocolConfiguration.UserName.ToString(),
-                                             mqttProtocolConfiguration.Password.ToString())
+                            .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
+                                             new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
                             .Build();
