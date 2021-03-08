@@ -50,7 +50,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             try
             {
                 // Define the configuration of UA Subscriber application
-                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson_RawData();
+                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
 
                 // Configure the mqtt specific configuration with the MQTTbroker
                 ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
@@ -633,7 +633,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson_RawData()
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson()
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -788,21 +788,21 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
             readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
-            #region Define DataSetReader 'Simple' for PublisherId = (UInt16)100, DataSetWriterId = 1
-            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
-            dataSetReaderSimple.Name = "Reader 1 MQTT JSON";
-            dataSetReaderSimple.PublisherId = (UInt16)3;
-            dataSetReaderSimple.WriterGroupId = 0;
-            dataSetReaderSimple.DataSetWriterId = 0;
-            dataSetReaderSimple.Enabled = true;
-            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetReaderSimple.KeyFrameCount = 1;
-            dataSetReaderSimple.DataSetMetaData = simpleMetaData;
+            #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)3, DataSetWriterId = 1
+            DataSetReaderDataType dataSetReader1 = new DataSetReaderDataType();
+            dataSetReader1.Name = "Reader 1 MQTT JSON Variant Encoding";
+            dataSetReader1.PublisherId = (UInt16)3;
+            dataSetReader1.WriterGroupId = 1;
+            dataSetReader1.DataSetWriterId = 1;
+            dataSetReader1.Enabled = true;
+            dataSetReader1.DataSetFieldContentMask = 0;// Variant encoding;
+            dataSetReader1.KeyFrameCount = 1;
+            dataSetReader1.DataSetMetaData = simpleMetaData;
             BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "Json_WriterGroup_RawData",
+                QueueName = "Json_WriterGroup_1",
             };
 
-            dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
+            dataSetReader1.TransportSettings = new ExtensionObject(brokerTransportSettings);
 
             JsonDataSetReaderMessageDataType jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetClassId
@@ -810,13 +810,12 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                        | JsonNetworkMessageContentMask.NetworkMessageHeader
                        | JsonNetworkMessageContentMask.PublisherId
                        | JsonNetworkMessageContentMask.ReplyTo
-                       //| JsonNetworkMessageContentMask.SingleDataSetMessage
                        ),
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
                 | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
                 | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
             };
-            dataSetReaderSimple.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+            dataSetReader1.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
             TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
             subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
             foreach (var fieldMetaData in simpleMetaData.Fields)
@@ -830,25 +829,25 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 });
             }
 
-            dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            dataSetReader1.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
             #endregion
-            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+           // readerGroup1.DataSetReaders.Add(dataSetReader1);
 
-            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)100, DataSetWriterId = 2
-            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
-            dataSetReaderAllTypes.Name = "Reader 2 MQTT JSON";
-            dataSetReaderAllTypes.PublisherId = (UInt16)3;
-            dataSetReaderAllTypes.WriterGroupId = 0;
-            dataSetReaderAllTypes.DataSetWriterId = 0;
-            dataSetReaderAllTypes.Enabled = true;
-            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetReaderAllTypes.KeyFrameCount = 1;
-            dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
+            #region Define DataSetReader2 'Simple' for PublisherId = (UInt16)3, DataSetWriterId = 1
+            DataSetReaderDataType dataSetReader2 = new DataSetReaderDataType();
+            dataSetReader2.Name = "Reader 2 MQTT JSON RawData Encoding";
+            dataSetReader2.PublisherId = (UInt16)3;
+            dataSetReader2.WriterGroupId =1;
+            dataSetReader2.DataSetWriterId = 2;
+            dataSetReader2.Enabled = true;
+            dataSetReader2.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReader2.KeyFrameCount = 1;
+            dataSetReader2.DataSetMetaData = simpleMetaData;
             brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "Json_WriterGroup_RawData",
+                QueueName = "Json_WriterGroup_1",
             };
 
-            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
+            dataSetReader2.TransportSettings = new ExtensionObject(brokerTransportSettings);
 
             jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetClassId
@@ -856,13 +855,58 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                        | JsonNetworkMessageContentMask.NetworkMessageHeader
                        | JsonNetworkMessageContentMask.PublisherId
                        | JsonNetworkMessageContentMask.ReplyTo
-                       //| JsonNetworkMessageContentMask.SingleDataSetMessage
+                       ),
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
+            };
+            dataSetReader2.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+            subscribedDataSet = new TargetVariablesDataType();
+            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
+            foreach (var fieldMetaData in simpleMetaData.Fields)
+            {
+                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                    DataSetFieldId = fieldMetaData.DataSetFieldId,
+                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
+                    AttributeId = Attributes.Value,
+                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
+                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                });
+            }
+
+            dataSetReader2.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            #endregion
+            //readerGroup1.DataSetReaders.Add(dataSetReader2);
+
+            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)100, DataSetWriterId = 2
+            DataSetReaderDataType dataSetReader3 = new DataSetReaderDataType();
+            dataSetReader3.Name = "Reader 2 MQTT JSON DataValue encioding";
+            dataSetReader3.PublisherId = (UInt16)3;
+            dataSetReader3.WriterGroupId = 0;
+            dataSetReader3.DataSetWriterId = 3;
+            dataSetReader3.Enabled = true;
+            dataSetReader3.DataSetFieldContentMask = (uint)(DataSetFieldContentMask.ServerTimestamp
+                | DataSetFieldContentMask.StatusCode);
+            dataSetReader3.KeyFrameCount = 1;
+            dataSetReader3.DataSetMetaData = allTypesMetaData;
+            brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = "Json_WriterGroup_1",
+            };
+
+            dataSetReader3.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.DataSetClassId
+                | JsonNetworkMessageContentMask.DataSetMessageHeader
+                       | JsonNetworkMessageContentMask.NetworkMessageHeader
+                       | JsonNetworkMessageContentMask.PublisherId
+                       | JsonNetworkMessageContentMask.ReplyTo
                        ),
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
                  | JsonDataSetMessageContentMask.SequenceNumber
                 | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp),
             };
-            dataSetReaderAllTypes.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+            dataSetReader3.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
             subscribedDataSet = new TargetVariablesDataType();
             subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
             foreach (var fieldMetaData in allTypesMetaData.Fields)
@@ -876,10 +920,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 });
             }
 
-            dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            dataSetReader3.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
             #endregion
-            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
-
+            readerGroup1.DataSetReaders.Add(dataSetReader3);
+            readerGroup1.DataSetReaders.Add(dataSetReader2);
+            readerGroup1.DataSetReaders.Add(dataSetReader1);
             #endregion
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 

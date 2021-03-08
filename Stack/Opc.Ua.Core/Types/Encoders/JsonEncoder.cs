@@ -1146,6 +1146,26 @@ namespace Opc.Ua
             m_nestingLevel--;
         }
 
+
+        /// <summary>
+        /// Writes an Variant to the stream with the especified reversible encoding parameter
+        /// </summary>
+        public void WriteVariant(string fieldName, Variant value, bool useReversibleEncoding)
+        {
+            bool currentValue = UseReversibleEncoding;
+
+            try
+            {
+                UseReversibleEncoding = useReversibleEncoding;
+                WriteVariant(fieldName, value);
+            }
+            finally
+            {
+                UseReversibleEncoding = currentValue;
+            }
+        }
+
+
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>

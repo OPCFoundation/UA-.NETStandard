@@ -66,6 +66,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Get referece to current JsonTextReader
+        /// </summary>
+        public JsonTextReader Reader { get { return m_reader; } }
+        /// <summary>
         /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
         /// </summary>
         /// <param name="systemType">The system type of the encoded JSON stram.</param>
@@ -1766,6 +1770,85 @@ namespace Opc.Ua
             }
 
             return values;
+        }
+        /// <summary>
+        /// Delegate for reading custom array item
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public delegate object ReadCustomArrayItem(int index, JsonDecoder jsonDecoder);
+
+        /// <summary>
+        /// Reads Custom array
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="readArrayItem"></param>
+        /// <returns></returns>
+        public List<object> ReadCustomArray(string fieldName, ReadCustomArrayItem readArrayItem)
+        {
+            List<object> values = new List<object>();
+
+            List<object> token = null;
+
+            if (!ReadArrayField(fieldName, out token))
+            {
+                return null;
+            }
+
+            for (int ii = 0; ii < token.Count; ii++)
+            {
+                try
+                {
+                    m_stack.Push(token[ii]);
+                    values.Add(readArrayItem(ii, this));
+                }
+                finally
+                {
+                    m_stack.Pop();
+                }
+            }
+            return values;
+        }
+
+
+        public bool PushStructure(string fieldName)
+        {
+            object token = null;
+
+            if (!ReadField(fieldName, out token))
+            {
+                return false;
+            }
+
+            if (token != null)
+            {
+                m_stack.Push(token);
+                return true;
+            }
+            return false;
+        }
+
+
+        public void Pop()
+        {
+            m_stack.Pop();
+        }
+
+        public bool PushArray(string fieldName, int index)
+        {
+            List<object> token = null;
+
+            if (!ReadArrayField(fieldName, out token))
+            {
+                return false;
+            }
+
+            if (index < token.Count)
+            {
+                m_stack.Push(token[index]);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

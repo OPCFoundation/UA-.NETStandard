@@ -235,8 +235,8 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Byte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        Byte byteValue = Convert.ToByte(dataValue.Value);
-                        dataValue.Value = byteValue + 1;
+                        byte byteValue = Convert.ToByte(dataValue.Value);
+                        dataValue.Value = (byte)(byteValue + 1);
                         valueUpdated = true;
                     }
                     break;

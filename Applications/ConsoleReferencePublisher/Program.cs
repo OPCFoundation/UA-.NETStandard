@@ -44,7 +44,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             try
             {
                 // Define the configuration of UA Publisher application
-                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson_RawData();
+                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
 
                 // Configure the mqtt specific configuration with the MQTTbroker
                 ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
@@ -613,7 +613,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Creates a PubSubConfiguration object for MQTT & Json programmatically.
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson_RawData()
+        public static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson()
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -626,7 +626,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to publish on all available local interfaces.
             address.NetworkInterface = String.Empty;
-            address.Url = "mqtts://localhost:1883";
+            address.Url = "mqtt://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
 
             #region Define WriterGroup1 - Json
@@ -649,16 +649,16 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             writerGroup1.MessageSettings = new ExtensionObject(jsonMessageSettings);
             writerGroup1.TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType() {
-                QueueName = "Json_WriterGroup_RawData",
+                QueueName = "Json_WriterGroup_1",
             }
             );
 
-            // Define DataSetWriter 'Simple'
+            // Define DataSetWriter 'Simple' Variant encoding
             DataSetWriterDataType dataSetWriter1 = new DataSetWriterDataType();
-            dataSetWriter1.Name = "Writer 1";
+            dataSetWriter1.Name = "Writer Variant Encoding";
             dataSetWriter1.DataSetWriterId = 1;
             dataSetWriter1.Enabled = true;
-            dataSetWriter1.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetWriter1.DataSetFieldContentMask = 0;// Variant encoding;
             dataSetWriter1.DataSetName = "Simple";
             dataSetWriter1.KeyFrameCount = 1;
 
@@ -668,17 +668,17 @@ namespace Quickstarts.ConsoleReferencePublisher
                 | JsonDataSetMessageContentMask.Status
                 | JsonDataSetMessageContentMask.Timestamp),
             };
-
+                
             dataSetWriter1.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup1.DataSetWriters.Add(dataSetWriter1);
 
-            // Define DataSetWriter 'AllTypes'
+            // Define DataSetWriter 'Simple' - Variant encoding
             DataSetWriterDataType dataSetWriter2 = new DataSetWriterDataType();
-            dataSetWriter2.Name = "Writer 2";
+            dataSetWriter2.Name = "Writer RawData Encoding";
             dataSetWriter2.DataSetWriterId = 2;
             dataSetWriter2.Enabled = true;
             dataSetWriter2.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetWriter2.DataSetName = "AllTypes";
+            dataSetWriter2.DataSetName = "Simple";
             dataSetWriter2.KeyFrameCount = 1;
 
             jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
@@ -689,6 +689,26 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
+
+            // Define DataSetWriter 'AllTypes' DataValue encoding
+            DataSetWriterDataType dataSetWriter3 = new DataSetWriterDataType();
+            dataSetWriter3.Name = "Writer DataValue Encoding";
+            dataSetWriter3.DataSetWriterId = 3;
+            dataSetWriter3.Enabled = true;
+            dataSetWriter3.DataSetFieldContentMask = (uint)(DataSetFieldContentMask.ServerTimestamp
+                | DataSetFieldContentMask.StatusCode);
+            dataSetWriter3.DataSetName = "AllTypes";
+            dataSetWriter3.KeyFrameCount = 1;
+
+            jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp),
+            };
+
+            dataSetWriter3.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
+            writerGroup1.DataSetWriters.Add(dataSetWriter3);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
             #endregion

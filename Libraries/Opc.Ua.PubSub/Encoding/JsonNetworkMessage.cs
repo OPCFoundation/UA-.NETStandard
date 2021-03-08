@@ -234,12 +234,19 @@ namespace Opc.Ua.PubSub.Encoding
 
             ServiceMessageContext messageContext = new ServiceMessageContext();
             string json = System.Text.Encoding.ASCII.GetString(message);
-
             using (JsonDecoder decoder = new JsonDecoder(json, messageContext))
             {                
                 //decode bytes using dataset reader information
-                DecodeSubscribedDataSets(decoder, dataSetReaders);                
+                DecodeSubscribedDataSets(decoder, dataSetReaders);
+
+               //var messages = decoder.ReadCustomArray(FieldMessages, ReadMessage);
             }
+        }
+
+        private object ReadMessage(int index)
+        {
+
+            return null;
         }
 
         /// <summary>
@@ -316,10 +323,9 @@ namespace Opc.Ua.PubSub.Encoding
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader = (networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
 
-
-
-
-                        DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(messagesList, dataSetReader);
+                      //  jsonDecoder.Reader
+                        
+                        DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, messagesList, dataSetReader);
                         if (dataSet != null)
                         {
                             ReceivedDataSets.Add(dataSet);
