@@ -46,7 +46,10 @@ namespace Opc.Ua.PubSub
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
         private UaPubSubConfigurator m_uaPubSubConfigurator;
-        private ITransportProtocolConfiguration m_transportProtocolConfiguration;
+        /// <summary>
+        /// Maps a ITransportProtocolConfiguration to an MQTT broker address
+        /// </summary>
+        private IDictionary<string, ITransportProtocolConfiguration> m_transportProtocolConfigurations;
         #endregion
 
         #region Events
@@ -79,7 +82,10 @@ namespace Opc.Ua.PubSub
             m_uaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
+
+            m_transportProtocolConfigurations = new Dictionary<string, ITransportProtocolConfiguration>();
         }
+
 
         #endregion
 
@@ -91,11 +97,6 @@ namespace Opc.Ua.PubSub
         {
             get { return new string[] { Profiles.PubSubUdpUadpTransport }; }
         }
-
-        /// <summary>
-        /// Get assigned transport protocol configuration for all connection instances
-        /// </summary>
-        public ITransportProtocolConfiguration TransportProtocolConfiguration { get { return m_transportProtocolConfiguration; } }
 
         /// <summary>
         /// Get reference to the associated <see cref="UaPubSubConfigurator"/> instance.
@@ -165,11 +166,9 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="pubSubConfiguration">The configuration object.</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
-        /// <param name="transportProtocolConfiguration">The current implementation of  <see cref="ITransportProtocolConfiguration"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null,
-            IUaPubSubDataStore dataStore = null,
-            ITransportProtocolConfiguration transportProtocolConfiguration = null)
+            IUaPubSubDataStore dataStore = null)
         {
             // if no argument received, start with empty configuration
             if (pubSubConfiguration == null)
@@ -179,7 +178,6 @@ namespace Opc.Ua.PubSub
 
             UaPubSubApplication uaPubSubApplication = new UaPubSubApplication(dataStore);
             uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
-            uaPubSubApplication.m_transportProtocolConfiguration = transportProtocolConfiguration;
             return uaPubSubApplication;
         }
         #endregion
@@ -206,7 +204,44 @@ namespace Opc.Ua.PubSub
             {
                 connection.Stop();
             }
-        }        
+        }
+
+        #endregion
+        #region Public Transport Protocol specfic configuration handling methods
+        /// <summary>
+        /// Add an ITransportProtocolConfiguration corresponding to the given url. It will overwrite an existing value
+        /// </summary>
+        /// <param name="url">The url to which the transportProtocolConfiguration is applied</param>
+        /// <param name="transportProtocolConfiguration">The provided transport specific configuration (ex for MQTT or AMQP protocols)</param>
+
+        public void AddTransportProtocolConfiguration(string url, ITransportProtocolConfiguration transportProtocolConfiguration)
+        {
+            if (!m_transportProtocolConfigurations.ContainsKey(url))
+            {
+                m_transportProtocolConfigurations.Add(url, transportProtocolConfiguration);
+            }
+            else
+            {
+                m_transportProtocolConfigurations[url] = transportProtocolConfiguration;
+            }
+        }
+
+        /// <summary>
+        /// Retrieve an ITransportProtocolConfiguration corresponding to the given url, null if nothing found
+        /// </summary>
+        /// <param name="url">The url to which the transportProtocolConfiguration is applied</param>
+        /// <returns>An ITransportProtocolConfiguration corresponding to the given url, null if nothing found</returns>
+        public ITransportProtocolConfiguration GetTransportProtocolConfiguration(string url)
+        {
+            if (m_transportProtocolConfigurations.ContainsKey(url))
+            {
+                return m_transportProtocolConfigurations[url];
+            }
+            else
+            {
+                return null;
+            }
+        }
         #endregion
 
         #region Internal Methods

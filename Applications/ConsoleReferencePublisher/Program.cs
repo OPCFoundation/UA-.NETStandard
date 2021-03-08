@@ -50,8 +50,15 @@ namespace Quickstarts.ConsoleReferencePublisher
                 ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
 
                 // Create the UA Publisher application
-                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, transportProtocolConfiguration: mqttConfiguration))
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
+                    // Configure the transport protocol(s)
+                    foreach (var connection in pubSubConfiguration.Connections)
+                    {
+                        NetworkAddressUrlDataType address = (NetworkAddressUrlDataType)connection.Address.Body;
+                        uaPubSubApplication.AddTransportProtocolConfiguration(address.Url, mqttConfiguration);
+                    }
+
                     // Start values simulator
                     PublishedValuesWrites valuesSimulator = new PublishedValuesWrites(uaPubSubApplication);
                     valuesSimulator.Start();
