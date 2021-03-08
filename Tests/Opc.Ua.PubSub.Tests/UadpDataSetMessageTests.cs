@@ -525,7 +525,7 @@ namespace Opc.Ua.PubSub.Tests
         /// <returns></returns>
         private void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded, DataSet dataSetReader)
         {
-            UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.MessageContentMask;
+            UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.DataSetMessageContentMask;
 
             Assert.AreEqual(uadpDataSetMessageEncode.DataSetFlags1, uadpDataSetMessageDecoded.DataSetFlags1,
                     "DataSetMessages DataSetFlags1 do not match:");

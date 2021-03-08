@@ -4038,6 +4038,131 @@
       </WriterGroups>
       <ReaderGroups />
     </PubSubConnectionDataType>
+    <PubSubConnectionDataType>
+      <Name>MqttJsonConection1</Name>
+      <Enabled>true</Enabled>
+      <PublisherId>
+        <Value>
+          <UInt16 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">30</UInt16>
+        </Value>
+      </PublisherId>
+      <TransportProfileUri>http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json</TransportProfileUri>
+      <Address>
+        <TypeId>
+          <Identifier>i=21176</Identifier>
+        </TypeId>
+        <Body>
+          <NetworkAddressUrlDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+            <NetworkInterface p2:nil="true" xmlns:p2="http://www.w3.org/2001/XMLSchema-instance" />
+            <Url>mqtt://localhost:1883</Url>
+          </NetworkAddressUrlDataType>
+        </Body>
+      </Address>
+      <ConnectionProperties />
+      <TransportSettings i:nil="true" />
+      <WriterGroups>
+        <WriterGroupDataType>
+          <Name>WriterGroup 1</Name>
+          <Enabled>true</Enabled>
+          <SecurityMode>Invalid_0</SecurityMode>
+          <SecurityGroupId i:nil="true" />
+          <SecurityKeyServices />
+          <MaxNetworkMessageSize>1500</MaxNetworkMessageSize>
+          <GroupProperties />
+          <WriterGroupId>1</WriterGroupId>
+          <PublishingInterval>5000</PublishingInterval>
+          <KeepAliveTime>5000</KeepAliveTime>
+          <Priority>0</Priority>
+          <LocaleIds />
+          <HeaderLayoutUri>UADP-Cyclic-Fixed</HeaderLayoutUri>
+          <TransportSettings>
+            <TypeId>
+              <Identifier>i=21179</Identifier>
+            </TypeId>
+            <Body>
+              <DatagramWriterGroupTransportDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <MessageRepeatCount>0</MessageRepeatCount>
+                <MessageRepeatDelay>0</MessageRepeatDelay>
+              </DatagramWriterGroupTransportDataType>
+            </Body>
+          </TransportSettings>
+          <MessageSettings>
+            <TypeId>
+              <Identifier>i=16014</Identifier>
+            </TypeId>
+            <Body>
+              <JsonWriterGroupMessageDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <NetworkMessageContentMask>31</NetworkMessageContentMask>
+              </JsonWriterGroupMessageDataType>
+            </Body>
+          </MessageSettings>
+          <DataSetWriters>
+            <DataSetWriterDataType>
+              <Name>Writer 1</Name>
+              <Enabled>true</Enabled>
+              <DataSetWriterId>1</DataSetWriterId>
+              <DataSetFieldContentMask>32</DataSetFieldContentMask>
+              <KeyFrameCount>1</KeyFrameCount>
+              <DataSetName>Simple</DataSetName>
+              <DataSetWriterProperties />
+              <TransportSettings i:nil="true" />
+              <MessageSettings>
+                <TypeId>
+                  <Identifier>i=16015</Identifier>
+                </TypeId>
+                <Body>
+                  <JsonDataSetWriterMessageDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <DataSetMessageContentMask>31</DataSetMessageContentMask>
+                  </JsonDataSetWriterMessageDataType>
+                </Body>
+              </MessageSettings>
+            </DataSetWriterDataType>
+            <DataSetWriterDataType>
+              <Name>Writer 2</Name>
+              <Enabled>true</Enabled>
+              <DataSetWriterId>2</DataSetWriterId>
+              <DataSetFieldContentMask>32</DataSetFieldContentMask>
+              <KeyFrameCount>1</KeyFrameCount>
+              <DataSetName>AllTypes</DataSetName>
+              <DataSetWriterProperties />
+              <TransportSettings i:nil="true" />
+              <MessageSettings>
+                <TypeId>
+                  <Identifier>i=16015</Identifier>
+                </TypeId>
+                <Body>
+                  <JsonDataSetWriterMessageDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <DataSetMessageContentMask>31</DataSetMessageContentMask>
+                  </JsonDataSetWriterMessageDataType>
+                </Body>
+              </MessageSettings>
+            </DataSetWriterDataType>
+            <DataSetWriterDataType>
+              <Name>Writer 3</Name>
+              <Enabled>true</Enabled>
+              <DataSetWriterId>3</DataSetWriterId>
+              <DataSetFieldContentMask>32</DataSetFieldContentMask>
+              <KeyFrameCount>1</KeyFrameCount>
+              <DataSetName>MassTest</DataSetName>
+              <DataSetWriterProperties />
+              <TransportSettings i:nil="true" />
+              <MessageSettings>
+                <TypeId>
+                  <Identifier>i=16015</Identifier>
+                </TypeId>
+                <Body>
+                  <JsonDataSetWriterMessageDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <DataSetMessageContentMask>31</DataSetMessageContentMask>
+                  </JsonDataSetWriterMessageDataType>
+                </Body>
+              </MessageSettings>
+            </DataSetWriterDataType>
+          </DataSetWriters>
+        </WriterGroupDataType>
+      </WriterGroups>
+      <ReaderGroups>
+      </ReaderGroups>
+    </PubSubConnectionDataType>
   </Connections>
   <Enabled>true</Enabled>
 </PubSubConfigurationDataType>
