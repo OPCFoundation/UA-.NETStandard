@@ -46,10 +46,6 @@ namespace Opc.Ua.PubSub
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
         private UaPubSubConfigurator m_uaPubSubConfigurator;
-        /// <summary>
-        /// Maps a ITransportProtocolConfiguration to an MQTT broker address
-        /// </summary>
-        private IDictionary<string, ITransportProtocolConfiguration> m_transportProtocolConfigurations;
         #endregion
 
         #region Events
@@ -82,8 +78,6 @@ namespace Opc.Ua.PubSub
             m_uaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
-
-            m_transportProtocolConfigurations = new Dictionary<string, ITransportProtocolConfiguration>();
         }
 
 
