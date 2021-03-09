@@ -207,42 +207,6 @@ namespace Opc.Ua.PubSub
         }
 
         #endregion
-        #region Public Transport Protocol specfic configuration handling methods
-        /// <summary>
-        /// Add an ITransportProtocolConfiguration corresponding to the given url. It will overwrite an existing value
-        /// </summary>
-        /// <param name="url">The url to which the transportProtocolConfiguration is applied</param>
-        /// <param name="transportProtocolConfiguration">The provided transport specific configuration (ex for MQTT or AMQP protocols)</param>
-
-        public void AddTransportProtocolConfiguration(string url, ITransportProtocolConfiguration transportProtocolConfiguration)
-        {
-            if (!m_transportProtocolConfigurations.ContainsKey(url))
-            {
-                m_transportProtocolConfigurations.Add(url, transportProtocolConfiguration);
-            }
-            else
-            {
-                m_transportProtocolConfigurations[url] = transportProtocolConfiguration;
-            }
-        }
-
-        /// <summary>
-        /// Retrieve an ITransportProtocolConfiguration corresponding to the given url, null if nothing found
-        /// </summary>
-        /// <param name="url">The url to which the transportProtocolConfiguration is applied</param>
-        /// <returns>An ITransportProtocolConfiguration corresponding to the given url, null if nothing found</returns>
-        public ITransportProtocolConfiguration GetTransportProtocolConfiguration(string url)
-        {
-            if (m_transportProtocolConfigurations.ContainsKey(url))
-            {
-                return m_transportProtocolConfigurations[url];
-            }
-            else
-            {
-                return null;
-            }
-        }
-        #endregion
 
         #region Internal Methods
 

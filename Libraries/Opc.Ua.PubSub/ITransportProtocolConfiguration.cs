@@ -32,7 +32,7 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// Interface for accessing the configuration of the TransportProtocol
     /// </summary>
-    public interface ITransportProtocolConfiguration
+    public interface ITransportProtocolConfiguration:IEncodeable
     {
     }
 }

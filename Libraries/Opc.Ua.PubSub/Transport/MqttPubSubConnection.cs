@@ -79,6 +79,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="uaPubSubApplication"></param>
         /// <param name="pubSubConnectionDataType"></param>
+        /// <param name="messageMapping"></param>
         public MqttPubSubConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType, MessageMapping messageMapping)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
@@ -295,6 +296,10 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         private IMqttClientOptions GetMqttClientOptions()
         {
+            const string MqttUrlIdentifier = "mqtt://";
+            const string MqttSUrlIdentifier = "mqtts://";
+
+
             IMqttClientOptions mqttOptions = null;
             TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
 
@@ -303,21 +308,46 @@ namespace Opc.Ua.PubSub.Transport
             if (networkAddressUrlState == null)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                          this.PubSubConnectionConfiguration.Name);
+                    this.PubSubConnectionConfiguration.Name);
                 return null;
             }
-            ITransportProtocolConfiguration transportProtocolConfiguration = Application.GetTransportProtocolConfiguration(networkAddressUrlState.Url);
 
-            if (transportProtocolConfiguration != null)
+            string networkAddressUrl = networkAddressUrlState.Url.ToLower();
+
+            if (!networkAddressUrl.StartsWith(MqttUrlIdentifier) &&
+                !networkAddressUrl.StartsWith(MqttSUrlIdentifier))
+            {
+                Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has an invalid Url value {1}. The Url should start either with {2} or with {3}",
+                    this.PubSubConnectionConfiguration.Name,
+                    networkAddressUrlState.Url,
+                    MqttUrlIdentifier,
+                    MqttSUrlIdentifier);
+                return null;
+            }
+
+            ITransportProtocolConfiguration transportProtocolConfiguration = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.TransportSettings)
+                       as ITransportProtocolConfiguration;
+            if (transportProtocolConfiguration == null)
+            {
+                Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid TransportSettings configuration will use a default one.",
+                      this.PubSubConnectionConfiguration.Name);
+                mqttOptions = new MqttClientOptionsBuilder()
+                                .WithTcpServer(m_brokerHostName, m_brokerPort)
+                                .WithKeepAlivePeriod(mqttKeepAlive)
+                                .Build();
+                return mqttOptions;
+            }
+            else if (transportProtocolConfiguration != null)
             {
                 MqttClientProtocolConfiguration mqttProtocolConfiguration = transportProtocolConfiguration as MqttClientProtocolConfiguration;
                 if (mqttProtocolConfiguration != null)
                 {
+                    
                     MqttProtocolVersion mqttProtocolVersion = (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration).ProtocolVersion;
-                    if (((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseSSL &&
+                    if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
                         ((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
                     {
-                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                        mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
                                              new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
@@ -326,10 +356,10 @@ namespace Opc.Ua.PubSub.Transport
                             .WithTls()
                             .Build();
                     }
-                    else if (!((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseSSL &&
+                    else if (!networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
                              ((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
                     {
-                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                        mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
                                              new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
@@ -337,21 +367,21 @@ namespace Opc.Ua.PubSub.Transport
                             .WithProtocolVersion(mqttProtocolVersion)
                             .Build();
                     }
-                    else if (((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseSSL &&
+                    else if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
                              !((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
                     {
-                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                        mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
                             .WithTls()
                             .Build();
                     }
-                    //if (!((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseTLS &&
+                    //if (!networkAddressUrl.StartsWith(MqttSUriIdentifier) &&
                     //        !((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseCredentials)
                     else
                     {
-                        mqttOptions = (IMqttClientOptions)new MqttClientOptionsBuilder()
+                        mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
@@ -360,14 +390,6 @@ namespace Opc.Ua.PubSub.Transport
 
                 }
             }
-            else
-            {
-                mqttOptions = new MqttClientOptionsBuilder()
-                    .WithTcpServer(m_brokerHostName, m_brokerPort)
-                    .WithKeepAlivePeriod(mqttKeepAlive)
-                    .Build();
-            }
-
 
             return mqttOptions;
 

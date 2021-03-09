@@ -46,19 +46,9 @@ namespace Quickstarts.ConsoleReferencePublisher
                 // Define the configuration of UA Publisher application
                 PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
 
-                // Configure the mqtt specific configuration with the MQTTbroker
-                ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
-                    // Configure the transport protocol(s)
-                    foreach (var connection in pubSubConfiguration.Connections)
-                    {
-                        NetworkAddressUrlDataType address = (NetworkAddressUrlDataType)connection.Address.Body;
-                        uaPubSubApplication.AddTransportProtocolConfiguration(address.Url, mqttConfiguration);
-                    }
-
                     // Start values simulator
                     PublishedValuesWrites valuesSimulator = new PublishedValuesWrites(uaPubSubApplication);
                     valuesSimulator.Start();
@@ -371,6 +361,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.Url = "mqtt://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
 
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+
             #region Define WriterGroup1
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
             writerGroup1.Name = "WriterGroup 1";
@@ -628,6 +622,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.NetworkInterface = String.Empty;
             address.Url = "mqtt://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
+
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
 
             #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -967,6 +965,10 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.NetworkInterface = String.Empty;
             address.Url = "mqtts://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
+
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
 
             #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();

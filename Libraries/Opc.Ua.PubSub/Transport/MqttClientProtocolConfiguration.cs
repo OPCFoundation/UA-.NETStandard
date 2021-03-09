@@ -107,6 +107,31 @@ namespace Opc.Ua.PubSub.Mqtt
 
         public bool UseSSL { get => m_useSsl; set => m_useSsl = value; }
 
-        #endregion
+        #region Implement IEncodeable interface
+
+        public ExpandedNodeId TypeId => throw new NotImplementedException();
+
+        public ExpandedNodeId BinaryEncodingId => throw new NotImplementedException();
+
+        public ExpandedNodeId XmlEncodingId => throw new NotImplementedException();
+
+        public void Decode(IDecoder decoder)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Encode(IEncoder encoder)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsEqual(IEncodeable encodeable)
+        {
+            throw new NotImplementedException();
+        }
+
+        #endregion IEncodeable
+
+        #endregion Public Properties
     }
 }

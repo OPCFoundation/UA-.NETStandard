@@ -52,21 +52,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 // Define the configuration of UA Subscriber application
                 PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
 
-                // Configure the mqtt specific configuration with the MQTTbroker
-                ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
                     // Subscribte to DataReceived event
                     uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;
-
-                    // Configure the transport protocol(s)
-                    foreach (var connection in pubSubConfiguration.Connections)
-                    {
-                        NetworkAddressUrlDataType address = (NetworkAddressUrlDataType)connection.Address.Body;
-                        uaPubSubApplication.AddTransportProtocolConfiguration(address.Url, mqttConfiguration);
-                    }
 
                     // Start the publisher
                     uaPubSubApplication.Start();
@@ -391,6 +381,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             address.Url = "mqtt://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
 
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+
             #region  Define  'Simple' MetaData
             DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
             simpleMetaData.DataSetClassId = new Uuid(Guid.Empty);
@@ -648,6 +642,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             address.NetworkInterface = String.Empty;
             address.Url = "mqtt://localhost:1883";
             pubSubConnection1.Address = new ExtensionObject(address);
+
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
 
             #region  Define  'Simple' MetaData
             DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
