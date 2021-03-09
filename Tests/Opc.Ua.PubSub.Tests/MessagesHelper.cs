@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.PubSub.Mqtt;
 
 namespace Opc.Ua.PubSub.Tests
 {
@@ -68,9 +69,14 @@ namespace Opc.Ua.PubSub.Tests
             }
             pubSubConnection.Address = new ExtensionObject(address);
 
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection.TransportSettings = new ExtensionObject(mqttConfiguration);
+
             return pubSubConnection;
         }
 
+        #region Publisher Methods
         /// <summary>
         /// Create writer group
         /// </summary>
@@ -293,6 +299,217 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         /// <summary>
+        /// Create a configuration with single a dataset message 
+        /// </summary>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreatePublisherConfigurationWithSingleDataSetMessage(
+            string uriScheme,
+            UInt16 publisherId,
+            UInt16 writerGroupId,
+            WriterGroupMessageDataType writterGroupMessageSettings,
+            WriterGroupTransportDataType writerGroupTransportSettings,
+            DataSetWriterMessageDataType dataSetWriterMessageSettings)
+        {
+            PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(uriScheme, publisherId);
+
+            WriterGroupDataType writerGroup =
+                CreateWriterGroup(
+                    writerGroupId,
+                    writterGroupMessageSettings,
+                    writerGroupTransportSettings
+                );
+
+            string dataSetName = "Simple";
+            DataSetWriterDataType dataSetWriter =
+                CreateDataSetWriter(
+                    writerGroupId,
+                    dataSetName,
+                    DataSetFieldContentMask.RawData,
+                    dataSetWriterMessageSettings
+                    );
+
+            writerGroup.DataSetWriters.Add(dataSetWriter);
+            pubSubConnection.WriterGroups.Add(writerGroup);
+
+            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple(dataSetName);
+
+            // create PubSub configuration 
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection
+                };
+            pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection()
+                {
+                    publishedDataSetSimple
+                };
+
+            return pubSubConfiguration;
+        }
+
+        /// <summary>
+        /// Create a configuration with multiple dataset messages
+        /// </summary>
+        /// <param name="uriScheme"></param>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <param name="writterGroupMessageSettings"></param>
+        /// <param name="writerGroupTransportSettings"></param>
+        /// <param name="dataSetWriterMessageSettings"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreatePublisherConfigurationWithMultipleDataSetMessages(
+            string uriScheme,
+            UInt16 publisherId,
+            ushort writerGroupId,
+            WriterGroupMessageDataType writterGroupMessageSettings,
+            WriterGroupTransportDataType writerGroupTransportSettings,
+            DataSetWriterMessageDataType dataSetWriterMessageSettings)
+        {
+            PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(uriScheme, publisherId);
+
+            WriterGroupDataType writerGroup =
+                CreateWriterGroup(
+                    writerGroupId,
+                    writterGroupMessageSettings,
+                    writerGroupTransportSettings
+                );
+
+            string dataSetName = "Simple";
+            DataSetWriterDataType dataSetWriter1 =
+                CreateDataSetWriter(
+                    1,
+                    dataSetName,
+                    DataSetFieldContentMask.None, // Variant
+                    dataSetWriterMessageSettings
+                    );
+
+            writerGroup.DataSetWriters.Add(dataSetWriter1);
+
+            DataSetWriterDataType dataSetWriter2 =
+                CreateDataSetWriter(
+                    2,
+                    dataSetName,
+                    DataSetFieldContentMask.RawData, // RawData
+                    dataSetWriterMessageSettings
+                    );
+
+            writerGroup.DataSetWriters.Add(dataSetWriter2);
+
+            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple(dataSetName);
+
+            dataSetName = "AllTypes";
+            DataSetWriterDataType dataSetWriter3 =
+                CreateDataSetWriter(
+                    3,
+                    dataSetName,
+                    DataSetFieldContentMask.StatusCode
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.ServerPicoSeconds, // DataValue
+                    dataSetWriterMessageSettings
+                    );
+
+            writerGroup.DataSetWriters.Add(dataSetWriter3);
+            pubSubConnection.WriterGroups.Add(writerGroup);
+
+            PublishedDataSetDataType publishedDataSetAllTypes = CreatePublishedDataSetAllTypes(dataSetName);
+
+            // create PubSub configuration 
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection
+                };
+            pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection()
+                {
+                    publishedDataSetSimple, publishedDataSetAllTypes
+                };
+
+            return pubSubConfiguration;
+        }
+
+        /// <summary>
+        /// Create a JSON publisher configuration with a single dataset message
+        /// </summary>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateJsonPublisherConfigurationWithSingleDataSetMessage(
+            UInt16 publisherId,
+            ushort writerGroupId)
+        {
+            JsonWriterGroupMessageDataType jsonWriterGroupMessageSettings = new JsonWriterGroupMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
+                            | JsonNetworkMessageContentMask.DataSetMessageHeader
+                            | JsonNetworkMessageContentMask.SingleDataSetMessage
+                            | JsonNetworkMessageContentMask.PublisherId
+                            | JsonNetworkMessageContentMask.DataSetClassId
+                            | JsonNetworkMessageContentMask.ReplyTo)
+            };
+
+            BrokerWriterGroupTransportDataType brokerWriterGroupTransportSettings = new BrokerWriterGroupTransportDataType() {
+                QueueName = $"Json_Publisher_{publisherId}_Group_{writerGroupId}",
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.AtLeastOnce
+            };
+
+            JsonDataSetWriterMessageDataType jsonDataSetWriterMessageSettings = new JsonDataSetWriterMessageDataType() {
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                        | JsonDataSetMessageContentMask.MetaDataVersion
+                        | JsonDataSetMessageContentMask.SequenceNumber
+                        | JsonDataSetMessageContentMask.Status
+                        | JsonDataSetMessageContentMask.Timestamp)
+            };
+
+            return CreatePublisherConfigurationWithSingleDataSetMessage(Utils.UriSchemeMqtt,
+                publisherId, 
+                writerGroupId,  
+                jsonWriterGroupMessageSettings,
+                brokerWriterGroupTransportSettings,
+                jsonDataSetWriterMessageSettings);
+        }
+
+        /// <summary>
+        /// Create json publisher configuration with multiple dataset messages
+        /// </summary>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateJsonPublisherConfigurationWithMultipleDataSetMessages(
+            UInt16 publisherId,
+            ushort writerGroupId)
+        {
+            JsonWriterGroupMessageDataType jsonWriterGroupMessageSettings = new JsonWriterGroupMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
+                            | JsonNetworkMessageContentMask.DataSetMessageHeader
+                            | JsonNetworkMessageContentMask.SingleDataSetMessage
+                            | JsonNetworkMessageContentMask.PublisherId
+                            | JsonNetworkMessageContentMask.DataSetClassId
+                            | JsonNetworkMessageContentMask.ReplyTo)
+            };
+
+            BrokerWriterGroupTransportDataType brokerWriterGroupTransportSettings = new BrokerWriterGroupTransportDataType() {
+                QueueName = $"Json_Publisher_{publisherId}_Group_{writerGroupId}",
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.AtLeastOnce
+            };
+
+            JsonDataSetWriterMessageDataType jsonDataSetWriterMessageSettings = new JsonDataSetWriterMessageDataType() {
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                        | JsonDataSetMessageContentMask.MetaDataVersion
+                        | JsonDataSetMessageContentMask.SequenceNumber
+                        | JsonDataSetMessageContentMask.Status
+                        | JsonDataSetMessageContentMask.Timestamp)
+            };
+
+            return CreatePublisherConfigurationWithMultipleDataSetMessages(Utils.UriSchemeMqtt,
+                publisherId,
+                writerGroupId,
+                jsonWriterGroupMessageSettings,
+                brokerWriterGroupTransportSettings,
+                jsonDataSetWriterMessageSettings);
+        }
+        #endregion
+
+        #region Subscriber Methods
+        /// <summary>
         /// Create reader group
         /// </summary>
         /// <param name="readerGroupId"></param>
@@ -342,15 +559,15 @@ namespace Opc.Ua.PubSub.Tests
             //dataSetReader.DataSetName = dataSetName;
             dataSetReader.KeyFrameCount = 1;
             dataSetReader.DataSetMetaData = dataSetMetaData;
-            
+
             dataSetReader.MessageSettings = new ExtensionObject(messageSettings);
             dataSetReader.TransportSettings = new ExtensionObject(transportSettings);
-            
+
             return dataSetReader;
         }
 
         /// <summary>
-        /// Create Published dataset
+        /// Create DataSetMetaData type
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <param name="namespaceIndex"></param>
@@ -544,103 +761,22 @@ namespace Opc.Ua.PubSub.Tests
         }
         
         /// <summary>
-        /// Create a configuration with single a dataset message 
+        /// Create subscriber configuration with a single dataset message
         /// </summary>
+        /// <param name="uriScheme"></param>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <param name="dataSetName"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="readerGroupMessageSettings"></param>
+        /// <param name="readerGroupTransportSettings"></param>
+        /// <param name="dataSetReaderMessageSettings"></param>
+        /// <param name="dataSetReaderTransportSettings"></param>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreatePublisherConfigurationWithSingleDataSetMessage(
-            string uriScheme,
-            UInt16 publisherId,
-            UInt16 writerGroupId,
-            string dataSetName,
-            DataSetFieldContentMask dataSetFieldContentMask,
-            WriterGroupMessageDataType writterGroupMessageSettings,
-            WriterGroupTransportDataType writerGroupTransportSettings,
-            DataSetWriterMessageDataType dataSetWriterMessageSettings)
-        {
-            PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(uriScheme, publisherId);
-
-            WriterGroupDataType writerGroup =
-                CreateWriterGroup(
-                    writerGroupId,
-                    writterGroupMessageSettings,
-                    writerGroupTransportSettings
-                );
-
-            DataSetWriterDataType dataSetWriter =
-                CreateDataSetWriter(
-                    writerGroupId,
-                    dataSetName,
-                    dataSetFieldContentMask, //DataSetFieldContentMask.RawData,
-                    dataSetWriterMessageSettings
-                    );
-
-            writerGroup.DataSetWriters.Add(dataSetWriter);
-            pubSubConnection.WriterGroups.Add(writerGroup);
-
-            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple(dataSetName);
-
-            //create PubSub configuration 
-            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
-            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
-                {
-                    pubSubConnection
-                };
-            pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection()
-                {
-                    publishedDataSetSimple
-                };
-
-            return pubSubConfiguration;
-        }
-
-        /// <summary>
-        /// Create a JSON publisher configuration with a single dataset message
-        /// </summary>
-        /// <returns></returns>
-        public static PubSubConfigurationDataType CreateJsonPublisherConfigurationWithRawDataSingleDataSetMessage(
-            UInt16 publisherId,
-            ushort writerGroupId)
-        {
-            //DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.RawData;
-
-            JsonWriterGroupMessageDataType jsonWriterGroupMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
-                            | JsonNetworkMessageContentMask.DataSetMessageHeader
-                            | JsonNetworkMessageContentMask.SingleDataSetMessage
-                            | JsonNetworkMessageContentMask.PublisherId
-                            | JsonNetworkMessageContentMask.DataSetClassId
-                            | JsonNetworkMessageContentMask.ReplyTo)
-            };
-
-            BrokerWriterGroupTransportDataType brokerWriterGroupTransportSettings = new BrokerWriterGroupTransportDataType() {
-                QueueName = $"Json_Publisher_{publisherId}_Group_{writerGroupId}",
-                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.AtLeastOnce
-            };
-
-            JsonDataSetWriterMessageDataType jsonDataSetWriterMessageSettings = new JsonDataSetWriterMessageDataType() {
-                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
-                        | JsonDataSetMessageContentMask.MetaDataVersion
-                        | JsonDataSetMessageContentMask.SequenceNumber
-                        | JsonDataSetMessageContentMask.Status
-                        | JsonDataSetMessageContentMask.Timestamp)
-            };
-
-            return CreatePublisherConfigurationWithSingleDataSetMessage(Utils.UriSchemeMqtt,
-                publisherId, 
-                writerGroupId,  
-                "Simple", // DataSetName
-                DataSetFieldContentMask.RawData,
-                jsonWriterGroupMessageSettings,
-                brokerWriterGroupTransportSettings,
-                jsonDataSetWriterMessageSettings);
-        }
-
         public static PubSubConfigurationDataType CreateSubscriberConfigurationWithSingleDataSetMessage(
            string uriScheme,
            UInt16 publisherId,
            UInt16 writerGroupId,
-           string dataSetName,
-           DataSetFieldContentMask dataSetFieldContentMask,
            ReaderGroupMessageDataType readerGroupMessageSettings,
            ReaderGroupTransportDataType readerGroupTransportSettings,
            DataSetReaderMessageDataType dataSetReaderMessageSettings,
@@ -655,7 +791,7 @@ namespace Opc.Ua.PubSub.Tests
                     readerGroupTransportSettings
                 );
 
-            DataSetMetaDataType dataSetMetaData = CreateSubscribeDataSetSimple(dataSetName);
+            DataSetMetaDataType dataSetMetaData = CreateSubscribeDataSetSimple("Simple");
 
             DataSetReaderDataType dataSetReader =
                 CreateDataSetReader(
@@ -663,10 +799,9 @@ namespace Opc.Ua.PubSub.Tests
                     writerGroupId,
                     publisherId,
                     dataSetMetaData,
-                    dataSetFieldContentMask, //DataSetFieldContentMask.RawData,
+                    DataSetFieldContentMask.RawData, // RawData
                     dataSetReaderMessageSettings,
-                    dataSetReaderTransportSettings
-                    );
+                    dataSetReaderTransportSettings);
 
             readerGroup.DataSetReaders.Add(dataSetReader);
             pubSubConnection.ReaderGroups.Add(readerGroup);
@@ -682,15 +817,100 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         /// <summary>
+        /// Create subscriber configuration with a single dataset message
+        /// </summary>
+        /// <param name="uriScheme"></param>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <param name="dataSetName"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="readerGroupMessageSettings"></param>
+        /// <param name="readerGroupTransportSettings"></param>
+        /// <param name="dataSetReaderMessageSettings"></param>
+        /// <param name="dataSetReaderTransportSettings"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateSubscriberConfigurationWithMultipleDataSetMessages(
+           string uriScheme,
+           UInt16 publisherId,
+           UInt16 writerGroupId,
+           ReaderGroupMessageDataType readerGroupMessageSettings,
+           ReaderGroupTransportDataType readerGroupTransportSettings,
+           DataSetReaderMessageDataType dataSetReaderMessageSettings,
+           DataSetReaderTransportDataType dataSetReaderTransportSettings)
+        {
+            PubSubConnectionDataType pubSubConnection = CreatePubSubConnection(uriScheme, publisherId);
+
+            ReaderGroupDataType readerGroup =
+                CreateReaderGroup(
+                    writerGroupId,
+                    readerGroupMessageSettings,
+                    readerGroupTransportSettings
+                );
+
+            DataSetMetaDataType simpleDataSetMetaData = CreateSubscribeDataSetSimple("Simple");
+
+            DataSetReaderDataType dataSetReader1 =
+                CreateDataSetReader(
+                    publisherId,
+                    writerGroupId,
+                    1,
+                    simpleDataSetMetaData,
+                    DataSetFieldContentMask.None, // Variant
+                    dataSetReaderMessageSettings,
+                    dataSetReaderTransportSettings);
+
+            readerGroup.DataSetReaders.Add(dataSetReader1);
+
+            DataSetReaderDataType dataSetReader2 =
+                CreateDataSetReader(
+                    publisherId,
+                    writerGroupId,
+                    2,
+                    simpleDataSetMetaData,
+                    DataSetFieldContentMask.RawData, // RawData
+                    dataSetReaderMessageSettings,
+                    dataSetReaderTransportSettings);
+
+            readerGroup.DataSetReaders.Add(dataSetReader2);
+
+            DataSetMetaDataType allTypesDataSetMetaData = CreateSubscribeDataSetSimple("AllTypes");
+
+            DataSetReaderDataType dataSetReader3 =
+                CreateDataSetReader(
+                    publisherId,
+                    writerGroupId,
+                    3,
+                    allTypesDataSetMetaData,
+                    DataSetFieldContentMask.StatusCode
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.ServerPicoSeconds, // DataValue
+                    dataSetReaderMessageSettings,
+                    dataSetReaderTransportSettings);
+
+            readerGroup.DataSetReaders.Add(dataSetReader3);
+
+            pubSubConnection.ReaderGroups.Add(readerGroup);
+
+            // create PubSub configuration 
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection
+                };
+
+            return pubSubConfiguration;
+        }
+
+        /// <summary>
         /// Create a JSON subscriber configuration with a single dataset message
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateJsonSubscriberConfigurationWithRawDataSingleDataSetMessage(
+        public static PubSubConfigurationDataType CreateJsonSubscriberConfigurationWithSingleDataSetMessage(
             UInt16 publisherId,
             ushort writerGroupId)
         {
-            //DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.RawData;
-
             JsonDataSetReaderMessageDataType jsonDataSetReaderMessageSettings = new JsonDataSetReaderMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
                     | JsonNetworkMessageContentMask.DataSetMessageHeader
@@ -711,10 +931,8 @@ namespace Opc.Ua.PubSub.Tests
             };
 
             return CreateSubscriberConfigurationWithSingleDataSetMessage(Utils.UriSchemeMqtt,
-                publisherId, // PublisherId
-                writerGroupId,  // ReaderGroupId
-                "Simple", // DataSetName
-                DataSetFieldContentMask.RawData,
+                publisherId, 
+                writerGroupId,  
                 new ReaderGroupMessageDataType(),
                 new ReaderGroupTransportDataType(),
                 jsonDataSetReaderMessageSettings,
@@ -722,15 +940,52 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         /// <summary>
+        /// Create a JSON subscriber configuration with a single dataset message
+        /// </summary>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateJsonSubscriberConfigurationWithMultipleDataSetMessages(
+            UInt16 publisherId,
+            ushort writerGroupId)
+        {
+            JsonDataSetReaderMessageDataType jsonDataSetReaderMessageSettings = new JsonDataSetReaderMessageDataType() {
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
+                    | JsonNetworkMessageContentMask.DataSetMessageHeader
+                    | JsonNetworkMessageContentMask.SingleDataSetMessage
+                    | JsonNetworkMessageContentMask.PublisherId
+                    | JsonNetworkMessageContentMask.DataSetClassId
+                    | JsonNetworkMessageContentMask.ReplyTo),
+                DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                    | JsonDataSetMessageContentMask.MetaDataVersion
+                    | JsonDataSetMessageContentMask.SequenceNumber
+                    | JsonDataSetMessageContentMask.Status
+                    | JsonDataSetMessageContentMask.Timestamp),
+            };
+
+            BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = $"Json_Publisher_{publisherId}_Group_{writerGroupId}",
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.AtLeastOnce
+            };
+
+            return CreateSubscriberConfigurationWithMultipleDataSetMessages(Utils.UriSchemeMqtt,
+                publisherId,
+                writerGroupId,
+                new ReaderGroupMessageDataType(),
+                new ReaderGroupTransportDataType(),
+                jsonDataSetReaderMessageSettings,
+                brokerDataSetReaderTransportSettings);
+        }
+        #endregion
+
+        /// <summary>
         /// Get first connection
         /// </summary>
         /// <param name="pubSubConfiguration"></param>
         /// <returns></returns>
-        public static PubSubConnectionDataType GetFirstConnection(PubSubConfigurationDataType pubSubConfiguration)
+        public static PubSubConnectionDataType GetConnection(PubSubConfigurationDataType pubSubConfiguration, UInt16 publisherId)
         {
             if (pubSubConfiguration != null)
             {
-                return pubSubConfiguration.Connections[0] as PubSubConnectionDataType;
+                return pubSubConfiguration.Connections.Find(x => x.PublisherId == publisherId);
             }
             return null;
         }
@@ -740,11 +995,11 @@ namespace Opc.Ua.PubSub.Tests
         /// </summary>
         /// <param name="connection"></param>
         /// <returns></returns>
-        public static WriterGroupDataType GetFirstWriterGroup(PubSubConnectionDataType connection)
+        public static WriterGroupDataType GetWriterGroup(PubSubConnectionDataType connection, UInt16 writerGroupId)
         {
             if (connection != null)
             {
-                return connection.WriterGroups[0] as WriterGroupDataType;
+                return connection.WriterGroups.Find(x=>x.WriterGroupId == writerGroupId);
             }
             return null;
         }
@@ -754,11 +1009,11 @@ namespace Opc.Ua.PubSub.Tests
         /// </summary>
         /// <param name="connection"></param>
         /// <returns></returns>
-        public static ReaderGroupDataType GetFirstReaderGroup(PubSubConnectionDataType connection)
+        public static ReaderGroupDataType GetReaderGroup(PubSubConnectionDataType connection, UInt16 writerGroupId)
         {
             if (connection != null)
             {
-                return connection.ReaderGroups[0] as ReaderGroupDataType;
+                return connection.ReaderGroups.Find(x=>x.Name == $"ReaderGroup { writerGroupId}");
             }
             return null;
         }

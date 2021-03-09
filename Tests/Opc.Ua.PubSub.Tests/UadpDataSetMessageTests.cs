@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate dataset message mask with DataValue data type;" +
                             "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)")]
-        public void ValidateDataSetMessageMaskWithDataValueType()
+        public void ValidateNetworkMessageMaskWithDataValueType()
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
