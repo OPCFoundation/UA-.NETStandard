@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Tests
                 uaNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)networkMessageContentMask);
 
                 // Assert
-                CompareEncodeDecode(uaNetworkMessage);
+                CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
             }
         }
 
@@ -192,7 +192,7 @@ namespace Opc.Ua.PubSub.Tests
                 uaNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)networkMessageContentMask);
 
                 // Assert
-                CompareEncodeDecode(uaNetworkMessage);
+                CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
             }
         }
 
@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Tests
                 uaNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)networkMessageContentMask);
 
                 // Assert
-                CompareEncodeDecode(uaNetworkMessage);
+                CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
             }
         }
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.PubSub.Tests
             //uaNetworkMessage.PublisherId = "Begrüßung";
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with DataValue")]
@@ -247,7 +247,7 @@ namespace Opc.Ua.PubSub.Tests
             //uaNetworkMessage.PublisherId = "Begrüßung";
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with RawData")]
@@ -265,7 +265,7 @@ namespace Opc.Ua.PubSub.Tests
             //uaNetworkMessage.PublisherId = "Begrüßung";
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
@@ -281,7 +281,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
@@ -297,7 +297,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
@@ -306,14 +306,20 @@ namespace Opc.Ua.PubSub.Tests
             // Arrange
             JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
 
-            // Act  
-            // Check NetworkMessageHeader & DataSetClassId 
-            uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetClassId);
+            // Act           
+            JsonNetworkMessageContentMask jsonNetworkMessageContent = JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.DataSetClassId;
+            uaNetworkMessage.SetNetworkMessageContentMask(jsonNetworkMessageContent);
             uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
 
+            // since the networkMessageHeader does not have PublisherId set filter to null
+            m_singleDataSetReaders[0].PublisherId = Variant.Null;
+            
+            // set the same DataSetFieldContentMask as used for encoding
+            m_singleDataSetReaders[0].DataSetFieldContentMask = (uint)fieldContentMaskRawData;
+
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
@@ -329,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessage.SingleDataSetMessage = "true";
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
@@ -345,7 +351,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessage.SingleDataSetMessage = "true";
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
@@ -361,7 +367,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessage.SingleDataSetMessage = "true";
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader")]
@@ -376,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests
                 |JsonNetworkMessageContentMask.DataSetMessageHeader);
 
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         [Test(Description = "Validate DataSetMessageHeader")]
@@ -388,9 +394,34 @@ namespace Opc.Ua.PubSub.Tests
             // Act  
             // Check SingleDataSetMessage 
             uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.DataSetMessageHeader);
-            
+
+            // since the networkMessageHeader is missing the reader shall not filter by PublisherId
+            m_singleDataSetReaders[0].PublisherId = Variant.Null;
+
             // Assert
-            CompareEncodeDecode(uaNetworkMessage);
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
+        }
+
+        [Test(Description = "Validate NetworkMessageHeeader & DataSetMessageHeader")]
+        public void ValidateNetworkAndDataSetMessageHeader()
+        {
+            // Arrange
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
+
+            // Act  
+            // TODO: Check SingleDataSetMessage
+            JsonNetworkMessageContentMask jsonNetworkMessageContent = JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.DataSetMessageHeader
+                | JsonNetworkMessageContentMask.PublisherId;
+            uaNetworkMessage.SetNetworkMessageContentMask(jsonNetworkMessageContent);
+
+            // since the networkMessageHeader there and PublisherId is encoded filter by publisher id of the connection
+            m_singleDataSetReaders[0].PublisherId = m_publisherSingleDataSetConnection.PublisherId;
+            // set the same DataSetFieldContentMask as used for encoding
+            m_singleDataSetReaders[0].DataSetFieldContentMask = (uint)fieldContentMaskDataValue;
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
         }
 
         #region Private methods
@@ -477,18 +508,17 @@ namespace Opc.Ua.PubSub.Tests
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
-        private void CompareEncodeDecode(JsonNetworkMessage jsonNetworkMessage)
+        /// <param name="jsonNetworkMessage">the message to encode</param>
+        /// <param name="dataSetReaders">The list of readers used to decode</param>
+        private void CompareEncodeDecode(JsonNetworkMessage jsonNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = jsonNetworkMessage.Encode();
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
-            uaNetworkMessageDecoded.Decode("Test", bytes, m_singleDataSetReaders);
+            uaNetworkMessageDecoded.Decode( bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
-            // TODO Fix: this might be broken after refactor
-            Compare(jsonNetworkMessage, uaNetworkMessageDecoded, uaNetworkMessageDecoded.ReceivedDataSets);
+            Compare(jsonNetworkMessage, uaNetworkMessageDecoded);
         }
 
         /// <summary>
@@ -497,126 +527,129 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="jsonNetworkMessageEncode"></param>
         /// <param name="jsonNetworkMessageDecoded"></param>
         /// <returns></returns>
-        private void Compare(JsonNetworkMessage jsonNetworkMessageEncode, JsonNetworkMessage jsonNetworkMessageDecoded, List<DataSet> subscribedDataSets)
+        private void Compare(JsonNetworkMessage jsonNetworkMessageEncode, JsonNetworkMessage jsonNetworkMessageDecoded)
         {
             JsonNetworkMessageContentMask networkMessageContentMask = jsonNetworkMessageEncode.NetworkMessageContentMask;
 
-            if ((networkMessageContentMask | JsonNetworkMessageContentMask.None) == JsonNetworkMessageContentMask.None)
-            {
-                // nothing to check
-                return;
-            }
+            //if ((networkMessageContentMask | JsonNetworkMessageContentMask.None) == JsonNetworkMessageContentMask.None)
+            //{
+            //    // nothing to check
+            //    return;
+            //}
 
             // Verify flags
-            Assert.AreEqual(jsonNetworkMessageEncode.NetworkMessageContentMask, jsonNetworkMessageDecoded.NetworkMessageContentMask, "NetworkMessageContentMask were not decoded correctly");
+            Assert.AreEqual(jsonNetworkMessageEncode.NetworkMessageContentMask & jsonNetworkMessageDecoded.NetworkMessageContentMask,
+                jsonNetworkMessageDecoded.NetworkMessageContentMask, "NetworkMessageContentMask were not decoded correctly");
 
             #region Network Message Header
-            if ((networkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+            if ((networkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
             {
-                Assert.AreEqual(jsonNetworkMessageEncode.PublisherId, jsonNetworkMessageDecoded.PublisherId, "PublisherId was not decoded correctly");
-            }
+                if ((networkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
+                {
+                    Assert.AreEqual(jsonNetworkMessageEncode.PublisherId, jsonNetworkMessageDecoded.PublisherId, "PublisherId was not decoded correctly");
+                }
 
-            if ((networkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
-            {
-                Assert.AreEqual(jsonNetworkMessageEncode.DataSetClassId, jsonNetworkMessageDecoded.DataSetClassId, "DataSetClassId was not decoded correctly");
+                if ((networkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+                {
+                    Assert.AreEqual(jsonNetworkMessageEncode.DataSetClassId, jsonNetworkMessageDecoded.DataSetClassId, "DataSetClassId was not decoded correctly");
+                }
             }
             #endregion
 
             #region Payload header + Payload data
+            List<DataSet> receivedDataSets = jsonNetworkMessageDecoded.ReceivedDataSets;
+            
+            Assert.IsNotNull(receivedDataSets, "ReceivedDataSets is null");
 
-            if ((networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0)
+            // check the number of JsonDataSetMessage counts
+            Assert.AreEqual(jsonNetworkMessageEncode.DataSetMessages.Count,
+                receivedDataSets.Count, "JsonDataSetMessages.Count was not decoded correctly");
+
+            // check if the encoded match the decoded DataSetWriterId's
+            foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessageEncode.DataSetMessages)
             {
-                // check the number of JsonDataSetMessage counts
-                Assert.AreEqual(jsonNetworkMessageEncode.DataSetMessages.Count,
-                    jsonNetworkMessageDecoded.DataSetMessages.Count, "JsonDataSetMessages.Count was not decoded correctly");
+                //// check dataset message headers      
+                //JsonDataSetMessage jsonDataSetMessageDecoded =
+                //    jsonNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>
+                //        ((JsonDataSetMessage)decoded).DataSetWriterId == jsonDataSetMessage.DataSetWriterId) as JsonDataSetMessage;
 
-                Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");
+                //Assert.IsNotNull(jsonDataSetMessageDecoded, "Decoded message did not found jsonDataSetMessage.DataSetWriterId = {0}", jsonDataSetMessage.DataSetWriterId);
 
-                // check if the encoded match the decoded DataSetWriterId's
-                foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessageEncode.DataSetMessages)
+                // check payload data fields count 
+                // get related dataset from subscriber DataSets
+                DataSet decodedDataSet = receivedDataSets.FirstOrDefault(dataSet => dataSet.Name == jsonDataSetMessage.DataSet.Name);
+                Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", jsonDataSetMessage.DataSet.Name);
+
+                Assert.AreEqual(jsonDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,
+                    "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}", jsonDataSetMessage.DataSetWriterId);
+
+                // check the fields data consistency
+                // at this time the DataSetField has just value!?
+                for (int index = 0; index < jsonDataSetMessage.DataSet.Fields.Length; index++)
                 {
-                    JsonDataSetMessage jsonDataSetMessageDecoded =
-                        jsonNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>
-                            ((JsonDataSetMessage)decoded).DataSetWriterId == jsonDataSetMessage.DataSetWriterId) as JsonDataSetMessage;
+                    Field fieldEncoded = jsonDataSetMessage.DataSet.Fields[index];
+                    Field fieldDecoded = decodedDataSet.Fields[index];
+                    Assert.IsNotNull(fieldEncoded, "jsonDataSetMessage.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
+                        index, jsonDataSetMessage.DataSetWriterId);
+                    Assert.IsNotNull(fieldDecoded, "jsonDataSetMessageDecoded.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
+                        index, jsonDataSetMessage.DataSetWriterId);
 
-                    Assert.IsNotNull(jsonDataSetMessageDecoded, "Decoded message did not found jsonDataSetMessage.DataSetWriterId = {0}", jsonDataSetMessage.DataSetWriterId);
+                    DataValue dataValueEncoded = fieldEncoded.Value;
+                    DataValue dataValueDecoded = fieldDecoded.Value;
+                    Assert.IsNotNull(fieldEncoded.Value, "jsonDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                       index, jsonDataSetMessage.DataSetWriterId);
+                    Assert.IsNotNull(fieldDecoded.Value, "jsonDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                      index, jsonDataSetMessage.DataSetWriterId);
 
-                    // check payload data fields count 
-                    // get related dataset from subscriber DataSets
-                    DataSet decodedDataSet = subscribedDataSets.FirstOrDefault(dataSet => dataSet.Name == jsonDataSetMessage.DataSet.Name);
-                    Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", jsonDataSetMessage.DataSet.Name);
+                    // check dataValues values
+                    //Assert.IsNotNull(fieldEncoded.Value.Value, "jsonDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                    //   index, jsonDataSetMessage.DataSetWriterId);
+                    //Assert.IsNotNull(fieldDecoded.Value.Value, "jsonDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                    //  index, jsonDataSetMessage.DataSetWriterId);
 
-                    Assert.AreEqual(jsonDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,
-                        "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}", jsonDataSetMessage.DataSetWriterId);
+                    Assert.AreEqual(dataValueEncoded.Value, dataValueDecoded.Value, "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
 
-                    // check the fields data consistency
-                    // at this time the DataSetField has just value!?
-                    for (int index = 0; index < jsonDataSetMessage.DataSet.Fields.Length; index++)
+                    // Checks just for DataValue type only 
+                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
+                        DataSetFieldContentMask.StatusCode)
                     {
-                        Field fieldEncoded = jsonDataSetMessage.DataSet.Fields[index];
-                        Field fieldDecoded = decodedDataSet.Fields[index];
-                        Assert.IsNotNull(fieldEncoded, "jsonDataSetMessage.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
-                            index, jsonDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(fieldDecoded, "jsonDataSetMessageDecoded.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
-                            index, jsonDataSetMessage.DataSetWriterId);
+                        // check dataValues StatusCode
+                        Assert.AreEqual(dataValueEncoded.StatusCode, dataValueDecoded.StatusCode,
+                            "Wrong: Fields[{0}].DataValue.StatusCode; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
+                    }
 
-                        DataValue dataValueEncoded = fieldEncoded.Value;
-                        DataValue dataValueDecoded = fieldDecoded.Value;
-                        Assert.IsNotNull(fieldEncoded.Value, "jsonDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                           index, jsonDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(fieldDecoded.Value, "jsonDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                          index, jsonDataSetMessage.DataSetWriterId);
+                    // check dataValues SourceTimestamp
+                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourceTimestamp) ==
+                        DataSetFieldContentMask.SourceTimestamp)
+                    {
+                        Assert.AreEqual(dataValueEncoded.SourceTimestamp, dataValueDecoded.SourceTimestamp,
+                            "Wrong: Fields[{0}].DataValue.SourceTimestamp; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
+                    }
 
-                        // check dataValues values
-                        Assert.IsNotNull(fieldEncoded.Value.Value, "jsonDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                           index, jsonDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(fieldDecoded.Value.Value, "jsonDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                          index, jsonDataSetMessage.DataSetWriterId);
-
-                        Assert.AreEqual(dataValueEncoded.Value, dataValueDecoded.Value, "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
-
-                        // Checks just for DataValue type only 
-                        if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
-                            DataSetFieldContentMask.StatusCode)
-                        {
-                            // check dataValues StatusCode
-                            Assert.AreEqual(dataValueEncoded.StatusCode, dataValueDecoded.StatusCode,
-                                "Wrong: Fields[{0}].DataValue.StatusCode; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
-                        }
-
-                        // check dataValues SourceTimestamp
-                        if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourceTimestamp) ==
-                            DataSetFieldContentMask.SourceTimestamp)
-                        {
-                            Assert.AreEqual(dataValueEncoded.SourceTimestamp, dataValueDecoded.SourceTimestamp,
-                                "Wrong: Fields[{0}].DataValue.SourceTimestamp; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
-                        }
-
+                    // check dataValues ServerTimestamp
+                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerTimestamp) ==
+                        DataSetFieldContentMask.ServerTimestamp)
+                    {
                         // check dataValues ServerTimestamp
-                        if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerTimestamp) ==
-                            DataSetFieldContentMask.ServerTimestamp)
-                        {
-                            // check dataValues ServerTimestamp
-                            Assert.AreEqual(dataValueEncoded.ServerTimestamp, dataValueDecoded.ServerTimestamp,
-                               "Wrong: Fields[{0}].DataValue.ServerTimestamp; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
-                        }
+                        Assert.AreEqual(dataValueEncoded.ServerTimestamp, dataValueDecoded.ServerTimestamp,
+                           "Wrong: Fields[{0}].DataValue.ServerTimestamp; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
+                    }
 
-                        // check dataValues SourcePicoseconds
-                        if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) ==
-                            DataSetFieldContentMask.SourcePicoSeconds)
-                        {
-                            Assert.AreEqual(dataValueEncoded.SourcePicoseconds, dataValueDecoded.SourcePicoseconds,
-                               "Wrong: Fields[{0}].DataValue.SourcePicoseconds; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
-                        }
+                    // check dataValues SourcePicoseconds
+                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) ==
+                        DataSetFieldContentMask.SourcePicoSeconds)
+                    {
+                        Assert.AreEqual(dataValueEncoded.SourcePicoseconds, dataValueDecoded.SourcePicoseconds,
+                           "Wrong: Fields[{0}].DataValue.SourcePicoseconds; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
+                    }
 
-                        // check dataValues ServerPicoSeconds
-                        if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) ==
-                            DataSetFieldContentMask.ServerPicoSeconds)
-                        {
-                            // check dataValues ServerPicoseconds
-                            Assert.AreEqual(dataValueEncoded.ServerPicoseconds, dataValueDecoded.ServerPicoseconds,
-                               "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
-                        }
+                    // check dataValues ServerPicoSeconds
+                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) ==
+                        DataSetFieldContentMask.ServerPicoSeconds)
+                    {
+                        // check dataValues ServerPicoseconds
+                        Assert.AreEqual(dataValueEncoded.ServerPicoseconds, dataValueDecoded.ServerPicoseconds,
+                           "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}", index, jsonDataSetMessage.DataSetWriterId);
                     }
                 }
             }

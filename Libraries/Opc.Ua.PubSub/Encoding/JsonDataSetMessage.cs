@@ -368,10 +368,15 @@ namespace Opc.Ua.PubSub.Encoding
                     for (int i = 0; i < dataValues.Count; i++)
                     {
                         Field dataField = new Field();
+                        dataField.FieldMetaData = metaDataType.Fields[i];
                         dataField.Value = dataValues[i];
                         // todo investigate if Target attribute and node id are mandatory
-                        dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
-                        dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+                        if (targetVariablesData != null && targetVariablesData.TargetVariables != null
+                            && targetVariablesData.TargetVariables.Count < i)
+                        {
+                            dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
+                            dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+                        }
                         dataFields.Add(dataField);
                     }
                     DataSet dataSet = new DataSet(metaDataType?.Name);

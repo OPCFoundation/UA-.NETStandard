@@ -96,10 +96,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Decodes the message 
         /// </summary>
-        /// <param name="source"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public abstract void Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
+        public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
 
         /// <summary>
         /// Read the bytes from a Stream

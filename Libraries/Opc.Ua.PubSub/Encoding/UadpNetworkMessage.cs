@@ -275,10 +275,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decodes the message 
         /// </summary>
-        /// <param name="source"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public override void Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        public override void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {

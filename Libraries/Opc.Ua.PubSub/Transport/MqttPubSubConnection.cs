@@ -503,9 +503,7 @@ namespace Opc.Ua.PubSub.Transport
                 // trigger message decoding
                 if (networkMessage != null)
                 {
-                    networkMessage.Decode(eventArgs.ApplicationMessage.Topic,
-                        eventArgs.ApplicationMessage.Payload,
-                        dataSetReaders);
+                    networkMessage.Decode(eventArgs.ApplicationMessage.Payload, dataSetReaders);
 
                     // Raise rthe DataReceived event 
                     RaiseNetworkMessageDataReceivedEvent(networkMessage, topic);

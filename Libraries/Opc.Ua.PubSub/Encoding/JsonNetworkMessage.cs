@@ -222,10 +222,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decodes the message 
         /// </summary>
-        /// <param name="source"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public override void Decode(string source, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        public override void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
@@ -238,15 +237,7 @@ namespace Opc.Ua.PubSub.Encoding
             {                
                 //decode bytes using dataset reader information
                 DecodeSubscribedDataSets(decoder, dataSetReaders);
-
-               //var messages = decoder.ReadCustomArray(FieldMessages, ReadMessage);
             }
-        }
-
-        private object ReadMessage(int index)
-        {
-
-            return null;
         }
 
         /// <summary>
@@ -276,8 +267,13 @@ namespace Opc.Ua.PubSub.Encoding
                 // If the value is null, the parameter shall be ignored and all received NetworkMessages pass the PublisherId filter. */
                 foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                 {
-                    //check Enabled & publisher id
-                    if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0
+                    if (dataSetReader.PublisherId == Variant.Null)
+                    {
+                        dataSetReadersFiltered.Add(dataSetReader);
+                    }
+                    // publisher id
+                    else if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0
+                        && PublisherId != null
                         && PublisherId.Equals(dataSetReader.PublisherId.Value.ToString()))
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
@@ -295,7 +291,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     messagesList = messagesToken as List<object>;
                 }
-
+                // todo decode when no network message header and not single message / single message 
                 if (messagesList != null && messagesList.Count > 0)
                 { 
                     // atempt decoding for each data set reader

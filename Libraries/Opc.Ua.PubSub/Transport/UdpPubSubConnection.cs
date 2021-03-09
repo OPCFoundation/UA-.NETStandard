@@ -318,9 +318,9 @@ namespace Opc.Ua.PubSub.Transport
             Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
-            networkMessage.Decode(source.ToString(), message, GetOperationalDataSetReaders());
+            networkMessage.Decode(message, GetOperationalDataSetReaders());
 
-            // Raise rthe DataReceived event 
+            // Raise rhe DataReceived event 
             RaiseNetworkMessageDataReceivedEvent(networkMessage, source.ToString());
         }
 

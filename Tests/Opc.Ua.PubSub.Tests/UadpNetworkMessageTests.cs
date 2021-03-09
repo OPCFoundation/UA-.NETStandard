@@ -972,7 +972,7 @@ namespace Opc.Ua.PubSub.Tests
             byte[] bytes = uadpNetworkMessage.Encode();
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
-            uaNetworkMessageDecoded.Decode("Test", bytes, m_firstDataSetReadersType);            
+            uaNetworkMessageDecoded.Decode(bytes, m_firstDataSetReadersType);            
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             // TODO Fix: this might be broken after refactor
@@ -989,7 +989,7 @@ namespace Opc.Ua.PubSub.Tests
             byte[] bytes = uadpNetworkMessage.Encode();
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
-            uaNetworkMessageDecoded.Decode("Test", bytes, m_firstDataSetReadersType);
+            uaNetworkMessageDecoded.Decode(bytes, m_firstDataSetReadersType);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             // TODO Fix: this might be broken after refactor
