@@ -72,6 +72,16 @@ namespace Opc.Ua.PubSub.Tests
         private List<DataSetReaderDataType> m_multipleDataSetsReaders;
         
         private const uint NetworkMessageContentMask = 0x3f;
+        // constants for DataSetFieldContentMask
+        private const DataSetFieldContentMask FieldContentMaskRawData = DataSetFieldContentMask.RawData;
+        private const DataSetFieldContentMask FieldContentMaskVariant = DataSetFieldContentMask.None;
+        private const DataSetFieldContentMask FieldContentMaskDatavalue1 = DataSetFieldContentMask.ServerPicoSeconds;
+        private const DataSetFieldContentMask FieldContentMaskDatavalue2 = DataSetFieldContentMask.StatusCode
+            | DataSetFieldContentMask.SourceTimestamp
+            | DataSetFieldContentMask.ServerTimestamp
+            | DataSetFieldContentMask.SourcePicoSeconds
+            | DataSetFieldContentMask.ServerPicoSeconds;
+
 
         private DataSetFieldContentMask fieldContentMaskVariant = DataSetFieldContentMask.None;
 
@@ -298,13 +308,16 @@ namespace Opc.Ua.PubSub.Tests
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
+
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
-        public void ValidateMessageHeaderAndDataSetClassIdWithRawDataType()
+        public void ValidateMessageHeaderAndDataSetClassIdWithFieldContentMaskParameter(
+            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+                DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act           
             JsonNetworkMessageContentMask jsonNetworkMessageContent = JsonNetworkMessageContentMask.NetworkMessageHeader
@@ -316,7 +329,7 @@ namespace Opc.Ua.PubSub.Tests
             m_singleDataSetReaders[0].PublisherId = Variant.Null;
             
             // set the same DataSetFieldContentMask as used for encoding
-            m_singleDataSetReaders[0].DataSetFieldContentMask = (uint)fieldContentMaskRawData;
+            m_singleDataSetReaders[0].DataSetFieldContentMask = (uint)dataSetFieldContentMask;
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, m_singleDataSetReaders);
