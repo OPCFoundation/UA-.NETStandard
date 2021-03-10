@@ -198,15 +198,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode dataset
         /// </summary>
-        /// <param name="messagesList"></param>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="messagesCount"></param>
+        /// <param name="messagesListName"></param>
         /// <param name="dataSetReader"></param>
         /// <returns></returns>
-        public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, List<object> messagesList, DataSetReaderDataType dataSetReader)
+        public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, int messagesCount, string messagesListName, DataSetReaderDataType dataSetReader)
         {
            // foreach(object message in messagesList)
-           for (int index = 0; index < messagesList.Count; index++)
+           for (int index = 0; index < messagesCount; index++)
             {
-                bool wasPush = jsonDecoder.PushArray("Messages", index);
+                bool wasPush = jsonDecoder.PushArray(messagesListName, index);
                 if (wasPush)
                 {
                     // atempt decoding the DataSet fields
@@ -217,8 +219,7 @@ namespace Opc.Ua.PubSub.Encoding
                     if (dataSet != null)
                     {
                         return dataSet;
-                    }
-                    
+                    }                    
                 }
             }
             return null;
@@ -372,7 +373,7 @@ namespace Opc.Ua.PubSub.Encoding
                         dataField.Value = dataValues[i];
                         // todo investigate if Target attribute and node id are mandatory
                         if (targetVariablesData != null && targetVariablesData.TargetVariables != null
-                            && targetVariablesData.TargetVariables.Count < i)
+                            && i < targetVariablesData.TargetVariables.Count)
                         {
                             dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
                             dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;

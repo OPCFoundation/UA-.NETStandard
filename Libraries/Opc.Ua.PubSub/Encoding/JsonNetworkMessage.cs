@@ -134,11 +134,6 @@ namespace Opc.Ua.PubSub.Encoding
         public string DataSetClassId { get; set; }
 
         /// <summary>
-        /// Get and Set SingleDataSetMessage
-        /// </summary>
-        public string SingleDataSetMessage { get; set; }
-
-        /// <summary>
         /// Get and Set ReplyTo
         /// </summary>
         public string ReplyTo { get; set; }
@@ -287,9 +282,16 @@ namespace Opc.Ua.PubSub.Encoding
 
                 object messagesToken = null;
                 List<object> messagesList = null;
+                string messagesListName = string.Empty;
                 if (jsonDecoder.ReadField(FieldMessages, out messagesToken))
                 {
                     messagesList = messagesToken as List<object>;
+                    messagesListName = FieldMessages;
+                }
+                else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
+                {
+                    messagesList = messagesToken as List<object>;
+                    messagesListName = JsonDecoder.RootArrayName;
                 }
                 // todo decode when no network message header and not single message / single message 
                 if (messagesList != null && messagesList.Count > 0)
@@ -321,7 +323,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                       //  jsonDecoder.Reader
                         
-                        DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, messagesList, dataSetReader);
+                        DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, messagesList.Count, messagesListName, dataSetReader);
                         if (dataSet != null)
                         {
                             ReceivedDataSets.Add(dataSet);

@@ -26,6 +26,7 @@ namespace Opc.Ua
     public class JsonDecoder : IDecoder, IDisposable
     {
         #region Private Fields
+        public const string RootArrayName = "___root_array___";
         private JsonTextReader m_reader;
         private Dictionary<string, object> m_root;
         private Stack<object> m_stack;
@@ -298,7 +299,11 @@ namespace Opc.Ua
 
             while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
             {
-                if (m_reader.TokenType == JsonToken.PropertyName)
+                if (m_reader.TokenType == JsonToken.StartArray)
+                {
+                    fields[RootArrayName] = ReadArray();                    
+                }
+                else if (m_reader.TokenType == JsonToken.PropertyName)
                 {
                     string name = (string)m_reader.Value;
 
