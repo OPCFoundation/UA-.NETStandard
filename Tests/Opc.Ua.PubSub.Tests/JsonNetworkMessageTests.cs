@@ -249,7 +249,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateMessageHeaderAndSingleDataSetMessage(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
+            [Values(DataSetUsageType.Single)]
                 DataSetUsageType dataSetUsageType)
         {
             List<DataSetReaderDataType> dataSetReaders = GetReaderDatasets(dataSetUsageType);
@@ -267,12 +267,40 @@ namespace Opc.Ua.PubSub.Tests
             foreach(var dataSetReader in dataSetReaders)
             {
                 dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
+                dataSetReader.PublisherId = Variant.Null;
             }
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
+
+        [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
+        public void ValidateNoMessageHeaderAndSingleDataSetMessage(
+            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(DataSetUsageType.Single)]
+                DataSetUsageType dataSetUsageType)
+        {
+            List<DataSetReaderDataType> dataSetReaders = GetReaderDatasets(dataSetUsageType);
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+
+            // Arrange
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+
+            // Act  
+            // Check NetworkMessageHeader & SingleDataSetMessage 
+            uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.SingleDataSetMessage);
+
+            foreach (var dataSetReader in dataSetReaders)
+            {
+                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
+                dataSetReader.PublisherId = Variant.Null;
+            }
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+        }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader")]
         public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(

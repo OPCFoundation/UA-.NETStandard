@@ -205,21 +205,30 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, int messagesCount, string messagesListName, DataSetReaderDataType dataSetReader)
         {
-           // foreach(object message in messagesList)
-           for (int index = 0; index < messagesCount; index++)
+            if (messagesCount == 0)
             {
-                bool wasPush = jsonDecoder.PushArray(messagesListName, index);
-                if (wasPush)
-                {
-                    // atempt decoding the DataSet fields
-                    DataSet dataSet = DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
-                    // redo jsonDecoder stack
-                    jsonDecoder.Pop();
+                // handle single dataset with no network message header & no dataset message header (the content of the payload)
+                DataSet dataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
 
-                    if (dataSet != null)
+                return dataSet;
+            }
+            else
+            {
+                for (int index = 0; index < messagesCount; index++)
+                {
+                    bool wasPush = jsonDecoder.PushArray(messagesListName, index);
+                    if (wasPush)
                     {
-                        return dataSet;
-                    }                    
+                        // atempt decoding the DataSet fields
+                        DataSet dataSet = DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
+                        // redo jsonDecoder stack
+                        jsonDecoder.Pop();
+
+                        if (dataSet != null)
+                        {
+                            return dataSet;
+                        }
+                    }
                 }
             }
             return null;
@@ -277,117 +286,133 @@ namespace Opc.Ua.PubSub.Encoding
                         Status = jsonDecoder.ReadStatusCode(FieldStatus);
                     }
                 }
-                #endregion
-
-                if (jsonDecoder.ReadField(FieldPayload, out token))
+                #endregion                
+            }
+            if (jsonDecoder.ReadField(FieldPayload, out token))
+            {
+                try
                 {
-                    TargetVariablesDataType targetVariablesData =
-                                ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
-                    DataSetMetaDataType metaDataType = dataSetReader.DataSetMetaData;
-                    List<DataValue> dataValues = new List<DataValue>();
-                    try
+                    bool wasPush = jsonDecoder.PushStructure(FieldPayload);
+                    if (wasPush)
                     {
-                        bool wasPush = jsonDecoder.PushStructure(FieldPayload);
-                        if (wasPush)
-                        {
-                            for (int index = 0; index < metaDataType.Fields.Count; index++)
-                            {
-                                string fieldName = metaDataType.Fields[index].Name;
-
-                                if (jsonDecoder.ReadField(fieldName, out token))
-                                {
-                                    switch (m_fieldTypeEncoding)
-                                    {
-                                        case FieldTypeEncodingMask.Variant:
-                                            Variant variantValue = jsonDecoder.ReadVariant(fieldName);
-                                            dataValues.Add(new DataValue(variantValue));
-                                            break;
-                                        case FieldTypeEncodingMask.RawData:
-                                            if (token is Dictionary<string, object>)
-                                            {
-                                                return null;
-                                            }
-                                            dataValues.Add(new DataValue(new Variant(token)));
-                                            break;
-                                        case FieldTypeEncodingMask.DataValue:                                            
-                                            bool wasPush2 = jsonDecoder.PushStructure(fieldName);
-                                            try
-                                            {
-                                                if (wasPush2 && jsonDecoder.ReadField("Value", out token))
-                                            {
-                                                
-                                                    DataValue dataValue = new DataValue(new Variant(token));
-
-                                                    if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
-                                                    {
-                                                        dataValue.StatusCode = jsonDecoder.ReadStatusCode("StatusCode");
-                                                    }
-
-                                                    if ((FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
-                                                    {
-                                                        dataValue.SourceTimestamp = jsonDecoder.ReadDateTime("SourceTimestamp");
-                                                    }
-
-                                                    if ((FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
-                                                    {
-                                                        dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16("SourcePicoseconds");
-                                                    }
-
-                                                    if ((FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
-                                                    {
-                                                        dataValue.ServerTimestamp = jsonDecoder.ReadDateTime("ServerTimestamp");
-                                                    }
-
-                                                    if ((FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
-                                                    {
-                                                        dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16("ServerPicoseconds");
-                                                    }
-                                                    dataValues.Add(dataValue);
-                                                }                                                                                              
-                                            }
-                                            finally
-                                            {
-                                                jsonDecoder.Pop();
-                                            }
-                                            break;
-                                    }
-                                }
-                                else
-                                {
-                                    // the decode failed
-                                    return null;
-                                }
-                            }
-                        }
+                        return DecodePayloadContent(jsonDecoder, dataSetReader);                        
                     }
-                    finally
-                    {
-                        // redo decode stack
-                        jsonDecoder.Pop();
-                    }
-                    List<Field> dataFields = new List<Field>();
-                    for (int i = 0; i < dataValues.Count; i++)
-                    {
-                        Field dataField = new Field();
-                        dataField.FieldMetaData = metaDataType.Fields[i];
-                        dataField.Value = dataValues[i];
-                        // todo investigate if Target attribute and node id are mandatory
-                        if (targetVariablesData != null && targetVariablesData.TargetVariables != null
-                            && i < targetVariablesData.TargetVariables.Count)
-                        {
-                            dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
-                            dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
-                        }
-                        dataFields.Add(dataField);
-                    }
-                    DataSet dataSet = new DataSet(metaDataType?.Name);
-                    dataSet.Fields = dataFields.ToArray();
-                    dataSet.DataSetWriterId = DataSetWriterId;
-                    dataSet.SequenceNumber = SequenceNumber;
-                    return dataSet;
                 }
+                finally
+                {
+                    // redo decode stack
+                    jsonDecoder.Pop();
+                }                
             }
             return null;
+        }
+
+        /// <summary>
+        /// Decode the Content of the Payload and create a DataSet object from it
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="dataSetReader"></param>
+        /// <returns></returns>
+        private DataSet DecodePayloadContent(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
+        {
+            TargetVariablesDataType targetVariablesData =
+                            ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
+            DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
+
+            object token;
+            List<DataValue> dataValues = new List<DataValue>();
+            for (int index = 0; index < dataSetMetaData.Fields.Count; index++)
+            {
+                string fieldName = dataSetMetaData.Fields[index].Name;
+
+                if (jsonDecoder.ReadField(fieldName, out token))
+                {
+                    switch (m_fieldTypeEncoding)
+                    {
+                        case FieldTypeEncodingMask.Variant:
+                            Variant variantValue = jsonDecoder.ReadVariant(fieldName);
+                            dataValues.Add(new DataValue(variantValue));
+                            break;
+                        case FieldTypeEncodingMask.RawData:
+                            if (token is Dictionary<string, object>)
+                            {
+                                return null;
+                            }
+                            dataValues.Add(new DataValue(new Variant(token)));
+                            break;
+                        case FieldTypeEncodingMask.DataValue:
+                            bool wasPush2 = jsonDecoder.PushStructure(fieldName);
+                            try
+                            {
+                                if (wasPush2 && jsonDecoder.ReadField("Value", out token))
+                                {
+
+                                    DataValue dataValue = new DataValue(new Variant(token));
+
+                                    if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
+                                    {
+                                        dataValue.StatusCode = jsonDecoder.ReadStatusCode("StatusCode");
+                                    }
+
+                                    if ((FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
+                                    {
+                                        dataValue.SourceTimestamp = jsonDecoder.ReadDateTime("SourceTimestamp");
+                                    }
+
+                                    if ((FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
+                                    {
+                                        dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16("SourcePicoseconds");
+                                    }
+
+                                    if ((FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
+                                    {
+                                        dataValue.ServerTimestamp = jsonDecoder.ReadDateTime("ServerTimestamp");
+                                    }
+
+                                    if ((FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
+                                    {
+                                        dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16("ServerPicoseconds");
+                                    }
+                                    dataValues.Add(dataValue);
+                                }
+                            }
+                            finally
+                            {
+                                jsonDecoder.Pop();
+                            }
+                            break;
+                    }
+                }
+                else
+                {
+                    // the decode failed
+                    return null;
+                }                
+            }
+
+            //build the DataSet Fields collection based oin the decoded values and the target 
+            List<Field> dataFields = new List<Field>();
+            for (int i = 0; i < dataValues.Count; i++)
+            {
+                Field dataField = new Field();
+                dataField.FieldMetaData = dataSetMetaData.Fields[i];
+                dataField.Value = dataValues[i];
+                // todo investigate if Target attribute and node id are mandatory
+                if (targetVariablesData != null && targetVariablesData.TargetVariables != null
+                    && i < targetVariablesData.TargetVariables.Count)
+                {
+                    dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
+                    dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+                }
+                dataFields.Add(dataField);
+            }
+
+            // build the dataset object
+            DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+            dataSet.Fields = dataFields.ToArray();
+            dataSet.DataSetWriterId = DataSetWriterId;
+            dataSet.SequenceNumber = SequenceNumber;
+            return dataSet;
         }
         #endregion
 

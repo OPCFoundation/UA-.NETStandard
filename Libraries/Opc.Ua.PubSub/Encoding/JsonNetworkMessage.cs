@@ -293,8 +293,12 @@ namespace Opc.Ua.PubSub.Encoding
                     messagesList = messagesToken as List<object>;
                     messagesListName = JsonDecoder.RootArrayName;
                 }
+                else
+                {
+                    messagesList = new List<object>();
+                }
                 // todo decode when no network message header and not single message / single message 
-                if (messagesList != null && messagesList.Count > 0)
+                if (messagesList != null)
                 { 
                     // atempt decoding for each data set reader
                     foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
@@ -320,9 +324,7 @@ namespace Opc.Ua.PubSub.Encoding
                         jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask);
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader = (networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
-
-                      //  jsonDecoder.Reader
-                        
+                                                                     
                         DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, messagesList.Count, messagesListName, dataSetReader);
                         if (dataSet != null)
                         {
