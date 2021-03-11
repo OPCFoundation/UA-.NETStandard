@@ -327,7 +327,7 @@ namespace Opc.Ua
                     var message = new StringBuilder();
                     message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
                     message.AppendLine();
-                    message.AppendFormat("Error is: {1}", e.Message);
+                    message.AppendFormat("Error is: {0}", e.Message);
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError, e, message.ToString());
                 }
