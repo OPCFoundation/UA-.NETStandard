@@ -207,6 +207,15 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if (messagesCount == 0)
             {
+                // check if there shall be a dataset header and decode it
+                if (HasDataSetMessageHeader)
+                {
+                    DecodeDataSetMessageHeader(jsonDecoder);
+
+                    // push into PayloadStructure if there was a dataset header
+                    jsonDecoder.PushStructure("Payload");
+                }
+
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
                 DataSet dataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
 
@@ -242,57 +251,19 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
-            object token = null;
-            // check if there shall be a dataset header 
+           
+            // check if there shall be a dataset header and decode it
             if (HasDataSetMessageHeader)
             {
-                #region Decode DataSet message header                
-                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
-                {
-                    if (jsonDecoder.ReadField(FieldDataSetWriterId, out token))
-                    {
-                        DataSetWriterId = Convert.ToUInt16(jsonDecoder.ReadString(FieldDataSetWriterId));
-                    }
-                }
-
-                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
-                {
-                    if (jsonDecoder.ReadField(FieldSequenceNumber, out token))
-                    {
-                        SequenceNumber = jsonDecoder.ReadUInt32(FieldSequenceNumber);
-                    }
-                }
-
-                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
-                {
-                    if (jsonDecoder.ReadField(FieldMetaDataVersion, out token))
-                    {
-                        MetaDataVersion = jsonDecoder.ReadEncodeable(FieldMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
-                    }
-                }
-
-                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
-                {
-                    if (jsonDecoder.ReadField(FieldTimestamp, out token))
-                    {
-                        Timestamp = jsonDecoder.ReadDateTime(FieldTimestamp);
-                    }
-                }
-
-                if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
-                {
-                    if (jsonDecoder.ReadField(FieldMetaDataVersion, out token))
-                    {
-                        Status = jsonDecoder.ReadStatusCode(FieldStatus);
-                    }
-                }
-                #endregion                
+                DecodeDataSetMessageHeader(jsonDecoder);                
             }
 
             if (dataSetReader.DataSetWriterId != 0 && DataSetWriterId != dataSetReader.DataSetWriterId)
             {
                 return null;
             }
+
+            object token = null;
             if (jsonDecoder.ReadField(FieldPayload, out token))
             {
                 try
@@ -393,11 +364,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 if (wasPush2)
                                 {
                                     jsonDecoder.Pop();
-                                }
-                                else
-                                {
-
-                                }
+                                }                                
                             }
                             break;
                     }
@@ -598,10 +565,59 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
+        /// Decodes the DataSetMessageHeader
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        private void DecodeDataSetMessageHeader(JsonDecoder jsonDecoder)
+        {
+            object token = null;
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
+            {
+                if (jsonDecoder.ReadField(FieldDataSetWriterId, out token))
+                {
+                    DataSetWriterId = Convert.ToUInt16(jsonDecoder.ReadString(FieldDataSetWriterId));
+                }
+            }
+
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
+            {
+                if (jsonDecoder.ReadField(FieldSequenceNumber, out token))
+                {
+                    SequenceNumber = jsonDecoder.ReadUInt32(FieldSequenceNumber);
+                }
+            }
+
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
+            {
+                if (jsonDecoder.ReadField(FieldMetaDataVersion, out token))
+                {
+                    MetaDataVersion = jsonDecoder.ReadEncodeable(FieldMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
+                }
+            }
+
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
+            {
+                if (jsonDecoder.ReadField(FieldTimestamp, out token))
+                {
+                    Timestamp = jsonDecoder.ReadDateTime(FieldTimestamp);
+                }
+            }
+
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
+            {
+                if (jsonDecoder.ReadField(FieldMetaDataVersion, out token))
+                {
+                    Status = jsonDecoder.ReadStatusCode(FieldStatus);
+                }
+            }
+        }
+
+        /// <summary>
         /// Decode a scalar type
         /// </summary>
         /// <param name="jsonDecoder"></param>
         /// <param name="builtInType"></param>
+        /// <param name="fieldName"></param>
         /// <returns>The decoded object</returns>
         private object DecodeRawScalar(JsonDecoder jsonDecoder, byte builtInType, string fieldName)
         {

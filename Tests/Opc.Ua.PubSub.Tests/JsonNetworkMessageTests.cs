@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate network message mask ;" +
                             "Change the Json network message mask into the [0,63] range that covers all options(properties)")]
-        public void _ValidateNetworkMessageMaskWithFieldContentMaskParameter(
+        public void ValidateNetworkMessageMaskWithFieldContentMaskAndPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(1, "abc")] object publisherId)
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId")]
-        public void _ValidateMessageHeaderAndPublisherIdWithFieldContentMaskParameter(
+        public void ValidateMessageHeaderAndPublisherIdWithFieldContentMaskAndPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
              [Values(1, "abc")] object publisherId)
@@ -171,7 +171,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
-        public void _ValidateMessageHeaderAndDataSetClassIdWithFieldContentMaskParameter(
+        public void ValidateMessageHeaderAndDataSetClassIdWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
@@ -218,9 +218,8 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
-        // todo fix this wrong behaviour in decoder!!!
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
-        public void _ValidateMessageHeaderAndSingleDataSetMessage(
+        public void ValidateMessageHeaderAndSingleDataSetMessageWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
@@ -269,7 +268,7 @@ namespace Opc.Ua.PubSub.Tests
 
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader")]
-        public void _ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
+        public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
@@ -317,7 +316,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "ValidateDataSetMessageHeader")]
-        public void _ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
+        public void ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
@@ -364,7 +363,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate NetworkMessageHeeader & DataSetMessageHeader")]
-        public void _ValidateNetworkAndDataSetMessageHeaderWithFieldContentMaskParameter(
+        public void ValidateNetworkAndDataSetMessageHeaderWithFieldContentMaskAndPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
              [Values(1, "abc")] object publisherId)
@@ -414,7 +413,7 @@ namespace Opc.Ua.PubSub.Tests
 
 
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
-        public void _ValidateSingleDataSetMessageWithFieldContentMaskParameter(
+        public void ValidateSingleDataSetMessageWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask)
         {
