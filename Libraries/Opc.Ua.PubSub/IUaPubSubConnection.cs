@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub
 {
@@ -86,5 +87,10 @@ namespace Opc.Ua.PubSub
         /// <param name="networkMessage"></param>
         /// <returns></returns>
         bool PublishNetworkMessage(UaNetworkMessage networkMessage);
+
+        /// <summary>
+        /// Get current list of dataset readers available in this UaSubscriber component
+        /// </summary>
+        List<DataSetReaderDataType> GetOperationalDataSetReaders();
     }
 }

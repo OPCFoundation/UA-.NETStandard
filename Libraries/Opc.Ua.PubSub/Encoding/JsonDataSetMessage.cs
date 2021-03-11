@@ -288,6 +288,11 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 #endregion                
             }
+
+            if (dataSetReader.DataSetWriterId != 0 && DataSetWriterId != dataSetReader.DataSetWriterId)
+            {
+                return null;
+            }
             if (jsonDecoder.ReadField(FieldPayload, out token))
             {
                 try
@@ -334,60 +339,79 @@ namespace Opc.Ua.PubSub.Encoding
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
-                            if (token is Dictionary<string, object>)
-                            {
-                                return null;
-                            }
-                            dataValues.Add(new DataValue(new Variant(token)));
+
+                            object value = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], fieldName);
+                            dataValues.Add(new DataValue(new Variant(value)));
                             break;
                         case FieldTypeEncodingMask.DataValue:
                             bool wasPush2 = jsonDecoder.PushStructure(fieldName);
+                            DataValue dataValue = new DataValue(Variant.Null);
                             try
                             {
                                 if (wasPush2 && jsonDecoder.ReadField("Value", out token))
                                 {
-
-                                    DataValue dataValue = new DataValue(new Variant(token));
-
-                                    if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
-                                    {
-                                        dataValue.StatusCode = jsonDecoder.ReadStatusCode("StatusCode");
-                                    }
-
-                                    if ((FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
-                                    {
-                                        dataValue.SourceTimestamp = jsonDecoder.ReadDateTime("SourceTimestamp");
-                                    }
-
-                                    if ((FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
-                                    {
-                                        dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16("SourcePicoseconds");
-                                    }
-
-                                    if ((FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
-                                    {
-                                        dataValue.ServerTimestamp = jsonDecoder.ReadDateTime("ServerTimestamp");
-                                    }
-
-                                    if ((FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
-                                    {
-                                        dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16("ServerPicoseconds");
-                                    }
-                                    dataValues.Add(dataValue);
+                                    token = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], "Value");
+                                    dataValue = new DataValue(new Variant(token));                                    
                                 }
+
+                                if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
+                                {
+                                    if (jsonDecoder.ReadField("StatusCode", out token))
+                                    {
+                                        bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
+                                        if (wasPush3)
+                                        {
+                                            dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
+                                            jsonDecoder.Pop();
+                                        }
+                                    }
+                                }
+
+                                if ((FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
+                                {
+                                    dataValue.SourceTimestamp = jsonDecoder.ReadDateTime("SourceTimestamp");
+                                }
+
+                                if ((FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
+                                {
+                                    dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16("SourcePicoseconds");
+                                }
+
+                                if ((FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
+                                {
+                                    dataValue.ServerTimestamp = jsonDecoder.ReadDateTime("ServerTimestamp");
+                                }
+
+                                if ((FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
+                                {
+                                    dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16("ServerPicoseconds");
+                                }
+                                dataValues.Add(dataValue);
                             }
                             finally
                             {
-                                jsonDecoder.Pop();
+                                if (wasPush2)
+                                {
+                                    jsonDecoder.Pop();
+                                }
+                                else
+                                {
+
+                                }
                             }
                             break;
                     }
                 }
                 else
                 {
-                    // the decode failed
-                    return null;
+                    // the field is null
+                    dataValues.Add(new DataValue(Variant.Null));
                 }                
+            }
+
+            if (dataValues.Count != dataSetMetaData.Fields.Count)
+            {
+                return null;
             }
 
             //build the DataSet Fields collection based oin the decoded values and the target 
@@ -527,7 +551,123 @@ namespace Opc.Ua.PubSub.Encoding
                     encoder.WriteDataValue(fieldName, dataValue, false);
                     break;
             }
-        }        
-        #endregion     
+        }
+        #endregion
+
+        /// <summary>
+        /// Decode RawData type (for SimpleTypeDescription!?)
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="fieldMetaData"></param>
+        /// <returns></returns>
+        private object DecodeRawData(JsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
+        {
+            if (fieldMetaData.BuiltInType != 0)// && fieldMetaData.DataType.Equals(new NodeId(fieldMetaData.BuiltInType)))
+            {
+                try
+                {
+                    switch (fieldMetaData.ValueRank)
+                    {
+
+                        case ValueRanks.Scalar:
+                            return DecodeRawScalar(jsonDecoder, fieldMetaData.BuiltInType, fieldName);
+
+                        case ValueRanks.OneDimension:
+                        //    return DecodeRawArrayOneDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType);
+
+                        case ValueRanks.TwoDimensions:
+                        case ValueRanks.OneOrMoreDimensions:
+                        //return DecodeRawArrayMultiDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ArrayDimensions);
+
+                        case ValueRanks.Any:// Scalar or Array with any number of dimensions
+                        case ValueRanks.ScalarOrOneDimension:
+                        //return DecodeRawArrayOrScalar(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ArrayDimensions);
+
+                        default:
+                            Utils.Trace("Decoding ValueRank = {0} not supported yet !!!", fieldMetaData.ValueRank);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Utils.Trace(ex, "Error reading element for RawData.");
+                    return (StatusCodes.BadDecodingError);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Decode a scalar type
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="builtInType"></param>
+        /// <returns>The decoded object</returns>
+        private object DecodeRawScalar(JsonDecoder jsonDecoder, byte builtInType, string fieldName)
+        {
+            try
+            {
+                switch ((BuiltInType)builtInType)
+                {
+                    case BuiltInType.Boolean:
+                        return jsonDecoder.ReadBoolean(fieldName);
+                    case BuiltInType.SByte:
+                        return jsonDecoder.ReadSByte(fieldName);
+                    case BuiltInType.Byte:
+                        return jsonDecoder.ReadByte(fieldName);
+                    case BuiltInType.Int16:
+                        return jsonDecoder.ReadInt16(fieldName);
+                    case BuiltInType.UInt16:
+                        return jsonDecoder.ReadUInt16(fieldName);
+                    case BuiltInType.Int32:
+                        return jsonDecoder.ReadInt32(fieldName);
+                    case BuiltInType.UInt32:
+                        return jsonDecoder.ReadUInt32(fieldName);
+                    case BuiltInType.Int64:
+                        return jsonDecoder.ReadInt64(fieldName);
+                    case BuiltInType.UInt64:
+                        return jsonDecoder.ReadUInt64(fieldName);
+                    case BuiltInType.Float:
+                        return jsonDecoder.ReadFloat(fieldName);
+                    case BuiltInType.Double:
+                        return jsonDecoder.ReadDouble(fieldName);
+                    case BuiltInType.String:
+                        return jsonDecoder.ReadString(fieldName);
+                    case BuiltInType.DateTime:
+                        return jsonDecoder.ReadDateTime(fieldName);
+                    case BuiltInType.Guid:
+                        return jsonDecoder.ReadGuid(fieldName);
+                    case BuiltInType.ByteString:
+                        return jsonDecoder.ReadByteString(fieldName);
+                    case BuiltInType.XmlElement:
+                        return jsonDecoder.ReadXmlElement(fieldName);
+                    case BuiltInType.NodeId:
+                        return jsonDecoder.ReadNodeId(fieldName);
+                    case BuiltInType.ExpandedNodeId:
+                        return jsonDecoder.ReadExpandedNodeId(fieldName);
+                    case BuiltInType.StatusCode:
+                        return jsonDecoder.ReadStatusCode(fieldName);
+                    case BuiltInType.QualifiedName:
+                        return jsonDecoder.ReadQualifiedName(fieldName);
+                    case BuiltInType.LocalizedText:
+                        return jsonDecoder.ReadLocalizedText(fieldName);
+                    case BuiltInType.DataValue:
+                        return jsonDecoder.ReadDataValue(fieldName);
+                    case BuiltInType.Enumeration:
+                        return jsonDecoder.ReadInt32(fieldName);
+                    case BuiltInType.Variant:
+                        return jsonDecoder.ReadVariant(fieldName);
+                    case BuiltInType.ExtensionObject:
+                        return jsonDecoder.ReadExtensionObject(fieldName);                        
+                }
+            }
+            catch(Exception ex)
+            {
+                // log
+                Utils.Trace(ex, "JsonDataSetMessage: Error decoding field {0}", fieldName);
+            }
+
+            return null;
+        }
     }
 }

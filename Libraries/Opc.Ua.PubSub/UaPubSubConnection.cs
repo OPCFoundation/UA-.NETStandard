@@ -141,6 +141,7 @@ namespace Opc.Ua.PubSub
             }
             InternalStart();
         }
+
         /// <summary>
         /// Stop Publish/Subscribe jobs associated with this instance
         /// </summary>
@@ -201,7 +202,39 @@ namespace Opc.Ua.PubSub
         /// <param name="networkMessage"></param>
         /// <returns></returns>
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
-        
+
+        /// <summary>
+        /// Get current list of dataset readers available in this UaSubscriber component
+        /// </summary>
+        public List<DataSetReaderDataType> GetOperationalDataSetReaders()
+        {
+            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
+            if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
+            {
+                return readersList;
+            }
+            foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
+            {
+                if (Application.UaPubSubConfigurator.FindStateForObject(readerGroup) == PubSubState.Operational)
+                {
+                    foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
+                    {
+                        // check if reader is properlly configuread to receive data
+                        if (reader.DataSetMetaData == null
+                            || reader.DataSetMetaData.Fields == null
+                            || reader.DataSetMetaData.Fields.Count == 0)
+                        {
+                            continue;
+                        }
+                        if (Application.UaPubSubConfigurator.FindStateForObject(reader) == PubSubState.Operational)
+                        {
+                            readersList.Add(reader);
+                        }
+                    }
+                }
+            }
+            return readersList;
+        }
         #endregion
 
         #region Protected Methods
@@ -248,43 +281,6 @@ namespace Opc.Ua.PubSub
                     "Message from source={0} cannot be decoded.", source);
             }
         }
-
-        #endregion
-
-        #region Private Methods       
-        /// <summary>
-        /// Get current list of dataset readers available in this UaSubscriber component
-        /// </summary>
-        protected List<DataSetReaderDataType> GetOperationalDataSetReaders()
-        {
-            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
-            if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
-            {
-                return readersList;
-            }
-            foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
-            {
-                if (Application.UaPubSubConfigurator.FindStateForObject(readerGroup) == PubSubState.Operational)
-                {
-                    foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
-                    {
-                        // check if reader is properlly configuread to receive data
-                        if (reader.DataSetMetaData == null
-                            || reader.DataSetMetaData.Fields == null
-                            || reader.DataSetMetaData.Fields.Count == 0)
-                        {
-                            continue;
-                        }
-                        if (Application.UaPubSubConfigurator.FindStateForObject(reader) == PubSubState.Operational)
-                        {
-                            readersList.Add(reader);
-                        }
-                    }
-                }
-            }
-            return readersList;
-        }
-
 
         /// <summary>
         /// Get all dataset readers defined for this UaSubscriber component

@@ -1129,7 +1129,7 @@ namespace Opc.Ua.PubSub.Tests
             return null;
         }
 
-        
+
 
         /// <summary>
         /// Create a Publisher with the specified parameters
@@ -1138,27 +1138,27 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="addressUrl"></param>
         /// <param name="publisherId"></param>
         /// <param name="writerGroupId"></param>
-        /// <param name="dataSetWriterId"></param>
+        /// <param name="dataSetWritersCount"> number of wrtiters to create</param>
         /// <param name="jsonNetworkMessageContentMask"></param>
         /// <param name="jsonDataSetMessageContentMask"></param>
         /// <param name="dataSetFieldContentMask"></param>
-        /// <param name="dataSetMeta"></param>
+        /// <param name="dataSetMetaData"></param>
         /// <param name="nameSpaceIndexForData"></param>
         /// <returns></returns>
         public static PubSubConfigurationDataType CreatePublisherConfiguration(
             string transportProfileUri, string addressUrl,
-            int publisherId, ushort writerGroupId, ushort dataSetWriterId,
+            object publisherId, ushort writerGroupId, ushort dataSetWritersCount,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType dataSetMeta, ushort nameSpaceIndexForData)
+            DataSetMetaDataType dataSetMetaData, ushort nameSpaceIndexForData)
         {
             
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
             pubSubConnection1.Name = "Connection1 Publisher PubId:" + publisherId;
             pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = publisherId;
+            pubSubConnection1.PublisherId = new Variant(publisherId);
             pubSubConnection1.TransportProfileUri = transportProfileUri;
 
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
@@ -1173,7 +1173,7 @@ namespace Opc.Ua.PubSub.Tests
             //ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
             //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
 
-            #region Define WriterGroup1 - Json
+            #region Define WriterGroup1 - Json            
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
             writerGroup1.Name = "WriterGroup id:" + writerGroupId;
             writerGroup1.Enabled = true;
@@ -1192,22 +1192,25 @@ namespace Opc.Ua.PubSub.Tests
                     QueueName = writerGroup1.Name,
                 }
             );
+            // create all dataset writers
+            for (ushort dataSetWriterId  = 1; dataSetWriterId <= dataSetWritersCount; dataSetWriterId++)
+            {
+                // Define DataSetWriter
+                DataSetWriterDataType dataSetWriter = new DataSetWriterDataType();
+                dataSetWriter.Name = "Writer id:" + dataSetWriterId;
+                dataSetWriter.DataSetWriterId = dataSetWriterId;
+                dataSetWriter.Enabled = true;
+                dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
+                dataSetWriter.DataSetName = dataSetMetaData.Name;
+                dataSetWriter.KeyFrameCount = 1;
 
-            // Define DataSetWriter
-            DataSetWriterDataType dataSetWriter1 = new DataSetWriterDataType();
-            dataSetWriter1.Name = "Writer id:"+ dataSetWriterId;
-            dataSetWriter1.DataSetWriterId = dataSetWriterId;
-            dataSetWriter1.Enabled = true;
-            dataSetWriter1.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-            dataSetWriter1.DataSetName = dataSetMeta.Name;
-            dataSetWriter1.KeyFrameCount = 1;
+                JsonDataSetWriterMessageDataType jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
+                    DataSetMessageContentMask = (uint)jsonDataSetMessageContentMask
+                };
 
-            JsonDataSetWriterMessageDataType jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
-                DataSetMessageContentMask = (uint)jsonDataSetMessageContentMask
-            };
-
-            dataSetWriter1.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
-            writerGroup1.DataSetWriters.Add(dataSetWriter1);
+                dataSetWriter.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
+                writerGroup1.DataSetWriters.Add(dataSetWriter);
+            }
             #endregion
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
@@ -1220,14 +1223,14 @@ namespace Opc.Ua.PubSub.Tests
                 };
 
             PublishedDataSetDataType publishedDataSetDataType = new PublishedDataSetDataType();
-            publishedDataSetDataType.Name = dataSetMeta.Name; //name shall be unique in a configuration
+            publishedDataSetDataType.Name = dataSetMetaData.Name; //name shall be unique in a configuration
             // set  publishedDataSetSimple.DataSetMetaData
-            publishedDataSetDataType.DataSetMetaData = dataSetMeta;
+            publishedDataSetDataType.DataSetMetaData = dataSetMetaData;
 
             PublishedDataItemsDataType publishedDataSetSimpleSource = new PublishedDataItemsDataType();
             publishedDataSetSimpleSource.PublishedData = new PublishedVariableDataTypeCollection();
             //create PublishedData based on metadata names
-            foreach (var field in dataSetMeta.Fields)
+            foreach (var field in dataSetMetaData.Fields)
             {
                 publishedDataSetSimpleSource.PublishedData.Add(
                     new PublishedVariableDataType() {
@@ -1248,7 +1251,7 @@ namespace Opc.Ua.PubSub.Tests
 
         public static PubSubConfigurationDataType CreateSubscriberConfiguration(
             string transportProfileUri, string addressUrl,
-            int publisherId, ushort writerGroupId, ushort dataSetWriterId,
+            object publisherId, ushort writerGroupId, ushort dataSetReadersCount, bool setDataSetWriterId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
@@ -1259,7 +1262,10 @@ namespace Opc.Ua.PubSub.Tests
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
             pubSubConnection1.Name = "Connection Subscriber PubId:" + publisherId;
             pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = publisherId;
+            if (publisherId != null)
+            {
+                pubSubConnection1.PublisherId = new Variant(publisherId);
+            }
             pubSubConnection1.TransportProfileUri = transportProfileUri;
 
             NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
@@ -1283,45 +1289,54 @@ namespace Opc.Ua.PubSub.Tests
             readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
             #endregion
 
-            #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)3, DataSetWriterId = 1
-            DataSetReaderDataType dataSetReader1 = new DataSetReaderDataType();
-            dataSetReader1.Name = "Reader WriterGroupId:" + writerGroupId;
-            dataSetReader1.PublisherId = publisherId;
-            dataSetReader1.WriterGroupId = writerGroupId;
-            dataSetReader1.DataSetWriterId = dataSetWriterId;
-            dataSetReader1.Enabled = true;
-            dataSetReader1.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-            dataSetReader1.KeyFrameCount = 1;
-            dataSetReader1.DataSetMetaData = dataSetMetaData;
-            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "WriterGroup id:" + writerGroupId,
-            };
-
-            dataSetReader1.TransportSettings = new ExtensionObject(brokerTransportSettings);
-
-            JsonDataSetReaderMessageDataType jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
-                NetworkMessageContentMask = (uint)jsonNetworkMessageContentMask,
-                DataSetMessageContentMask = (uint)jsonDataSetMessageContentMask,
-            };
-            dataSetReader1.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
-
-            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in dataSetMetaData.Fields)
+            for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetReadersCount; dataSetWriterId++)
             {
-                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
-                    DataSetFieldId = fieldMetaData.DataSetFieldId,
-                    TargetNodeId = new NodeId(fieldMetaData.Name, nameSpaceIndexForData),
-                    AttributeId = Attributes.Value,
-                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
-                });
+                #region Define DataSetReader
+                DataSetReaderDataType dataSetReader = new DataSetReaderDataType();
+                dataSetReader.Name = "dataSetReader:" + dataSetWriterId;
+                if (publisherId != null)
+                {
+                    dataSetReader.PublisherId = new Variant(publisherId);
+                }
+                dataSetReader.WriterGroupId = writerGroupId;
+                if (setDataSetWriterId)
+                {
+                    dataSetReader.DataSetWriterId = dataSetWriterId;
+                }
+                dataSetReader.Enabled = true;
+                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
+                dataSetReader.KeyFrameCount = 1;
+                dataSetReader.DataSetMetaData = dataSetMetaData;
+                BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                    QueueName = "WriterGroup id:" + writerGroupId,
+                };
+
+                dataSetReader.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+                JsonDataSetReaderMessageDataType jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
+                    NetworkMessageContentMask = (uint)jsonNetworkMessageContentMask,
+                    DataSetMessageContentMask = (uint)jsonDataSetMessageContentMask,
+                };
+                dataSetReader.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+
+                TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
+                subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
+                foreach (var fieldMetaData in dataSetMetaData.Fields)
+                {
+                    subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                        DataSetFieldId = fieldMetaData.DataSetFieldId,
+                        TargetNodeId = new NodeId(fieldMetaData.Name, nameSpaceIndexForData),
+                        AttributeId = Attributes.Value,
+                        OverrideValueHandling = OverrideValueHandling.OverrideValue,
+                        OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
+                    });
+                }
+
+                dataSetReader.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+
+                readerGroup1.DataSetReaders.Add(dataSetReader);
+                #endregion
             }
-
-            dataSetReader1.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
-
-            readerGroup1.DataSetReaders.Add(dataSetReader1);
-            #endregion
 
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
@@ -1568,7 +1583,7 @@ namespace Opc.Ua.PubSub.Tests
             }
             else
             {
-                return CreateSubscriberConfiguration(Profiles.PubSubMqttJsonTransport, "mqtt://localhost:1883", 1, 1, 1,
+                return CreateSubscriberConfiguration(Profiles.PubSubMqttJsonTransport, "mqtt://localhost:1883", 1, 1, 1, true,
                   networkMessageContentMask, jsonDataSetMessageContentMask, dataSetFieldContentMask,
                   dataSetMetaData, 2);
             }
