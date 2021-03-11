@@ -58,7 +58,7 @@ namespace Opc.Ua.PubSub.Tests
         private PubSubConnectionDataType m_publisherSingleDataSetConnection;
         private WriterGroupDataType m_singleDataSetWriterGroup;
         private IUaPubSubConnection m_singleDataSetPublisherConnection;
-        
+
         //private UaPubSubApplication m_subscriberApplication;
         private PubSubConfigurationDataType m_subscriberSingleDataSetConfiguration;
         private PubSubConnectionDataType m_subscriberSingleDataSetConnection;
@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Tests
         private PubSubConnectionDataType m_publisherMultipleDataSetsConnection;
         private WriterGroupDataType m_multipleDataSetsWriterGroup;
         private IUaPubSubConnection m_multipleDataSetsPublisherConnection;
-        
+
         private PubSubConfigurationDataType m_subscriberMultipleDataSetsConfiguration;
         private PubSubConnectionDataType m_subscriberMultipleDataSetsConnection;
         private ReaderGroupDataType m_multipleDataSetsReaderGroup;
@@ -153,11 +153,11 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(m_multipleDataSetsReaderGroup, "m_multipleDataSetsReaderGroup should not be null");
 
             // Create publisher application for multiple datasets
-            m_multipleDataSetsPublisherApplication = UaPubSubApplication.Create(m_publisherSingleDataSetConfiguration);
+            m_multipleDataSetsPublisherApplication = UaPubSubApplication.Create(m_publisherMultipleDataSetsConfiguration);
             Assert.IsNotNull(m_multipleDataSetsPublisherApplication, "m_multipleDataSetsPublisherApplication shall not be null");
 
             // Create publisher connection  for multiple datasets
-            m_multipleDataSetsPublisherConnection = m_singleDataSetPublisherApplication.PubSubConnections.First();
+            m_multipleDataSetsPublisherConnection = m_multipleDataSetsPublisherApplication.PubSubConnections.First();
             Assert.IsNotNull(m_multipleDataSetsPublisherConnection, "m_multipleDataSetsPublisherConnection should not be null");
 
             m_multipleDataSetsReaders = GetDataSetReaders(m_multipleDataSetsReaderGroup);
@@ -168,7 +168,7 @@ namespace Opc.Ua.PubSub.Tests
                             "Change the Json network message mask into the [0,63] range that covers all options(properties)")]
         public void ValidateNetworkMessageMaskWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
+                DataSetFieldContentMask networkFieldContentMask,
             [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
                 DataSetUsageType dataSetUsageType)
         {
@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(networkFieldContentMask, dataSetUsageType);
 
             // Act  
             // change network message mask
@@ -192,7 +192,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate NetworkMessageHeader & PublisherId")]
         public void ValidateMessageHeaderAndPublisherIdWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
+                DataSetFieldContentMask fieldContentMask,
             [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
                 DataSetUsageType dataSetUsageType)
         {
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMask, dataSetUsageType);
 
             // Act  
             // Check NetworkMessageHeader & PublisherId 
@@ -210,6 +210,9 @@ namespace Opc.Ua.PubSub.Tests
             //uaNetworkMessage.PublisherId = "Test$!#$%^&*87";
             //uaNetworkMessage.PublisherId = "Begrüßung";
 
+            // set/reset the same DataSetFieldContentMask as used for encoding
+            ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, uaNetworkMessage.PublisherId);
+
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
@@ -217,7 +220,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
         public void ValidateMessageHeaderAndDataSetClassIdWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
+                DataSetFieldContentMask fieldContentMask,
             [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
                 DataSetUsageType dataSetUsageType)
         {
@@ -225,7 +228,7 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMask, dataSetUsageType);
 
             // Act           
             JsonNetworkMessageContentMask jsonNetworkMessageContent = JsonNetworkMessageContentMask.NetworkMessageHeader
@@ -235,11 +238,7 @@ namespace Opc.Ua.PubSub.Tests
 
             // since the networkMessageHeader does not have PublisherId set filter to null
             // set the same DataSetFieldContentMask as used for encoding
-            foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-            {
-                dataSetReader.PublisherId = Variant.Null;
-                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-            }
+            ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, Variant.Null);
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
@@ -248,64 +247,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
         public void ValidateMessageHeaderAndSingleDataSetMessage(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(DataSetUsageType.Single)]
-                DataSetUsageType dataSetUsageType)
-        {
-            List<DataSetReaderDataType> dataSetReaders = GetReaderDatasets(dataSetUsageType);
-            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
-
-            // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
-
-            // Act  
-            // Check NetworkMessageHeader & SingleDataSetMessage 
-            uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.SingleDataSetMessage
-                | JsonNetworkMessageContentMask.DataSetClassId);
-
-            foreach(var dataSetReader in dataSetReaders)
-            {
-                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-                dataSetReader.PublisherId = Variant.Null;
-            }
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
-        }
-
-
-        [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
-        public void ValidateNoMessageHeaderAndSingleDataSetMessage(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(DataSetUsageType.Single)]
-                DataSetUsageType dataSetUsageType)
-        {
-            List<DataSetReaderDataType> dataSetReaders = GetReaderDatasets(dataSetUsageType);
-            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
-
-            // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
-
-            // Act  
-            // Check NetworkMessageHeader & SingleDataSetMessage 
-            uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.SingleDataSetMessage);
-
-            foreach (var dataSetReader in dataSetReaders)
-            {
-                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-                dataSetReader.PublisherId = Variant.Null;
-            }
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
-        }
-
-        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader")]
-        public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
+                DataSetFieldContentMask fieldContentMask,
             [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
                 DataSetUsageType dataSetUsageType)
         {
@@ -313,13 +255,45 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMask, dataSetUsageType);
+
+            // Act  
+            // Check NetworkMessageHeader & SingleDataSetMessage 
+            uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.DataSetClassId);
+            //uaNetworkMessage.SingleDataSetMessage = "true";
+
+            // since the networkMessageHeader does not have PublisherId set filter to null
+            // set the same DataSetFieldContentMask as used for encoding
+            ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, Variant.Null);
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+        }
+
+
+        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader")]
+        public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
+            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+                DataSetFieldContentMask fieldContentMask,
+            [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
+                DataSetUsageType dataSetUsageType)
+        {
+            List<DataSetReaderDataType> dataSetReaders = GetReaderDatasets(dataSetUsageType);
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+
+            // Arrange
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMask, dataSetUsageType);
 
             // Act  
             // Check NetworkMessageHeader & DataSetMessageHeader 
             uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.NetworkMessageHeader
-                |JsonNetworkMessageContentMask.DataSetMessageHeader);
-            
+                | JsonNetworkMessageContentMask.DataSetMessageHeader);
+
+            // since the networkMessageHeader does not have PublisherId set filter to null
+            // set the same DataSetFieldContentMask as used for encoding
+            ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, Variant.Null);
+
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
@@ -327,26 +301,23 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "ValidateDataSetMessageHeader")]
         public void ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(DataSetUsageType.Single)]
+                DataSetFieldContentMask fieldContentMask,
+            [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
                 DataSetUsageType dataSetUsageType)
         {
             List<DataSetReaderDataType> dataSetReaders = GetReaderDatasets(dataSetUsageType);
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMask, dataSetUsageType);
 
             // Act  
             // Check SingleDataSetMessage 
             uaNetworkMessage.SetNetworkMessageContentMask(JsonNetworkMessageContentMask.DataSetMessageHeader);
 
-            //since the networkMessageHeader is missing the reader shall not filter by PublisherId
-            foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-            {
-                dataSetReader.PublisherId = Variant.Null;
-                dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-            }
+            // since the networkMessageHeader does not have PublisherId set filter to null
+            // set the same DataSetFieldContentMask as used for encoding
+            ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, Variant.Null);
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
@@ -355,7 +326,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate NetworkMessageHeeader & DataSetMessageHeader")]
         public void ValidateNetworkAndDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
+                DataSetFieldContentMask fieldContentMask,
             [Values(DataSetUsageType.Single, DataSetUsageType.Multiple)]
                 DataSetUsageType dataSetUsageType)
         {
@@ -363,7 +334,7 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Arrange
-            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
+            JsonNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMask, dataSetUsageType);
 
             // Act  
             // TODO: Check SingleDataSetMessage
@@ -373,26 +344,17 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessage.SetNetworkMessageContentMask(jsonNetworkMessageContent);
 
             // since the networkMessageHeader there and PublisherId is encoded filter by publisher id of the connection
-            switch(dataSetUsageType)
+            // set the same DataSetFieldContentMask as used for encoding
+            switch (dataSetUsageType)
             {
                 case DataSetUsageType.Single:
-                    foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-                    {
-                        dataSetReader.PublisherId = m_publisherSingleDataSetConnection.PublisherId;
-                        // set the same DataSetFieldContentMask as used for encoding
-                        dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-                    }
+                    ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, m_publisherSingleDataSetConnection.PublisherId);
                     break;
                 case DataSetUsageType.Multiple:
-                    foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
-                    {
-                        dataSetReader.PublisherId = m_publisherMultipleDataSetsConnection.PublisherId;
-                        // set the same DataSetFieldContentMask as used for encoding
-                        dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-                    }
+                    ResetDataSetsFieldContentMask(dataSetReaders, fieldContentMask, m_publisherMultipleDataSetsConnection.PublisherId);
                     break;
             }
-           
+
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
@@ -412,12 +374,15 @@ namespace Opc.Ua.PubSub.Tests
             DataValue booleanValue = new DataValue(new Variant(true));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexSimple), Attributes.Value, booleanValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexSimple), Attributes.Value, booleanValue);
+
             DataValue scalarInt32XValue = new DataValue(new Variant(100));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
+
             DataValue scalarInt32YValue = new DataValue(new Variant(50));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
+
             DataValue dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexSimple), Attributes.Value, dateTimeValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexSimple), Attributes.Value, dateTimeValue);
@@ -428,54 +393,87 @@ namespace Opc.Ua.PubSub.Tests
             DataValue allTypesBooleanValue = new DataValue(new Variant(false));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexAllTypes), Attributes.Value, allTypesBooleanValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexAllTypes), Attributes.Value, allTypesBooleanValue);
+
             DataValue byteValue = new DataValue(new Variant((byte)10));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", NamespaceIndexAllTypes), Attributes.Value, byteValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", NamespaceIndexAllTypes), Attributes.Value, byteValue);
+
             DataValue int16Value = new DataValue(new Variant((short)100));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", NamespaceIndexAllTypes), Attributes.Value, int16Value);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", NamespaceIndexAllTypes), Attributes.Value, int16Value);
+
             DataValue int32Value = new DataValue(new Variant((int)1000));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexAllTypes), Attributes.Value, int32Value);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexAllTypes), Attributes.Value, int32Value);
+
             DataValue int64Value = new DataValue(new Variant((Int64)10000));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int64", NamespaceIndexAllTypes), Attributes.Value, int64Value);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int64", NamespaceIndexAllTypes), Attributes.Value, int64Value);
+
             DataValue sByteValue = new DataValue(new Variant((sbyte)11));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("SByte", NamespaceIndexAllTypes), Attributes.Value, sByteValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("SByte", NamespaceIndexAllTypes), Attributes.Value, sByteValue);
+
             DataValue uInt16Value = new DataValue(new Variant((ushort)110));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", NamespaceIndexAllTypes), Attributes.Value, uInt16Value);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", NamespaceIndexAllTypes), Attributes.Value, uInt16Value);
+
             DataValue uInt32Value = new DataValue(new Variant((uint)1100));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", NamespaceIndexAllTypes), Attributes.Value, uInt32Value);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", NamespaceIndexAllTypes), Attributes.Value, uInt32Value);
+
             DataValue uInt64Value = new DataValue(new Variant((UInt64)11100));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64", NamespaceIndexAllTypes), Attributes.Value, uInt64Value);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64", NamespaceIndexAllTypes), Attributes.Value, uInt64Value);
+
             DataValue floatValue = new DataValue(new Variant((float)1100.5));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Float", NamespaceIndexAllTypes), Attributes.Value, floatValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Float", NamespaceIndexAllTypes), Attributes.Value, floatValue);
+
             DataValue doubleValue = new DataValue(new Variant((double)1100));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Double", NamespaceIndexAllTypes), Attributes.Value, doubleValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Double", NamespaceIndexAllTypes), Attributes.Value, doubleValue);
+
             DataValue stringValue = new DataValue(new Variant("String info"));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("String", NamespaceIndexAllTypes), Attributes.Value, stringValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("String", NamespaceIndexAllTypes), Attributes.Value, stringValue);
+
             DataValue dateTimeVal = new DataValue(new Variant(DateTime.UtcNow));
-            m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexAllTypes), Attributes.Value, dateTimeValue);
-            m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexAllTypes), Attributes.Value, dateTimeValue);
+            m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexAllTypes), Attributes.Value, dateTimeVal);
+            m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexAllTypes), Attributes.Value, dateTimeVal);
+
             DataValue guidValue = new DataValue(new Variant(new Guid()));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Guid", NamespaceIndexAllTypes), Attributes.Value, guidValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("Guid", NamespaceIndexAllTypes), Attributes.Value, guidValue);
-            DataValue byteStringValue = new DataValue(new Variant((new byte[] {1,2,3}).ToString()));
+
+            DataValue byteStringValue = new DataValue(new Variant((new byte[] { 1, 2, 3 }).ToString()));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("ByteString", NamespaceIndexAllTypes), Attributes.Value, byteStringValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("ByteString", NamespaceIndexAllTypes), Attributes.Value, byteStringValue);
+
             DataValue xmlElementValue = new DataValue(new Variant("<test>Test</test>"));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElement", NamespaceIndexAllTypes), Attributes.Value, xmlElementValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElement", NamespaceIndexAllTypes), Attributes.Value, xmlElementValue);
-            DataValue nodeIdValue = new DataValue(new Variant(new NodeId(30,1)));
+
+            DataValue nodeIdValue = new DataValue(new Variant(new NodeId(30, 1)));
             m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("NodeId", NamespaceIndexAllTypes), Attributes.Value, nodeIdValue);
             m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("NodeId", NamespaceIndexAllTypes), Attributes.Value, nodeIdValue);
+
+            DataValue expandedNodeIdValue = new DataValue(new Variant(new ExpandedNodeId(50, 2)));
+            m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeId", NamespaceIndexAllTypes), Attributes.Value, expandedNodeIdValue);
+            m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeId", NamespaceIndexAllTypes), Attributes.Value, expandedNodeIdValue);
+
+            DataValue statusCodeValue = new DataValue(new Variant(new StatusCode(StatusCodes.GoodCallAgain)));
+            m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCode", NamespaceIndexAllTypes), Attributes.Value, statusCodeValue);
+            m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCode", NamespaceIndexAllTypes), Attributes.Value, statusCodeValue);
+
+            DataValue qualifiedNameValue = new DataValue(new Variant(new QualifiedName("QualifiedName test")));
+            m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedName", NamespaceIndexAllTypes), Attributes.Value, qualifiedNameValue);
+            m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedName", NamespaceIndexAllTypes), Attributes.Value, qualifiedNameValue);
+
+            DataValue localizedTextValue = new DataValue(new Variant(new LocalizedText("LocalizedText test")));
+            m_singleDataSetPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedText", NamespaceIndexAllTypes), Attributes.Value, localizedTextValue);
+            m_multipleDataSetsPublisherApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedText", NamespaceIndexAllTypes), Attributes.Value, localizedTextValue);
+
             #endregion
         }
 
@@ -497,20 +495,23 @@ namespace Opc.Ua.PubSub.Tests
         /// </summary>
         /// <param name="dataSetFieldContentMask"></param>
         /// <returns></returns>
-        private JsonNetworkMessage CreateNetworkMessage(DataSetFieldContentMask dataSetFieldContentMask)
+        private JsonNetworkMessage CreateNetworkMessage(DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetUsageType dataSetUsageType)
         {
             LoadData();
 
-            // set the configurable field content mask to allow only Variant data type
-            foreach (DataSetWriterDataType dataSetWriter in m_singleDataSetWriterGroup.DataSetWriters)
+            JsonNetworkMessage uaNetworkMessage = null;
+            switch (dataSetUsageType)
             {
-                // 00 The DataSet fields are encoded as Variant data type
-                // The Variant can contain a StatusCode instead of the expected DataType if the status of the field is Bad.
-                // The Variant can contain a DataValue with the value and the statusCode if the status of the field is Uncertain.
-                dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
+                case DataSetUsageType.Single:
+
+                    uaNetworkMessage = (JsonNetworkMessage)m_singleDataSetPublisherConnection.CreateNetworkMessage(m_singleDataSetWriterGroup);
+                    break;
+                case DataSetUsageType.Multiple:
+                    uaNetworkMessage = (JsonNetworkMessage)m_multipleDataSetsPublisherConnection.CreateNetworkMessage(m_multipleDataSetsWriterGroup);
+                    break;
             }
 
-            JsonNetworkMessage uaNetworkMessage = (JsonNetworkMessage)m_singleDataSetPublisherConnection.CreateNetworkMessage(m_singleDataSetWriterGroup);
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             return uaNetworkMessage;
@@ -526,7 +527,7 @@ namespace Opc.Ua.PubSub.Tests
             byte[] bytes = jsonNetworkMessage.Encode();
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
-            uaNetworkMessageDecoded.Decode( bytes, dataSetReaders);
+            uaNetworkMessageDecoded.Decode(bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             Compare(jsonNetworkMessage, uaNetworkMessageDecoded);
@@ -569,7 +570,7 @@ namespace Opc.Ua.PubSub.Tests
 
             #region Payload header + Payload data
             List<DataSet> receivedDataSets = jsonNetworkMessageDecoded.ReceivedDataSets;
-            
+
             Assert.IsNotNull(receivedDataSets, "ReceivedDataSets is null");
 
             // check the number of JsonDataSetMessage counts
@@ -684,6 +685,39 @@ namespace Opc.Ua.PubSub.Tests
                     break;
             }
             return dataSetReaders;
+        }
+
+        /// <summary>
+        /// Reset (rotate) the dataset field content mask
+        /// </summary>
+        /// <param name="dataSetReaders"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="publisherId"></param>
+        private void ResetDataSetsFieldContentMask(IList<DataSetReaderDataType> dataSetReaders,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            Variant publisherId)
+        {
+            // set the same DataSetFieldContentMask as used for encoding
+            foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
+            {
+                dataSetReader.PublisherId = publisherId;
+                //dataSetReader.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
+                //switch (dataSetFieldContentMask)
+                //{
+                //    case FieldContentMaskVariant:
+                //        dataSetFieldContentMask = FieldContentMaskRawData;
+                //        break;
+                //    case FieldContentMaskRawData:
+                //        dataSetFieldContentMask = FieldContentMaskDatavalue1;
+                //        break;
+                //    case FieldContentMaskDatavalue1:
+                //        dataSetFieldContentMask = FieldContentMaskDatavalue2;
+                //        break;
+                //    case FieldContentMaskDatavalue2:
+                //        dataSetFieldContentMask = FieldContentMaskVariant;
+                //        break;
+                //}
+            }
         }
         #endregion
     }

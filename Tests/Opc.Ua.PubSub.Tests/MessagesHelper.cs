@@ -360,38 +360,38 @@ namespace Opc.Ua.PubSub.Tests
                         DataType = DataTypeIds.NodeId,
                         ValueRank = ValueRanks.Scalar
                     },
-                    //new FieldMetaData()
-                    //{
-                    //    Name = "ExpandedNodeId",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    //    BuiltInType = (byte)DataTypes.ExpandedNodeId,
-                    //    DataType = DataTypeIds.ExpandedNodeId,
-                    //    ValueRank = ValueRanks.Scalar
-                    //},
-                    //new FieldMetaData()
-                    //{
-                    //    Name = "StatusCode",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    //    BuiltInType = (byte)DataTypes.StatusCode,
-                    //    DataType = DataTypeIds.StatusCode,
-                    //    ValueRank = ValueRanks.Scalar
-                    //},
-                    //new FieldMetaData()
-                    //{
-                    //    Name = "QualifiedName",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    //    BuiltInType = (byte)DataTypes.QualifiedName,
-                    //    DataType = DataTypeIds.QualifiedName,
-                    //    ValueRank = ValueRanks.Scalar
-                    //},
-                    //new FieldMetaData()
-                    //{
-                    //    Name = "LocalizedText",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    //    BuiltInType = (byte)DataTypes.LocalizedText,
-                    //    DataType = DataTypeIds.LocalizedText,
-                    //    ValueRank = ValueRanks.Scalar
-                    //},
+                    new FieldMetaData()
+                    {
+                        Name = "ExpandedNodeId",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.ExpandedNodeId,
+                        DataType = DataTypeIds.ExpandedNodeId,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "StatusCode",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.StatusCode,
+                        DataType = DataTypeIds.StatusCode,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "QualifiedName",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.QualifiedName,
+                        DataType = DataTypeIds.QualifiedName,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "LocalizedText",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.LocalizedText,
+                        DataType = DataTypeIds.LocalizedText,
+                        ValueRank = ValueRanks.Scalar
+                    },
                     //new FieldMetaData()
                     //{
                     //    Name = "Structure",
