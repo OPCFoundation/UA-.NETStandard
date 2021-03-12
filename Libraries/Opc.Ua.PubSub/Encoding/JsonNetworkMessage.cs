@@ -181,16 +181,18 @@ namespace Opc.Ua.PubSub.Encoding
                         // encode single dataset message                        
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
-                        {
-                            // (UA Specs:) If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
-                            // and SingleDataSetMessage bit is set, the NetworkMessage
-                            // is a JSON object containing the set of name/value pairs defined for a single DataSet.
+                        {                            
                             if (!jsonDataSetMessage.HasDataSetMessageHeader)
                             {
+                                // (UA Specs:) If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
+                                // and SingleDataSetMessage bit is set, the NetworkMessage
+                                // is a JSON object containing the set of name/value pairs defined for a single DataSet.
                                 jsonDataSetMessage.EncodePayload(encoder, false);
                             }
                             else
                             {
+                                // If the SingleDataSetMessage bit of the NetworkMessageContentMask is set,
+                                // the content of the Messages field is a JSON object containing a single DataSetMessage.
                                 jsonDataSetMessage.Encode(encoder);
                             }
                         } 
