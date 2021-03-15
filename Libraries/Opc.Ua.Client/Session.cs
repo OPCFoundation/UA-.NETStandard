@@ -2344,7 +2344,8 @@ namespace Opc.Ua.Client
             bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
             if (!requireEncryption)
             {
-                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None;
+                if (identityPolicy.SecurityPolicyUri != null)
+                    requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None;
             }
 
             // validate the server certificate /certificate chain.
