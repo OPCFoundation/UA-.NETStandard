@@ -41,12 +41,6 @@ namespace Opc.Ua.PubSub.Tests
     [TestFixture(Description = "Tests for Encoding/Decoding of JsonNetworkMessage objects")]
     public class JsonNetworkMessageTests
     {
-        public enum DataSetUsageType
-        {
-            Single,
-            Multiple
-        }
-        private const UInt16 NamespaceIndexSimple = 2;
         private const UInt16 NamespaceIndexAllTypes = 3;
 
         // constants for DataSetFieldContentMask
@@ -68,21 +62,26 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate network message mask ;" +
-                            "Change the Json network message mask into the [0,63] range that covers all options(properties)")]
-        public void ValidateNetworkMessageMaskWithFieldContentMaskAndPublisherIdParameters(
+        /*
+        [Test(Description = "Validate NetworkMessageHeader & PublisherId as parameter")]
+        public void ValidateNetworkMessageMaskWithPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(1, "abc")] object publisherId)
         {
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetClassId
-                | JsonNetworkMessageContentMask.PublisherId | JsonNetworkMessageContentMask.ReplyTo
+                | JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.DataSetClassId
+                | JsonNetworkMessageContentMask.PublisherId
+                | JsonNetworkMessageContentMask.ReplyTo
                 | JsonNetworkMessageContentMask.SingleDataSetMessage;
+
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp;
+                | JsonDataSetMessageContentMask.MetaDataVersion
+                | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
 
@@ -93,16 +92,22 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub connection should not be null");
 
-            // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            // Act
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
+           //  set PublisherId
+            uaNetworkMessage.PublisherId = publisherId.ToString();
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -111,28 +116,38 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
-
-            // Assert
+            Assert.IsNotNull(subscriberApplication, "subscriberConfiguration should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+             
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
-
         }
+        */
 
-        [Test(Description = "Validate NetworkMessageHeader & PublisherId")]
+        [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
         public void ValidateMessageHeaderAndPublisherIdWithFieldContentMaskAndPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-             [Values(1, "abc")] object publisherId)
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion
+                | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
+            [Values(1, "abc")] object publisherId)
         {
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetClassId | JsonNetworkMessageContentMask.PublisherId;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+                | JsonNetworkMessageContentMask.PublisherId;
+            //JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -141,30 +156,39 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
-            // set DataSetClassId
-            uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
+            // set PublisherId
+            uaNetworkMessage.PublisherId = publisherId.ToString();
 
+            bool hasSetDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: false,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasSetDataSetWriterId,
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
@@ -173,14 +197,25 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
         public void ValidateMessageHeaderAndDataSetClassIdWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion
+                | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetClassId;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            //JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
+            //    | JsonDataSetMessageContentMask.MetaDataVersion
+            //    | JsonDataSetMessageContentMask.SequenceNumber
+            //    | JsonDataSetMessageContentMask.Status
+            //    | JsonDataSetMessageContentMask.Timestamp;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -189,30 +224,39 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
             // set DataSetClassId
             uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
 
+            bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: false, // the writerheader is saved
+                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasDataSetWriterId, // the writerheader is saved
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
@@ -221,16 +265,33 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
         public void ValidateMessageHeaderAndSingleDataSetMessageWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId,
+                JsonDataSetMessageContentMask.MetaDataVersion, JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.Timestamp, JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.Timestamp |JsonDataSetMessageContentMask.Status)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
                 | JsonNetworkMessageContentMask.SingleDataSetMessage;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp;
+            //JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
+            //    | JsonDataSetMessageContentMask.MetaDataVersion
+            //    | JsonDataSetMessageContentMask.SequenceNumber
+            //    | JsonDataSetMessageContentMask.Status
+            //    | JsonDataSetMessageContentMask.Timestamp;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -239,17 +300,22 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
+            //bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
                 MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 1, setDataSetWriterId: true, // the writerheader is saved
@@ -257,29 +323,45 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
 
-        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader")]
+        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader without publisher id parameter")]
         public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId,
+                JsonDataSetMessageContentMask.MetaDataVersion, JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.Timestamp, JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.Timestamp |JsonDataSetMessageContentMask.Status)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.NetworkMessageHeader;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp;
-
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.DataSetMessageHeader;
+            
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -288,17 +370,22 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
+            //bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
                 MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: true, // the writerheader is saved
@@ -306,63 +393,21 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
+        
 
-        [Test(Description = "ValidateDataSetMessageHeader")]
-        public void ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask)
-        {
-            // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.MetaDataVersion | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp;
-
-            DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
-
-            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
-                Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: 1, writerGroupId: 1, dataSetWritersCount: 3,
-                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
-                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
-                dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
-
-            // Create publisher application for multiple datasets
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
-            LoadData(publisherApplication);
-
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
-
-            // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
-                JsonNetworkMessage;
-
-            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
-                Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: true, // the writerheader is saved
-                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
-                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
-                dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
-
-            // Create subscriber application for multiple datasets
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
-        }
-
-        [Test(Description = "Validate NetworkMessageHeeader & DataSetMessageHeader")]
+        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader with PublisherId parameter")]
         public void ValidateNetworkAndDataSetMessageHeaderWithFieldContentMaskAndPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
@@ -375,6 +420,7 @@ namespace Opc.Ua.PubSub.Tests
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -383,15 +429,19 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
@@ -401,18 +451,89 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
+        [Test(Description = "Validate DataSetMessageHeader")]
+        public void ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
+            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId,
+                JsonDataSetMessageContentMask.MetaDataVersion, JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.Timestamp, JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.Timestamp |JsonDataSetMessageContentMask.Status)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
+        {
+            // Arrange
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader;
 
+            DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
-        [Test(Description = "Validate NetworkMessageHeader & SingleDataSetMessage")]
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl, publisherId: 1, writerGroupId: 1, dataSetWritersCount: 3,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            LoadData(publisherApplication);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            // Act  
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+                JsonNetworkMessage;
+
+            //bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
+            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
+                Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: true, // the writerheader is saved
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+
+            // Create subscriber application for multiple datasets
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+        }
+
+        [Test(Description = "Validate SingleDataSetMessage")]
         public void ValidateSingleDataSetMessageWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask)
@@ -422,6 +543,7 @@ namespace Opc.Ua.PubSub.Tests
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
+            Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttJsonTransport,
@@ -430,15 +552,19 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             LoadData(publisherApplication);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act  
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections[0].WriterGroups[0]) as
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
@@ -448,10 +574,14 @@ namespace Opc.Ua.PubSub.Tests
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            var dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
@@ -462,18 +592,6 @@ namespace Opc.Ua.PubSub.Tests
         private void LoadData(UaPubSubApplication pubSubApplication)
         {
             Assert.IsNotNull(pubSubApplication, "pubSubApplication should not be null");
-
-            #region DataSet Simple
-            // DataSet 'Simple' fill with data
-            DataValue booleanValue = new DataValue(new Variant(true));
-            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexSimple), Attributes.Value, booleanValue);
-            DataValue scalarInt32XValue = new DataValue(new Variant(100));
-            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
-            DataValue scalarInt32YValue = new DataValue(new Variant(50));
-            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
-            DataValue dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
-            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexSimple), Attributes.Value, dateTimeValue);
-            #endregion
 
             #region DataSet AllTypes
             // DataSet 'AllTypes' fill with data

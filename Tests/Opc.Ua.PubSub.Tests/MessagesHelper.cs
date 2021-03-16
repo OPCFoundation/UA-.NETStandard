@@ -1227,19 +1227,19 @@ namespace Opc.Ua.PubSub.Tests
             // set  publishedDataSetSimple.DataSetMetaData
             publishedDataSetDataType.DataSetMetaData = dataSetMetaData;
 
-            PublishedDataItemsDataType publishedDataSetSimpleSource = new PublishedDataItemsDataType();
-            publishedDataSetSimpleSource.PublishedData = new PublishedVariableDataTypeCollection();
+            PublishedDataItemsDataType publishedDataSetSource = new PublishedDataItemsDataType();
+            publishedDataSetSource.PublishedData = new PublishedVariableDataTypeCollection();
             //create PublishedData based on metadata names
             foreach (var field in dataSetMetaData.Fields)
             {
-                publishedDataSetSimpleSource.PublishedData.Add(
+                publishedDataSetSource.PublishedData.Add(
                     new PublishedVariableDataType() {
                         PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
                         AttributeId = Attributes.Value,
                     });
             }
 
-            publishedDataSetDataType.DataSetSource = new ExtensionObject(publishedDataSetSimpleSource);
+            publishedDataSetDataType.DataSetSource = new ExtensionObject(publishedDataSetSource);
 
             pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection()
                 {
