@@ -178,7 +178,7 @@ namespace Opc.Ua
 
         #region public NodeId(byte[] value)
         /// <summary>
-        /// Initializes a guid node identifier.
+        /// Initializes an opaque node identifier.
         /// </summary>
         /// <remarks>
         /// Creates a new node whose Id will be a series of <see cref="Byte"/>.
