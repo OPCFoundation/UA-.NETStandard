@@ -173,10 +173,10 @@ namespace Opc.Ua.PubSub.Tests
             // set PublisherId
             uaNetworkMessage.PublisherId = publisherId.ToString();
 
-            bool hasSetDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasSetDataSetWriterId,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasDataSetWriterId,
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -337,7 +337,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
 
-        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader without publisher id parameter")]
+        [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader without PublisherId parameter")]
         public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
@@ -359,7 +359,8 @@ namespace Opc.Ua.PubSub.Tests
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetMessageHeader;
-            
+            //JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
             Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
 
@@ -385,10 +386,10 @@ namespace Opc.Ua.PubSub.Tests
             JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
-            //bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: true, // the writerheader is saved
+                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasDataSetWriterId, // the writerheader is saved
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -411,13 +412,27 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateNetworkAndDataSetMessageHeaderWithFieldContentMaskAndPublisherIdParameters(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId,
+                JsonDataSetMessageContentMask.MetaDataVersion, JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.Timestamp, JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.MetaDataVersion |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Timestamp,
+                JsonDataSetMessageContentMask.SequenceNumber |JsonDataSetMessageContentMask.Status,
+                JsonDataSetMessageContentMask.Timestamp |JsonDataSetMessageContentMask.Status)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
              [Values(1, "abc")] object publisherId)
         {
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetMessageHeader
                 | JsonNetworkMessageContentMask.PublisherId;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
+            //JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
             Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
@@ -444,9 +459,10 @@ namespace Opc.Ua.PubSub.Tests
             JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
+            bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: true, // no headers hence the values
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasDataSetWriterId, // no headers hence the values
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -464,7 +480,7 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
-        [Test(Description = "Validate DataSetMessageHeader")]
+        [Test(Description = "Validate DataSetMessageHeader only with all JsonDataSetMessageContentMask combination")]
         public void ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
                 DataSetFieldContentMask dataSetFieldContentMask,
@@ -512,10 +528,10 @@ namespace Opc.Ua.PubSub.Tests
             JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
-            //bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: true, // the writerheader is saved
+                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 3, setDataSetWriterId: hasDataSetWriterId, // the writerheader is saved
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -536,11 +552,17 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate SingleDataSetMessage")]
         public void ValidateSingleDataSetMessageWithFieldContentMaskParameter(
             [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values(JsonDataSetMessageContentMask.None, JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion
+                | JsonDataSetMessageContentMask.SequenceNumber
+                | JsonDataSetMessageContentMask.Status
+                | JsonDataSetMessageContentMask.Timestamp)]
+                JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.SingleDataSetMessage;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
+            //JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
 
             DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
             Assert.IsNotNull(dataSetMetaData, "dataSetMetaData should not be null");
@@ -567,9 +589,10 @@ namespace Opc.Ua.PubSub.Tests
             JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 JsonNetworkMessage;
 
+            bool hasDataSetWriterId = (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 1, setDataSetWriterId: false, // no headers hence the values
+                MqttAddressUrl, publisherId: null, writerGroupId: 1, dataSetReadersCount: 1, setDataSetWriterId: hasDataSetWriterId, // no headers hence the values
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
