@@ -106,7 +106,7 @@ namespace Opc.Ua
         #endregion
         #region public NodeId(uint value, ushort namespaceIndex)
         /// <summary>
-        /// Initializes a guid node identifier with a namespace index.
+        /// Initializes a numeric node identifier with a namespace index.
         /// </summary>
         /// <remarks>
         /// Creates a new NodeId that will use a numeric (unsigned int) for its Id, but also
