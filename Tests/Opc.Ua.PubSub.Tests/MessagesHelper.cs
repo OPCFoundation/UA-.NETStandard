@@ -1114,20 +1114,19 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="addressUrl"></param>
         /// <param name="publisherId"></param>
         /// <param name="writerGroupId"></param>
-        /// <param name="dataSetWritersCount"> number of wrtiters to create</param>
         /// <param name="jsonNetworkMessageContentMask"></param>
         /// <param name="jsonDataSetMessageContentMask"></param>
         /// <param name="dataSetFieldContentMask"></param>
-        /// <param name="dataSetMetaData"></param>
+        /// <param name="dataSetMetaDataArray"></param>
         /// <param name="nameSpaceIndexForData"></param>
         /// <returns></returns>
         public static PubSubConfigurationDataType CreatePublisherConfiguration(
             string transportProfileUri, string addressUrl,
-            object publisherId, ushort writerGroupId, ushort dataSetWritersCount,
+            object publisherId, ushort writerGroupId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType dataSetMetaData, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
         {
             
             // Define a PubSub connection with PublisherId 100
@@ -1169,8 +1168,9 @@ namespace Opc.Ua.PubSub.Tests
                 }
             );
             // create all dataset writers
-            for (ushort dataSetWriterId  = 1; dataSetWriterId <= dataSetWritersCount; dataSetWriterId++)
+            for (ushort dataSetWriterId  = 1; dataSetWriterId <= dataSetMetaDataArray.Length; dataSetWriterId++)
             {
+                DataSetMetaDataType dataSetMetaData = dataSetMetaDataArray[dataSetWriterId - 1];
                 // Define DataSetWriter
                 DataSetWriterDataType dataSetWriter = new DataSetWriterDataType();
                 dataSetWriter.Name = "Writer id:" + dataSetWriterId;
@@ -1197,41 +1197,44 @@ namespace Opc.Ua.PubSub.Tests
                 {
                     pubSubConnection1
                 };
+            pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection();
 
-            PublishedDataSetDataType publishedDataSetDataType = new PublishedDataSetDataType();
-            publishedDataSetDataType.Name = dataSetMetaData.Name; //name shall be unique in a configuration
-            // set  publishedDataSetSimple.DataSetMetaData
-            publishedDataSetDataType.DataSetMetaData = dataSetMetaData;
-
-            PublishedDataItemsDataType publishedDataSetSource = new PublishedDataItemsDataType();
-            publishedDataSetSource.PublishedData = new PublishedVariableDataTypeCollection();
-            //create PublishedData based on metadata names
-            foreach (var field in dataSetMetaData.Fields)
+            // creates the published data sets
+            for (ushort i = 0; i < dataSetMetaDataArray.Length; i++)
             {
-                publishedDataSetSource.PublishedData.Add(
-                    new PublishedVariableDataType() {
-                        PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
-                        AttributeId = Attributes.Value,
-                    });
-            }
+                DataSetMetaDataType dataSetMetaData = dataSetMetaDataArray[i];
+                PublishedDataSetDataType publishedDataSetDataType = new PublishedDataSetDataType();
+                publishedDataSetDataType.Name = dataSetMetaDataArray[i].Name; //name shall be unique in a configuration
+                                                                           // set  publishedDataSetSimple.DataSetMetaData
+                publishedDataSetDataType.DataSetMetaData = dataSetMetaData;
 
-            publishedDataSetDataType.DataSetSource = new ExtensionObject(publishedDataSetSource);
-
-            pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection()
+                PublishedDataItemsDataType publishedDataSetSource = new PublishedDataItemsDataType();
+                publishedDataSetSource.PublishedData = new PublishedVariableDataTypeCollection();
+                //create PublishedData based on metadata names
+                foreach (var field in dataSetMetaData.Fields)
                 {
-                    publishedDataSetDataType
-                };
+                    publishedDataSetSource.PublishedData.Add(
+                        new PublishedVariableDataType() {
+                            PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
+                            AttributeId = Attributes.Value,
+                        });
+                }
+
+                publishedDataSetDataType.DataSetSource = new ExtensionObject(publishedDataSetSource);
+
+                pubSubConfiguration.PublishedDataSets.Add(publishedDataSetDataType);
+            }           
 
             return pubSubConfiguration;
         }
 
         public static PubSubConfigurationDataType CreateSubscriberConfiguration(
             string transportProfileUri, string addressUrl,
-            object publisherId, ushort writerGroupId, ushort dataSetReadersCount, bool setDataSetWriterId,
+            object publisherId, ushort writerGroupId, bool setDataSetWriterId,
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType dataSetMetaData, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
         {
 
             // Define a PubSub connection with PublisherId 100
@@ -1265,8 +1268,9 @@ namespace Opc.Ua.PubSub.Tests
             readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
             #endregion
 
-            for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetReadersCount; dataSetWriterId++)
+            for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetMetaDataArray.Length; dataSetWriterId++)
             {
+                DataSetMetaDataType dataSetMetaData = dataSetMetaDataArray[dataSetWriterId - 1];
                 #region Define DataSetReader
                 DataSetReaderDataType dataSetReader = new DataSetReaderDataType();
                 dataSetReader.Name = "dataSetReader:" + dataSetWriterId;
@@ -1326,7 +1330,143 @@ namespace Opc.Ua.PubSub.Tests
             return pubSubConfiguration;
         }
 
+       /// <summary>
+       /// Create versuon 1 of datasetmetadata
+       /// </summary>
+       /// <param name="dataSetName"></param>
+       /// <returns></returns>
+        public static DataSetMetaDataType CreateDataSetMetaData1(string dataSetName)
+        {
+            // Define  DataSetMetaData
+            DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
+            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.Name = dataSetName;
+            dataSetMetaData.Fields = new FieldMetaDataCollection()
+                {
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Byte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Byte,
+                        DataType = DataTypeIds.Byte,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "SByte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.SByte,
+                        DataType = DataTypeIds.SByte,
+                        ValueRank = ValueRanks.Scalar
+                    }                   
+                };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
 
+            return dataSetMetaData;
+        }
+
+        /// <summary>
+        /// Create version 2 of dataset metadata
+        /// </summary>
+        /// <param name="dataSetName"></param>
+        /// <returns></returns>
+        public static DataSetMetaDataType CreateDataSetMetaData2(string dataSetName)
+        {
+            // Define  DataSetMetaData
+            DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
+            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.Name = dataSetName;
+            dataSetMetaData.Fields = new FieldMetaDataCollection()
+                {
+                    new FieldMetaData()
+                    {
+                        Name = "UInt16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.UInt16,
+                        DataType = DataTypeIds.UInt16,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt64",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.UInt64,
+                        DataType = DataTypeIds.UInt64,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
+
+            return dataSetMetaData;
+        }
+
+        /// <summary>
+        /// Create version 3 of datasetMetadata
+        /// </summary>
+        /// <param name="dataSetName"></param>
+        /// <returns></returns>
+        public static DataSetMetaDataType CreateDataSetMetaData3(string dataSetName)
+        {
+            // Define  DataSetMetaData
+            DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
+            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.Name = dataSetName;
+            dataSetMetaData.Fields = new FieldMetaDataCollection()
+                {
+                    new FieldMetaData()
+                    {
+                        Name = "Int16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int16,
+                        DataType = DataTypeIds.Int16,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int64",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int64,
+                        DataType = DataTypeIds.Int64,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                };
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+                MinorVersion = 1,
+                MajorVersion = 1
+            };
+
+            return dataSetMetaData;
+        }
         /// <summary>
         /// Create Metadata for all types
         /// </summary>
@@ -1516,14 +1656,14 @@ namespace Opc.Ua.PubSub.Tests
                     //    DataType = DataTypeIds.Structure,
                     //    ValueRank = ValueRanks.Scalar
                     //},
-                    new FieldMetaData()
-                    {
-                        Name = "DataValue",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DataValue,
-                        DataType = DataTypeIds.DataValue,
-                        ValueRank = ValueRanks.Scalar
-                    },
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "DataValue",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.DataValue,
+                    //    DataType = DataTypeIds.DataValue,
+                    //    ValueRank = ValueRanks.Scalar
+                    //},
                     //new FieldMetaData()
                     //{
                     //    Name = "Variant",
@@ -1532,14 +1672,14 @@ namespace Opc.Ua.PubSub.Tests
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.Scalar
                     //},
-                    new FieldMetaData()
-                    {
-                        Name = "DiagnosticInfo",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                        DataType = DataTypeIds.DiagnosticInfo,
-                        ValueRank = ValueRanks.Scalar
-                    },
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "DiagnosticInfo",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.DiagnosticInfo,
+                    //    DataType = DataTypeIds.DiagnosticInfo,
+                    //    ValueRank = ValueRanks.Scalar
+                    //},
                     // Number,Integer,UInteger, Enumeration internal use
 
     };
@@ -1550,38 +1690,5 @@ namespace Opc.Ua.PubSub.Tests
 
             return dataSetMetaData;
         }
-
-        /// <summary>
-        /// Create pub sub configuration for mqtt and json with raw data encoding
-        /// </summary>
-        /// <returns></returns>
-        public static PubSubConfigurationDataType CreateConfigurationMqttJsonRawDataAllTypes(bool isPublisher)
-        {
-            JsonNetworkMessageContentMask networkMessageContentMask =
-                JsonNetworkMessageContentMask.NetworkMessageHeader
-                        | JsonNetworkMessageContentMask.DataSetMessageHeader
-                        | JsonNetworkMessageContentMask.PublisherId
-                        | JsonNetworkMessageContentMask.DataSetClassId;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask =
-                JsonDataSetMessageContentMask.DataSetWriterId | JsonDataSetMessageContentMask.MetaDataVersion
-                    | JsonDataSetMessageContentMask.SequenceNumber | JsonDataSetMessageContentMask.Status;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
-
-            DataSetMetaDataType dataSetMetaData = CreateDataSetMetaDataAllTypes("AllTypes");
-            if (isPublisher)
-            {
-                return CreatePublisherConfiguration(Profiles.PubSubMqttJsonTransport, "mqtt://localhost:1883", 1, 1, 1,
-                  networkMessageContentMask, jsonDataSetMessageContentMask, dataSetFieldContentMask,
-                  dataSetMetaData, 2);
-            }
-            else
-            {
-                return CreateSubscriberConfiguration(Profiles.PubSubMqttJsonTransport, "mqtt://localhost:1883", 1, 1, 1, true,
-                  networkMessageContentMask, jsonDataSetMessageContentMask, dataSetFieldContentMask,
-                  dataSetMetaData, 2);
-            }
-        }
-
-        
     }
 }

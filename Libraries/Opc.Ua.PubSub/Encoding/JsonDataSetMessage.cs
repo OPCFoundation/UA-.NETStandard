@@ -30,6 +30,7 @@
 using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml;
 
 namespace Opc.Ua.PubSub.Encoding
@@ -266,8 +267,29 @@ namespace Opc.Ua.PubSub.Encoding
             object token = null;
             if (jsonDecoder.ReadField(FieldPayload, out token))
             {
+                Dictionary<string, object> payload = token as Dictionary<string, object>;
+
+                if (payload != null) 
+                {
+                    if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
+                    {
+                        // filter out payload that has more fields than the searched datasetMetadata
+                        return null;
+                    }
+                    // check also the field names from reader, if any extra field names then the payload is not matching 
+                    foreach(string key in payload.Keys)
+                    {
+                        var field = dataSetReader.DataSetMetaData.Fields.FirstOrDefault(f => f.Name == key);
+                        if (field == null)
+                        {
+                            // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
+                            return null;
+                        }
+                    }
+                }
                 try
                 {
+                    // try decoding Payload Structure
                     bool wasPush = jsonDecoder.PushStructure(FieldPayload);
                     if (wasPush)
                     {
@@ -310,7 +332,6 @@ namespace Opc.Ua.PubSub.Encoding
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
-
                             object value = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], fieldName);
                             dataValues.Add(new DataValue(new Variant(value)));
                             break;
@@ -323,6 +344,14 @@ namespace Opc.Ua.PubSub.Encoding
                                 {
                                     token = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], "Value");
                                     dataValue = new DataValue(new Variant(token));                                    
+                                }
+                                else
+                                {
+                                    // handle Good StatusCode that was not encoded
+                                    if (dataSetMetaData.Fields[index].BuiltInType == (byte)BuiltInType.StatusCode)
+                                    {
+                                        dataValue = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
+                                    }
                                 }
 
                                 if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
@@ -371,8 +400,22 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    // the field is null
-                    dataValues.Add(new DataValue(Variant.Null));
+                    switch (m_fieldTypeEncoding)
+                    {
+                        case FieldTypeEncodingMask.Variant:                           
+                        case FieldTypeEncodingMask.RawData:                       
+                            // handle StatusCodes.Good which is not encoded and therefore must be created at decode
+                            if (dataSetMetaData.Fields[index].BuiltInType == (byte)BuiltInType.StatusCode)
+                            {
+                                dataValues.Add(new DataValue(new Variant(new StatusCode(StatusCodes.Good))));
+                            }
+                            else
+                            {
+                                // the field is null
+                                dataValues.Add(new DataValue(Variant.Null));
+                            }
+                            break;                        
+                    }                    
                 }                
             }
 
@@ -470,24 +513,32 @@ namespace Opc.Ua.PubSub.Encoding
         private void EncodeField(JsonEncoder encoder, Field field)
         {
             string fieldName = field.FieldMetaData.Name;
+
+            Variant valueToEncode = field.Value.WrappedValue;            
+            // The StatusCode.Good value is not encoded cor3ectly then it shall be ommited
+            if (valueToEncode == StatusCodes.Good && m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
+            {
+                valueToEncode = Variant.Null;
+            }
+
             switch (m_fieldTypeEncoding)
             {
                 case FieldTypeEncodingMask.Variant:
                     // If the DataSetFieldContentMask results in a Variant representation,
                     // the field value is encoded as a Variant encoded using the reversible OPC UA JSON Data Encoding
                     // defined in OPC 10000-6.
-                    encoder.WriteVariant(fieldName, field.Value.WrappedValue, true);
+                    encoder.WriteVariant(fieldName, valueToEncode, true);
                     break;
                 case FieldTypeEncodingMask.RawData:
                     // If the DataSetFieldContentMask results in a RawData representation,
                     // the field value is a Variant encoded using the non-reversible OPC UA JSON Data Encoding
-                    // defined in OPC 10000-6
-                    encoder.WriteVariant(fieldName, field.Value.WrappedValue, false);
+                    // defined in OPC 10000-6                    
+                    encoder.WriteVariant(fieldName, valueToEncode, false);
                     break;
                 case FieldTypeEncodingMask.DataValue:
                     DataValue dataValue = new DataValue();
 
-                    dataValue.WrappedValue = field.Value.WrappedValue;
+                    dataValue.WrappedValue = valueToEncode;
 
                     if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
                     {
@@ -662,7 +713,8 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.ExpandedNodeId:
                         return jsonDecoder.ReadExpandedNodeId(fieldName);
                     case BuiltInType.StatusCode:
-                        return jsonDecoder.ReadStatusCode(fieldName);
+                        StatusCode statusCode = jsonDecoder.ReadStatusCode(fieldName);
+                        return statusCode;
                     case BuiltInType.QualifiedName:
                         return jsonDecoder.ReadQualifiedName(fieldName);
                     case BuiltInType.LocalizedText:
