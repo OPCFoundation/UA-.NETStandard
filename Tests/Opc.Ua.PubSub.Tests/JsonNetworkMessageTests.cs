@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Tests
     public class JsonNetworkMessageTests
     {
         private const UInt16 NamespaceIndexAllTypes = 3;
-
+        
         // constants for DataSetFieldContentMask
         private const DataSetFieldContentMask FieldContentMaskRawData = DataSetFieldContentMask.RawData;
         private const DataSetFieldContentMask FieldContentMaskVariant = DataSetFieldContentMask.None;
@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
-
+            
         }
 
         /*
@@ -802,8 +802,17 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeId", NamespaceIndexAllTypes), Attributes.Value, nodeIdValue);
             DataValue expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeId", NamespaceIndexAllTypes), Attributes.Value, expandedNodeId);
-            DataValue qualifiedName = new DataValue(new Variant(new QualifiedName("wererwerw")));
-            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedName", NamespaceIndexAllTypes), Attributes.Value, qualifiedName);
+            DataValue qualifiedValue = new DataValue(new Variant(new QualifiedName("wererwerw")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedName", NamespaceIndexAllTypes), Attributes.Value, qualifiedValue);
+            DataValue localizedTextValue = new DataValue(new Variant(new LocalizedText("Localized_abcd")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedText", NamespaceIndexAllTypes), Attributes.Value, localizedTextValue);
+            DataValue dataValue = new DataValue(new Variant(new DataValue("DataValue_info")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValue", NamespaceIndexAllTypes), Attributes.Value, dataValue);
+            DataValue diagnosticInfoValue = new DataValue(new Variant(new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfo", NamespaceIndexAllTypes), Attributes.Value, diagnosticInfoValue);
+
+            //creation of Structure by using complex type in JsonEncoderTests.cs 
+
             #endregion
         }
 
