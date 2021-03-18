@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -33,7 +33,6 @@ using System.Linq;
 using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Tests
@@ -727,7 +726,7 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTimeArray", NamespaceIndexAllTypes), Attributes.Value, dateTimeValArray);
             DataValue guidValueArray = new DataValue(new Variant(new UuidCollection() { new Uuid(new Guid()), new Uuid(new Guid()) }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidArray", NamespaceIndexAllTypes), Attributes.Value, guidValueArray);
-            DataValue byteStringValueArray = new DataValue(new Variant(new byte[] { 1, 2, 3 }));
+            DataValue byteStringValueArray = new DataValue(new Variant(new ByteStringCollection() { new byte[] { 1, 2, 3 }, new byte[] { 5, 6, 7 } }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringArray", NamespaceIndexAllTypes), Attributes.Value, byteStringValueArray);
             XmlDocument document1 = new XmlDocument();
             XmlElement xmlElement1 = document.CreateElement("test1");
