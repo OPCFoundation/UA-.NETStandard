@@ -2342,11 +2342,12 @@ namespace Opc.Ua.Client
             }
 
             bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
+
             if (!requireEncryption)
             {
-                if (identityPolicy.SecurityPolicyUri != null)
-                    requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None;
-            }
+                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None && 
+                    !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
+            }           
 
             // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
