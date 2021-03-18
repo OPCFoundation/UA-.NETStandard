@@ -46,6 +46,7 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt;
 using static Opc.Ua.Utils;
 using MQTTnet.Formatter;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -64,6 +65,8 @@ namespace Opc.Ua.PubSub.Transport
         private IMqttClient m_publisherMqttClient;
         private IMqttClient m_subscriberMqttClient;
         private MessageMapping m_messageMapping;
+
+        private CertificateValidator m_certificateValidator;
 
         #region Constants
         /// <summary>
@@ -291,6 +294,56 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
+        /// Validates the client certificate
+        /// </summary>
+        /// <param name="context">The context of the validation</param>
+        private bool ValidateClientCertificate(MqttClientCertificateValidationCallbackContext context)
+        {
+            X509Certificate2 cert = new X509Certificate2(context.Certificate.GetRawCertData());
+            try
+            {
+                m_certificateValidator?.Validate(cert);
+            }
+            catch (ServiceResultException sre) when
+             (
+              ((sre.Result.StatusCode == StatusCodes.BadCertificateRevocationUnknown) ||
+              (sre.Result.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown) ||
+              (sre.Result.StatusCode == StatusCodes.BadCertificateRevoked) ||
+              (sre.Result.StatusCode == StatusCodes.BadCertificateIssuerRevoked)) &&
+              (context.ClientOptions?.TlsOptions?.IgnoreCertificateRevocationErrors ?? false)
+             )
+            {
+                return true;
+            }
+            catch (ServiceResultException sre) when
+             (
+              (sre.Result.StatusCode == StatusCodes.BadCertificateChainIncomplete) &&
+              (context.ClientOptions?.TlsOptions?.IgnoreCertificateChainErrors ?? false)
+             )
+            {
+                return true;
+            }
+            catch (ServiceResultException sre) when
+             (
+              (sre.Result.StatusCode == StatusCodes.BadCertificateUntrusted) &&
+              (context.ClientOptions?.TlsOptions?.AllowUntrustedCertificates ?? false)
+             )
+            {
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificate {0} has failed with {1}.",
+                    cert.Thumbprint, ex.Message);
+                return false;
+            }
+
+            return true;
+        }
+
+
+
+        /// <summary>
         /// Get apropriate IMqttClientOptions with which to connect to the MQTTBroker
         /// </summary>
         /// <returns></returns>
@@ -344,16 +397,26 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     
                     MqttProtocolVersion mqttProtocolVersion = (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration).ProtocolVersion;
+                    MqttTlsOptions mqttTlsOptions = ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
+
                     if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
                         ((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
                     {
+                        m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
                         mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
                                              new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
-                            .WithTls()
+                            .WithTls(new MqttClientOptionsBuilderTlsParameters {
+                                UseTls = true,
+                                SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
+                                AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
+                                IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
+                                IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
+                                CertificateValidationHandler = ValidateClientCertificate
+                            })
                             .Build();
                     }
                     else if (!networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
@@ -370,11 +433,21 @@ namespace Opc.Ua.PubSub.Transport
                     else if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
                              !((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
                     {
+                        m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
                         mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
-                            .WithTls()
+                            .WithTls(new MqttClientOptionsBuilderTlsParameters
+                            {
+                                UseTls = true,
+                                Certificates = mqttTlsOptions?.X509Certificates,
+                                SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
+                                AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
+                                IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
+                                IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
+                                CertificateValidationHandler = ValidateClientCertificate
+                            })
                             .Build();
                     }
                     //if (!networkAddressUrl.StartsWith(MqttSUriIdentifier) &&
@@ -393,6 +466,29 @@ namespace Opc.Ua.PubSub.Transport
 
             return mqttOptions;
 
+        }
+
+        /// <summary>
+        /// Set up a new instance of a certificate validator based on passed in tls 
+        /// </summary>
+        /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"></param>
+        /// <returns>A new instance of stack validator <see cref="CertificateValidator"></returns>
+        private CertificateValidator SetupCertificateValidator(MqttTlsOptions mqttTlsOptions)
+        {
+            CertificateValidator crtValidator = new CertificateValidator();
+
+            SecurityConfiguration securityConfiguration = new SecurityConfiguration();
+            securityConfiguration.TrustedIssuerCertificates = (CertificateTrustList)mqttTlsOptions.TrustedIssuerCertificates;
+            securityConfiguration.TrustedPeerCertificates = (CertificateTrustList)mqttTlsOptions.TrustedPeerCertificates;
+            securityConfiguration.RejectedCertificateStore = mqttTlsOptions.RejectedCertificateStore;
+
+            securityConfiguration.RejectSHA1SignedCertificates = false;
+            securityConfiguration.AutoAcceptUntrustedCertificates = mqttTlsOptions.AllowUntrustedCertificates;
+            securityConfiguration.RejectUnknownRevocationStatus = true;
+
+            crtValidator.Update(securityConfiguration).Wait();
+
+            return crtValidator;
         }
 
         protected override bool InternalInitialize()
@@ -425,7 +521,7 @@ namespace Opc.Ua.PubSub.Transport
                 Uri connectionUri;
                 if (networkAddressUrlState.Url != null && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
                 {
-                    if (connectionUri.Scheme == Utils.UriSchemeMqtt)
+                    if ( (connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
                     {
                         m_brokerHostName = connectionUri.Host;
                         m_brokerPort = connectionUri.Port;
