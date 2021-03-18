@@ -43,95 +43,14 @@ namespace Opc.Ua.PubSub.Tests
     {
         private const UInt16 NamespaceIndexAllTypes = 3;
         
-        // constants for DataSetFieldContentMask
-        private const DataSetFieldContentMask FieldContentMaskRawData = DataSetFieldContentMask.RawData;
-        private const DataSetFieldContentMask FieldContentMaskVariant = DataSetFieldContentMask.None;
-        private const DataSetFieldContentMask FieldContentMaskDatavalue1 = DataSetFieldContentMask.ServerPicoSeconds;
-        private const DataSetFieldContentMask FieldContentMaskDatavalue2 = DataSetFieldContentMask.StatusCode
-            | DataSetFieldContentMask.SourceTimestamp
-            | DataSetFieldContentMask.ServerTimestamp
-            | DataSetFieldContentMask.SourcePicoSeconds
-            | DataSetFieldContentMask.ServerPicoSeconds;
-
         private const string MqttAddressUrl = "mqtt://localhost:1883";
-
-
-        [OneTimeSetUp()]
-        public void MyTestInitialize()
-        {
-            
-        }
-
-        /*
-        [Test(Description = "Validate NetworkMessageHeader & PublisherId as parameter")]
-        public void ValidateNetworkMessageMaskWithPublisherIdParameters(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
-                DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(1, "abc")] object publisherId)
-        {
-            // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader
-                | JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetClassId
-                | JsonNetworkMessageContentMask.PublisherId
-                | JsonNetworkMessageContentMask.ReplyTo
-                | JsonNetworkMessageContentMask.SingleDataSetMessage;
-
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId
-                | JsonDataSetMessageContentMask.MetaDataVersion
-                | JsonDataSetMessageContentMask.SequenceNumber
-                | JsonDataSetMessageContentMask.Status
-                | JsonDataSetMessageContentMask.Timestamp;
-
-            DataSetMetaDataType dataSetMetaData = MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes");
-
-            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
-                Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetWritersCount: 3,
-                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
-                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
-                dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
-
-            // Create publisher application for multiple datasets
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
-            LoadData(publisherApplication);
-
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
-            Assert.IsNotNull(connection, "Pubsub connection should not be null");
-
-            // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
-           //  set PublisherId
-            uaNetworkMessage.PublisherId = publisherId.ToString();
-
-            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
-                Profiles.PubSubMqttJsonTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, dataSetReadersCount: 1, setDataSetWriterId: true, // the writerheader is saved
-                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
-                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
-                dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaData: dataSetMetaData, nameSpaceIndexForData: NamespaceIndexAllTypes);
-            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
-
-            // Create subscriber application for multiple datasets
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
-            Assert.IsNotNull(subscriberApplication, "subscriberConfiguration should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
-            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
-             
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
-        }
-        */
-
+       
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
         public void ValidateMessageHeaderAndPublisherIdWithParameters(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, 
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(JsonDataSetMessageContentMask.None,
             JsonDataSetMessageContentMask.DataSetWriterId,
@@ -156,22 +75,9 @@ namespace Opc.Ua.PubSub.Tests
             JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Status,
             JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp|JsonDataSetMessageContentMask.Status)]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
-             [Values (JsonNetworkMessageContentMask.None,
-            JsonNetworkMessageContentMask.NetworkMessageHeader,
-            JsonNetworkMessageContentMask.DataSetMessageHeader,
-            JsonNetworkMessageContentMask.DataSetClassId,
-            JsonNetworkMessageContentMask.PublisherId,
-            JsonNetworkMessageContentMask.ReplyTo,
-            JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader,
+             [Values (JsonNetworkMessageContentMask.None, JsonNetworkMessageContentMask.DataSetClassId, JsonNetworkMessageContentMask.ReplyTo,
             JsonNetworkMessageContentMask.DataSetClassId| JsonNetworkMessageContentMask.DataSetMessageHeader,
-            JsonNetworkMessageContentMask.PublisherId| JsonNetworkMessageContentMask.DataSetMessageHeader,
-            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader,
-            JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
-            JsonNetworkMessageContentMask.PublisherId| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
-            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
-            JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId,
-            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId,
-            JsonNetworkMessageContentMask.NetworkMessageHeader |JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId)]
+            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetClassId)]
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             [Values(1, "abc")] object publisherId)
         {
@@ -234,8 +140,20 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
-        public void ValidateMessageHeaderAndDataSetClassIdWithFieldContentMaskParameter(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+        public void ValidateMessageHeaderAndDataSetClassIdWithParameters(
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
            [Values(JsonDataSetMessageContentMask.None,
             JsonDataSetMessageContentMask.DataSetWriterId,
@@ -321,8 +239,20 @@ namespace Opc.Ua.PubSub.Tests
         }             
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader without PublisherId parameter")]
-        public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithFieldContentMaskParameter(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+        public void ValidateNetworkMessageHeaderAndDataSetMessageHeaderWithParameters(
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(JsonDataSetMessageContentMask.None,
             JsonDataSetMessageContentMask.DataSetWriterId,
@@ -408,7 +338,19 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader with PublisherId parameter")]
         public void ValidateNetworkAndDataSetMessageHeaderWithParameters(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(JsonDataSetMessageContentMask.None,
             JsonDataSetMessageContentMask.DataSetWriterId,
@@ -495,8 +437,20 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate DataSetMessageHeader only with all JsonDataSetMessageContentMask combination")]
-        public void ValidateDataSetMessageHeaderWithFieldContentMaskParameter(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+        public void ValidateDataSetMessageHeaderWithParameters(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(JsonDataSetMessageContentMask.None,
             JsonDataSetMessageContentMask.DataSetWriterId,
@@ -580,7 +534,10 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate SingleDataSetMessage with parameters for DataSetFieldContentMask, JsonDataSetMessageContentMask and JsonNetworkMessageContentMask")]
         public void ValidateSingleDataSetMessageWithParameters(
-            [Values(FieldContentMaskRawData, FieldContentMaskVariant, FieldContentMaskDatavalue1, FieldContentMaskDatavalue2)]
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values(JsonDataSetMessageContentMask.None,
             JsonDataSetMessageContentMask.DataSetWriterId,
@@ -744,7 +701,7 @@ namespace Opc.Ua.PubSub.Tests
             // DataSet 'AllTypes' fill with data array
             DataValue boolToggleArray = new DataValue(new Variant(new BooleanCollection() { true, false, true }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleArray", NamespaceIndexAllTypes), Attributes.Value, boolToggleArray);
-            DataValue byteValueArray = new DataValue(new Variant(new ByteCollection() { 127, 101, 1 }));
+            DataValue byteValueArray = new DataValue(new Variant(new byte[] { 127, 101, 1 }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteArray", NamespaceIndexAllTypes), Attributes.Value, byteValueArray);
             DataValue int16ValueArray = new DataValue(new Variant(new Int16Collection() { -100, -200, 300 }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Array", NamespaceIndexAllTypes), Attributes.Value, int16ValueArray);
@@ -766,7 +723,7 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DoubleArray", NamespaceIndexAllTypes), Attributes.Value, doubleValueArray);
             DataValue stringValueArray = new DataValue(new Variant(new StringCollection() { "1a", "2b", "3c" }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StringArray", NamespaceIndexAllTypes), Attributes.Value, stringValueArray);
-            DataValue dateTimeValArray = new DataValue(new Variant(new DateTimeCollection() { new DateTime(2020, 3, 11), new DateTime(2021, 2, 17) }));
+            DataValue dateTimeValArray = new DataValue(new Variant(new DateTimeCollection() { new DateTime(2020, 3, 11).ToUniversalTime(), new DateTime(2021, 2, 17).ToUniversalTime() }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTimeArray", NamespaceIndexAllTypes), Attributes.Value, dateTimeValArray);
             DataValue guidValueArray = new DataValue(new Variant(new UuidCollection() { new Uuid(new Guid()), new Uuid(new Guid()) }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidArray", NamespaceIndexAllTypes), Attributes.Value, guidValueArray);

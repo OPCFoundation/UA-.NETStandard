@@ -1366,7 +1366,15 @@ namespace Opc.Ua.PubSub.Tests
                         BuiltInType = (byte)BuiltInType.SByte,
                         DataType = DataTypeIds.SByte,
                         ValueRank = ValueRanks.Scalar
-                    }                   
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggleArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.OneDimension
+                    },
                 };
             dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
                 MinorVersion = 1,
@@ -1672,14 +1680,14 @@ namespace Opc.Ua.PubSub.Tests
                     //    DataType = DataTypeIds.DataValue,
                     //    ValueRank = ValueRanks.Scalar
                     //},
-                    //new FieldMetaData()
-                    //{
-                    //    Name = "DiagnosticInfo",
-                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    //    BuiltInType = (byte)BuiltInType.DiagnosticInfo,
-                    //    DataType = DataTypeIds.DiagnosticInfo,
-                    //    ValueRank = ValueRanks.Scalar
-                    //},
+                    new FieldMetaData()
+                    {
+                        Name = "DiagnosticInfo",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.DiagnosticInfo,
+                        DataType = DataTypeIds.DiagnosticInfo,
+                        ValueRank = ValueRanks.Scalar
+                    },
                     // Number,Integer,UInteger, Enumeration internal use
                     new FieldMetaData()
                     {
@@ -1825,14 +1833,14 @@ namespace Opc.Ua.PubSub.Tests
                         DataType = DataTypeIds.ExpandedNodeId,
                         ValueRank = ValueRanks.OneDimension
                     },
-                    new FieldMetaData()
-                    {
-                        Name = "StatusCodeArray",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.StatusCode,
-                        DataType = DataTypeIds.StatusCode,
-                        ValueRank = ValueRanks.OneDimension
-                    },
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "StatusCodeArray",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.StatusCode,
+                    //    DataType = DataTypeIds.StatusCode,
+                    //    ValueRank = ValueRanks.OneDimension
+                    //},
                     new FieldMetaData()
                     {
                         Name = "QualifiedNameArray",

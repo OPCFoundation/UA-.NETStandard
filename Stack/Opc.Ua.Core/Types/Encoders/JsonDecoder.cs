@@ -1333,6 +1333,8 @@ namespace Opc.Ua
                 case BuiltInType.XmlElement: { return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement); }
                 case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject); }
                 case BuiltInType.Variant: { return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant); }
+                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo); }
+                case BuiltInType.DataValue: { return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue); }
             }
 
             return Variant.Null;
@@ -1864,6 +1866,13 @@ namespace Opc.Ua
             var values = new ByteCollection();
 
             List<object> token = null;
+
+
+            string value = ReadString(fieldName);
+            if (value != null)
+            {
+                return Encoding.UTF8.GetBytes(value);
+            }
 
             if (!ReadArrayField(fieldName, out token))
             {

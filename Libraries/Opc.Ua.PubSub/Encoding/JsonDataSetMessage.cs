@@ -591,7 +591,7 @@ namespace Opc.Ua.PubSub.Encoding
                             return DecodeRawScalar(jsonDecoder, fieldMetaData.BuiltInType, fieldName);
 
                         case ValueRanks.OneDimension:
-                        //    return DecodeRawArrayOneDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType);
+                            return DecodeRawArrayOneDimension(jsonDecoder, fieldMetaData.BuiltInType, fieldName);
 
                         case ValueRanks.TwoDimensions:
                         case ValueRanks.OneOrMoreDimensions:
@@ -713,8 +713,7 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.ExpandedNodeId:
                         return jsonDecoder.ReadExpandedNodeId(fieldName);
                     case BuiltInType.StatusCode:
-                        StatusCode statusCode = jsonDecoder.ReadStatusCode(fieldName);
-                        return statusCode;
+                        return jsonDecoder.ReadStatusCode(fieldName);
                     case BuiltInType.QualifiedName:
                         return jsonDecoder.ReadQualifiedName(fieldName);
                     case BuiltInType.LocalizedText:
@@ -726,7 +725,9 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.Variant:
                         return jsonDecoder.ReadVariant(fieldName);
                     case BuiltInType.ExtensionObject:
-                        return jsonDecoder.ReadExtensionObject(fieldName);                        
+                        return jsonDecoder.ReadExtensionObject(fieldName);
+                    case BuiltInType.DiagnosticInfo:
+                        return jsonDecoder.ReadDiagnosticInfo(fieldName);
                 }
             }
             catch(Exception ex)
@@ -736,6 +737,75 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Decode an array type according to dimensions constraints specified in 6.2.2.1.3 FieldMetaData
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="builtInType"></param>
+        /// <returns></returns>
+        private object DecodeRawArrayOneDimension(JsonDecoder jsonDecoder, byte builtInType, string fieldName)
+        {
+
+            switch ((BuiltInType)builtInType)
+            {
+                case BuiltInType.Boolean:
+                    return jsonDecoder.ReadBooleanArray(fieldName);
+                case BuiltInType.SByte:
+                    return jsonDecoder.ReadSByteArray(fieldName);
+                case BuiltInType.Byte:
+                    return jsonDecoder.ReadByteString(fieldName);
+                case BuiltInType.Int16:
+                    return jsonDecoder.ReadInt16Array(fieldName);
+                case BuiltInType.UInt16:
+                    return jsonDecoder.ReadUInt16Array(fieldName);
+                case BuiltInType.Int32:
+                    return jsonDecoder.ReadInt32Array(fieldName);
+                case BuiltInType.UInt32:
+                    return jsonDecoder.ReadUInt32Array(fieldName);
+                case BuiltInType.Int64:
+                    return jsonDecoder.ReadInt64Array(fieldName);
+                case BuiltInType.UInt64:
+                    return jsonDecoder.ReadUInt64Array(fieldName);
+                case BuiltInType.Float:
+                    return jsonDecoder.ReadFloatArray(fieldName);
+                case BuiltInType.Double:
+                    return jsonDecoder.ReadDoubleArray(fieldName);
+                case BuiltInType.String:
+                    return jsonDecoder.ReadStringArray(fieldName);
+                case BuiltInType.DateTime:
+                    return jsonDecoder.ReadDateTimeArray(fieldName);
+                case BuiltInType.Guid:
+                    return jsonDecoder.ReadGuidArray(fieldName);
+                case BuiltInType.ByteString:
+                    return jsonDecoder.ReadByteStringArray(fieldName);
+                case BuiltInType.XmlElement:
+                    return jsonDecoder.ReadXmlElementArray(fieldName);
+                case BuiltInType.NodeId:
+                    return jsonDecoder.ReadNodeIdArray(fieldName);
+                case BuiltInType.ExpandedNodeId:
+                    return jsonDecoder.ReadExpandedNodeIdArray(fieldName);
+                case BuiltInType.StatusCode:
+                    return jsonDecoder.ReadStatusCodeArray(fieldName);
+                case BuiltInType.QualifiedName:
+                    return jsonDecoder.ReadQualifiedNameArray(fieldName);
+                case BuiltInType.LocalizedText:
+                    return jsonDecoder.ReadLocalizedTextArray(fieldName);
+                case BuiltInType.DataValue:
+                    return jsonDecoder.ReadDataValueArray(fieldName);
+                case BuiltInType.Enumeration:
+                    //return binaryDecoder.ReadInt32Array(fieldName);
+                    //return binaryDecoder.ReadEnumeratedArray(fieldName, typeof(Int32));
+                    return jsonDecoder.ReadVariantArray(fieldName);
+                case BuiltInType.Variant:
+                    return jsonDecoder.ReadVariantArray(fieldName);
+                case BuiltInType.ExtensionObject:
+                    return jsonDecoder.ReadExtensionObjectArray(fieldName);
+
+                default:
+                    return fieldName;
+            }
         }
     }
 }

@@ -2266,6 +2266,7 @@ namespace Opc.Ua
                         case BuiltInType.ExtensionObject: { WriteExtensionObject(null, (ExtensionObject)value); return; }
                         case BuiltInType.DataValue: { WriteDataValue(null, (DataValue)value); return; }
                         case BuiltInType.Enumeration: { WriteEnumerated(null, (Enum)value); return; }
+                        case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfo(null, (DiagnosticInfo)value); return; }
                     }
                 }
 
