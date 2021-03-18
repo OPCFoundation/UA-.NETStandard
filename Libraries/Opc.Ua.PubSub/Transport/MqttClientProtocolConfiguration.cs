@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using MQTTnet;
 using MQTTnet.Client.ExtendedAuthenticationExchange;
 using MQTTnet.Client.Options;
@@ -46,6 +48,86 @@ namespace Opc.Ua.PubSub.Mqtt
         V311 = MqttProtocolVersion.V311,
         V500 = MqttProtocolVersion.V500
     }
+
+    /// <summary>
+    /// The implementation of the Tls client options
+    /// </summary>
+    public class MqttTlsOptions
+    {
+        #region Private
+        List<X509Certificate> m_certificates;
+        SslProtocols m_SslProtocolVersion;
+        bool m_allowUntrustedCertificates;
+        bool m_ignoreCertificateChainErrors;
+        bool m_ignoreRevocationListErrors;
+
+        CertificateStoreIdentifier m_trustedIssuerCertificates;
+        CertificateStoreIdentifier m_trustedPeerCertificates;
+        CertificateStoreIdentifier m_rejectedCertificateStore;
+        #endregion
+
+        #region Constructor
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        public MqttTlsOptions()
+        {
+            m_certificates = null;
+            m_SslProtocolVersion = SslProtocols.Default;
+            m_allowUntrustedCertificates   = false;
+            m_ignoreCertificateChainErrors = false;
+            m_ignoreRevocationListErrors   = false;
+
+            m_trustedIssuerCertificates = null;
+            m_trustedPeerCertificates   = null;
+            m_rejectedCertificateStore = null;
+        }
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="certificates">The certificates used for encrypted communication including the CA certificate</param>
+        /// <param name="sslProtocolVersion">The preferred version of SSL protocol</param>
+        /// <param name="allowUntrustedCertificates">Specifies if untrusted certificates should be accepted in the process of certificate validation</param>
+        /// <param name="ignoreCertificateChainErrors">Specifies if Certificate Chain errors should be validated in the process of certificate validation</param>
+        /// <param name="ignoreRevocationListErrors">Specifies if Certificate Revocation List errors should be validated in the process of certificate validation</param>
+        /// <param name="trustedIssuerCertificates">The trusted </param>
+        /// <param name="trustedPeerCertificates"></param>
+        /// <param name="rejectedCertificateStore"></param>
+        /// <param name=""></param>
+        public MqttTlsOptions(List<X509Certificate> certificates = null,
+            SslProtocols sslProtocolVersion = SslProtocols.Tls12,
+            bool allowUntrustedCertificates = false,
+            bool ignoreCertificateChainErrors = false,
+            bool ignoreRevocationListErrors = false,
+            CertificateStoreIdentifier trustedIssuerCertificates = null,
+            CertificateStoreIdentifier trustedPeerCertificates = null,
+            CertificateStoreIdentifier rejectedCertificateStore = null
+            )
+        {
+            m_certificates = certificates;
+            m_SslProtocolVersion = sslProtocolVersion;
+            m_allowUntrustedCertificates = allowUntrustedCertificates;
+            m_ignoreCertificateChainErrors = ignoreCertificateChainErrors;
+            m_ignoreRevocationListErrors = ignoreRevocationListErrors;
+
+            m_trustedIssuerCertificates = trustedIssuerCertificates;
+            m_trustedPeerCertificates = trustedPeerCertificates;
+            m_rejectedCertificateStore = rejectedCertificateStore;
+        }
+        #endregion
+
+        #region Public Properties
+        public List<X509Certificate> X509Certificates { get => m_certificates; set => m_certificates = value; }
+        public SslProtocols SslProtocolVersion { get => m_SslProtocolVersion; set => m_SslProtocolVersion = value; }
+        public bool AllowUntrustedCertificates { get => m_allowUntrustedCertificates; set => m_allowUntrustedCertificates = value; }
+        public bool IgnoreCertificateChainErrors { get => m_ignoreCertificateChainErrors; set => m_ignoreCertificateChainErrors = value; }
+        public bool IgnoreRevocationListErrors { get => m_ignoreRevocationListErrors; set => m_ignoreRevocationListErrors = value; }
+        public CertificateStoreIdentifier TrustedIssuerCertificates { get => m_trustedIssuerCertificates; set => m_trustedIssuerCertificates = value; }
+        public CertificateStoreIdentifier TrustedPeerCertificates { get => m_trustedPeerCertificates; set => m_trustedPeerCertificates = value; }
+        public CertificateStoreIdentifier RejectedCertificateStore { get => m_rejectedCertificateStore; set => m_rejectedCertificateStore = value; }
+        #endregion
+    }
+
     /// <summary>
     /// The implementation of the Mqtt specific client configuration
     /// </summary>
@@ -56,7 +138,7 @@ namespace Opc.Ua.PubSub.Mqtt
         SecureString m_password;
         bool m_cleanSession;
         EnumMqttProtocolVersion m_protocolVersion;
-        bool m_useSsl;
+        MqttTlsOptions m_mqttTlsOptions;
         #endregion
 
         #region Constructor
@@ -69,7 +151,7 @@ namespace Opc.Ua.PubSub.Mqtt
             m_password = null;
             m_cleanSession = true;
             m_protocolVersion = EnumMqttProtocolVersion.V310;
-            m_useSsl = false;
+            m_mqttTlsOptions = null;
         }
 
         /// <summary>
@@ -79,18 +161,18 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <param name="password"></param>
         /// <param name="cleanSession"></param>
         /// <param name="version"></param>
-        /// <param name="useSsl"></param>
+        /// <param name="mqttTlsOptions"></param>
         public MqttClientProtocolConfiguration(SecureString userName = null,
                                                SecureString password = null,
                                                bool cleanSession = true,
                                                EnumMqttProtocolVersion version = EnumMqttProtocolVersion.V310,
-                                               bool useSsl = false)
+                                               MqttTlsOptions  mqttTlsOptions = null)
         {
             m_userName = userName;
             m_password = password;
             m_cleanSession = cleanSession;
             m_protocolVersion = version;
-            m_useSsl = useSsl;
+            m_mqttTlsOptions = mqttTlsOptions;
         }
         #endregion
 
@@ -105,7 +187,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
         public EnumMqttProtocolVersion ProtocolVersion { get => m_protocolVersion; set => m_protocolVersion = value; }
 
-        public bool UseSSL { get => m_useSsl; set => m_useSsl = value; }
+        public MqttTlsOptions MqttTlsOptions { get => m_mqttTlsOptions; set => m_mqttTlsOptions = value; }
 
         #region Implement IEncodeable interface
 
