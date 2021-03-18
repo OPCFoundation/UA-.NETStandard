@@ -694,7 +694,7 @@ namespace Opc.Ua.PubSub.Tests
             DataValue byteValue = new DataValue(new Variant((byte)10));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", NamespaceIndexAllTypes), Attributes.Value, byteValue);
             DataValue int16Value = new DataValue(new Variant((short)100));
-            //pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", NamespaceIndexAllTypes), Attributes.Value, int16Value);
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", NamespaceIndexAllTypes), Attributes.Value, int16Value);
             DataValue int32Value = new DataValue(new Variant((int)1000));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndexAllTypes), Attributes.Value, int32Value);
             DataValue int64Value = new DataValue(new Variant((Int64)10000));
@@ -728,19 +728,73 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeId", NamespaceIndexAllTypes), Attributes.Value, nodeIdValue);
             DataValue expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeId", NamespaceIndexAllTypes), Attributes.Value, expandedNodeId);
+            DataValue statusCode = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCode", NamespaceIndexAllTypes), Attributes.Value, statusCode);
             DataValue qualifiedValue = new DataValue(new Variant(new QualifiedName("wererwerw")));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedName", NamespaceIndexAllTypes), Attributes.Value, qualifiedValue);
             DataValue localizedTextValue = new DataValue(new Variant(new LocalizedText("Localized_abcd")));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedText", NamespaceIndexAllTypes), Attributes.Value, localizedTextValue);
-            DataValue dataValue = new DataValue(new Variant(new DataValue("DataValue_info")));
+            DataValue dataValue = new DataValue(new Variant(new DataValue(new Variant("DataValue_info"), StatusCodes.BadBoundNotFound)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValue", NamespaceIndexAllTypes), Attributes.Value, dataValue);
             DataValue diagnosticInfoValue = new DataValue(new Variant(new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info")));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfo", NamespaceIndexAllTypes), Attributes.Value, diagnosticInfoValue);
 
-            DataValue statusCode = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
-            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCode", NamespaceIndexAllTypes), Attributes.Value, statusCode);
-            //creation of Structure by using complex type in JsonEncoderTests.cs 
+            // creation of Structure by using complex type in JsonEncoderTests.cs sample
 
+            // DataSet 'AllTypes' fill with data array
+            DataValue boolToggleArray = new DataValue(new Variant(new BooleanCollection() { true, false, true }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleArray", NamespaceIndexAllTypes), Attributes.Value, boolToggleArray);
+            DataValue byteValueArray = new DataValue(new Variant(new ByteCollection() { 127, 101, 1 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteArray", NamespaceIndexAllTypes), Attributes.Value, byteValueArray);
+            DataValue int16ValueArray = new DataValue(new Variant(new Int16Collection() { -100, -200, 300 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Array", NamespaceIndexAllTypes), Attributes.Value, int16ValueArray);
+            DataValue int32ValueArray = new DataValue(new Variant(new Int32Collection() { -1000, -2000, 3000 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Array", NamespaceIndexAllTypes), Attributes.Value, int32ValueArray);
+            DataValue int64ValueArray = new DataValue(new Variant(new Int64Collection() { -10000, -20000, 30000 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64Array", NamespaceIndexAllTypes), Attributes.Value, int64ValueArray);
+            DataValue sByteValueArray = new DataValue(new Variant(new SByteCollection() { 1, -2, -3 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByteArray", NamespaceIndexAllTypes), Attributes.Value, sByteValueArray);
+            DataValue uInt16ValueArray = new DataValue(new Variant(new UInt16Collection() { 110, 120, 130 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16Array", NamespaceIndexAllTypes), Attributes.Value, uInt16ValueArray);
+            DataValue uInt32ValueArray = new DataValue(new Variant(new UInt32Collection() { 1100, 1200, 1300 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32Array", NamespaceIndexAllTypes), Attributes.Value, uInt32ValueArray);
+            DataValue uInt64ValueArray = new DataValue(new Variant(new UInt64Collection() { 11100, 11200, 11300 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64Array", NamespaceIndexAllTypes), Attributes.Value, uInt64ValueArray);
+            DataValue floatValueArray = new DataValue(new Variant(new FloatCollection() { 1100,5, 1200,5, 1300,5 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("FloatArray", NamespaceIndexAllTypes), Attributes.Value, floatValueArray);
+            DataValue doubleValueArray = new DataValue(new Variant(new DoubleCollection() { 11000.5, 12000.6, 13000.7 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DoubleArray", NamespaceIndexAllTypes), Attributes.Value, doubleValueArray);
+            DataValue stringValueArray = new DataValue(new Variant(new StringCollection() { "1a", "2b", "3c" }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StringArray", NamespaceIndexAllTypes), Attributes.Value, stringValueArray);
+            DataValue dateTimeValArray = new DataValue(new Variant(new DateTimeCollection() { new DateTime(2020, 3, 11), new DateTime(2021, 2, 17) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTimeArray", NamespaceIndexAllTypes), Attributes.Value, dateTimeValArray);
+            DataValue guidValueArray = new DataValue(new Variant(new UuidCollection() { new Uuid(new Guid()), new Uuid(new Guid()) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidArray", NamespaceIndexAllTypes), Attributes.Value, guidValueArray);
+            DataValue byteStringValueArray = new DataValue(new Variant(new byte[] { 1, 2, 3 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringArray", NamespaceIndexAllTypes), Attributes.Value, byteStringValueArray);
+            XmlDocument document1 = new XmlDocument();
+            XmlElement xmlElement1 = document.CreateElement("test1");
+            xmlElement1.InnerText = "Text_2";
+            XmlDocument document2 = new XmlDocument();
+            XmlElement xmlElement2 = document.CreateElement("test2");
+            xmlElement2.InnerText = "Text_2";
+            DataValue xmlElementValueArray = new DataValue(new Variant(new XmlElementCollection() { xmlElement1, xmlElement2 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElementArray", NamespaceIndexAllTypes), Attributes.Value, xmlElementValueArray);
+            DataValue nodeIdValueArray = new DataValue(new Variant(new NodeIdCollection() { new NodeId(30, 1), new NodeId(20, 3) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeIdArray", NamespaceIndexAllTypes), Attributes.Value, nodeIdValueArray);
+            DataValue expandedNodeIdArray = new DataValue(new Variant(new ExpandedNodeIdCollection() { new ExpandedNodeId(50, 1), new ExpandedNodeId(70, 9) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeIdArray", NamespaceIndexAllTypes), Attributes.Value, expandedNodeIdArray);
+            DataValue statusCodeArray = new DataValue(new Variant(new StatusCodeCollection() { StatusCodes.Good, StatusCodes.Bad, StatusCodes.Uncertain }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCodeArray", NamespaceIndexAllTypes), Attributes.Value, statusCodeArray);
+            DataValue qualifiedValueArray = new DataValue(new Variant(new QualifiedNameCollection() { new QualifiedName("123"), new QualifiedName("abc") }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedNameArray", NamespaceIndexAllTypes), Attributes.Value, qualifiedValueArray);
+            DataValue localizedTextValueArray = new DataValue(new Variant(new LocalizedTextCollection() { new LocalizedText("1234"), new LocalizedText("abcd") }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedTextArray", NamespaceIndexAllTypes), Attributes.Value, localizedTextValueArray);
+            DataValue dataValueArray = new DataValue(new Variant(new DataValueCollection() { new DataValue(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound), new DataValue(new Variant("DataValue_info2"), StatusCodes.BadNoData) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValueArray", NamespaceIndexAllTypes), Attributes.Value, dataValueArray);
+            DataValue diagnosticInfoValueArray = new DataValue(new Variant(new DiagnosticInfoCollection() { new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"), new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2") }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoArray", NamespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueArray);
+            
             #endregion
         }
 

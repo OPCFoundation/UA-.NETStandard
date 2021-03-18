@@ -1681,8 +1681,209 @@ namespace Opc.Ua.PubSub.Tests
                     //    ValueRank = ValueRanks.Scalar
                     //},
                     // Number,Integer,UInteger, Enumeration internal use
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggleArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "SByteArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.SByte,
+                        DataType = DataTypeIds.SByte,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ByteArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Byte,
+                        DataType = DataTypeIds.Byte,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int16Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int16,
+                        DataType = DataTypeIds.Int16,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt16Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.UInt16,
+                        DataType = DataTypeIds.UInt16,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                         BuiltInType = (byte)BuiltInType.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int64Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int64,
+                        DataType = DataTypeIds.UInt64,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt64Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                         BuiltInType = (byte)BuiltInType.UInt64,
+                        DataType = DataTypeIds.UInt64,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "FloatArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Float,
+                        DataType = DataTypeIds.Float,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DoubleArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Double,
+                        DataType = DataTypeIds.Double,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "StringArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.String,
+                        DataType = DataTypeIds.String,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DateTimeArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "GuidArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Guid,
+                        DataType = DataTypeIds.Guid,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ByteStringArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.ByteString,
+                        DataType = DataTypeIds.ByteString,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "XmlElementArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.XmlElement,
+                        DataType = DataTypeIds.XmlElement,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "NodeIdArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.NodeId,
+                        DataType = DataTypeIds.NodeId,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ExpandedNodeIdArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.ExpandedNodeId,
+                        DataType = DataTypeIds.ExpandedNodeId,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "StatusCodeArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.StatusCode,
+                        DataType = DataTypeIds.StatusCode,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "QualifiedNameArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.QualifiedName,
+                        DataType = DataTypeIds.QualifiedName,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "LocalizedTextArray",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.LocalizedText,
+                        DataType = DataTypeIds.LocalizedText,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "StructureArray",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.ExtensionObject,
+                    //    DataType = DataTypeIds.Structure,
+                    //    ValueRank = ValueRanks.OneDimension
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "DataValueArray",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.DataValue,
+                    //    DataType = DataTypeIds.DataValue,
+                    //    ValueRank = ValueRanks.OneDimension
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "VariantArray",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.Variant,
+                    //    DataType = DataTypeIds.DataValue,
+                    //    ValueRank = ValueRanks.OneDimension
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "DiagnosticInfoArray",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.DiagnosticInfo,
+                    //    DataType = DataTypeIds.DiagnosticInfo,
+                    //    ValueRank = ValueRanks.OneDimension
+                    //},
+                    
 
-    };
+            };
             dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
                 MinorVersion = 1,
                 MajorVersion = 1
