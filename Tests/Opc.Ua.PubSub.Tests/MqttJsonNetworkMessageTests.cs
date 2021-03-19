@@ -38,7 +38,7 @@ using Opc.Ua.PubSub.PublishedData;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture(Description = "Tests for Encoding/Decoding of JsonNetworkMessage objects")]
-    public class JsonNetworkMessageTests
+    public class MqttJsonNetworkMessageTests
     {
         private const UInt16 NamespaceIndexAllTypes = 3;
         
