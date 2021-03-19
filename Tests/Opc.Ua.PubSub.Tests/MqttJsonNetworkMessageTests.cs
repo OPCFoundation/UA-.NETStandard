@@ -639,6 +639,10 @@ namespace Opc.Ua.PubSub.Tests
 
         #region Private methods
 
+        /// <summary>
+        /// Load publishing data
+        /// </summary>
+        /// <param name="pubSubApplication"></param>
         private void LoadData(UaPubSubApplication pubSubApplication)
         {
             Assert.IsNotNull(pubSubApplication, "pubSubApplication should not be null");
