@@ -1041,6 +1041,7 @@ namespace Opc.Ua.PubSub.Tests
                         ValueRank = ValueRanks.Scalar
                     },
                     // Number,Integer,UInteger, Enumeration internal use
+                    // Array type
                     new FieldMetaData()
                     {
                         Name = "BoolToggleArray",
@@ -1241,8 +1242,208 @@ namespace Opc.Ua.PubSub.Tests
                     //    DataType = DataTypeIds.DiagnosticInfo,
                     //    ValueRank = ValueRanks.OneDimension
                     //},
-                    
-
+                    // Matrix type
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggleMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "SByteMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.SByte,
+                        DataType = DataTypeIds.SByte,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ByteMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Byte,
+                        DataType = DataTypeIds.Byte,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int16Matrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int16,
+                        DataType = DataTypeIds.Int16,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt16Matrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.UInt16,
+                        DataType = DataTypeIds.UInt16,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32Matrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32Matrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                         BuiltInType = (byte)BuiltInType.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int64Matrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Int64,
+                        DataType = DataTypeIds.UInt64,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt64Matrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                         BuiltInType = (byte)BuiltInType.UInt64,
+                        DataType = DataTypeIds.UInt64,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "FloatMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Float,
+                        DataType = DataTypeIds.Float,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DoubleMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Double,
+                        DataType = DataTypeIds.Double,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "StringMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.String,
+                        DataType = DataTypeIds.String,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DateTimeMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "GuidMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.Guid,
+                        DataType = DataTypeIds.Guid,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ByteStringMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.ByteString,
+                        DataType = DataTypeIds.ByteString,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "XmlElementMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.XmlElement,
+                        DataType = DataTypeIds.XmlElement,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "NodeIdMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.NodeId,
+                        DataType = DataTypeIds.NodeId,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ExpandedNodeIdMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.ExpandedNodeId,
+                        DataType = DataTypeIds.ExpandedNodeId,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "StatusCodeMatrix",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.StatusCode,
+                    //    DataType = DataTypeIds.StatusCode,
+                    //    ValueRank = ValueRanks.TwoDimensions
+                    //},
+                    new FieldMetaData()
+                    {
+                        Name = "QualifiedNameMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.QualifiedName,
+                        DataType = DataTypeIds.QualifiedName,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "LocalizedTextMatrix",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)BuiltInType.LocalizedText,
+                        DataType = DataTypeIds.LocalizedText,
+                        ValueRank = ValueRanks.TwoDimensions
+                    },
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "StructureMatrix",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.ExtensionObject,
+                    //    DataType = DataTypeIds.Structure,
+                    //    ValueRank = ValueRanks.TwoDimensions
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "DataValueMatrix",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.DataValue,
+                    //    DataType = DataTypeIds.DataValue,
+                    //    ValueRank = ValueRanks.TwoDimensions
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "VariantMatrix",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.Variant,
+                    //    DataType = DataTypeIds.DataValue,
+                    //    ValueRank = ValueRanks.TwoDimensions
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "DiagnosticInfoMatrix",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.DiagnosticInfo,
+                    //    DataType = DataTypeIds.DiagnosticInfo,
+                    //    ValueRank = ValueRanks.TwoDimensions
+                    //},
+ 
             };
             dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
                 MinorVersion = 1,

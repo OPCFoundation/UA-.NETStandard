@@ -754,7 +754,99 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValueArray", NamespaceIndexAllTypes), Attributes.Value, dataValueArray);
             DataValue diagnosticInfoValueArray = new DataValue(new Variant(new DiagnosticInfoCollection() { new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"), new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2") }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoArray", NamespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueArray);
-            
+
+
+            // DataSet 'AllTypes' fill with data as matrix
+            DataValue boolToggleMatrix = new DataValue(new Variant(new BooleanCollection() { true, false, true }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", NamespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
+            DataValue byteValueMatrix = new DataValue(new Variant(new byte[,] { { 127, 128 }, { 101, 102 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", NamespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
+            DataValue int16ValueMatrix = new DataValue(new Variant(new Int16[,] { { -100, -101 }, { -200, -201 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Matrix", NamespaceIndexAllTypes), Attributes.Value, int16ValueMatrix);
+            DataValue int32ValueMatrix = new DataValue(new Variant(new Int32[,] { { -1000, -1001 }, { -2000, -2001 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Matrix", NamespaceIndexAllTypes), Attributes.Value, int32ValueMatrix);
+            DataValue int64ValueMatrix = new DataValue(new Variant(new Int64[,] { { -10000, -10001 }, { -20000, -20001 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64Matrix", NamespaceIndexAllTypes), Attributes.Value, int64ValueMatrix);
+            DataValue sByteValueMatrix = new DataValue(new Variant(new SByte[,] { { 1, 2 }, { -2, -3 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByteMatrix", NamespaceIndexAllTypes), Attributes.Value, sByteValueMatrix);
+            DataValue uInt16ValueMatrix = new DataValue(new Variant(new UInt16[,] { { 110, 120 }, { 130, 140 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16Matrix", NamespaceIndexAllTypes), Attributes.Value, uInt16ValueMatrix);
+            DataValue uInt32ValueMatrix = new DataValue(new Variant(new UInt32[,] { { 1100, 1200 }, { 1300, 1400 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32Matrix", NamespaceIndexAllTypes), Attributes.Value, uInt32ValueMatrix);
+            DataValue uInt64ValueMatrix = new DataValue(new Variant(new UInt64[,] { { 11100, 11200 },{ 11300, 11400 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64Matrix", NamespaceIndexAllTypes), Attributes.Value, uInt64ValueMatrix);
+            DataValue floatValueMatrix = new DataValue(new Variant(new float[,] { { 1100, 5 }, { 1200, 7 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("FloatMatrix", NamespaceIndexAllTypes), Attributes.Value, floatValueMatrix);
+            DataValue doubleValueMatrix = new DataValue(new Variant(new Double[,] { { 11000.5, 12000.6 }, { 13000.7, 14000.8 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DoubleMatrix", NamespaceIndexAllTypes), Attributes.Value, doubleValueMatrix);
+            DataValue stringValueMatrix = new DataValue(new Variant(new String[,] { { "1a", "2b" }, { "3c", "4d" } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StringMatrix", NamespaceIndexAllTypes), Attributes.Value, stringValueMatrix);
+            DataValue dateTimeValMatrix = new DataValue(new Variant(new DateTime[,]
+            {
+                { new DateTime(2020, 3, 11).ToUniversalTime(), new DateTime(2021, 2, 17).ToUniversalTime() },
+                { new DateTime(2021, 5, 21).ToUniversalTime(), new DateTime(2020, 7, 23).ToUniversalTime() }
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTimeMatrix", NamespaceIndexAllTypes), Attributes.Value, dateTimeValMatrix);
+            DataValue guidValueMatrix = new DataValue(new Variant(new Uuid[,]
+            {
+               { new Uuid(new Guid()), new Uuid(new Guid()) },
+               { new Uuid(new Guid()), new Uuid(new Guid()) }
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidMatrix", NamespaceIndexAllTypes), Attributes.Value, guidValueMatrix);
+            DataValue byteStringValueMatrix = new DataValue(new Variant(new byte[,] { { 1, 2, 3 } , { 4, 5, 6 }  }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringMatrix", NamespaceIndexAllTypes), Attributes.Value, byteStringValueMatrix);
+            XmlDocument document1m = new XmlDocument();
+            XmlElement xmlElement1m = document.CreateElement("test1m");
+            xmlElement1m.InnerText = "Text_1m";
+            XmlDocument document2m = new XmlDocument();
+            XmlElement xmlElement2m = document.CreateElement("test2m");
+            xmlElement2m.InnerText = "Text_2m";
+            XmlDocument document3m = new XmlDocument();
+            XmlElement xmlElement3m = document.CreateElement("test3m");
+            xmlElement3m.InnerText = "Text_3m";
+            XmlDocument document4m = new XmlDocument();
+            XmlElement xmlElement4m = document.CreateElement("test4m");
+            xmlElement4m.InnerText = "Text_4m";
+            DataValue xmlElementValueMatrix = new DataValue(new Variant(new XmlElement[,] { { xmlElement1m, xmlElement2m }, { xmlElement3m, xmlElement4m } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElementMatrix", NamespaceIndexAllTypes), Attributes.Value, xmlElementValueMatrix);
+            DataValue nodeIdValueMatrix = new DataValue(new Variant(new NodeId[,] { { new NodeId(30, 1), new NodeId(20, 3) }, { new NodeId(10, 3), new NodeId(50, 7) } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeIdMatrix", NamespaceIndexAllTypes), Attributes.Value, nodeIdValueMatrix);
+            DataValue expandedNodeIdMatrix = new DataValue(new Variant(new ExpandedNodeId[,]
+            {
+                { new ExpandedNodeId(50, 1), new ExpandedNodeId(70, 9) },
+                { new ExpandedNodeId(30, 2), new ExpandedNodeId(80, 3) },
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeIdMatrix", NamespaceIndexAllTypes), Attributes.Value, expandedNodeIdMatrix);
+            DataValue statusCodeMatrix = new DataValue(new Variant(new StatusCode[,]
+            {
+                { StatusCodes.Good, StatusCodes.Uncertain },
+                { StatusCodes.BadCertificateInvalid, StatusCodes.Uncertain }
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCodeMatrix", NamespaceIndexAllTypes), Attributes.Value, statusCodeMatrix);
+            DataValue qualifiedValueMatrix = new DataValue(new Variant(new QualifiedName[,]
+            {
+                { new QualifiedName("123"), new QualifiedName("abc") },
+                { new QualifiedName("456"), new QualifiedName("xyz") }
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedNameMatrix", NamespaceIndexAllTypes), Attributes.Value, qualifiedValueMatrix);
+            DataValue localizedTextValueMatrix = new DataValue(new Variant(new LocalizedText[,]
+            {
+                {new LocalizedText("1234"), new LocalizedText("abcd") },
+                {new LocalizedText("5678"), new LocalizedText("efgh") }
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedTextMatrix", NamespaceIndexAllTypes), Attributes.Value, localizedTextValueMatrix);
+            DataValue dataValueMatrix = new DataValue(new Variant(new DataValue[,]
+            {
+                { new DataValue(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound), new DataValue(new Variant("DataValue_info2"), StatusCodes.BadNoData) },
+                { new DataValue(new Variant("DataValue_info3"), StatusCodes.BadCertificateInvalid), new DataValue(new Variant("DataValue_info4"), StatusCodes.GoodCallAgain) },
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValueMatrix", NamespaceIndexAllTypes), Attributes.Value, dataValueMatrix);
+            DataValue diagnosticInfoValueMatrix = new DataValue(new Variant(new DiagnosticInfo[,]
+            {
+                { new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"), new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2") },
+                { new DiagnosticInfo(3, 3, 3, 3, "Diagnostic_info3"), new DiagnosticInfo(4, 4, 4, 4, "Diagnostic_info4") },
+            }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoMatrix", NamespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueMatrix);
             #endregion
         }
 
