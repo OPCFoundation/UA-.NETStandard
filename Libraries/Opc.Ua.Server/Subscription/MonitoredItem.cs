@@ -477,12 +477,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_samplingError = error;
                 if (error == null)
                 {
                     m_samplingError = ServiceResult.Good;
                 }
-
-                m_samplingError = error;
             }
         }
 
@@ -1212,7 +1211,7 @@ namespace Opc.Ua.Server
                     if (m_calculator.HasEndTimePassed(DateTime.UtcNow))
                     {
                         DataValue processedValue = m_calculator.GetProcessedValue(false);
-
+                         
                         while (processedValue != null)
                         {
                             AddValueToQueue(processedValue, null);

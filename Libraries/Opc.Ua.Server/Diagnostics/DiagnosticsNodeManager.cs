@@ -522,18 +522,19 @@ namespace Opc.Ua.Server
                             diagnosticsNode.SubscriptionDiagnosticsArray.Timestamp = DateTime.UtcNow;
                         }
 
-                        if (diagnosticsNode.SessionsDiagnosticsSummary != null)
+                        if ((diagnosticsNode.SessionsDiagnosticsSummary != null) &&
+                            (diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray != null))
                         {
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Value = null;
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.StatusCode = StatusCodes.BadWaitingForInitialData;
                             diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray.Timestamp = DateTime.UtcNow;
                         }
 
-                        if (diagnosticsNode.SessionsDiagnosticsSummary != null)
+                        if (diagnosticsNode.ServerDiagnosticsSummary != null)
                         {
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.Value = null;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.StatusCode = StatusCodes.BadWaitingForInitialData;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionSecurityDiagnosticsArray.Timestamp = DateTime.UtcNow;
+                            diagnosticsNode.ServerDiagnosticsSummary.Value = null;
+                            diagnosticsNode.ServerDiagnosticsSummary.StatusCode = StatusCodes.BadWaitingForInitialData;
+                            diagnosticsNode.ServerDiagnosticsSummary.Timestamp = DateTime.UtcNow;
                         }
                     }
 

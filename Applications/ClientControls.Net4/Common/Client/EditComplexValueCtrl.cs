@@ -101,12 +101,11 @@ namespace Opc.Ua.Client.Controls.Common
 
             set
             {
+                m_maxDisplayTextLength = value;
                 if (value < 20)
                 {
                     m_maxDisplayTextLength = 20;
                 }
-
-                m_maxDisplayTextLength = value;
             }
         }
 

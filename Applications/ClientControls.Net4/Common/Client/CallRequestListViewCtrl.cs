@@ -93,12 +93,12 @@ namespace Opc.Ua.Client.Controls
         {
             if (objectId == null)
             {
-                new ArgumentNullException("objectId");
+                throw new ArgumentNullException("objectId");
             }
 
             if (methodId == null)
             {
-                new ArgumentNullException("methodId");
+                throw new ArgumentNullException("methodId");
             }
 
             m_objectId = objectId;

@@ -586,7 +586,7 @@ namespace Opc.Ua.Server
                     // do nothing if subscription has already been flagged as available.
                     if (subscription.ReadyToPublish)
                     {
-                        if (subscription.ReadyToPublish && m_queuedRequests.Count == 0)
+                        if (m_queuedRequests.Count == 0)
                         {
                             if (!m_subscriptionsWaiting)
                             {
@@ -827,7 +827,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    buffer.AppendFormat(", SessionId={0}", m_session.Id);
+                    buffer.Append("nul");
                 }
 
                 buffer.AppendFormat(", SubscriptionCount={0}", m_queuedSubscriptions.Count);

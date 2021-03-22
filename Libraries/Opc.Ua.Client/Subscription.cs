@@ -100,7 +100,6 @@ namespace Opc.Ua.Client
                 m_publishingEnabled          = template.m_publishingEnabled;
                 m_priority                   = template.m_priority;
                 m_timestampsToReturn         = template.m_timestampsToReturn;
-                m_maxMessageCount            = template.m_maxMessageCount;
                 m_defaultItem                = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
                 m_defaultItem                = template.m_defaultItem;
                 m_handle                     = template.m_handle;

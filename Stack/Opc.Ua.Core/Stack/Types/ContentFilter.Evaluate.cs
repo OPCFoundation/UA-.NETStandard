@@ -453,7 +453,7 @@ namespace Opc.Ua
                     return (bool)value; 
                 }
                     
-                case BuiltInType.SByte:   return Convert.ToBoolean((byte)value);
+                case BuiltInType.SByte:   return Convert.ToBoolean((sbyte)value);
                 case BuiltInType.Byte:    return Convert.ToBoolean((byte)value);
                 case BuiltInType.Int16:   return Convert.ToBoolean((short)value);
                 case BuiltInType.UInt16:  return Convert.ToBoolean((ushort)value);

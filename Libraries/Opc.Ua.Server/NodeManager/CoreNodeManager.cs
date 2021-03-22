@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate the node class.
-                if (((metadata.NodeClass & NodeClass.Object | NodeClass.View)) == 0)
+                if ((metadata.NodeClass & (NodeClass.Object | NodeClass.View)) == 0)
                 {
                     return StatusCodes.BadNotSupported;
                 }

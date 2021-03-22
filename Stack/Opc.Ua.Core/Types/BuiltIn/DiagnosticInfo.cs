@@ -456,7 +456,7 @@ namespace Opc.Ua
                 hash ^= this.m_innerDiagnosticInfo.GetHashCode();
             }
 
-            return 0;
+            return hash;
         }
 
         /// <summary>

@@ -638,7 +638,7 @@ namespace Opc.Ua.Client
                 {
                     EventFieldList eventchange = newValue as EventFieldList;
 
-                    if (m_eventCache != null)
+                    if (eventchange != null)
                     {
                         m_eventCache.OnNotification(eventchange);
                     }
