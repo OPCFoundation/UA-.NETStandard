@@ -39,7 +39,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [Parallelizable]
     public class UtilsTests
     {
-        #region Test Methods
+        #region misc
         /// <summary>
         /// Convert to and from little endian hex string.
         /// </summary>
@@ -88,65 +88,73 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(hex, hexutil);
         }
 
+        #endregion
 
+        #region RelativePath.Parse
         /// <summary>
-        /// 
+        /// parse simple plain path string containing only numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseNumericStringNonDeep()
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/11";
-            Assert.AreEqual(str,
-                RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
-        /// 
+        /// parse deep path string containing only numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseNumericStringDeepPath()
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123/789";
-            Assert.AreEqual(str,
-                RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
-        /// 
+        /// parse deep path string containing alphanumeric chars, staring with numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseAlphanumericStringPath()
         {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123A/78B9";
-            // In Little Endian it's written as CE FA
-            Assert.AreEqual(str, RelativePath.Parse(str, new TypeTable(new NamespaceTable())).Format(new TypeTable(new NamespaceTable())));
+            Assert.AreEqual(str,RelativePath.Parse(str, typeTable));
         }
 
         /// <summary>
-        /// 
+        /// parse deep path string containing alphanumeric chars (mixed), starting with alphabetical chars.
         /// </summary>
         [Test]
         public void RelativePathParseAlphanumericStringPath2()
         {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/AA123A/bb78B9";
-            // In Little Endian it's written as CE FA
-            Assert.AreEqual(str, RelativePath.Parse(str, new TypeTable(new NamespaceTable())).Format(new TypeTable(new NamespaceTable())));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable));
         }
 
+        /// <summary>
+        /// parse deep path string containing only alphabetical chars.
+        /// </summary>
         [Test]
         public void RelativePathParseAlphaStringPath()
         {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc/def";
-            Assert.AreEqual(str, RelativePath.Parse(str, new TypeTable(new NamespaceTable())).Format(new TypeTable(new NamespaceTable())));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable));
         }
 
+        /// <summary>
+        /// parse deep path string containing only alphabetical chars with namespace index
+        /// </summary>
         [Test]
-        public void RelativePathParseAlphanumericWithNsiStringPath()
+        public void RelativePathParseAlphanumericWithNamespaceIndexStringPath()
         {
+            TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/1:abc/2:def";
-            Assert.AreEqual(str, RelativePath.Parse(str, new TypeTable(new NamespaceTable())).Format(new TypeTable(new NamespaceTable())));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable));
         }
 
         #endregion
