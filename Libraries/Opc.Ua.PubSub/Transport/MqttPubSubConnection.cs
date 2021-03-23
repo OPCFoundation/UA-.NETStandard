@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class MqttPubSubConnection : UaPubSubConnection
     {
+        #region Private Fields
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
@@ -67,6 +68,13 @@ namespace Opc.Ua.PubSub.Transport
         private MessageMapping m_messageMapping;
 
         private CertificateValidator m_certificateValidator;
+        #endregion
+
+        #region Public Properties
+        string BrokerHostName { get { return m_brokerHostName; } }
+        int BrokerPort { get { return m_brokerPort; } }
+        CertificateValidator CertificateValidator { get { return m_certificateValidator; } }
+        #endregion Public Properties
 
         #region Constants
         /// <summary>
@@ -92,7 +100,7 @@ namespace Opc.Ua.PubSub.Transport
 
         #endregion
 
-
+        #region Public Methods
         public override UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration)
         {
             UadpWriterGroupMessageDataType uadpMessageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
@@ -272,6 +280,56 @@ namespace Opc.Ua.PubSub.Transport
 
             return false;
         }
+        #endregion Public Methods
+
+        #region Private methods
+
+
+        private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
+        {
+            string topic = eventArgs.ApplicationMessage.Topic;
+            Utils.Trace(Utils.TraceMasks.Information, "MqttPubSubConnection.ProcessReceivedMessage from topic={0}", topic);
+
+            // get the datasetreaders for received message topic
+            List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
+            foreach (DataSetReaderDataType dsReader in GetOperationalDataSetReaders())
+            {
+                if (dsReader == null) continue;
+                BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
+                    ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
+                if (brokerDataSetReaderTransportDataType == null || brokerDataSetReaderTransportDataType.QueueName != topic)
+                {
+                    continue;
+                }
+                dataSetReaders.Add(dsReader);
+            }
+
+            if (dataSetReaders.Count > 0)
+            {
+                // iniaialize the expected NetworkMessage
+                UaNetworkMessage networkMessage = null;
+                if (m_messageMapping == MessageMapping.Uadp)
+                {
+                    networkMessage = new UadpNetworkMessage();
+                }
+                else if (m_messageMapping == MessageMapping.Json)
+                {
+                    networkMessage = new JsonNetworkMessage();
+                }
+                // trigger message decoding
+                if (networkMessage != null)
+                {
+                    networkMessage.Decode(eventArgs.ApplicationMessage.Payload, dataSetReaders);
+
+                    // Raise the DataReceived event 
+                    RaiseNetworkMessageDataReceivedEvent(networkMessage, topic);
+                }
+            }
+            else
+            {
+                Utils.Trace(Utils.TraceMasks.Information, "No DataSetReader is registered for topic={0}.", topic);
+            }
+        }
 
         /// <summary>
         /// Transform pub sub setting into MqttNet enum
@@ -302,6 +360,36 @@ namespace Opc.Ua.PubSub.Transport
             X509Certificate2 cert = new X509Certificate2(context.Certificate.GetRawCertData());
             try
             {
+                if (context.SslPolicyErrors != System.Net.Security.SslPolicyErrors.None)
+                {
+                    switch (context.SslPolicyErrors)
+                    {
+                        case (System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors):
+                        {
+                            foreach (var err in context.Chain.ChainStatus)
+                            {
+                                Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificate {0} has failed with chain status {1}.",
+                                    cert?.Thumbprint, err.StatusInformation);
+                            }
+                            break;
+                        }
+                        case (System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch):
+                        {
+
+                            Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificate {0} has failed with status RemoteCertificateNameMismatch.",
+                                cert?.Thumbprint);
+                            break;
+                        }
+                        case (System.Net.Security.SslPolicyErrors.RemoteCertificateNotAvailable):
+                        {
+
+                            Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificatehas failed with status RemoteCertificateNotAvailable.");
+                            break;
+                        }
+                    }
+
+                    return false;
+                }
                 m_certificateValidator?.Validate(cert);
             }
             catch (ServiceResultException sre) when
@@ -340,8 +428,6 @@ namespace Opc.Ua.PubSub.Transport
 
             return true;
         }
-
-
 
         /// <summary>
         /// Get apropriate IMqttClientOptions with which to connect to the MQTTBroker
@@ -395,7 +481,7 @@ namespace Opc.Ua.PubSub.Transport
                 MqttClientProtocolConfiguration mqttProtocolConfiguration = transportProtocolConfiguration as MqttClientProtocolConfiguration;
                 if (mqttProtocolConfiguration != null)
                 {
-                    
+
                     MqttProtocolVersion mqttProtocolVersion = (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration).ProtocolVersion;
                     MqttTlsOptions mqttTlsOptions = ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
@@ -438,8 +524,7 @@ namespace Opc.Ua.PubSub.Transport
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
-                            .WithTls(new MqttClientOptionsBuilderTlsParameters
-                            {
+                            .WithTls(new MqttClientOptionsBuilderTlsParameters {
                                 UseTls = true,
                                 Certificates = mqttTlsOptions?.X509Certificates,
                                 SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
@@ -469,7 +554,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Set up a new instance of a certificate validator based on passed in tls 
+        /// Set up a new instance of a certificate validator based on passed in tls options
         /// </summary>
         /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"></param>
         /// <returns>A new instance of stack validator <see cref="CertificateValidator"></returns>
@@ -484,13 +569,35 @@ namespace Opc.Ua.PubSub.Transport
 
             securityConfiguration.RejectSHA1SignedCertificates = false;
             securityConfiguration.AutoAcceptUntrustedCertificates = mqttTlsOptions.AllowUntrustedCertificates;
-            securityConfiguration.RejectUnknownRevocationStatus = true;
+            securityConfiguration.RejectUnknownRevocationStatus = false;
+
+            crtValidator.CertificateValidation += CrtValidator_CertificateValidation;
 
             crtValidator.Update(securityConfiguration).Wait();
 
             return crtValidator;
         }
 
+        /// <summary>
+        /// Stack certifficate validation handler
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void CrtValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
+        {
+            // Accept certificates in this case
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+            {
+                Utils.Trace(Utils.TraceMasks.Security, "Accepted Certificate: {0}", e.Certificate.Subject);
+                e.Accept = true;
+                return;
+            }
+            Utils.Trace(Utils.TraceMasks.Security, "Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
+        }
+
+        #endregion Private methods
+
+        #region Protected Methods
         protected override bool InternalInitialize()
         {
             throw new NotImplementedException();
@@ -562,56 +669,6 @@ namespace Opc.Ua.PubSub.Transport
 
         }
 
-        #region Private methods
-
-
-        void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
-        {
-            string topic = eventArgs.ApplicationMessage.Topic;
-            Utils.Trace(Utils.TraceMasks.Information, "MqttPubSubConnection.ProcessReceivedMessage from topic={0}", topic);
-
-            // get the datasetreaders for received message topic
-            List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
-            foreach(DataSetReaderDataType dsReader in GetOperationalDataSetReaders())
-            {
-                if (dsReader == null) continue;
-                BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
-                    ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
-                if (brokerDataSetReaderTransportDataType == null || brokerDataSetReaderTransportDataType.QueueName != topic)
-                {
-                    continue;
-                }
-                dataSetReaders.Add(dsReader);
-            }
-
-            if (dataSetReaders.Count > 0)
-            {
-                // iniaialize the expected NetworkMessage
-                UaNetworkMessage networkMessage = null;
-                if (m_messageMapping == MessageMapping.Uadp)
-                {
-                    networkMessage = new UadpNetworkMessage();
-                }
-                else if (m_messageMapping == MessageMapping.Json)
-                {
-                    networkMessage = new JsonNetworkMessage();
-                }
-                // trigger message decoding
-                if (networkMessage != null)
-                {
-                    networkMessage.Decode(eventArgs.ApplicationMessage.Payload, dataSetReaders);
-
-                    // Raise rthe DataReceived event 
-                    RaiseNetworkMessageDataReceivedEvent(networkMessage, topic);
-                }                
-            }
-            else
-            {
-                Utils.Trace(Utils.TraceMasks.Information, "No DataSetReader is registered for topic={0}.", topic);
-            }
-        }
-
-        #endregion Private methods
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
@@ -638,5 +695,6 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
         }
+        #endregion Protected Methods
     }
 }
