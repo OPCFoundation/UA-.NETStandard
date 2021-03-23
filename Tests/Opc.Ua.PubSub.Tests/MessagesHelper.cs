@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Xml;
 using Opc.Ua.PubSub.Mqtt;
 
 namespace Opc.Ua.PubSub.Tests
@@ -1461,6 +1462,191 @@ namespace Opc.Ua.PubSub.Tests
             };
 
             return dataSetMetaData;
+        }
+
+        /// <summary>
+        /// Load publishing data
+        /// </summary>
+        /// <param name="pubSubApplication"></param>
+        public static void LoadData(UaPubSubApplication pubSubApplication, UInt16 namespaceIndexAllTypes)
+        {
+            #region DataSet AllTypes
+            // DataSet 'AllTypes' fill with primitive data
+            DataValue boolToggle = new DataValue(new Variant(false));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", namespaceIndexAllTypes), Attributes.Value, boolToggle);
+            DataValue byteValue = new DataValue(new Variant((byte)10));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Byte", namespaceIndexAllTypes), Attributes.Value, byteValue);
+            DataValue int16Value = new DataValue(new Variant((short)100));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16", namespaceIndexAllTypes), Attributes.Value, int16Value);
+            DataValue int32Value = new DataValue(new Variant((int)1000));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", namespaceIndexAllTypes), Attributes.Value, int32Value);
+            DataValue int64Value = new DataValue(new Variant((Int64)10000));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64", namespaceIndexAllTypes), Attributes.Value, int64Value);
+            DataValue sByteValue = new DataValue(new Variant((sbyte)11));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByte", namespaceIndexAllTypes), Attributes.Value, sByteValue);
+            DataValue uInt16Value = new DataValue(new Variant((ushort)110));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16", namespaceIndexAllTypes), Attributes.Value, uInt16Value);
+            DataValue uInt32Value = new DataValue(new Variant((uint)1100));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32", namespaceIndexAllTypes), Attributes.Value, uInt32Value);
+            DataValue uInt64Value = new DataValue(new Variant((UInt64)11100));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64", namespaceIndexAllTypes), Attributes.Value, uInt64Value);
+            DataValue floatValue = new DataValue(new Variant((float)1100.5));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Float", namespaceIndexAllTypes), Attributes.Value, floatValue);
+            DataValue doubleValue = new DataValue(new Variant((double)1100));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Double", namespaceIndexAllTypes), Attributes.Value, doubleValue);
+            DataValue stringValue = new DataValue(new Variant("String info"));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("String", namespaceIndexAllTypes), Attributes.Value, stringValue);
+            DataValue dateTimeVal = new DataValue(new Variant(DateTime.UtcNow));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", namespaceIndexAllTypes), Attributes.Value, dateTimeVal);
+            DataValue guidValue = new DataValue(new Variant(new Guid()));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Guid", namespaceIndexAllTypes), Attributes.Value, guidValue);
+            DataValue byteStringValue = new DataValue(new Variant(new byte[] { 1, 2, 3 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteString", namespaceIndexAllTypes), Attributes.Value, byteStringValue);
+            XmlDocument document = new XmlDocument();
+            XmlElement xmlElement = document.CreateElement("test");
+            xmlElement.InnerText = "Text";
+            DataValue xmlElementValue = new DataValue(new Variant(xmlElement));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElement", namespaceIndexAllTypes), Attributes.Value, xmlElementValue);
+            DataValue nodeIdValue = new DataValue(new Variant(new NodeId(30, 1)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeId", namespaceIndexAllTypes), Attributes.Value, nodeIdValue);
+            DataValue expandedNodeId = new DataValue(new Variant(new ExpandedNodeId(30, 1)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeId", namespaceIndexAllTypes), Attributes.Value, expandedNodeId);
+            DataValue statusCode = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCode", namespaceIndexAllTypes), Attributes.Value, statusCode);
+            DataValue qualifiedValue = new DataValue(new Variant(new QualifiedName("wererwerw")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedName", namespaceIndexAllTypes), Attributes.Value, qualifiedValue);
+            DataValue localizedTextValue = new DataValue(new Variant(new LocalizedText("Localized_abcd")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedText", namespaceIndexAllTypes), Attributes.Value, localizedTextValue);
+            DataValue dataValue = new DataValue(new Variant(new DataValue(new Variant("DataValue_info"), StatusCodes.BadBoundNotFound)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValue", namespaceIndexAllTypes), Attributes.Value, dataValue);
+            DataValue diagnosticInfoValue = new DataValue(new Variant(new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info")));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfo", namespaceIndexAllTypes), Attributes.Value, diagnosticInfoValue);
+
+            // DataSet 'AllTypes' fill with data array
+            DataValue boolToggleArray = new DataValue(new Variant(new BooleanCollection() { true, false, true }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleArray", namespaceIndexAllTypes), Attributes.Value, boolToggleArray);
+            DataValue byteValueArray = new DataValue(new Variant(new byte[] { 127, 101, 1 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteArray", namespaceIndexAllTypes), Attributes.Value, byteValueArray);
+            DataValue int16ValueArray = new DataValue(new Variant(new Int16Collection() { -100, -200, 300 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Array", namespaceIndexAllTypes), Attributes.Value, int16ValueArray);
+            DataValue int32ValueArray = new DataValue(new Variant(new Int32Collection() { -1000, -2000, 3000 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Array", namespaceIndexAllTypes), Attributes.Value, int32ValueArray);
+            DataValue int64ValueArray = new DataValue(new Variant(new Int64Collection() { -10000, -20000, 30000 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64Array", namespaceIndexAllTypes), Attributes.Value, int64ValueArray);
+            DataValue sByteValueArray = new DataValue(new Variant(new SByteCollection() { 1, -2, -3 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByteArray", namespaceIndexAllTypes), Attributes.Value, sByteValueArray);
+            DataValue uInt16ValueArray = new DataValue(new Variant(new UInt16Collection() { 110, 120, 130 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16Array", namespaceIndexAllTypes), Attributes.Value, uInt16ValueArray);
+            DataValue uInt32ValueArray = new DataValue(new Variant(new UInt32Collection() { 1100, 1200, 1300 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32Array", namespaceIndexAllTypes), Attributes.Value, uInt32ValueArray);
+            DataValue uInt64ValueArray = new DataValue(new Variant(new UInt64Collection() { 11100, 11200, 11300 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64Array", namespaceIndexAllTypes), Attributes.Value, uInt64ValueArray);
+            DataValue floatValueArray = new DataValue(new Variant(new FloatCollection() { 1100, 5, 1200, 5, 1300, 5 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("FloatArray", namespaceIndexAllTypes), Attributes.Value, floatValueArray);
+            DataValue doubleValueArray = new DataValue(new Variant(new DoubleCollection() { 11000.5, 12000.6, 13000.7 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DoubleArray", namespaceIndexAllTypes), Attributes.Value, doubleValueArray);
+            DataValue stringValueArray = new DataValue(new Variant(new StringCollection() { "1a", "2b", "3c" }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StringArray", namespaceIndexAllTypes), Attributes.Value, stringValueArray);
+            DataValue dateTimeValArray = new DataValue(new Variant(new DateTimeCollection() { new DateTime(2020, 3, 11).ToUniversalTime(), new DateTime(2021, 2, 17).ToUniversalTime() }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTimeArray", namespaceIndexAllTypes), Attributes.Value, dateTimeValArray);
+            DataValue guidValueArray = new DataValue(new Variant(new UuidCollection() { new Uuid(new Guid()), new Uuid(new Guid()) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidArray", namespaceIndexAllTypes), Attributes.Value, guidValueArray);
+            DataValue byteStringValueArray = new DataValue(new Variant(new ByteStringCollection() { new byte[] { 1, 2, 3 }, new byte[] { 5, 6, 7 } }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringArray", namespaceIndexAllTypes), Attributes.Value, byteStringValueArray);
+            XmlDocument document1 = new XmlDocument();
+            XmlElement xmlElement1 = document.CreateElement("test1");
+            xmlElement1.InnerText = "Text_2";
+            XmlDocument document2 = new XmlDocument();
+            XmlElement xmlElement2 = document.CreateElement("test2");
+            xmlElement2.InnerText = "Text_2";
+            DataValue xmlElementValueArray = new DataValue(new Variant(new XmlElementCollection() { xmlElement1, xmlElement2 }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElementArray", namespaceIndexAllTypes), Attributes.Value, xmlElementValueArray);
+            DataValue nodeIdValueArray = new DataValue(new Variant(new NodeIdCollection() { new NodeId(30, 1), new NodeId(20, 3) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeIdArray", namespaceIndexAllTypes), Attributes.Value, nodeIdValueArray);
+            DataValue expandedNodeIdArray = new DataValue(new Variant(new ExpandedNodeIdCollection() { new ExpandedNodeId(50, 1), new ExpandedNodeId(70, 9) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeIdArray", namespaceIndexAllTypes), Attributes.Value, expandedNodeIdArray);
+            DataValue statusCodeArray = new DataValue(new Variant(new StatusCodeCollection() { StatusCodes.Good, StatusCodes.Bad, StatusCodes.Uncertain }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCodeArray", namespaceIndexAllTypes), Attributes.Value, statusCodeArray);
+            DataValue qualifiedValueArray = new DataValue(new Variant(new QualifiedNameCollection() { new QualifiedName("123"), new QualifiedName("abc") }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedNameArray", namespaceIndexAllTypes), Attributes.Value, qualifiedValueArray);
+            DataValue localizedTextValueArray = new DataValue(new Variant(new LocalizedTextCollection() { new LocalizedText("1234"), new LocalizedText("abcd") }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedTextArray", namespaceIndexAllTypes), Attributes.Value, localizedTextValueArray);
+            DataValue dataValueArray = new DataValue(new Variant(new DataValueCollection() { new DataValue(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound), new DataValue(new Variant("DataValue_info2"), StatusCodes.BadNoData) }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValueArray", namespaceIndexAllTypes), Attributes.Value, dataValueArray);
+            DataValue diagnosticInfoValueArray = new DataValue(new Variant(new DiagnosticInfoCollection() { new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"), new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2") }));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoArray", namespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueArray);
+
+            // DataSet 'AllTypes' fill with matrix data
+            DataValue boolToggleMatrix = new DataValue(new Variant(new Matrix(new bool[] { true, false, true, false }, BuiltInType.Boolean, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", namespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
+            DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", namespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
+            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new Int16[]  { -100, -101 , -200, -201 }, BuiltInType.Int16, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Matrix", namespaceIndexAllTypes), Attributes.Value, int16ValueMatrix);
+            DataValue int32ValueMatrix = new DataValue(new Variant(new Matrix(new Int32[] { -1000, -1001 , -2000, -2001 }, BuiltInType.Int32, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Matrix", namespaceIndexAllTypes), Attributes.Value, int32ValueMatrix);
+            DataValue int64ValueMatrix = new DataValue(new Variant(new Matrix(new Int64[] { -10000, -10001, -20000, -20001 }, BuiltInType.Int64, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64Matrix", namespaceIndexAllTypes), Attributes.Value, int64ValueMatrix);
+            DataValue sByteValueMatrix = new DataValue(new Variant(new Matrix(new SByte[] { 1, 2 , -2, -3 }, BuiltInType.SByte, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByteMatrix", namespaceIndexAllTypes), Attributes.Value, sByteValueMatrix);
+            DataValue uInt16ValueMatrix = new DataValue(new Variant(new Matrix(new UInt16[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16Matrix", namespaceIndexAllTypes), Attributes.Value, uInt16ValueMatrix);
+            DataValue uInt32ValueMatrix = new DataValue(new Variant(new Matrix(new UInt32[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32Matrix", namespaceIndexAllTypes), Attributes.Value, uInt32ValueMatrix);
+            DataValue uInt64ValueMatrix = new DataValue(new Variant(new Matrix(new UInt64[] { 11100, 11200 , 11300, 11400 }, BuiltInType.UInt64, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64Matrix", namespaceIndexAllTypes), Attributes.Value, uInt64ValueMatrix);
+            DataValue floatValueMatrix = new DataValue(new Variant(new Matrix(new float[] { 1100, 5, 1200, 7 }, BuiltInType.Float, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("FloatMatrix", namespaceIndexAllTypes), Attributes.Value, floatValueMatrix);
+            DataValue doubleValueMatrix = new DataValue(new Variant(new Matrix(new Double[] { 11000.5, 12000.6, 13000.7, 14000.8 }, BuiltInType.Double, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DoubleMatrix", namespaceIndexAllTypes), Attributes.Value, doubleValueMatrix);
+            DataValue stringValueMatrix = new DataValue(new Variant(new Matrix(new String[] { "1a", "2b", "3c", "4d" }, BuiltInType.String, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StringMatrix", namespaceIndexAllTypes), Attributes.Value, stringValueMatrix);
+            DataValue dateTimeValMatrix = new DataValue(new Variant(new Matrix(new DateTime[]
+            { new DateTime(2020, 3, 11).ToUniversalTime(), new DateTime(2021, 2, 17).ToUniversalTime(),
+              new DateTime(2021, 5, 21).ToUniversalTime(), new DateTime(2020, 7, 23).ToUniversalTime() }, BuiltInType.DateTime, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DateTimeMatrix", namespaceIndexAllTypes), Attributes.Value, dateTimeValMatrix);
+            DataValue guidValueMatrix = new DataValue(new Variant(new Matrix(new Uuid[]
+                { new Uuid(new Guid()), new Uuid(new Guid()) , new Uuid(new Guid()), new Uuid(new Guid()) }, BuiltInType.Guid, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidMatrix", namespaceIndexAllTypes), Attributes.Value, guidValueMatrix);
+            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 1, 2, 3, 4, 5, 6 }, BuiltInType.ByteString, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringMatrix", namespaceIndexAllTypes), Attributes.Value, byteStringValueMatrix);
+            XmlDocument document1m = new XmlDocument();
+            XmlElement xmlElement1m = document.CreateElement("test1m");
+            xmlElement1m.InnerText = "Text_1m";
+            XmlDocument document2m = new XmlDocument();
+            XmlElement xmlElement2m = document.CreateElement("test2m");
+            xmlElement2m.InnerText = "Text_2m";
+            XmlDocument document3m = new XmlDocument();
+            XmlElement xmlElement3m = document.CreateElement("test3m");
+            xmlElement3m.InnerText = "Text_3m";
+            XmlDocument document4m = new XmlDocument();
+            XmlElement xmlElement4m = document.CreateElement("test4m");
+            xmlElement4m.InnerText = "Text_4m";
+            DataValue xmlElementValueMatrix = new DataValue(new Variant(new Matrix(new XmlElement[]{ xmlElement1m, xmlElement2m , xmlElement3m, xmlElement4m }, BuiltInType.XmlElement, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElementMatrix", namespaceIndexAllTypes), Attributes.Value, xmlElementValueMatrix);
+            DataValue nodeIdValueMatrix = new DataValue(new Variant(new Matrix(new NodeId[] { new NodeId(30, 1), new NodeId(20, 3), new NodeId(10, 3), new NodeId(50, 7) }, BuiltInType.NodeId, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeIdMatrix", namespaceIndexAllTypes), Attributes.Value, nodeIdValueMatrix);
+            DataValue expandedNodeIdMatrix = new DataValue(new Variant(new Matrix(new ExpandedNodeId[]
+            { new ExpandedNodeId(50, 1), new ExpandedNodeId(70, 9), new ExpandedNodeId(30, 2), new ExpandedNodeId(80, 3) }, BuiltInType.ExpandedNodeId, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ExpandedNodeIdMatrix", namespaceIndexAllTypes), Attributes.Value, expandedNodeIdMatrix);
+            DataValue statusCodeMatrix = new DataValue(new Variant(new Matrix(new StatusCode[]
+            { StatusCodes.Good, StatusCodes.Uncertain , StatusCodes.BadCertificateInvalid, StatusCodes.Uncertain }, BuiltInType.StatusCode, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("StatusCodeMatrix", namespaceIndexAllTypes), Attributes.Value, statusCodeMatrix);
+            DataValue qualifiedValueMatrix = new DataValue(new Variant(new Matrix(new QualifiedName[]
+              { new QualifiedName("123"), new QualifiedName("abc"), new QualifiedName("456"), new QualifiedName("xyz") }, BuiltInType.QualifiedName, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("QualifiedNameMatrix", namespaceIndexAllTypes), Attributes.Value, qualifiedValueMatrix);
+            DataValue localizedTextValueMatrix = new DataValue(new Variant(new Matrix(new LocalizedText[]
+            {new LocalizedText("1234"), new LocalizedText("abcd") ,new LocalizedText("5678"), new LocalizedText("efgh") }, BuiltInType.LocalizedText, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("LocalizedTextMatrix", namespaceIndexAllTypes), Attributes.Value, localizedTextValueMatrix);
+            DataValue dataValueMatrix = new DataValue(new Variant(new Matrix(new DataValue[]
+            { new DataValue(new Variant("DataValue_info1"), StatusCodes.BadBoundNotFound), new DataValue(new Variant("DataValue_info2"), StatusCodes.BadNoData),
+              new DataValue(new Variant("DataValue_info3"), StatusCodes.BadCertificateInvalid), new DataValue(new Variant("DataValue_info4"), StatusCodes.GoodCallAgain) }, BuiltInType.DataValue, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DataValueMatrix", namespaceIndexAllTypes), Attributes.Value, dataValueMatrix);
+            DataValue diagnosticInfoValueMatrix = new DataValue(new Variant(new Matrix(new DiagnosticInfo[]
+            { new DiagnosticInfo(1, 1, 1, 1, "Diagnostic_info1"), new DiagnosticInfo(2, 2, 2, 2, "Diagnostic_info2"),
+              new DiagnosticInfo(3, 3, 3, 3, "Diagnostic_info3"), new DiagnosticInfo(4, 4, 4, 4, "Diagnostic_info4") }, BuiltInType.DiagnosticInfo, 2, 2)));
+            pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoMatrix", namespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueMatrix);
+            #endregion
         }
     }
 }
