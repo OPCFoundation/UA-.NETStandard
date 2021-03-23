@@ -1581,19 +1581,19 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", namespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
             DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", namespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
-            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new Int16[]  { -100, -101 , -200, -201 }, BuiltInType.Int16, 2, 2)));
+            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new Int16[] { -100, -101, -200, -201 }, BuiltInType.Int16, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Matrix", namespaceIndexAllTypes), Attributes.Value, int16ValueMatrix);
-            DataValue int32ValueMatrix = new DataValue(new Variant(new Matrix(new Int32[] { -1000, -1001 , -2000, -2001 }, BuiltInType.Int32, 2, 2)));
+            DataValue int32ValueMatrix = new DataValue(new Variant(new Matrix(new Int32[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Matrix", namespaceIndexAllTypes), Attributes.Value, int32ValueMatrix);
             DataValue int64ValueMatrix = new DataValue(new Variant(new Matrix(new Int64[] { -10000, -10001, -20000, -20001 }, BuiltInType.Int64, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int64Matrix", namespaceIndexAllTypes), Attributes.Value, int64ValueMatrix);
-            DataValue sByteValueMatrix = new DataValue(new Variant(new Matrix(new SByte[] { 1, 2 , -2, -3 }, BuiltInType.SByte, 2, 2)));
+            DataValue sByteValueMatrix = new DataValue(new Variant(new Matrix(new SByte[] { 1, 2, -2, -3 }, BuiltInType.SByte, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("SByteMatrix", namespaceIndexAllTypes), Attributes.Value, sByteValueMatrix);
             DataValue uInt16ValueMatrix = new DataValue(new Variant(new Matrix(new UInt16[] { 110, 120, 130, 140 }, BuiltInType.UInt16, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt16Matrix", namespaceIndexAllTypes), Attributes.Value, uInt16ValueMatrix);
             DataValue uInt32ValueMatrix = new DataValue(new Variant(new Matrix(new UInt32[] { 1100, 1200, 1300, 1400 }, BuiltInType.UInt32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt32Matrix", namespaceIndexAllTypes), Attributes.Value, uInt32ValueMatrix);
-            DataValue uInt64ValueMatrix = new DataValue(new Variant(new Matrix(new UInt64[] { 11100, 11200 , 11300, 11400 }, BuiltInType.UInt64, 2, 2)));
+            DataValue uInt64ValueMatrix = new DataValue(new Variant(new Matrix(new UInt64[] { 11100, 11200, 11300, 11400 }, BuiltInType.UInt64, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("UInt64Matrix", namespaceIndexAllTypes), Attributes.Value, uInt64ValueMatrix);
             DataValue floatValueMatrix = new DataValue(new Variant(new Matrix(new float[] { 1100, 5, 1200, 7 }, BuiltInType.Float, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("FloatMatrix", namespaceIndexAllTypes), Attributes.Value, floatValueMatrix);
@@ -1608,7 +1608,7 @@ namespace Opc.Ua.PubSub.Tests
             DataValue guidValueMatrix = new DataValue(new Variant(new Matrix(new Uuid[]
                 { new Uuid(new Guid()), new Uuid(new Guid()) , new Uuid(new Guid()), new Uuid(new Guid()) }, BuiltInType.Guid, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidMatrix", namespaceIndexAllTypes), Attributes.Value, guidValueMatrix);
-            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 1, 2, 3, 4}, BuiltInType.ByteString, 2, 2)));
+            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[][] { new byte[]{ 1, 2 }, new byte[] { 11, 12 }, new byte[] { 21, 22 }, new byte[] { 31, 32 } }, BuiltInType.ByteString, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringMatrix", namespaceIndexAllTypes), Attributes.Value, byteStringValueMatrix);
             XmlDocument document1m = new XmlDocument();
             XmlElement xmlElement1m = document.CreateElement("test1m");
