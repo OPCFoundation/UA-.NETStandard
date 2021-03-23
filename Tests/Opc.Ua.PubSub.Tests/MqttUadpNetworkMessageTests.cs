@@ -278,8 +278,8 @@ namespace Opc.Ua.PubSub.Tests
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.None;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -312,14 +312,11 @@ namespace Opc.Ua.PubSub.Tests
             // set PublisherId
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupHeader |
                                                           UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = publisherId;
-
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            uaNetworkMessage.PublisherId = publisherId; // mandatory if read also datasets
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 0, setDataSetWriterId: false,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -862,9 +859,8 @@ namespace Opc.Ua.PubSub.Tests
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
-            UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.None;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -875,7 +871,7 @@ namespace Opc.Ua.PubSub.Tests
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -895,16 +891,14 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
             // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.DataSetClassId);
-            uaNetworkMessage.PublisherId = publisherId;
+            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.DataSetClassId);
+            uaNetworkMessage.PublisherId = publisherId; // mandatory if read also datasets
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
-
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 0, setDataSetWriterId: false,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
