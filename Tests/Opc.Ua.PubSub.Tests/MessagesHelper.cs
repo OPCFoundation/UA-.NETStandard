@@ -350,6 +350,8 @@ namespace Opc.Ua.PubSub.Tests
                     break;
                 case Profiles.PubSubMqttUadpTransport:
                     messageSettings = new UadpWriterGroupMessageDataType() {
+                        DataSetOrdering = DataSetOrderingType.AscendingWriterId,
+                        GroupVersion = 0,
                         NetworkMessageContentMask = (uint)networkMessageContentMask
                     };
                     break;
@@ -380,12 +382,12 @@ namespace Opc.Ua.PubSub.Tests
                 {
                     case Profiles.PubSubMqttJsonTransport:
                         dataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
-                            DataSetMessageContentMask = (uint)dataSetMessageContentMask
+                            DataSetMessageContentMask = dataSetMessageContentMask
                         };
                         break;
                     case Profiles.PubSubMqttUadpTransport:
                         dataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
-                            DataSetMessageContentMask = (uint)dataSetMessageContentMask
+                            DataSetMessageContentMask = dataSetMessageContentMask
                         };
                         break;
                 }
@@ -695,37 +697,45 @@ namespace Opc.Ua.PubSub.Tests
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "BoolToggle",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.Boolean,
+                    //    DataType = DataTypeIds.Boolean,
+                    //    ValueRank = ValueRanks.Scalar
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "Byte",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.Byte,
+                    //    DataType = DataTypeIds.Byte,
+                    //    ValueRank = ValueRanks.Scalar
+                    //},
+                    //new FieldMetaData()
+                    //{
+                    //    Name = "SByte",
+                    //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                    //    BuiltInType = (byte)BuiltInType.SByte,
+                    //    DataType = DataTypeIds.SByte,
+                    //    ValueRank = ValueRanks.Scalar
+                    //},
                     new FieldMetaData()
                     {
-                        Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.Boolean,
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Byte",
+                        Name = "ByteMatrix",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         BuiltInType = (byte)BuiltInType.Byte,
-                        DataType = DataTypeIds.Byte,
-                        ValueRank = ValueRanks.Scalar
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.TwoDimensions
                     },
                     new FieldMetaData()
                     {
-                        Name = "SByte",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        BuiltInType = (byte)BuiltInType.SByte,
-                        DataType = DataTypeIds.SByte,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "BoolToggleArray",
+                        Name = "BoolToggleMatrix",
                         DataSetFieldId = new Uuid(Guid.NewGuid()),
                         BuiltInType = (byte)BuiltInType.Boolean,
                         DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.OneDimension
+                        ValueRank = ValueRanks.TwoDimensions
                     },
                 };
             dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {

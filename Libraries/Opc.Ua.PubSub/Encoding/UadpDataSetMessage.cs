@@ -346,6 +346,10 @@ namespace Opc.Ua.PubSub.Encoding
                         return null;
                     }
                 }
+                else
+                {
+                    StartPositionInStream = (int)(binaryDecoder.BaseStream.Position);
+                }
             }
             if (binaryDecoder.BaseStream.Length <= StartPositionInStream)
             {
@@ -608,162 +612,192 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     return;
                 }
+                object valueToEncode = variant.Value;
+                Matrix matrix = valueToEncode as Matrix;
+                if (matrix != null)
+                {
+                    valueToEncode = matrix.Elements;
+                }
 
                 if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                 {
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(variant.Value));
+                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(valueToEncode));
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(variant.Value));
+                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(valueToEncode));
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByte("Byte", Convert.ToByte(variant.Value));
+                            binaryEncoder.WriteByte("Byte", Convert.ToByte(valueToEncode));
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(variant.Value));
+                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(valueToEncode));
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(variant.Value));
+                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(valueToEncode));
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(variant.Value));
+                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(valueToEncode));
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(variant.Value));
+                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(valueToEncode));
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(variant.Value));
+                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(valueToEncode));
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(variant.Value));
+                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(valueToEncode));
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(variant.Value));
+                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(valueToEncode));
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(variant.Value));
+                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(valueToEncode));
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(variant.Value));
+                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(valueToEncode));
                             break;
                         case BuiltInType.Guid:
-                            binaryEncoder.WriteGuid("GUID", (Uuid)variant.Value);
+                            binaryEncoder.WriteGuid("GUID", (Uuid)valueToEncode);
                             break;
                         case BuiltInType.String:
-                            binaryEncoder.WriteString("String", variant.Value as string);
+                            binaryEncoder.WriteString("String", valueToEncode as string);
                             break;
                         case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteString("ByteString", (byte[])variant.Value);
+                            binaryEncoder.WriteByteString("ByteString", (byte[])valueToEncode);
                             break;
                         case BuiltInType.QualifiedName:
-                            binaryEncoder.WriteQualifiedName("QualifiedName", variant.Value as QualifiedName);
+                            binaryEncoder.WriteQualifiedName("QualifiedName", valueToEncode as QualifiedName);
                             break;
                         case BuiltInType.LocalizedText:
-                            binaryEncoder.WriteLocalizedText("LocalizedText", variant.Value as LocalizedText);
+                            binaryEncoder.WriteLocalizedText("LocalizedText", valueToEncode as LocalizedText);
                             break;
                         case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeId("NodeId", variant.Value as NodeId);
+                            binaryEncoder.WriteNodeId("NodeId", valueToEncode as NodeId);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            binaryEncoder.WriteExpandedNodeId("ExpandedNodeId", variant.Value as ExpandedNodeId);
+                            binaryEncoder.WriteExpandedNodeId("ExpandedNodeId", valueToEncode as ExpandedNodeId);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)variant.Value);
+                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)valueToEncode);
                             break;
                         case BuiltInType.XmlElement:
-                            binaryEncoder.WriteXmlElement("XmlElement", variant.Value as XmlElement);
+                            binaryEncoder.WriteXmlElement("XmlElement", valueToEncode as XmlElement);
                             break;
                         case BuiltInType.Enumeration:
-                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(variant.Value));
+                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(valueToEncode));
                             break;
                         case BuiltInType.ExtensionObject:
-                            binaryEncoder.WriteExtensionObject("ExtensionObject", variant.Value as ExtensionObject);
+                            binaryEncoder.WriteExtensionObject("ExtensionObject", valueToEncode as ExtensionObject);
                             break;
                     }
                 }
-                else
+                else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
                 {
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBooleanArray("BooleanArray", (bool[])variant.Value);
+                            binaryEncoder.WriteBooleanArray("BooleanArray", (bool[])valueToEncode);
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByteArray("SByteArray", (sbyte[])variant.Value);
+                            binaryEncoder.WriteSByteArray("SByteArray", (sbyte[])valueToEncode);
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByteArray("ByteArray", (byte[])variant.Value);
+                            binaryEncoder.WriteByteArray("ByteArray", (byte[])valueToEncode);
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16Array("ByteArray", (short[])variant.Value);
+                            binaryEncoder.WriteInt16Array("ByteArray", (short[])valueToEncode);
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16Array("UInt16Array", (ushort[])variant.Value);
+                            binaryEncoder.WriteUInt16Array("UInt16Array", (ushort[])valueToEncode);
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32Array("Int32Array", (int[])variant.Value);
+                            binaryEncoder.WriteInt32Array("Int32Array", (int[])valueToEncode);
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32Array("UInt32Array", (uint[])variant.Value);
+                            binaryEncoder.WriteUInt32Array("UInt32Array", (uint[])valueToEncode);
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64Array("Int64Array", (long[])variant.Value);
+                            binaryEncoder.WriteInt64Array("Int64Array", (long[])valueToEncode);
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64Array("UInt64Array", (ulong[])variant.Value);
+                            binaryEncoder.WriteUInt64Array("UInt64Array", (ulong[])valueToEncode);
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloatArray("FloatArray", (float[])variant.Value);
+                            binaryEncoder.WriteFloatArray("FloatArray", (float[])valueToEncode);
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDoubleArray("DoubleArray", (double[])variant.Value);
+                            binaryEncoder.WriteDoubleArray("DoubleArray", (double[])valueToEncode);
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTimeArray("DateTimeArray", (DateTime[])variant.Value);
+                            binaryEncoder.WriteDateTimeArray("DateTimeArray", (DateTime[])valueToEncode);
                             break;
                         case BuiltInType.Guid:
-                            binaryEncoder.WriteGuidArray("GuidArray", (Uuid[])variant.Value);
+                            binaryEncoder.WriteGuidArray("GuidArray", (Uuid[])valueToEncode);
                             break;
                         case BuiltInType.String:
-                            binaryEncoder.WriteStringArray("StringArray", (string[])variant.Value);
+                            binaryEncoder.WriteStringArray("StringArray", (string[])valueToEncode);
                             break;
                         case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteStringArray("StringArray", (byte[][])variant.Value);
+                            binaryEncoder.WriteByteStringArray("StringArray", (byte[][])valueToEncode);
                             break;
                         case BuiltInType.QualifiedName:
-                            binaryEncoder.WriteQualifiedNameArray("QualifiedNameArray", (QualifiedName[])variant.Value);
+                            binaryEncoder.WriteQualifiedNameArray("QualifiedNameArray", (QualifiedName[])valueToEncode);
                             break;
                         case BuiltInType.LocalizedText:
-                            binaryEncoder.WriteLocalizedTextArray("LocalizedTextArray", (LocalizedText[])variant.Value);
+                            binaryEncoder.WriteLocalizedTextArray("LocalizedTextArray", (LocalizedText[])valueToEncode);
                             break;
                         case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeIdArray("NodeIdArray", (NodeId[])variant.Value);
+                            binaryEncoder.WriteNodeIdArray("NodeIdArray", (NodeId[])valueToEncode);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            binaryEncoder.WriteExpandedNodeIdArray("ExpandedNodeIdArray", (ExpandedNodeId[])variant.Value);
+                            binaryEncoder.WriteExpandedNodeIdArray("ExpandedNodeIdArray", (ExpandedNodeId[])valueToEncode);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCodeArray("StatusCodeArray", (StatusCode[])variant.Value);
+                            binaryEncoder.WriteStatusCodeArray("StatusCodeArray", (StatusCode[])valueToEncode);
                             break;
                         case BuiltInType.XmlElement:
-                            binaryEncoder.WriteXmlElementArray("XmlElementArray", (System.Xml.XmlElement[])variant.Value);
+                            binaryEncoder.WriteXmlElementArray("XmlElementArray", (System.Xml.XmlElement[])valueToEncode);
                             break;
                         case BuiltInType.Variant:
-                            binaryEncoder.WriteVariantArray("VariantArray", (Variant[])variant.Value);
+                            binaryEncoder.WriteVariantArray("VariantArray", (Variant[])valueToEncode);
                             break;
                         case BuiltInType.Enumeration:
-                            //TODO make this work
-                            //binaryEncoder.WriteInt32Array("EnumerationArray", Convert.ToInt32(variant.Value));
-                            binaryEncoder.WriteVariantArray("EnumerationArray", (Variant[])variant.Value);
+                            int[] ints = valueToEncode as int[];
+                            if (ints == null)
+                            {
+                                Enum[] enums = valueToEncode as Enum[];
+                                if (enums != null)
+                                {
+                                    ints = new int[enums.Length];
+                                    for (int ii = 0; ii < enums.Length; ii++)
+                                    {
+                                        ints[ii] = (int)(object)enums[ii];
+                                    }
+                                }
+                            }
+                            if (ints != null)
+                            {
+                                binaryEncoder.WriteInt32Array(null, ints);
+                            }
+                            else
+                            {
+                                // TODO log?
+                            }
                             break;
                         case BuiltInType.ExtensionObject:
-                            binaryEncoder.WriteExtensionObjectArray("ExtensionObjectArray", (ExtensionObject[])variant.Value);
+                            binaryEncoder.WriteExtensionObjectArray("ExtensionObjectArray", (ExtensionObject[])valueToEncode);
                             break;
                     }
+                    // write array dimensions for matrix
+                    if (matrix != null)
+                    {
+                        binaryEncoder.WriteInt32Array(null, (int[])matrix.Dimensions);
+                    }
                 }
+                
             }
             catch (Exception ex)
             {
@@ -790,9 +824,10 @@ namespace Opc.Ua.PubSub.Encoding
                             return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
 
                         case ValueRanks.OneDimension:
-                            return DecodeRawArrayOneDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType);
-
                         case ValueRanks.TwoDimensions:
+                            return DecodeRawArrayOneDimension(binaryDecoder, fieldMetaData);
+
+                        
                         case ValueRanks.OneOrMoreDimensions:
                         //return DecodeRawArrayMultiDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ArrayDimensions);
 
@@ -818,69 +853,92 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode an array type according to dimensions constraints specified in 6.2.2.1.3 FieldMetaData
         /// </summary>
         /// <param name="binaryDecoder"></param>
-        /// <param name="builtInType"></param>
+        /// <param name="fieldMetaData"></param>
         /// <returns></returns>
-        private object DecodeRawArrayOneDimension(BinaryDecoder binaryDecoder, BuiltInType builtInType)
+        private object DecodeRawArrayOneDimension(BinaryDecoder binaryDecoder, FieldMetaData fieldMetaData)
         {
-
-            switch ((BuiltInType)builtInType)
+            // decode the array part
+            Array array = null;
+            switch ((BuiltInType)fieldMetaData.BuiltInType)
             {
                 case BuiltInType.Boolean:
-                    return binaryDecoder.ReadBooleanArray(null);
+                    array = binaryDecoder.ReadBooleanArray(null).ToArray();  break;
                 case BuiltInType.SByte:
-                    return binaryDecoder.ReadSByteArray(null);
+                    array = binaryDecoder.ReadSByteArray(null).ToArray(); break;
                 case BuiltInType.Byte:
-                    return binaryDecoder.ReadByteArray(null);
+                    array = binaryDecoder.ReadByteArray(null).ToArray(); break;
                 case BuiltInType.Int16:
-                    return binaryDecoder.ReadInt16Array(null);
+                    array = binaryDecoder.ReadInt16Array(null).ToArray(); break;
                 case BuiltInType.UInt16:
-                    return binaryDecoder.ReadUInt16Array(null);
+                    array = binaryDecoder.ReadUInt16Array(null).ToArray(); break;
                 case BuiltInType.Int32:
-                    return binaryDecoder.ReadInt32Array(null);
+                    array = binaryDecoder.ReadInt32Array(null).ToArray();  break;
                 case BuiltInType.UInt32:
-                    return binaryDecoder.ReadUInt32Array(null);
+                    array = binaryDecoder.ReadUInt32Array(null).ToArray(); break;
                 case BuiltInType.Int64:
-                    return binaryDecoder.ReadInt64Array(null);
+                    array = binaryDecoder.ReadInt64Array(null).ToArray(); break;
                 case BuiltInType.UInt64:
-                    return binaryDecoder.ReadUInt64Array(null);
+                    array = binaryDecoder.ReadUInt64Array(null).ToArray(); break;
                 case BuiltInType.Float:
-                    return binaryDecoder.ReadFloatArray(null);
+                    array = binaryDecoder.ReadFloatArray(null).ToArray(); break;
                 case BuiltInType.Double:
-                    return binaryDecoder.ReadDoubleArray(null);
+                    array = binaryDecoder.ReadDoubleArray(null).ToArray(); break;
                 case BuiltInType.String:
-                    return binaryDecoder.ReadStringArray(null);
+                    array = binaryDecoder.ReadStringArray(null).ToArray(); break;
                 case BuiltInType.DateTime:
-                    return binaryDecoder.ReadDateTimeArray(null);
+                    array = binaryDecoder.ReadDateTimeArray(null).ToArray(); break;
                 case BuiltInType.Guid:
-                    return binaryDecoder.ReadGuidArray(null);
+                    array = binaryDecoder.ReadGuidArray(null).ToArray(); break;
                 case BuiltInType.ByteString:
-                    return binaryDecoder.ReadByteStringArray(null);
+                    array = binaryDecoder.ReadByteStringArray(null).ToArray(); break;
                 case BuiltInType.XmlElement:
-                    return binaryDecoder.ReadXmlElementArray(null);
+                    array = binaryDecoder.ReadXmlElementArray(null).ToArray(); break;
                 case BuiltInType.NodeId:
-                    return binaryDecoder.ReadNodeIdArray(null);
+                    array = binaryDecoder.ReadNodeIdArray(null).ToArray(); break;
                 case BuiltInType.ExpandedNodeId:
-                    return binaryDecoder.ReadExpandedNodeIdArray(null);
+                    array = binaryDecoder.ReadExpandedNodeIdArray(null).ToArray(); break;
                 case BuiltInType.StatusCode:
-                    return binaryDecoder.ReadStatusCodeArray(null);
+                    array = binaryDecoder.ReadStatusCodeArray(null).ToArray(); break;
                 case BuiltInType.QualifiedName:
-                    return binaryDecoder.ReadQualifiedNameArray(null);
+                    array = binaryDecoder.ReadQualifiedNameArray(null).ToArray(); break;
                 case BuiltInType.LocalizedText:
-                    return binaryDecoder.ReadLocalizedTextArray(null);
+                    array = binaryDecoder.ReadLocalizedTextArray(null).ToArray(); break;
                 case BuiltInType.DataValue:
-                    return binaryDecoder.ReadDataValueArray(null);
+                    array = binaryDecoder.ReadDataValueArray(null).ToArray(); break;
                 case BuiltInType.Enumeration:
-                    //return binaryDecoder.ReadInt32Array(null);
-                    //return binaryDecoder.ReadEnumeratedArray(null, typeof(Int32));
-                    return binaryDecoder.ReadVariantArray(null);
+                    //array = binaryDecoder.ReadInt32Array(null); break;
+                    //array = binaryDecoder.ReadEnumeratedArray(null, typeof(Int32));
+                    array = binaryDecoder.ReadInt32Array(null).ToArray(); break;
                 case BuiltInType.Variant:
-                    return binaryDecoder.ReadVariantArray(null);
+                    array = binaryDecoder.ReadVariantArray(null).ToArray(); break;
                 case BuiltInType.ExtensionObject:
-                    return binaryDecoder.ReadExtensionObjectArray(null);
-
+                    array = binaryDecoder.ReadExtensionObjectArray(null).ToArray(); break;
                 default:
-                    return null;
+                    array = null; break;
             }
+            if (fieldMetaData.ValueRank == ValueRanks.OneDimension)
+            {
+                return array;
+            }
+
+            if (fieldMetaData.ValueRank > ValueRanks.OneDimension)
+            {
+                if (array == null) return (null as Matrix);
+
+                // read array dimensions
+                Int32Collection arrayDimensions = binaryDecoder.ReadInt32Array(null);
+                if (arrayDimensions != null)
+                {
+                    Matrix matrix = new Matrix(array, (BuiltInType)fieldMetaData.BuiltInType, arrayDimensions.ToArray());
+
+                    return matrix;
+                }
+                else
+                {
+                    // todo log??
+                }
+            }
+            return null;
         }
 
         /// <summary>

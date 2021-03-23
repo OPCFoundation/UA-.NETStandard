@@ -44,7 +44,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             try
             {
                 // Define the configuration of UA Publisher application
-                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
+                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttUadp();
 
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
