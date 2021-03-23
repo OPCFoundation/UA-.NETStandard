@@ -74,6 +74,7 @@ namespace Opc.Ua.PubSub.Tests
         public void MyTestInitialize()
         {
             // Create a publisher application
+            // todo refactor to use the MessagesHelper create configuration
             string publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
@@ -509,11 +510,11 @@ namespace Opc.Ua.PubSub.Tests
 
             // workaround
             uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
-            DataSet dataSetReader = uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
+            DataSet dataSetDecoded = uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
             decoder.Dispose();
 
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
-            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded, dataSetReader);
+            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded, dataSetDecoded);
         }
 
 
