@@ -1131,7 +1131,7 @@ namespace Opc.Ua.PubSub.Tests
             }
             #endregion
 
-            #region Payload header + Payload data
+            #region Payload header
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
@@ -1139,99 +1139,7 @@ namespace Opc.Ua.PubSub.Tests
                 Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
                     uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
 
-                Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");
-
-                // check if the encoded match the decoded DataSetWriterId's
-                foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
-                {
-                    UadpDataSetMessage uadpDataSetMessageDecoded =
-                        uadpNetworkMessageDecoded.DataSetMessages.FirstOrDefault(decoded =>
-                            ((UadpDataSetMessage)decoded).DataSetWriterId == uadpDataSetMessage.DataSetWriterId) as UadpDataSetMessage;
-
-                    Assert.IsNotNull(uadpDataSetMessageDecoded, "Decoded message did not found uadpDataSetMessage.DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
-                    // check payload data size in bytes
-                    Assert.AreEqual(uadpDataSetMessage.PayloadSizeInStream, uadpDataSetMessageDecoded.PayloadSizeInStream,
-                        "PayloadSizeInStream was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
-                    // check payload data fields count 
-                    // get related dataset from subscriber DataSets
-                    DataSet decodedDataSet = subscribedDataSets.FirstOrDefault(dataSet => dataSet.Name == uadpDataSetMessage.DataSet.Name);
-                    Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
-
-                    Assert.AreEqual(uadpDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,
-                        "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
-                    // check the fields data consistency
-                    // at this time the DataSetField has just value!?
-                    for (int index = 0; index < uadpDataSetMessage.DataSet.Fields.Length; index++)
-                    {
-                        Field fieldEncoded = uadpDataSetMessage.DataSet.Fields[index];
-                        Field fieldDecoded = decodedDataSet.Fields[index];
-                        Assert.IsNotNull(fieldEncoded, "uadpDataSetMessage.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
-                            index, uadpDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(fieldDecoded, "uadpDataSetMessageDecoded.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
-                            index, uadpDataSetMessage.DataSetWriterId);
-
-                        DataValue dataValueEncoded = fieldEncoded.Value;
-                        DataValue dataValueDecoded = fieldDecoded.Value;
-                        Assert.IsNotNull(fieldEncoded.Value, "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                           index, uadpDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(fieldDecoded.Value, "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                          index, uadpDataSetMessage.DataSetWriterId);
-
-                        // check dataValues values
-                        Assert.IsNotNull(fieldEncoded.Value.Value, "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                           index, uadpDataSetMessage.DataSetWriterId);
-                        Assert.IsNotNull(fieldDecoded.Value.Value, "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
-                          index, uadpDataSetMessage.DataSetWriterId);
-
-                        Assert.AreEqual(dataValueEncoded.Value, dataValueDecoded.Value, "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
-
-                        // Checks just for DataValue type only 
-                        if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
-                            DataSetFieldContentMask.StatusCode)
-                        {
-                            // check dataValues StatusCode
-                            Assert.AreEqual(dataValueEncoded.StatusCode, dataValueDecoded.StatusCode,
-                                "Wrong: Fields[{0}].DataValue.StatusCode; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
-                        }
-
-                        // check dataValues SourceTimestamp
-                        if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourceTimestamp) ==
-                            DataSetFieldContentMask.SourceTimestamp)
-                        {
-                            Assert.AreEqual(dataValueEncoded.SourceTimestamp, dataValueDecoded.SourceTimestamp,
-                                "Wrong: Fields[{0}].DataValue.SourceTimestamp; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
-                        }
-
-                        // check dataValues ServerTimestamp
-                        if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerTimestamp) ==
-                            DataSetFieldContentMask.ServerTimestamp)
-                        {
-                            // check dataValues ServerTimestamp
-                            Assert.AreEqual(dataValueEncoded.ServerTimestamp, dataValueDecoded.ServerTimestamp,
-                               "Wrong: Fields[{0}].DataValue.ServerTimestamp; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
-                        }
-
-                        // check dataValues SourcePicoseconds
-                        if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) ==
-                            DataSetFieldContentMask.SourcePicoSeconds)
-                        {
-                            Assert.AreEqual(dataValueEncoded.SourcePicoseconds, dataValueDecoded.SourcePicoseconds,
-                               "Wrong: Fields[{0}].DataValue.SourcePicoseconds; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
-                        }
-
-                        // check dataValues ServerPicoSeconds
-                        if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) ==
-                            DataSetFieldContentMask.ServerPicoSeconds)
-                        {
-                            // check dataValues ServerPicoseconds
-                            Assert.AreEqual(dataValueEncoded.ServerPicoseconds, dataValueDecoded.ServerPicoseconds,
-                               "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}", index, uadpDataSetMessage.DataSetWriterId);
-                        }
-                    }
-                }
+                Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");                
             }
             #endregion
 
@@ -1248,7 +1156,7 @@ namespace Opc.Ua.PubSub.Tests
 
             #endregion
 
-            #region datasets
+            #region Payload data - check received datasets to match the encoded datasets
             List<DataSet> receivedDataSets = uadpNetworkMessageDecoded.ReceivedDataSets;
             Assert.IsNotNull(receivedDataSets, "ReceivedDataSets is null");
 
@@ -1256,6 +1164,105 @@ namespace Opc.Ua.PubSub.Tests
             Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
                      receivedDataSets.Count, "UadpDataSetMessages.Count was not decoded correctly (Count = {0})", receivedDataSets.Count);
 
+
+            // check if the encoded match the received decoded DataSets
+            for (int i = 0; i < receivedDataSets.Count; i++)
+            {
+                UadpDataSetMessage uadpDataSetMessage = uadpNetworkMessageEncode.DataSetMessages[i] as UadpDataSetMessage;
+                Assert.IsNotNull(uadpDataSetMessage, "DataSet [{0}] is missing from publisher datasets!", i);
+
+                UadpDataSetMessage uadpDataSetMessageDecoded = uadpNetworkMessageDecoded.DataSetMessages[i] as UadpDataSetMessage;
+
+                Assert.IsNotNull(uadpDataSetMessageDecoded, "Decoded message did not found uadpDataSetMessage.DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
+
+                // check payload data size in bytes
+                Assert.AreEqual(uadpDataSetMessage.PayloadSizeInStream, uadpDataSetMessageDecoded.PayloadSizeInStream,
+                    "PayloadSizeInStream was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
+
+                // check payload data fields count 
+                // get related dataset from subscriber DataSets
+                DataSet decodedDataSet = receivedDataSets[i];
+                Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
+
+                Assert.AreEqual(uadpDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,
+                    "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
+
+                // check the fields data consistency
+                // at this time the DataSetField has just value!?
+                for (int index = 0; index < uadpDataSetMessage.DataSet.Fields.Length; index++)
+                {
+                    Field fieldEncoded = uadpDataSetMessage.DataSet.Fields[index];
+                    Field fieldDecoded = decodedDataSet.Fields[index];
+                    Assert.IsNotNull(fieldEncoded, "uadpDataSetMessage.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
+                        index, uadpDataSetMessage.DataSetWriterId);
+                    Assert.IsNotNull(fieldDecoded, "uadpDataSetMessageDecoded.DataSet.Fields[{0}] is null,  DataSetWriterId = {1}",
+                        index, uadpDataSetMessage.DataSetWriterId);
+
+                    DataValue dataValueEncoded = fieldEncoded.Value;
+                    DataValue dataValueDecoded = fieldDecoded.Value;
+                    Assert.IsNotNull(fieldEncoded.Value, "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                       index, uadpDataSetMessage.DataSetWriterId);
+                    Assert.IsNotNull(fieldDecoded.Value, "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                      index, uadpDataSetMessage.DataSetWriterId);
+
+                    // check dataValues values
+                    Assert.IsNotNull(fieldEncoded.Value.Value, "uadpDataSetMessage.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                       index, uadpDataSetMessage.DataSetWriterId);
+                    Assert.IsNotNull(fieldDecoded.Value.Value, "uadpDataSetMessageDecoded.DataSet.Fields[{0}].Value is null,  DataSetWriterId = {1}",
+                      index, uadpDataSetMessage.DataSetWriterId);
+
+
+                    // check dataValues values
+                    string fieldName = fieldEncoded.FieldMetaData.Name;
+
+                    Assert.AreEqual(dataValueEncoded.Value, dataValueDecoded.Value,
+                        "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",
+                        fieldName, uadpDataSetMessage.DataSetWriterId);
+
+                    // Checks just for DataValue type only 
+                    if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) ==
+                        DataSetFieldContentMask.StatusCode)
+                    {
+                        // check dataValues StatusCode
+                        Assert.AreEqual(dataValueEncoded.StatusCode, dataValueDecoded.StatusCode,
+                            "Wrong: Fields[{0}].DataValue.StatusCode; DataSetWriterId = {1}", fieldName, uadpDataSetMessage.DataSetWriterId);
+                    }
+
+                    // check dataValues SourceTimestamp
+                    if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourceTimestamp) ==
+                        DataSetFieldContentMask.SourceTimestamp)
+                    {
+                        Assert.AreEqual(dataValueEncoded.SourceTimestamp, dataValueDecoded.SourceTimestamp,
+                            "Wrong: Fields[{0}].DataValue.SourceTimestamp; DataSetWriterId = {1}", fieldName, uadpDataSetMessage.DataSetWriterId);
+                    }
+
+                    // check dataValues ServerTimestamp
+                    if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerTimestamp) ==
+                        DataSetFieldContentMask.ServerTimestamp)
+                    {
+                        // check dataValues ServerTimestamp
+                        Assert.AreEqual(dataValueEncoded.ServerTimestamp, dataValueDecoded.ServerTimestamp,
+                           "Wrong: Fields[{0}].DataValue.ServerTimestamp; DataSetWriterId = {1}", fieldName, uadpDataSetMessage.DataSetWriterId);
+                    }
+
+                    // check dataValues SourcePicoseconds
+                    if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) ==
+                        DataSetFieldContentMask.SourcePicoSeconds)
+                    {
+                        Assert.AreEqual(dataValueEncoded.SourcePicoseconds, dataValueDecoded.SourcePicoseconds,
+                           "Wrong: Fields[{0}].DataValue.SourcePicoseconds; DataSetWriterId = {1}", fieldName, uadpDataSetMessage.DataSetWriterId);
+                    }
+
+                    // check dataValues ServerPicoSeconds
+                    if ((uadpDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) ==
+                        DataSetFieldContentMask.ServerPicoSeconds)
+                    {
+                        // check dataValues ServerPicoseconds
+                        Assert.AreEqual(dataValueEncoded.ServerPicoseconds, dataValueDecoded.ServerPicoseconds,
+                           "Wrong: Fields[{0}].DataValue.ServerPicoseconds; DataSetWriterId = {1}", fieldName, uadpDataSetMessage.DataSetWriterId);
+                    }
+                }               
+            }
             #endregion
         }
 

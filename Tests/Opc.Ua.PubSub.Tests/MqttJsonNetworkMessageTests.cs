@@ -912,7 +912,7 @@ namespace Opc.Ua.PubSub.Tests
                    "JsonDataSetMessages.Count was not decoded correctly. There is no SingleDataSetMessage (Coount = {0})", receivedDataSets.Count);
             }
 
-            // check if the encoded match the decoded DataSetWriterId's
+            // check if the encoded match the received decoded DataSets
             for(int i =0; i < receivedDataSets.Count; i++)
             {
                 JsonDataSetMessage jsonDataSetMessage = jsonNetworkMessageEncode.DataSetMessages[i] as JsonDataSetMessage;
