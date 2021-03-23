@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123A/78B9";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable));
+            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/AA123A/bb78B9";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -143,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc/def";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/1:abc/2:def";
-            Assert.AreEqual(str, RelativePath.Parse(str, typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         #endregion
