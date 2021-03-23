@@ -474,8 +474,8 @@ namespace Opc.Ua.PubSub.Encoding
                 DecodeNetworkMessageHeader(binaryDecoder);
 
                 //ignore network messages that are not dataSet messages
-                if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage
-                    || PublisherId == null)
+                if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage)
+                    //|| PublisherId == null)
                 {
                     return;
                 }
@@ -486,7 +486,8 @@ namespace Opc.Ua.PubSub.Encoding
                 foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                 {
                     //check Enabled & publisher id
-                    if (PublisherId.Equals(dataSetReader.PublisherId.Value))
+                    if (dataSetReader.PublisherId.Value == null
+                        || (PublisherId != null && PublisherId.Equals(dataSetReader.PublisherId.Value)))
                     {
                         dataSetReadersFiltered.Add(dataSetReader);
                     }
