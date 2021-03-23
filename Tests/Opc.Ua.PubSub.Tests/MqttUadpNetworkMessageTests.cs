@@ -209,9 +209,9 @@ namespace Opc.Ua.PubSub.Tests
             [Values((float)1, (double)1)] object publisherId)
         {
             // Arrange
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.WriterGroupId;
-
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.WriterGroupId;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -241,12 +241,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = publisherId;
-
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
@@ -278,7 +274,8 @@ namespace Opc.Ua.PubSub.Tests
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.None;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.GroupHeader
+                | UadpNetworkMessageContentMask.PublisherId;
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
@@ -309,14 +306,12 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupHeader |
-                                                          UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = publisherId; // mandatory if read also datasets
+
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: 0, setDataSetWriterId: false,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 0, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -340,14 +335,16 @@ namespace Opc.Ua.PubSub.Tests
            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
             DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+            DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp | DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -377,19 +374,12 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
-
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -418,8 +408,11 @@ namespace Opc.Ua.PubSub.Tests
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.GroupVersion
+                | UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -449,21 +442,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.GroupVersion |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
             uaNetworkMessage.GroupVersion = 1;
 
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -492,8 +477,11 @@ namespace Opc.Ua.PubSub.Tests
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.NetworkMessageNumber
+                | UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -523,21 +511,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.NetworkMessageNumber |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
             uaNetworkMessage.NetworkMessageNumber = 1;
 
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -566,8 +546,11 @@ namespace Opc.Ua.PubSub.Tests
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.SequenceNumber
+                | UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -597,21 +580,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.SequenceNumber |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
             uaNetworkMessage.SequenceNumber = 1;
 
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -640,8 +615,10 @@ namespace Opc.Ua.PubSub.Tests
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.PayloadHeader
+                | UadpNetworkMessageContentMask.PublisherId;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -671,19 +648,12 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader |
-                                                          UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
-
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -712,8 +682,11 @@ namespace Opc.Ua.PubSub.Tests
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.Timestamp
+                | UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -743,21 +716,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.Timestamp |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
 
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -786,8 +751,11 @@ namespace Opc.Ua.PubSub.Tests
         {
             // Arrange
             UInt16 writerGroupId = 1;
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.SequenceNumber;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.PicoSeconds
+                | UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -817,21 +785,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.PicoSeconds |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = publisherId;
-            uaNetworkMessage.WriterGroupId = writerGroupId;
             uaNetworkMessage.PicoSeconds = 10;
 
-            //bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.DataSetMessageHeader) != 0
-            //     && (uadpDataSetMessageContentMask & UadpDataSetMessageContentMask.DataSetWriterId) != 0;
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: true,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
                 uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                 uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
@@ -859,7 +819,8 @@ namespace Opc.Ua.PubSub.Tests
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.None;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.DataSetClassId;
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
@@ -890,11 +851,9 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            // set PublisherId
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId
-                | UadpNetworkMessageContentMask.DataSetClassId);
-            uaNetworkMessage.PublisherId = publisherId; // mandatory if read also datasets
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
+
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
@@ -1166,7 +1125,7 @@ namespace Opc.Ua.PubSub.Tests
                 UadpNetworkMessageContentMask.PublisherId)
             {
                 // special case for valid PublisherId type only
-                Assert.AreNotEqual(uadpNetworkMessageEncode.PublisherId, uadpNetworkMessageDecoded.PublisherId, "PublisherId was not decoded correctly");
+                Assert.AreNotSame(uadpNetworkMessageEncode.PublisherId, uadpNetworkMessageDecoded.PublisherId, "PublisherId was not decoded correctly");
             }
         }
     }
