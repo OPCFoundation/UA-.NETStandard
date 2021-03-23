@@ -1608,7 +1608,7 @@ namespace Opc.Ua.PubSub.Tests
             DataValue guidValueMatrix = new DataValue(new Variant(new Matrix(new Uuid[]
                 { new Uuid(new Guid()), new Uuid(new Guid()) , new Uuid(new Guid()), new Uuid(new Guid()) }, BuiltInType.Guid, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidMatrix", namespaceIndexAllTypes), Attributes.Value, guidValueMatrix);
-            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 1, 2, 3, 4, 5, 6 }, BuiltInType.ByteString, 2, 2)));
+            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 1, 2, 3, 4}, BuiltInType.ByteString, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringMatrix", namespaceIndexAllTypes), Attributes.Value, byteStringValueMatrix);
             XmlDocument document1m = new XmlDocument();
             XmlElement xmlElement1m = document.CreateElement("test1m");
