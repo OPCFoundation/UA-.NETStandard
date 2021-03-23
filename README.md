@@ -65,7 +65,7 @@ All the tools you need for .NET Standard come with the .NET Core tools. See [Get
 ## How to build and run the console samples on Windows, Linux and iOS
 This section describes how to run the **ConsoleReferenceServer** sample application.
 
-Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Core SDK 3.1 is required.
+Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Core SDK 2.1 is required for Visual Studio 2017 and .NET Core SDK 3.1 is required for Visual Studio 2019.
 
 ### Prerequisites
 1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore 'UA Reference.sln'`. This command calls into NuGet to restore the tree of dependencies.
