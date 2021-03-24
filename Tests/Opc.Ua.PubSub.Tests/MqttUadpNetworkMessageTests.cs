@@ -271,12 +271,17 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+           [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.GroupHeader
                 | UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -337,6 +342,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp | DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -344,7 +354,7 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
                 | UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -404,6 +414,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -412,7 +427,7 @@ namespace Opc.Ua.PubSub.Tests
                 | UadpNetworkMessageContentMask.GroupVersion
                 | UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -473,6 +488,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -481,7 +501,7 @@ namespace Opc.Ua.PubSub.Tests
                 | UadpNetworkMessageContentMask.NetworkMessageNumber
                 | UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -542,6 +562,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -550,7 +575,7 @@ namespace Opc.Ua.PubSub.Tests
                 | UadpNetworkMessageContentMask.SequenceNumber
                 | UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -604,6 +629,84 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
+        [Test(Description = "Validate GroupMessageHeader with PublisherId as parameter")]
+        public void ValidateGroupMessageHeaderWithPublisherIdParameter(
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        {
+            // Arrange
+            UInt16 writerGroupId = 1;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.GroupVersion
+                | UadpNetworkMessageContentMask.NetworkMessageNumber
+                | UadpNetworkMessageContentMask.SequenceNumber
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3")
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+                UadpNetworkMessage;
+            uaNetworkMessage.GroupVersion = 1;
+            uaNetworkMessage.NetworkMessageNumber = 10;
+            uaNetworkMessage.SequenceNumber = 100;
+
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
+
+            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+
+            // Create subscriber application for multiple datasets
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+        }
+
         [Test(Description = "Validate PayloadHeader with PublisherId as parameter")]
         public void ValidatePayloadHeaderWithPublisherIdParameter(
            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
@@ -611,6 +714,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -618,7 +726,7 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.WriterGroupId
                 | UadpNetworkMessageContentMask.PayloadHeader
                 | UadpNetworkMessageContentMask.PublisherId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -678,6 +786,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -686,7 +799,7 @@ namespace Opc.Ua.PubSub.Tests
                 | UadpNetworkMessageContentMask.Timestamp
                 | UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -747,6 +860,11 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
@@ -755,7 +873,7 @@ namespace Opc.Ua.PubSub.Tests
                 | UadpNetworkMessageContentMask.PicoSeconds
                 | UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -809,6 +927,82 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
+        [Test(Description = "Validate ExtendedNetworkMessageHeader with PublisherId as parameter")]
+        public void ValidateExtendedNetworkMessageHeaderWithPublisherIdParameter(
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        {
+            // Arrange
+            UInt16 writerGroupId = 1;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.Timestamp
+                | UadpNetworkMessageContentMask.PicoSeconds
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3")
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+                UadpNetworkMessage;
+            uaNetworkMessage.PicoSeconds = 10;
+            uaNetworkMessage.Timestamp = DateTime.UtcNow;
+
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
+
+            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+
+            // Create subscriber application for multiple datasets
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+        }
+
         [Test(Description = "Validate DataSetClassId with PublisherId as parameter")]
         public void ValidateDataSetClassIdWithPublisherIdParameter(
            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
@@ -816,12 +1010,17 @@ namespace Opc.Ua.PubSub.Tests
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
             DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             // Arrange
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.DataSetClassId;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -875,6 +1074,90 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
+        [Test(Description = "Validate FullNetworkMessageContent with PublisherId as parameter")]
+        public void ValidateFullNetworkMessageContentWithPublisherIdParameter(
+           [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+           [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+            UadpDataSetMessageContentMask.PicoSeconds, UadpDataSetMessageContentMask.Status,
+            UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        {
+            // Arrange
+            UInt16 writerGroupId = 1;
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
+                | UadpNetworkMessageContentMask.WriterGroupId
+                | UadpNetworkMessageContentMask.GroupVersion
+                | UadpNetworkMessageContentMask.NetworkMessageNumber
+                | UadpNetworkMessageContentMask.SequenceNumber
+                | UadpNetworkMessageContentMask.Timestamp
+                | UadpNetworkMessageContentMask.PicoSeconds
+                | UadpNetworkMessageContentMask.DataSetClassId
+                | UadpNetworkMessageContentMask.PayloadHeader;
+            //UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3")
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+                UadpNetworkMessage;
+            uaNetworkMessage.GroupVersion = 1;
+            uaNetworkMessage.NetworkMessageNumber = 10;
+            uaNetworkMessage.SequenceNumber = 100;
+            uaNetworkMessage.PicoSeconds = 11;
+            uaNetworkMessage.Timestamp = DateTime.UtcNow;
+            uaNetworkMessage.DataSetClassId = Guid.NewGuid();
+
+            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
+
+            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+
+            // Create subscriber application for multiple datasets
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+
+            // Assert
+            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+        }
+
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
@@ -888,7 +1171,6 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessageDecoded.Decode(bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
-            // TODO Fix: this might be broken after refactor
             Compare(uadpNetworkMessage, uaNetworkMessageDecoded, uaNetworkMessageDecoded.ReceivedDataSets);
         }
 
