@@ -10,9 +10,6 @@ pr:
   paths:
     include:
     - '*' 
-    exclude:
-    - 'Docs/*' 
-    - 'README.md' 
 
 stages:
 - stage: build
