@@ -321,22 +321,24 @@ namespace Opc.Ua.PubSub.Encoding
             List<DataValue> dataValues = new List<DataValue>();
             for (int index = 0; index < dataSetMetaData.Fields.Count; index++)
             {
-                string fieldName = dataSetMetaData.Fields[index].Name;
+                FieldMetaData fieldMetaData = dataSetMetaData.Fields[index];
 
-                if (jsonDecoder.ReadField(fieldName, out token))
+                if (jsonDecoder.ReadField(fieldMetaData.Name, out token))
                 {
                     switch (m_fieldTypeEncoding)
                     {
                         case FieldTypeEncodingMask.Variant:
-                            Variant variantValue = jsonDecoder.ReadVariant(fieldName);
+                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name);
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
-                            object value = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], fieldName);
+                            object value = jsonDecoder.ReadArray(fieldMetaData.Name,
+                                 fieldMetaData.ValueRank,
+                                 (BuiltInType)fieldMetaData.BuiltInType);
                             dataValues.Add(new DataValue(new Variant(value)));
                             break;
                         case FieldTypeEncodingMask.DataValue:
-                            bool wasPush2 = jsonDecoder.PushStructure(fieldName);
+                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name);
                             DataValue dataValue = new DataValue(Variant.Null);
                             try
                             {
@@ -584,6 +586,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 try
                 {
+                    return jsonDecoder.ReadArray(fieldMetaData.Name, fieldMetaData.ValueRank, (BuiltInType)fieldMetaData.BuiltInType);
                     switch (fieldMetaData.ValueRank)
                     {
 

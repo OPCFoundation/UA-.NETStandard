@@ -2269,97 +2269,141 @@ namespace Opc.Ua
                         case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfo(null, (DiagnosticInfo)value); return; }
                     }
                 }
-
-                // write array.
-                else if (typeInfo.ValueRank <= 1)
+                // write array
+                else if (typeInfo.ValueRank >= ValueRanks.OneDimension)
                 {
-                    switch (typeInfo.BuiltInType)
-                    {
-                        case BuiltInType.Boolean: { WriteBooleanArray(null, (bool[])value); return; }
-                        case BuiltInType.SByte: { WriteSByteArray(null, (sbyte[])value); return; }
-                        case BuiltInType.Byte: { WriteByteArray(null, (byte[])value); return; }
-                        case BuiltInType.Int16: { WriteInt16Array(null, (short[])value); return; }
-                        case BuiltInType.UInt16: { WriteUInt16Array(null, (ushort[])value); return; }
-                        case BuiltInType.Int32: { WriteInt32Array(null, (int[])value); return; }
-                        case BuiltInType.UInt32: { WriteUInt32Array(null, (uint[])value); return; }
-                        case BuiltInType.Int64: { WriteInt64Array(null, (long[])value); return; }
-                        case BuiltInType.UInt64: { WriteUInt64Array(null, (ulong[])value); return; }
-                        case BuiltInType.Float: { WriteFloatArray(null, (float[])value); return; }
-                        case BuiltInType.Double: { WriteDoubleArray(null, (double[])value); return; }
-                        case BuiltInType.String: { WriteStringArray(null, (string[])value); return; }
-                        case BuiltInType.DateTime: { WriteDateTimeArray(null, (DateTime[])value); return; }
-                        case BuiltInType.Guid: { WriteGuidArray(null, (Uuid[])value); return; }
-                        case BuiltInType.ByteString: { WriteByteStringArray(null, (byte[][])value); return; }
-                        case BuiltInType.XmlElement: { WriteXmlElementArray(null, (XmlElement[])value); return; }
-                        case BuiltInType.NodeId: { WriteNodeIdArray(null, (NodeId[])value); return; }
-                        case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(null, (ExpandedNodeId[])value); return; }
-                        case BuiltInType.StatusCode: { WriteStatusCodeArray(null, (StatusCode[])value); return; }
-                        case BuiltInType.QualifiedName: { WriteQualifiedNameArray(null, (QualifiedName[])value); return; }
-                        case BuiltInType.LocalizedText: { WriteLocalizedTextArray(null, (LocalizedText[])value); return; }
-                        case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(null, (ExtensionObject[])value); return; }
-                        case BuiltInType.DataValue: { WriteDataValueArray(null, (DataValue[])value); return; }
-                        case BuiltInType.Enumeration:
-                        {
-                            Array array = value as Array;
-                            WriteEnumeratedArray(null, array, array.GetType().GetElementType());
-                            return;
-                        }
-
-                        case BuiltInType.Variant:
-                        {
-                            Variant[] variants = value as Variant[];
-
-                            if (variants != null)
-                            {
-                                WriteVariantArray(null, variants);
-                                return;
-                            }
-
-                            object[] objects = value as object[];
-
-                            if (objects != null)
-                            {
-                                WriteObjectArray(null, objects);
-                                return;
-                            }
-
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding an array of Variants: {0}",
-                                value.GetType());
-                        }
-                    }
-                }
-
-                // write matrix.
-                else if (typeInfo.ValueRank > 1)
-                {
+                    int valueRank = typeInfo.ValueRank;
                     Matrix matrix = value as Matrix;
                     if (matrix != null)
                     {
                         if (UseReversibleEncoding)
                         {
-                            WriteVariantContents(matrix.Elements, new TypeInfo(typeInfo.BuiltInType, 1));
+                            // liniarize the matrix
+                            value = matrix.Elements;
+                            valueRank = ValueRanks.OneDimension;
                         }
-                        else
-                        {
-                            int index = 0;
-                            WriteStructureMatrix(matrix, 0, ref index, typeInfo);
-                        }
-                        return;
                     }
+                    WriteArray(null, value, valueRank, typeInfo.BuiltInType);
                 }
-
-                // oops - should never happen.
-                throw new ServiceResultException(
-                    StatusCodes.BadEncodingError,
-                    Utils.Format("Type '{0}' is not allowed in an Variant.", value.GetType().FullName));
             }
             finally
             {
                 m_inVariantWithEncoding = false;
             }
         }
+
+        /// <summary>
+        /// Writes an Variant array to the stream.
+        /// </summary>
+        public void WriteObjectArray(string fieldName, IList<object> values)
+        {
+            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
+            {
+                WriteSimpleField(fieldName, null, false);
+                return;
+            }
+
+            PushArray(fieldName);
+
+            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            if (values != null)
+            {
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteVariant("Variant", new Variant(values[ii]));
+                }
+            }
+
+            PopArray();
+        }
+
+        /// <summary>
+        /// Encode an array according to its valueRank and BuiltInType
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="array"></param>
+        /// <param name="valueRank"></param>
+        /// <param name="builtInType"></param>
+        public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
+        {
+            // write array.
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean: { WriteBooleanArray(fieldName, (bool[])array); return; }
+                    case BuiltInType.SByte: { WriteSByteArray(fieldName, (sbyte[])array); return; }
+                    case BuiltInType.Byte: { WriteByteArray(fieldName, (byte[])array); return; }
+                    case BuiltInType.Int16: { WriteInt16Array(fieldName, (short[])array); return; }
+                    case BuiltInType.UInt16: { WriteUInt16Array(fieldName, (ushort[])array); return; }
+                    case BuiltInType.Int32: { WriteInt32Array(fieldName, (int[])array); return; }
+                    case BuiltInType.UInt32: { WriteUInt32Array(fieldName, (uint[])array); return; }
+                    case BuiltInType.Int64: { WriteInt64Array(fieldName, (long[])array); return; }
+                    case BuiltInType.UInt64: { WriteUInt64Array(fieldName, (ulong[])array); return; }
+                    case BuiltInType.Float: { WriteFloatArray(fieldName, (float[])array); return; }
+                    case BuiltInType.Double: { WriteDoubleArray(fieldName, (double[])array); return; }
+                    case BuiltInType.String: { WriteStringArray(fieldName, (string[])array); return; }
+                    case BuiltInType.DateTime: { WriteDateTimeArray(fieldName, (DateTime[])array); return; }
+                    case BuiltInType.Guid: { WriteGuidArray(fieldName, (Uuid[])array); return; }
+                    case BuiltInType.ByteString: { WriteByteStringArray(fieldName, (byte[][])array); return; }
+                    case BuiltInType.XmlElement: { WriteXmlElementArray(fieldName, (XmlElement[])array); return; }
+                    case BuiltInType.NodeId: { WriteNodeIdArray(fieldName, (NodeId[])array); return; }
+                    case BuiltInType.ExpandedNodeId: { WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return; }
+                    case BuiltInType.StatusCode: { WriteStatusCodeArray(fieldName, (StatusCode[])array); return; }
+                    case BuiltInType.QualifiedName: { WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return; }
+                    case BuiltInType.LocalizedText: { WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return; }
+                    case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return; }
+                    case BuiltInType.DataValue: { WriteDataValueArray(fieldName, (DataValue[])array); return; }
+                    case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
+                    case BuiltInType.Enumeration: //todo test this!
+                    {
+                        Array enumArray = array as Array;
+                        WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
+                        return;
+                    }
+
+                    case BuiltInType.Variant:
+                    {
+                        Variant[] variants = array as Variant[];
+
+                        if (variants != null)
+                        {
+                            WriteVariantArray(fieldName, variants);
+                            return;
+                        }
+
+                        object[] objects = array as object[];
+
+                        if (objects != null)
+                        {
+                            WriteObjectArray(fieldName, objects);
+                            return;
+                        }
+
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding an array of Variants: {0}",
+                            array.GetType());
+                    }
+                }
+            }
+            // write matrix.
+            else if (valueRank > ValueRanks.OneDimension)
+            {
+                Matrix matrix = array as Matrix;
+                if (matrix != null)
+                {
+                    int index = 0;
+                    WriteStructureMatrix(matrix, 0, ref index, matrix.TypeInfo);
+                    return;
+                }
+            }
+        }
+
         #endregion
 
         #region Private Methods
@@ -2409,34 +2453,6 @@ namespace Opc.Ua
             PopStructure();
         }
 
-        /// <summary>
-        /// Writes an Variant array to the stream.
-        /// </summary>
-        public void WriteObjectArray(string fieldName, IList<object> values)
-        {
-            if (values == null || (values.Count == 0 && !m_inVariantWithEncoding))
-            {
-                WriteSimpleField(fieldName, null, false);
-                return;
-            }
-
-            PushArray(fieldName);
-
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
-            {
-                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-            }
-
-            if (values != null)
-            {
-                for (int ii = 0; ii < values.Count; ii++)
-                {
-                    WriteVariant("Variant", new Variant(values[ii]));
-                }
-            }
-
-            PopArray();
-        }
         #endregion
     }
 }

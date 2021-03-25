@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
@@ -2642,7 +2643,193 @@ namespace Opc.Ua
 
             return values;
         }
+
+        /// <summary>
+        /// Reads an array with the specified valueRank and the specified BuiltInType
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="valueRank"></param>
+        /// <param name="builtInType"></param>
+        /// <returns></returns>
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
+        {
+            if (valueRank == ValueRanks.OneDimension)
+            {
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean:
+                        return ReadBooleanArray(fieldName);
+                    case BuiltInType.SByte:
+                        return ReadSByteArray(fieldName);
+                    case BuiltInType.Byte:
+                        return ReadByteArray(fieldName);
+                    case BuiltInType.Int16:
+                        return ReadInt16Array(fieldName);
+                    case BuiltInType.UInt16:
+                        return ReadUInt16Array(fieldName);
+                    case BuiltInType.Int32:
+                        return ReadInt32Array(fieldName);
+                    case BuiltInType.UInt32:
+                        return ReadUInt32Array(fieldName);
+                    case BuiltInType.Int64:
+                        return ReadInt64Array(fieldName);
+                    case BuiltInType.UInt64:
+                        return ReadUInt64Array(fieldName);
+                    case BuiltInType.Float:
+                        return ReadFloatArray(fieldName);
+                    case BuiltInType.Double:
+                        return ReadDoubleArray(fieldName);
+                    case BuiltInType.String:
+                        return ReadStringArray(fieldName);
+                    case BuiltInType.DateTime:
+                        return ReadDateTimeArray(fieldName);
+                    case BuiltInType.Guid:
+                        return ReadGuidArray(fieldName);
+                    case BuiltInType.ByteString:
+                        return ReadByteStringArray(fieldName);
+                    case BuiltInType.XmlElement:
+                        return ReadXmlElementArray(fieldName);
+                    case BuiltInType.NodeId:
+                        return ReadNodeIdArray(fieldName);
+                    case BuiltInType.ExpandedNodeId:
+                        return ReadExpandedNodeIdArray(fieldName);
+                    case BuiltInType.StatusCode:
+                        return ReadStatusCodeArray(fieldName); // todo fix this
+                    case BuiltInType.QualifiedName:
+                        return ReadQualifiedNameArray(fieldName);
+                    case BuiltInType.LocalizedText:
+                        return ReadLocalizedTextArray(fieldName);
+                    case BuiltInType.DataValue:
+                        return ReadDataValueArray(fieldName);
+                    case BuiltInType.Enumeration:
+                        //return binaryDecoder.ReadInt32Array(fieldName);
+                        //return binaryDecoder.ReadEnumeratedArray(fieldName, typeof(Int32));
+                        return ReadVariantArray(fieldName); // todo test this
+                    case BuiltInType.Variant:
+                        return ReadVariantArray(fieldName);
+                    case BuiltInType.ExtensionObject:
+                        return ReadExtensionObjectArray(fieldName);
+                    case BuiltInType.DiagnosticInfo:
+                        return ReadDiagnosticInfoArray(fieldName);
+                    default:
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError,
+                            Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
+                    }
+                }
+            }
+            else if (valueRank > ValueRanks.OneDimension)
+            {
+                List<object> array;
+                if (!ReadArrayField(fieldName, out array))
+                {
+                    return null;
+                }
+                List<object> elements = new List<object>();
+                List<int> dimensions = new List<int>();
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions);
+
+                switch (builtInType)
+                {
+                    case BuiltInType.Boolean:                       
+                        return new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.SByte:
+                        return new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Byte:
+                        return new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Int16:
+                        return new Matrix(elements.Cast<Int16>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.UInt16:
+                        return new Matrix(elements.Cast<UInt16>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Int32:
+                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.UInt32:
+                        return new Matrix(elements.Cast<UInt32>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Int64:
+                        return new Matrix(elements.Cast<Int64>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.UInt64:
+                        return new Matrix(elements.Cast<UInt64>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Float:
+                        return new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Double:
+                        return new Matrix(elements.Cast<double>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.String:
+                        return new Matrix(elements.Cast<string>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.DateTime:
+                        return new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Guid:
+                        return new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.ByteString:
+                        return new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.XmlElement:
+                        return new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.NodeId:
+                        return new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.ExpandedNodeId:
+                        return new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.StatusCode:
+                        return new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.QualifiedName:
+                        return new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.LocalizedText:
+                        return new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.DataValue:
+                        return new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.Enumeration:
+                        //return binaryDecoder.ReadInt32Array(fieldName);
+                        //return binaryDecoder.ReadEnumeratedArray(fieldName, typeof(Int32));
+                        return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray()); // todo test this
+                    case BuiltInType.Variant:
+                        return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.ExtensionObject:
+                        return new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
+                    case BuiltInType.DiagnosticInfo:
+                        return new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());                    
+                }
+            }
+            return null;
+        }
         #endregion
+
+        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions)
+        {
+            if (currentArray.Count > 0)
+            {
+                bool hasInnerArray = false;
+                for (int ii = 0; ii < currentArray.Count; ii++)
+                {
+                    if (currentArray[ii] is List<object>)
+                    {
+                        hasInnerArray = true;
+                        PushArray(fieldName, ii);
+                        ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions);
+                        Pop();                        
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                if (!hasInnerArray)
+                {
+                    // read array from one dimension
+                    var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
+                    if (part != null && part.Count > 0)
+                    {
+                        dimensions.Add(part.Count);
+                        // add part elements to final list 
+                        foreach (var item in part)
+                        {
+                            elements.Add(item);
+                        }
+                    }
+                }
+            }
+        }
+
+
+
 
         #region Private Methods
         private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)

@@ -324,5 +324,14 @@ namespace Opc.Ua
         /// Reads an enumerated value array from the stream.
         /// </summary>
         Array ReadEnumeratedArray(string fieldName, System.Type enumType);
+
+        /// <summary>
+        /// Reads an array with the specified valueRank and the specified BuiltInType
+        /// </summary>
+        /// <param name="fieldName"></param>
+        /// <param name="valueRank"></param>
+        /// <param name="builtInType"></param>
+        /// <returns></returns>
+        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType);
     }
 }

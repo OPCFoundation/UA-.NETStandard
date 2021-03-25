@@ -71,7 +71,8 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
-                MessagesHelper.CreateDataSetMetaMatrixes("Matrixes")
+                MessagesHelper.CreateDataSetMetaArrays("arrays"),
+                MessagesHelper.CreateDataSetMetaDataMatrixes("Matrixes")
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
@@ -278,7 +279,7 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
-                MessagesHelper.CreateDataSetMetaMatrixes("Matrixes"),
+                MessagesHelper.CreateDataSetMetaDataMatrixes("Matrixes"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
                 MessagesHelper.CreateDataSetMetaData3("DataSet3")
@@ -346,7 +347,7 @@ namespace Opc.Ua.PubSub.Tests
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaArrays("DataSet1"),
-                MessagesHelper.CreateDataSetMetaMatrixes("DataSet2"),
+                MessagesHelper.CreateDataSetMetaDataMatrixes("DataSet2"),
               //  MessagesHelper.CreateDataSetMetaData3("DataSet3")
             };
 
