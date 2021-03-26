@@ -508,7 +508,7 @@ namespace Opc.Ua.PubSub.Mqtt
             string sPassword = keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qPassword.Name))?.Value.Value as string;
             foreach (char c in sPassword?.ToCharArray())
             {
-                m_userName.AppendChar(c);
+                m_password.AppendChar(c);
             }
 
             QualifiedName qCleanSession = EnumMqttClientConfigurationParameters.CleanSession.GetQualifiedName();
