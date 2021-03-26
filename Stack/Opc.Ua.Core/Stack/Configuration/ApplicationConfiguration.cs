@@ -450,7 +450,7 @@ namespace Opc.Ua
             // toggle the state of the hi-res clock.
             HiResClock.Disabled = m_disableHiResClock;
 
-            if (m_disableHiResClock)
+            if (HiResClock.Disabled)
             {
                 if (m_serverConfiguration != null)
                 {
