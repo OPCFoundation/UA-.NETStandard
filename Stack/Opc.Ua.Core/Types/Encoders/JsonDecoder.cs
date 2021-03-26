@@ -2728,7 +2728,8 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions);
+                int level = 0;
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, ref level);
 
                 switch (builtInType)
                 {
@@ -2792,23 +2793,32 @@ namespace Opc.Ua
         }
         #endregion
 
-        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions)
+        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, ref int level)
         {
+            level = level + 1;
             if (currentArray.Count > 0)
-            {
+            {                
                 bool hasInnerArray = false;
                 for (int ii = 0; ii < currentArray.Count; ii++)
                 {
+                    if (ii == 0 && dimensions.Count < level)
+                    {
+                        // remember dimension length
+                        dimensions.Add(currentArray.Count);
+                    }
                     if (currentArray[ii] is List<object>)
                     {
                         hasInnerArray = true;
+                        
                         PushArray(fieldName, ii);
-                        ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions);
+                        
+                        ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, ref level);
+                        
                         Pop();                        
                     }
                     else
                     {
-                        break;
+                        break; // do not continue reading array of array
                     }
                 }
                 if (!hasInnerArray)
@@ -2816,8 +2826,7 @@ namespace Opc.Ua
                     // read array from one dimension
                     var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
                     if (part != null && part.Count > 0)
-                    {
-                        dimensions.Add(part.Count);
+                    {                        
                         // add part elements to final list 
                         foreach (var item in part)
                         {
@@ -2826,6 +2835,7 @@ namespace Opc.Ua
                     }
                 }
             }
+            level = level - 1;
         }
 
 

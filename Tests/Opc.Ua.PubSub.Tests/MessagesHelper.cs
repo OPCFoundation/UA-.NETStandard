@@ -1973,11 +1973,14 @@ namespace Opc.Ua.PubSub.Tests
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoArray", namespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueArray);
 
             // DataSet 'AllTypes' fill with matrix data
-            DataValue boolToggleMatrix = new DataValue(new Variant(new Matrix(new bool[] { true, false, true, false }, BuiltInType.Boolean, 2, 2)));
+            DataValue boolToggleMatrix = new DataValue(new Variant(new Matrix(new bool[] { true, false, true, false, true, false, true, false,
+                                                                                                true, false, true, false, true, false, true, false,
+                                                                                                true, false, true, false, true, false, true, false},
+                BuiltInType.Boolean, 2, 3, 4 )));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", namespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
-            DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2)));
+            DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", namespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
-            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new Int16[] { -100, -101, -200, -201 }, BuiltInType.Int16, 2, 2)));
+            DataValue int16ValueMatrix = new DataValue(new Variant(new Matrix(new Int16[] { -100, -101, -200, -201, -100, -101, -200, -201 }, BuiltInType.Int16, 2, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int16Matrix", namespaceIndexAllTypes), Attributes.Value, int16ValueMatrix);
             DataValue int32ValueMatrix = new DataValue(new Variant(new Matrix(new Int32[] { -1000, -1001, -2000, -2001 }, BuiltInType.Int32, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Matrix", namespaceIndexAllTypes), Attributes.Value, int32ValueMatrix);
