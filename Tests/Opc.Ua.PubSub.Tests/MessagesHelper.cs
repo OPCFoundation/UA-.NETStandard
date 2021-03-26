@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests
             return metaData;
         }
 
-      
+
         #endregion
 
         /// <summary>
@@ -258,11 +258,11 @@ namespace Opc.Ua.PubSub.Tests
         /// </summary>
         /// <param name="pubSubConfiguration"></param>
         /// <returns></returns>
-        public static PubSubConnectionDataType GetConnection(PubSubConfigurationDataType pubSubConfiguration, UInt16 publisherId)
+        public static PubSubConnectionDataType GetConnection(PubSubConfigurationDataType pubSubConfiguration, object publisherId)
         {
             if (pubSubConfiguration != null)
             {
-                return pubSubConfiguration.Connections.Find(x => x.PublisherId == publisherId);
+                return pubSubConfiguration.Connections.Find(x => x.PublisherId.Value == publisherId);
             }
             return null;
         }
