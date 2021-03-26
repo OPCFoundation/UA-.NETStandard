@@ -34,5 +34,10 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public interface ITransportProtocolConfiguration:IEncodeable
     {
+        /// <summary>
+        /// Retrieve the configuration in KeyValuePairCollection format
+        /// </summary>
+        /// <returns></returns>
+        KeyValuePairCollection KeyValuePairs { get; set; }
     }
 }

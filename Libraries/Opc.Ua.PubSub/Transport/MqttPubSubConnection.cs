@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Transport
         }
         #endregion Public Methods
 
-        #region Private methods
+        #region Private Methods
 
 
         private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
@@ -464,8 +464,8 @@ namespace Opc.Ua.PubSub.Transport
                 return null;
             }
 
-            ITransportProtocolConfiguration transportProtocolConfiguration = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.TransportSettings)
-                       as ITransportProtocolConfiguration;
+            ITransportProtocolConfiguration transportProtocolConfiguration = new MqttClientProtocolConfiguration(PubSubConnectionConfiguration.ConnectionProperties);
+
             if (transportProtocolConfiguration == null)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid TransportSettings configuration will use a default one.",
@@ -526,7 +526,7 @@ namespace Opc.Ua.PubSub.Transport
                             .WithProtocolVersion(mqttProtocolVersion)
                             .WithTls(new MqttClientOptionsBuilderTlsParameters {
                                 UseTls = true,
-                                Certificates = mqttTlsOptions?.X509Certificates,
+                                Certificates = mqttTlsOptions?.Certificates?.X509Certificates,
                                 SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
                                 AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
                                 IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
