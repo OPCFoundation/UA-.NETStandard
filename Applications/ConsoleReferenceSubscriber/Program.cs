@@ -383,7 +383,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region  Define  'Simple' MetaData
             DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
@@ -645,7 +646,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region  Define  'Simple' MetaData
             DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
@@ -961,7 +963,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region  Define  'Simple' MetaData
             DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();

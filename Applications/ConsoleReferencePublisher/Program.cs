@@ -363,7 +363,8 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region Define WriterGroup1
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -625,7 +626,8 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -969,7 +971,8 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -1313,7 +1316,8 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
