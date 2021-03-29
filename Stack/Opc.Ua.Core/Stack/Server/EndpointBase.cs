@@ -12,11 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.ServiceModel;
-using System.ServiceModel.Channels;
-using System.Threading;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -241,7 +236,6 @@ namespace Opc.Ua
         /// Dispatches an incoming binary encoded request.
         /// </summary>
         /// <param name="ar">The ar.</param>
-        /// <returns></returns>
         public virtual InvokeServiceResponseMessage EndInvokeService(IAsyncResult ar)
         {
             try
@@ -291,14 +285,6 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         protected static IServiceHostBase GetHostForContext()
         {
-            // fetch the current operation context.
-            OperationContext context = OperationContext.Current;
-
-            if (context == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "The current thread does not have a valid WCF operation context.");
-            }
-
             throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a host that supports IServerHostBase.");
         }
 
@@ -450,30 +436,7 @@ namespace Opc.Ua
             // construct the fault code and fault reason.
             string codeName = StatusCodes.GetBrowseName(error.Code);
 
-            FaultCode code = null;
-            FaultReason reason = null;
-
-            if (!LocalizedText.IsNullOrEmpty(error.LocalizedText))
-            {
-                reason = new FaultReason(new FaultReasonText(Utils.Format("{0}", error.LocalizedText)));
-            }
-            else
-            {
-                reason = new FaultReason(new FaultReasonText(codeName));
-            }
-
-            if (!String.IsNullOrEmpty(error.SymbolicId))
-            {
-                FaultCode subcode = new FaultCode(error.SymbolicId, error.NamespaceUri);
-                code = new FaultCode(codeName, Namespaces.OpcUa, subcode);
-            }
-            else
-            {
-                code = new FaultCode(codeName, Namespaces.OpcUa);
-            }
-
-            // throw the fault.
-            return new FaultException<ServiceFault>(fault, reason, code, string.Empty);
+            return new ServiceResultException((uint)error.StatusCode, codeName, exception);
         }
 
         /// <summary>
@@ -521,8 +484,6 @@ namespace Opc.Ua
         /// <param name="encoding">The encoding.</param>
         protected void SetRequestContext(RequestEncoding encoding)
         {
-            // fetch the current operation context.
-            OperationContext context = OperationContext.Current;
         }
 
         /// <summary>
@@ -896,7 +857,7 @@ namespace Opc.Ua
         private Dictionary<ExpandedNodeId,ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        private string g_ImplementationString = "Opc.Ua.EndpointBase WCF Service " + Utils.GetAssemblySoftwareVersion();
+        private string g_ImplementationString = "Opc.Ua.EndpointBase UA Service " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
 }

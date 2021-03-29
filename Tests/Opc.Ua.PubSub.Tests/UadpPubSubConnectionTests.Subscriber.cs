@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Tests
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
-
+            
             UadpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UadpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 

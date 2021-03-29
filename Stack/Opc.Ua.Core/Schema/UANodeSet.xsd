@@ -234,16 +234,6 @@
     </xs:list>
   </xs:simpleType>
 
-  <xs:simpleType name="CardinalityType">
-    <xs:list>
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:pattern value="(\p{N})*|unbounded" />
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:list>
-  </xs:simpleType>
-
   <xs:simpleType name="Duration">
     <xs:restriction base="xs:double" />
   </xs:simpleType>
@@ -481,6 +471,7 @@
     <xs:attribute name="MaxStringLength" type="xs:unsignedInt" default="0" />
     <xs:attribute name="Value" type="xs:int" default="-1" />
     <xs:attribute name="IsOptional" type="xs:boolean" default="false" />
+    <xs:attribute name="AllowSubTypes" type="xs:boolean" default="false" />
   </xs:complexType>
 
   <xs:complexType name="UAReferenceType">
