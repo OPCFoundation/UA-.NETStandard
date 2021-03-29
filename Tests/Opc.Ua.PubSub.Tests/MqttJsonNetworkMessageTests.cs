@@ -434,7 +434,8 @@ namespace Opc.Ua.PubSub.Tests
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
-
+        
+        //[Ignore("This test shall not be executed")]
         [Test(Description = "Validate DataSetMessageHeader only with all JsonDataSetMessageContentMask combination")]
         public void ValidateDataSetMessageHeaderWithParameters(
             [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
@@ -480,6 +481,7 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
+               // MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
                 MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
@@ -663,6 +665,7 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="jsonNetworkMessageEncode"></param>
         /// <param name="jsonNetworkMessageDecoded"></param>
         /// <returns></returns>
+
         private void Compare(JsonNetworkMessage jsonNetworkMessageEncode, JsonNetworkMessage jsonNetworkMessageDecoded)
         {
             JsonNetworkMessageContentMask networkMessageContentMask = jsonNetworkMessageEncode.NetworkMessageContentMask;

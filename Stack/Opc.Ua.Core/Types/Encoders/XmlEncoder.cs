@@ -2084,7 +2084,6 @@ namespace Opc.Ua
 
                     EndField(fieldName);
                 }
-                return;
             }
         }
 

@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
-                MessagesHelper.CreateDataSetMetaArrays("arrays"),
+                MessagesHelper.CreateDataSetMetaDataArrays("arrays"),
                 MessagesHelper.CreateDataSetMetaDataMatrixes("Matrixes")
             };
 
@@ -346,7 +346,7 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
-                MessagesHelper.CreateDataSetMetaArrays("DataSet1"),
+                MessagesHelper.CreateDataSetMetaDataArrays("DataSet1"),
                 MessagesHelper.CreateDataSetMetaDataMatrixes("DataSet2"),
               //  MessagesHelper.CreateDataSetMetaData3("DataSet3")
             };

@@ -1131,7 +1131,34 @@ namespace Opc.Ua
         /// </summary>
         public StatusCode ReadStatusCode(string fieldName)
         {
-            return ReadUInt32(fieldName);
+            object token;
+            // read non reversible status code
+            if (!ReadField(fieldName, out token))
+            {
+                // the status coede was not found
+                return StatusCodes.Good;
+            }
+
+            bool wasPush = PushStructure(fieldName);
+            try
+            {
+                // try to read the non reversible Code
+                if (ReadField("Code", out token))
+                {
+                    return (StatusCode)ReadUInt32("Code");
+                }
+
+                // read the uint code
+                return ReadUInt32(null);
+
+            }
+            finally
+            {
+                if (wasPush)
+                {
+                    Pop();
+                }
+            }
         }
 
         /// <summary>
@@ -1368,6 +1395,7 @@ namespace Opc.Ua
                 case BuiltInType.XmlElement: { return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement); }
                 case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject); }
                 case BuiltInType.Variant: { return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant); }
+                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo); }
             }
 
             return Variant.Null;
@@ -1872,7 +1900,7 @@ namespace Opc.Ua
             string value = ReadString(fieldName);
             if (value != null)
             {
-                return Encoding.UTF8.GetBytes(value);
+                return Convert.FromBase64String(value);
             }
 
             if (!ReadArrayField(fieldName, out token))
@@ -2694,7 +2722,7 @@ namespace Opc.Ua
                     case BuiltInType.ExpandedNodeId:
                         return ReadExpandedNodeIdArray(fieldName);
                     case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName); // todo fix this
+                        return ReadStatusCodeArray(fieldName); 
                     case BuiltInType.QualifiedName:
                         return ReadQualifiedNameArray(fieldName);
                     case BuiltInType.LocalizedText:
