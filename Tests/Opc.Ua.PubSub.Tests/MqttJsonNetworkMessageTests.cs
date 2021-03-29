@@ -86,6 +86,7 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
                 MessagesHelper.CreateDataSetMetaData3("DataSet3")
@@ -481,7 +482,6 @@ namespace Opc.Ua.PubSub.Tests
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
-               // MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
                 MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
@@ -535,51 +535,50 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate SingleDataSetMessage with parameters for DataSetFieldContentMask, JsonDataSetMessageContentMask and JsonNetworkMessageContentMask")]
         public void ValidateSingleDataSetMessageWithParameters(
-            [Values(//DataSetFieldContentMask.None,
-            DataSetFieldContentMask.RawData//, // list here all possible DataSetFieldContentMask
-            //DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            //DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            //DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
-            )]
+            [Values(DataSetFieldContentMask.None,
+            DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
                 DataSetFieldContentMask dataSetFieldContentMask,
-            [Values(//JsonDataSetMessageContentMask.None,
-            //JsonDataSetMessageContentMask.DataSetWriterId,
-            //JsonDataSetMessageContentMask.MetaDataVersion,
-            //JsonDataSetMessageContentMask.SequenceNumber,
-            //JsonDataSetMessageContentMask.Timestamp,
-            //JsonDataSetMessageContentMask.Status,
-            //JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber,
-            //JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Timestamp,
-            //JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Status,
-            //JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp,
-            //JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Status,
-            //JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp|JsonDataSetMessageContentMask.Status,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.SequenceNumber,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Timestamp,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Status,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Timestamp,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Status,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp,
-            //JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Status,
+            [Values(JsonDataSetMessageContentMask.None,
+            JsonDataSetMessageContentMask.DataSetWriterId,
+            JsonDataSetMessageContentMask.MetaDataVersion,
+            JsonDataSetMessageContentMask.SequenceNumber,
+            JsonDataSetMessageContentMask.Timestamp,
+            JsonDataSetMessageContentMask.Status,
+            JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber,
+            JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Timestamp,
+            JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Status,
+            JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp,
+            JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Status,
+            JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp|JsonDataSetMessageContentMask.Status,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.SequenceNumber,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Timestamp,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.Status,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Timestamp,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.Status,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp,
+            JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Status,
             JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp|JsonDataSetMessageContentMask.Status)]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
-            [Values (//JsonNetworkMessageContentMask.None,
-            //JsonNetworkMessageContentMask.NetworkMessageHeader,
-            //JsonNetworkMessageContentMask.DataSetMessageHeader,
-            //JsonNetworkMessageContentMask.DataSetClassId,
-            //JsonNetworkMessageContentMask.PublisherId,
-            //JsonNetworkMessageContentMask.ReplyTo,
-            //JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader,
-            //JsonNetworkMessageContentMask.DataSetClassId| JsonNetworkMessageContentMask.DataSetMessageHeader,
-            //JsonNetworkMessageContentMask.PublisherId| JsonNetworkMessageContentMask.DataSetMessageHeader,
-            //JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader,
-            //JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
-            //JsonNetworkMessageContentMask.PublisherId| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
-            //JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
-            //JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId,
-            //JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId,
+            [Values (JsonNetworkMessageContentMask.None,
+            JsonNetworkMessageContentMask.NetworkMessageHeader,
+            JsonNetworkMessageContentMask.DataSetMessageHeader,
+            JsonNetworkMessageContentMask.DataSetClassId,
+            JsonNetworkMessageContentMask.PublisherId,
+            JsonNetworkMessageContentMask.ReplyTo,
+            JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader,
+            JsonNetworkMessageContentMask.DataSetClassId| JsonNetworkMessageContentMask.DataSetMessageHeader,
+            JsonNetworkMessageContentMask.PublisherId| JsonNetworkMessageContentMask.DataSetMessageHeader,
+            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader,
+            JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
+            JsonNetworkMessageContentMask.PublisherId| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
+            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId,
+            JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId,
+            JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId,
             JsonNetworkMessageContentMask.NetworkMessageHeader |JsonNetworkMessageContentMask.ReplyTo| JsonNetworkMessageContentMask.DataSetMessageHeader|JsonNetworkMessageContentMask.DataSetClassId|JsonNetworkMessageContentMask.PublisherId)]
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask
             ) 
@@ -590,7 +589,7 @@ namespace Opc.Ua.PubSub.Tests
         
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
            {
-                MessagesHelper.CreateDataSetMetaDataMatrixes("Matrixes"),
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
                 MessagesHelper.CreateDataSetMetaData3("DataSet3")
