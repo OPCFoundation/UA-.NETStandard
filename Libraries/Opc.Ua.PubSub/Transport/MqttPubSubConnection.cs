@@ -655,10 +655,34 @@ namespace Opc.Ua.PubSub.Transport
             //subscriber initialization   
             if (nrOfSubscribers > 0)
             {
+                // hack: to be changed and improved
+                // simple setting #-all it would not catch the topic when the traffic is high 
+                string topicFilter = "#";
+                if (PubSubConnectionConfiguration.ReaderGroups.Count > 0)
+                {
+                    // select first reader
+                    ReaderGroupDataType firstReaderGroup = PubSubConnectionConfiguration.ReaderGroups.First();
+                    if (firstReaderGroup.DataSetReaders.Count > 0)
+                    {
+                        DataSetReaderDataType dataSetReader = firstReaderGroup.DataSetReaders.First();
+                        if (dataSetReader != null)
+                        {
+                            BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
+                                as BrokerDataSetReaderTransportDataType;
+                            if (brokerTransportSettings != null)
+                            {
+                                topicFilter = brokerTransportSettings.QueueName;
+                            }
+                        }
+                    }
+                }
+                
+
                 subClient = Task.Run(async () =>
                      (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
                                                                             mqttOptions,
-                                                                            ProcessMqttMessage).ConfigureAwait(false)).Result;          
+                                                                            ProcessMqttMessage,
+                                                                            topicFilter).ConfigureAwait(false)).Result;          
             }
 
             lock (m_lock)

@@ -55,7 +55,8 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <returns></returns>
         internal static async Task<IMqttClient> GetMqttClientAsync(int reconnectInterval,
                                                                    IMqttClientOptions mqttClientOptions,
-                                                                   Action<MqttApplicationMessageReceivedEventArgs> receiveMessageHandler)
+                                                                   Action<MqttApplicationMessageReceivedEventArgs> receiveMessageHandler,
+                                                                   string topicFilter="#")
         {
 
             IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
@@ -68,7 +69,8 @@ namespace Opc.Ua.PubSub.Mqtt
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
                     // Subscribe to all topics since messages are filtered on the receiveMessageHandler
-                    await mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("#").Build());
+                    //await mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("#").Build());
+                    await mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topicFilter).Build());
 
                     Utils.Trace("{0} Subscribed");
                 });

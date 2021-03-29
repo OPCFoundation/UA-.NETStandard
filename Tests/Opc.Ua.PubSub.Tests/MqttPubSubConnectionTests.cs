@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Tests
         private const UInt16 NamespaceIndexAllTypes = 3;
 
         private ManualResetEvent m_shutdownEvent;
-        private const int EstimatedPublishingTime = 6000;
+        private const int EstimatedPublishingTime = 60000;
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateMqttPubSubConnection(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
-            StartStopMosquitto("mosquitto");
+            RestartMosquitto("mosquitto");
 
             //Arrange
             UInt16 writerGroupId = 1;
@@ -167,7 +167,7 @@ namespace Opc.Ua.PubSub.Tests
         public void ValidateMqttPubSubConnectionWithCredentials(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
-            StartStopMosquitto("mosquitto", @"-c .\resources\mosquitto_pwd.conf");
+            RestartMosquitto("mosquitto", @"-c .\resources\mosquitto_pwd.conf");
 
             //Arrange
             UInt16 writerGroupId = 1;
@@ -281,22 +281,21 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt local pub/sub connection. The local mosquitto broker should be started")]
-        public void ValidateMqttPubSubConnectionTest(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        [Test(Description = "Validate mqtt free web broker pub/sub connections.")]
+        public void ValidateMqttPubSubConnectionToPublicWebBrokers(
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
+            [Values("mqtt://test.mosquitto.org:1883", "mqtt://broker.hivemq.com:1883")]
+                string mqttBrokerUrl)
         {
             //Arrange
             UInt16 writerGroupId = 1;
 
-            //string MqttAddressUrl = "mqtt://test.mosquitto.org:1883";
-            string MqttAddressUrl = "mqtt://broker.hivemq.com:1883";
-            
-            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V311);
 
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
-                | UadpNetworkMessageContentMask.WriterGroupId
-                | UadpNetworkMessageContentMask.PayloadHeader;
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.PublisherId
+                | JsonNetworkMessageContentMask.DataSetMessageHeader;
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
 
             DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
@@ -308,10 +307,10 @@ namespace Opc.Ua.PubSub.Tests
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
-                Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
-                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
-                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                Profiles.PubSubMqttJsonTransport,
+                mqttBrokerUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
@@ -330,22 +329,23 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
             WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
-                as UadpWriterGroupMessageDataType;
+            JsonWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
+                as JsonWriterGroupMessageDataType;
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = publisherConnection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+            JsonNetworkMessage uaNetworkMessage = publisherConnection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+                JsonNetworkMessage;
             Assert.IsNotNull(uaNetworkMessage, "CreateNetworkMessage did not return an UadpNetworkMessage.");
 
-            bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
+            bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
+                && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
-                Profiles.PubSubMqttUadpTransport,
-                MqttAddressUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
-                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
-                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                Profiles.PubSubMqttJsonTransport,
+                mqttBrokerUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
                 dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
@@ -379,7 +379,7 @@ namespace Opc.Ua.PubSub.Tests
             //Assert
             if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
             {
-                Assert.Fail("The UADP message was not received");
+                Assert.Fail("The JSON message was not received");
             }
 
             subscriberConnection.Stop();
@@ -391,7 +391,7 @@ namespace Opc.Ua.PubSub.Tests
         {
             m_shutdownEvent.Set();
         }
-
+        
         /// <summary>
         /// Get first active nic on local computer
         /// </summary>
@@ -436,7 +436,7 @@ namespace Opc.Ua.PubSub.Tests
         /// </summary>
         /// <param name="processName"></param>
         /// <param name="arguments"></param>
-        private void StartStopMosquitto(string processName, string arguments = "")
+        private void RestartMosquitto(string processName, string arguments = "")
         {
             try
             {
@@ -453,51 +453,21 @@ namespace Opc.Ua.PubSub.Tests
                         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
                         Path.Combine(processName, $"{processName}.exe")));
                 startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                //info.UseShellExecute = true;
-                // info.Verb = "runas";
+                //startInfo.CreateNoWindow = true;
+                //startInfo.RedirectStandardOutput = true;
+                //startInfo.UseShellExecute = true;
+                //startInfo.Verb = "runas";
                 startInfo.Arguments = arguments;
                 process.StartInfo = startInfo;
                 process.Start();
                 //proc.WaitForExit();
                 processes = Process.GetProcessesByName(processName);
-                /*
-                proc.StartInfo.FileName = @"C:\Program Files\mosquitto\mosquitto.exe";
-                proc.StartInfo.Arguments = "-c mosquitto_pwd.conf";
-                proc.StartInfo.CreateNoWindow = true;
-                proc.StartInfo.RedirectStandardOutput = true;
-                //proc.StartInfo.UseShellExecute = true;
-                proc.StartInfo.Verb = "runas";
-                proc.Start();
-                proc.WaitForExit();
-                */
             }
-            catch(Exception ex)
+            catch(Exception)
             {
-                Assert.Fail("The mosquitto could not started!");
+                Assert.Fail("The mosquitto could not be restarted!");
             }
 
-            /*
-            ServiceController service = new ServiceController(serviceName);
-            try
-            {
-                int millisec1 = Environment.TickCount;
-                TimeSpan timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds);
-
-                service.Stop();
-                service.WaitForStatus(ServiceControllerStatus.Stopped, timeout);
-
-                // count the rest of the timeout
-                int millisec2 = Environment.TickCount;
-                timeout = TimeSpan.FromMilliseconds(timeoutMilliseconds - (millisec2 - millisec1));
-
-                service.Start();
-                service.WaitForStatus(ServiceControllerStatus.Running, timeout);
-            }
-            catch
-            {
-                // ...
-            }
-            */
         }
     }
 }
