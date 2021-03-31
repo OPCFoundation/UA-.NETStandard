@@ -106,15 +106,9 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(X509Certificate2 certificate)
         {
-            RSA rsaPublicKey = null;
-            try
+            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                rsaPublicKey = certificate.GetRSAPublicKey();
                 return rsaPublicKey.KeySize;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPublicKey);
             }
         }
 

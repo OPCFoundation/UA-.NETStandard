@@ -189,15 +189,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = certificate.GetRSAPublicKey())
             {
-                rsa = certificate.GetRSAPublicKey();
                 return rsa.VerifyData(Tbs, Signature, Name, padding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
