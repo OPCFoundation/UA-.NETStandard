@@ -313,7 +313,7 @@ namespace Opc.Ua.Configuration
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
 
-            return await LoadApplicationConfiguration(filePath, silent);
+            return await LoadApplicationConfiguration(filePath, silent).ConfigureAwait(false);
         }
 
         /// <summary>
