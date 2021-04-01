@@ -229,14 +229,14 @@ namespace Opc.Ua
         {
             if (!m_dontWriteClosing)
             {
-            if (m_topLevelIsArray)
-            {
-                m_writer.Write("]");
-            }
-            else
-            {
-                m_writer.Write("}");
-            }
+                if (m_topLevelIsArray)
+                {
+                    m_writer.Write("]");
+                }
+                else
+                {
+                    m_writer.Write("}");
+                }
             }
 
             m_writer.Flush();
@@ -2158,18 +2158,18 @@ namespace Opc.Ua
             {
                 PushArray(fieldName);
 
-	            // check the length.
-	            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
-	            {
-	                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-	            }
+                // check the length.
+                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
 
-	            for (int ii = 0; ii < values.Count; ii++)
-	            {
-	                WriteEncodeable(null, values[ii], systemType);
-	            }
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    WriteEncodeable(null, values[ii], systemType);
+                }
 
-	            PopArray();
+                PopArray();
             }
         }
 

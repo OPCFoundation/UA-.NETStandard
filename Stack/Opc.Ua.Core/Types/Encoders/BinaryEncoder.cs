@@ -1944,7 +1944,7 @@ namespace Opc.Ua
                             for (int ii = 0; ii < variants.Length; ii++)
                             {
                                 WriteVariant(null, variants[ii]);
-                            }                            
+                            }
                             break;
                         }
 

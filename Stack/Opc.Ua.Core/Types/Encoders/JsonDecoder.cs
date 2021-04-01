@@ -302,7 +302,7 @@ namespace Opc.Ua
             {
                 if (m_reader.TokenType == JsonToken.StartArray)
                 {
-                    fields[RootArrayName] = ReadArray();                    
+                    fields[RootArrayName] = ReadArray();
                 }
                 else if (m_reader.TokenType == JsonToken.PropertyName)
                 {
@@ -2722,7 +2722,7 @@ namespace Opc.Ua
                     case BuiltInType.ExpandedNodeId:
                         return ReadExpandedNodeIdArray(fieldName).ToArray();
                     case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName).ToArray(); 
+                        return ReadStatusCodeArray(fieldName).ToArray();
                     case BuiltInType.QualifiedName:
                         return ReadQualifiedNameArray(fieldName).ToArray();
                     case BuiltInType.LocalizedText:
@@ -2759,7 +2759,7 @@ namespace Opc.Ua
 
                 switch (builtInType)
                 {
-                    case BuiltInType.Boolean:                       
+                    case BuiltInType.Boolean:
                         return new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.SByte:
                         return new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
@@ -2810,7 +2810,7 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject:
                         return new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.DiagnosticInfo:
-                        return new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());                    
+                        return new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
                 }
             }
             return null;
@@ -2821,7 +2821,7 @@ namespace Opc.Ua
         {
             level = level + 1;
             if (currentArray.Count > 0)
-            {                
+            {
                 bool hasInnerArray = false;
                 for (int ii = 0; ii < currentArray.Count; ii++)
                 {
@@ -2833,12 +2833,12 @@ namespace Opc.Ua
                     if (currentArray[ii] is List<object>)
                     {
                         hasInnerArray = true;
-                        
+
                         PushArray(fieldName, ii);
-                        
+
                         ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, ref level);
-                        
-                        Pop();                        
+
+                        Pop();
                     }
                     else
                     {
@@ -2850,7 +2850,7 @@ namespace Opc.Ua
                     // read array from one dimension
                     var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
                     if (part != null && part.Count > 0)
-                    {                        
+                    {
                         // add part elements to final list 
                         foreach (var item in part)
                         {
@@ -2861,9 +2861,6 @@ namespace Opc.Ua
             }
             level = level - 1;
         }
-
-
-
 
         #region Private Methods
         private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)

@@ -526,8 +526,6 @@ namespace Opc.Ua
             }
         }
 
-        
-
         /// <summary>
         /// Reads the body extension object from the stream.
         /// </summary>
@@ -2634,7 +2632,7 @@ namespace Opc.Ua
                 /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
-                
+
                 return ReadArrayElements(fieldName, builtInType);
             }
 
@@ -2672,7 +2670,7 @@ namespace Opc.Ua
             }
 
             throw new ServiceResultException(StatusCodes.BadDecodingError,
-                string.Format( "Invalid ValueRank {0} for Array", valueRank));
+                string.Format("Invalid ValueRank {0} for Array", valueRank));
         }
         #endregion
 

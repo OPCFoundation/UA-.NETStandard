@@ -2068,7 +2068,7 @@ namespace Opc.Ua
                 finally
                 {
                     m_namespaces.Pop();
-                }                
+                }
             }
 
             // write matrix.
@@ -2084,7 +2084,7 @@ namespace Opc.Ua
                         // dimensions element is written first
                         WriteInt32Array("Dimensions", matrix.Dimensions);
 
-                        WriteArray("Elements", matrix.Elements, ValueRanks.OneDimension, builtInType);                  
+                        WriteArray("Elements", matrix.Elements, ValueRanks.OneDimension, builtInType);
                     }
 
                     PopNamespace();

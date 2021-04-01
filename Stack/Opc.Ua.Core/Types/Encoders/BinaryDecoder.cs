@@ -1441,59 +1441,59 @@ namespace Opc.Ua
                 switch (builtInType)
                 {
                     case BuiltInType.Boolean:
-                        return ReadBooleanArray(fieldName).ToArray(); 
+                        return ReadBooleanArray(fieldName).ToArray();
                     case BuiltInType.SByte:
-                        return ReadSByteArray(fieldName).ToArray(); 
+                        return ReadSByteArray(fieldName).ToArray();
                     case BuiltInType.Byte:
-                        return ReadByteArray(fieldName).ToArray(); 
+                        return ReadByteArray(fieldName).ToArray();
                     case BuiltInType.Int16:
-                        return ReadInt16Array(fieldName).ToArray(); 
+                        return ReadInt16Array(fieldName).ToArray();
                     case BuiltInType.UInt16:
-                        return ReadUInt16Array(fieldName).ToArray(); 
+                        return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Int32:
-                        return ReadInt32Array(fieldName).ToArray(); 
+                        return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
-                        return ReadUInt32Array(fieldName).ToArray(); 
+                        return ReadUInt32Array(fieldName).ToArray();
                     case BuiltInType.Int64:
-                        return ReadInt64Array(fieldName).ToArray(); 
+                        return ReadInt64Array(fieldName).ToArray();
                     case BuiltInType.UInt64:
-                        return ReadUInt64Array(fieldName).ToArray(); 
+                        return ReadUInt64Array(fieldName).ToArray();
                     case BuiltInType.Float:
-                        return ReadFloatArray(fieldName).ToArray(); 
+                        return ReadFloatArray(fieldName).ToArray();
                     case BuiltInType.Double:
-                        return ReadDoubleArray(fieldName).ToArray(); 
+                        return ReadDoubleArray(fieldName).ToArray();
                     case BuiltInType.String:
-                        return ReadStringArray(fieldName).ToArray(); 
+                        return ReadStringArray(fieldName).ToArray();
                     case BuiltInType.DateTime:
-                        return ReadDateTimeArray(fieldName).ToArray(); 
+                        return ReadDateTimeArray(fieldName).ToArray();
                     case BuiltInType.Guid:
-                        return ReadGuidArray(fieldName).ToArray(); 
+                        return ReadGuidArray(fieldName).ToArray();
                     case BuiltInType.ByteString:
-                        return ReadByteStringArray(fieldName).ToArray(); 
+                        return ReadByteStringArray(fieldName).ToArray();
                     case BuiltInType.XmlElement:
-                        return ReadXmlElementArray(fieldName).ToArray(); 
+                        return ReadXmlElementArray(fieldName).ToArray();
                     case BuiltInType.NodeId:
-                        return ReadNodeIdArray(fieldName).ToArray(); 
+                        return ReadNodeIdArray(fieldName).ToArray();
                     case BuiltInType.ExpandedNodeId:
-                        return ReadExpandedNodeIdArray(fieldName).ToArray(); 
+                        return ReadExpandedNodeIdArray(fieldName).ToArray();
                     case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName).ToArray(); 
+                        return ReadStatusCodeArray(fieldName).ToArray();
                     case BuiltInType.QualifiedName:
-                        return ReadQualifiedNameArray(fieldName).ToArray(); 
+                        return ReadQualifiedNameArray(fieldName).ToArray();
                     case BuiltInType.LocalizedText:
-                        return ReadLocalizedTextArray(fieldName).ToArray(); 
+                        return ReadLocalizedTextArray(fieldName).ToArray();
                     case BuiltInType.DataValue:
-                        return ReadDataValueArray(fieldName).ToArray(); 
+                        return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Enumeration:
                         //return ReadInt32Array(fieldName); 
                         //return ReadEnumeratedArray(fieldName, typeof(Int32));
                         return ReadInt32Array(fieldName).ToArray(); // todo test!
                     case BuiltInType.Variant:
-                        return ReadVariantArray(fieldName).ToArray(); 
+                        return ReadVariantArray(fieldName).ToArray();
                     case BuiltInType.ExtensionObject:
-                        return ReadExtensionObjectArray(fieldName).ToArray(); 
+                        return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
-                        return ReadDiagnosticInfoArray(fieldName).ToArray(); 
+                        return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
                         throw new ServiceResultException(
@@ -1507,7 +1507,7 @@ namespace Opc.Ua
                 // read dimensions array
                 Int32Collection dimensions = ReadInt32Array(null);
                 if (dimensions != null && dimensions.Count > 0)
-                {                    
+                {
                     int length = 1;
 
                     for (int ii = 0; ii < dimensions.Count; ii++)
@@ -1873,7 +1873,7 @@ namespace Opc.Ua
                     array = values;
                     break;
                 }
-                case BuiltInType.DiagnosticInfo :
+                case BuiltInType.DiagnosticInfo:
                 {
                     DiagnosticInfo[] values = new DiagnosticInfo[length];
 
@@ -2144,7 +2144,7 @@ namespace Opc.Ua
 
                 BuiltInType builtInType = (BuiltInType)(encodingByte & (byte)VariantArrayEncodingBits.TypeMask);
 
-                Array array = ReadArrayElements(length, builtInType);                
+                Array array = ReadArrayElements(length, builtInType);
 
                 if (array == null)
                 {
