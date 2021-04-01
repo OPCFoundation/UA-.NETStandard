@@ -485,7 +485,7 @@ namespace Opc.Ua
             string issuer,
             string serialnumber)
         {
-            X509Certificate2Collection certificates = await store.Enumerate();
+            X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
             foreach (var certificate in certificates)
             {

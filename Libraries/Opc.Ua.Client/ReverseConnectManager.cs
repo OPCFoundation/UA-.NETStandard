@@ -435,7 +435,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.Trace(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
+                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting reverse connect manager");
                     throw new ServiceResultException(error);
                 }
             }
