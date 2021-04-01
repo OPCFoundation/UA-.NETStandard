@@ -28,14 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Net.Sockets;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Options;
-using MQTTnet.Exceptions;
 
 namespace Opc.Ua.PubSub.Mqtt
 {
@@ -52,32 +51,48 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <param name="reconnectInterval">Number of seconds to reconnect atter to the MQTT broker</param>
         /// <param name="mqttClientOptions">The client options for MQTT broker connection</param>
         /// <param name="receiveMessageHandler">The receiver message handler</param>
+        /// <param name="topicFilter">The topics to which to subscribe</param>
         /// <returns></returns>
         internal static async Task<IMqttClient> GetMqttClientAsync(int reconnectInterval,
                                                                    IMqttClientOptions mqttClientOptions,
                                                                    Action<MqttApplicationMessageReceivedEventArgs> receiveMessageHandler,
-                                                                   string topicFilter="#")
+                                                                   StringCollection topicFilter = null)
         {
 
             IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
 
             // Hook the receiveMessageHandler in case we deal with a subscriber
-            if (receiveMessageHandler != null)
+            if ((receiveMessageHandler != null) && (topicFilter != null))
             {
+                HashSet<string> uniqueTopics = new HashSet<string>(topicFilter.ToArray());
+                List<MqttTopicFilter> topics = new List<MqttTopicFilter>();
+                foreach (var topic in uniqueTopics)
+                {
+                    MqttTopicFilter tf = new MqttTopicFilter();
+                    tf.Topic = topic;
+                    topics.Add(tf);
+                }
+
                 mqttClient.UseApplicationMessageReceivedHandler(receiveMessageHandler);
                 mqttClient.UseConnectedHandler(async e => {
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
-                    // Subscribe to all topics since messages are filtered on the receiveMessageHandler
-                    //await mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("#").Build());
-                    await mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topicFilter).Build());
+                    // Subscribe to provided topics, messages are also filtered on the receiveMessageHandler
+                    await mqttClient.SubscribeAsync(topics.ToArray());
 
                     Utils.Trace("{0} Subscribed");
                 });
             }
             else
             {
-                Utils.Trace("The provided MQTT message handler is null therefore messages will not be processed on client {0}!!!", mqttClient?.Options?.ClientId);
+                if (receiveMessageHandler == null)
+                {
+                    Utils.Trace("The provided MQTT message handler is null therefore messages will not be processed on client {0}!!!", mqttClient?.Options?.ClientId);
+                }
+                if (topicFilter == null)
+                {
+                    Utils.Trace("The provided MQTT message topic filter is null therefore messages will not be processed on client {0}!!!", mqttClient?.Options?.ClientId);
+                }
             }
 
             while (mqttClient.IsConnected == false)

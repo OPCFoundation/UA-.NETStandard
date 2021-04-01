@@ -498,17 +498,23 @@ namespace Opc.Ua.PubSub.Mqtt
             m_userName = new SecureString();
             QualifiedName qUserName = EnumMqttClientConfigurationParameters.UserName.GetQualifiedName();
             string sUserName = keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qUserName.Name))?.Value.Value as string;
-            foreach (char c in sUserName?.ToCharArray())
+            if (sUserName != null)
             {
-                m_userName.AppendChar(c);
+                foreach (char c in sUserName?.ToCharArray())
+                {
+                    m_userName.AppendChar(c);
+                }
             }
 
             m_password = new SecureString();
             QualifiedName qPassword = EnumMqttClientConfigurationParameters.Password.GetQualifiedName();
             string sPassword = keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qPassword.Name))?.Value.Value as string;
-            foreach (char c in sPassword?.ToCharArray())
+            if (sPassword != null)
             {
-                m_password.AppendChar(c);
+                foreach (char c in sPassword?.ToCharArray())
+                {
+                    m_password.AppendChar(c);
+                }
             }
 
             QualifiedName qCleanSession = EnumMqttClientConfigurationParameters.CleanSession.GetQualifiedName();

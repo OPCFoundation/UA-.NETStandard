@@ -30,21 +30,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Options;
-using MQTTnet.Client.Receiving;
 using MQTTnet.Protocol;
 using MQTTnet.Server;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt;
-using static Opc.Ua.Utils;
 using MQTTnet.Formatter;
 using System.Security.Cryptography.X509Certificates;
 
@@ -355,41 +349,11 @@ namespace Opc.Ua.PubSub.Transport
         /// Validates the client certificate
         /// </summary>
         /// <param name="context">The context of the validation</param>
-        private bool ValidateClientCertificate(MqttClientCertificateValidationCallbackContext context)
+        private bool ValidateCertificate(MqttClientCertificateValidationCallbackContext context)
         {
             X509Certificate2 cert = new X509Certificate2(context.Certificate.GetRawCertData());
             try
             {
-                if (context.SslPolicyErrors != System.Net.Security.SslPolicyErrors.None)
-                {
-                    switch (context.SslPolicyErrors)
-                    {
-                        case (System.Net.Security.SslPolicyErrors.RemoteCertificateChainErrors):
-                        {
-                            foreach (var err in context.Chain.ChainStatus)
-                            {
-                                Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificate {0} has failed with chain status {1}.",
-                                    cert?.Thumbprint, err.StatusInformation);
-                            }
-                            break;
-                        }
-                        case (System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch):
-                        {
-
-                            Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificate {0} has failed with status RemoteCertificateNameMismatch.",
-                                cert?.Thumbprint);
-                            break;
-                        }
-                        case (System.Net.Security.SslPolicyErrors.RemoteCertificateNotAvailable):
-                        {
-
-                            Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificatehas failed with status RemoteCertificateNotAvailable.");
-                            break;
-                        }
-                    }
-
-                    return false;
-                }
                 m_certificateValidator?.Validate(cert);
             }
             catch (ServiceResultException sre) when
@@ -501,7 +465,7 @@ namespace Opc.Ua.PubSub.Transport
                                 AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
                                 IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
                                 IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                                CertificateValidationHandler = ValidateClientCertificate
+                                CertificateValidationHandler = ValidateCertificate
                             })
                             .Build();
                     }
@@ -531,7 +495,7 @@ namespace Opc.Ua.PubSub.Transport
                                 AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
                                 IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
                                 IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                                CertificateValidationHandler = ValidateClientCertificate
+                                CertificateValidationHandler = ValidateCertificate
                             })
                             .Build();
                     }
@@ -655,34 +619,26 @@ namespace Opc.Ua.PubSub.Transport
             //subscriber initialization   
             if (nrOfSubscribers > 0)
             {
-                // hack: to be changed and improved
-                // simple setting #-all it would not catch the topic when the traffic is high 
-                string topicFilter = "#";
-                if (PubSubConnectionConfiguration.ReaderGroups.Count > 0)
+                // collect all topics from all ReaderGroups
+                StringCollection topics = new StringCollection();
+                foreach (var readGroup in PubSubConnectionConfiguration.ReaderGroups)
                 {
-                    // select first reader
-                    ReaderGroupDataType firstReaderGroup = PubSubConnectionConfiguration.ReaderGroups.First();
-                    if (firstReaderGroup.DataSetReaders.Count > 0)
+                    foreach (var dataSetReader in readGroup.DataSetReaders)
                     {
-                        DataSetReaderDataType dataSetReader = firstReaderGroup.DataSetReaders.First();
-                        if (dataSetReader != null)
+                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
+                            as BrokerDataSetReaderTransportDataType;
+                        if (brokerTransportSettings != null)
                         {
-                            BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
-                                as BrokerDataSetReaderTransportDataType;
-                            if (brokerTransportSettings != null)
-                            {
-                                topicFilter = brokerTransportSettings.QueueName;
-                            }
+                            topics.Add(brokerTransportSettings.QueueName);
                         }
                     }
                 }
-                
 
                 subClient = Task.Run(async () =>
                      (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
                                                                             mqttOptions,
                                                                             ProcessMqttMessage,
-                                                                            topicFilter).ConfigureAwait(false)).Result;          
+                                                                            topics).ConfigureAwait(false)).Result;          
             }
 
             lock (m_lock)
