@@ -305,6 +305,54 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Verify encode and decode of a one dimensional Array.
+        /// </summary>
+        [Theory]
+        [Category("Array")]
+        public void EncodeArray(
+            EncodingType encoderType,
+            BuiltInType builtInType
+            )
+        {
+            Assume.That(builtInType != BuiltInType.Null);
+            int arrayDimension = RandomSource.NextInt32(99) + 1;
+            Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
+
+            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
+            Type type = TypeInfo.GetSystemType(builtInType, -1);
+            TestContext.Out.WriteLine(encodeInfo);
+            TestContext.Out.WriteLine("Expected:");
+            TestContext.Out.WriteLine(randomData);
+            var encoderStream = new MemoryStream();
+            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, true, false);
+            encoder.WriteArray(builtInType.ToString(), randomData, ValueRanks.OneDimension, builtInType);
+            Dispose(encoder);
+
+            var buffer = encoderStream.ToArray();
+            string formatted;
+            switch (encoderType)
+            {
+                case EncodingType.Json:
+                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    break;
+                default:
+                    formatted = Encoding.UTF8.GetString(buffer);
+                    break;
+            }
+            var decoderStream = new MemoryStream(buffer);
+            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type);
+            object result = decoder.ReadArray(builtInType.ToString(), ValueRanks.OneDimension, builtInType);
+            Dispose(decoder);
+
+            TestContext.Out.WriteLine("Result:");
+            TestContext.Out.WriteLine(result);
+            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
+
+            Assert.AreEqual(expected, result, encodeInfo);
+            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+        }
+
+        /// <summary>
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
@@ -345,56 +393,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
-        /// Verify encode and decode of a one dimensional Array.
-        /// </summary>
-        [Theory]
-        [Category("Array")]
-        public void EncodeArray(
-            EncodingType encoderType,
-            BuiltInType builtInType
-            )
-        {
-           // EncodingType encoderType = EncodingType.Binary;
-
-            Assume.That(builtInType != BuiltInType.Null);
-            int arrayDimension = RandomSource.NextInt32(99) + 1;
-            Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
-
-            string encodeInfo = $"Encoder: {encoderType} Type:{builtInType}";
-            Type type = TypeInfo.GetSystemType(builtInType, -1);
-            TestContext.Out.WriteLine(encodeInfo);
-            TestContext.Out.WriteLine("Expected:");
-            TestContext.Out.WriteLine(randomData);
-            var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, true, false);
-            encoder.WriteArray(builtInType.ToString(), randomData, ValueRanks.OneDimension, builtInType);
-            Dispose(encoder);
-
-            var buffer = encoderStream.ToArray();
-            string formatted;
-            switch (encoderType)
-            {
-                case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
-                    break;
-                default:
-                    formatted = Encoding.UTF8.GetString(buffer);
-                    break;
-            }
-            var decoderStream = new MemoryStream(buffer);
-            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type);
-            object result = decoder.ReadArray(builtInType.ToString(), ValueRanks.OneDimension, builtInType);
-            Dispose(decoder);
-
-            TestContext.Out.WriteLine("Result:");
-            TestContext.Out.WriteLine(result);
-            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, randomData);
-
-            Assert.AreEqual(expected, result, encodeInfo);
-            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
-        }
-
-        /// <summary>
         /// Verify encode of a Matrix in a multi dimensional array.
         /// </summary>
         [Theory]
@@ -418,7 +416,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(matrix);
             var encoderStream = new MemoryStream();
-            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, true, false);
+            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type);
             encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
             Dispose(encoder);
 
