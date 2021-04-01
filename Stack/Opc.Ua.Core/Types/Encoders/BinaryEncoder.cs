@@ -1667,7 +1667,9 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            // TODO log?
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Unexpected type encountered while encoding an Enumenration Array");
                         }
                         break;
                     case BuiltInType.ExtensionObject:
@@ -1754,7 +1756,7 @@ namespace Opc.Ua
                         }
                         break;
                     }
-                    case BuiltInType.Enumeration: // todo test it!!!!!
+                    case BuiltInType.Enumeration: 
                     case BuiltInType.Int32:
                     {
                         Int32[] values = (Int32[])matrix.Elements;

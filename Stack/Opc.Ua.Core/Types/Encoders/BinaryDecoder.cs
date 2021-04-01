@@ -509,8 +509,7 @@ namespace Opc.Ua
                 var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
 
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
-                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
                 {
                     document.Load(reader);
                 }
@@ -1451,6 +1450,7 @@ namespace Opc.Ua
                     case BuiltInType.UInt16:
                         return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Int32:
+                    case BuiltInType.Enumeration:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
                         return ReadUInt32Array(fieldName).ToArray();
@@ -1484,10 +1484,6 @@ namespace Opc.Ua
                         return ReadLocalizedTextArray(fieldName).ToArray();
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName).ToArray();
-                    case BuiltInType.Enumeration:
-                        //return ReadInt32Array(fieldName); 
-                        //return ReadEnumeratedArray(fieldName, typeof(Int32));
-                        return ReadInt32Array(fieldName).ToArray(); // todo test!
                     case BuiltInType.Variant:
                         return ReadVariantArray(fieldName).ToArray();
                     case BuiltInType.ExtensionObject:
@@ -1502,7 +1498,8 @@ namespace Opc.Ua
                     }
                 }
             }
-            if (valueRank > ValueRanks.OneDimension) // two or more dimensions
+            // two or more dimensions
+            if (valueRank > ValueRanks.OneDimension)
             {
                 // read dimensions array
                 Int32Collection dimensions = ReadInt32Array(null);
@@ -1764,7 +1761,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(ex, "Error reading variant.");
+                        Utils.Trace(ex, "Error reading array of XmlElement.");
                     }
 
                     break;

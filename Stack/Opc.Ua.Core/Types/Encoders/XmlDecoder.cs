@@ -2736,6 +2736,18 @@ namespace Opc.Ua
         /// <returns></returns>
         private Array ReadArrayElements(string fieldName, BuiltInType builtInType)
         {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
+
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
             {
@@ -2907,6 +2919,7 @@ namespace Opc.Ua
             finally
             {
                 m_namespaces.Pop();
+                m_nestingLevel--;
             }
 
             return null;

@@ -2754,8 +2754,7 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                int level = 0;
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, ref level);
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0);
 
                 switch (builtInType)
                 {
@@ -2804,7 +2803,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.Enumeration:
-                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray()); // todo test this
+                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray()); 
                     case BuiltInType.Variant:
                         return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.ExtensionObject:
@@ -2817,52 +2816,76 @@ namespace Opc.Ua
         }
         #endregion
 
-        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, ref int level)
+        #region Private Methods
+
+        /// <summary>
+        /// Read the Matrix part (simple array or aray of arrays)
+        /// </summary>
+        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level)
         {
-            level = level + 1;
-            if (currentArray.Count > 0)
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
             {
-                bool hasInnerArray = false;
-                for (int ii = 0; ii < currentArray.Count; ii++)
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+
+            m_nestingLevel++;
+
+            try
+            {
+                if (currentArray.Count > 0)
                 {
-                    if (ii == 0 && dimensions.Count < level)
+                    bool hasInnerArray = false;
+                    for (int ii = 0; ii < currentArray.Count; ii++)
                     {
-                        // remember dimension length
-                        dimensions.Add(currentArray.Count);
-                    }
-                    if (currentArray[ii] is List<object>)
-                    {
-                        hasInnerArray = true;
-
-                        PushArray(fieldName, ii);
-
-                        ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, ref level);
-
-                        Pop();
-                    }
-                    else
-                    {
-                        break; // do not continue reading array of array
-                    }
-                }
-                if (!hasInnerArray)
-                {
-                    // read array from one dimension
-                    var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
-                    if (part != null && part.Count > 0)
-                    {
-                        // add part elements to final list 
-                        foreach (var item in part)
+                        if (ii == 0 && dimensions.Count <= level)
                         {
-                            elements.Add(item);
+                            // remember dimension length
+                            dimensions.Add(currentArray.Count);
+                        }
+                        if (currentArray[ii] is List<object>)
+                        {
+                            hasInnerArray = true;
+
+                            PushArray(fieldName, ii);
+
+                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1);
+
+                            Pop();
+                        }
+                        else
+                        {
+                            break; // do not continue reading array of array
+                        }
+                    }
+                    if (!hasInnerArray)
+                    {
+                        // read array from one dimension
+                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
+                        if (part != null && part.Count > 0)
+                        {
+                            // add part elements to final list 
+                            foreach (var item in part)
+                            {
+                                elements.Add(item);
+                            }
                         }
                     }
                 }
             }
-            level = level - 1;
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
-        #region Private Methods
+        /// <summary>
+        /// Get Default value for NodeId for diferent IdTypes 
+        /// </summary>
+        /// <returns>new NodeId</returns>
         private NodeId DefaultNodeId(IdType idType, ushort namespaceIndex)
         {
             switch (idType)

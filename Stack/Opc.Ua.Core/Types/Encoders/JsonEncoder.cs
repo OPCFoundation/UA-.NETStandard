@@ -2417,29 +2417,47 @@ namespace Opc.Ua
             ref int index,
             TypeInfo typeInfo)
         {
-            var arrayLen = matrix.Dimensions[dim];
-            if (dim == matrix.Dimensions.Length - 1)
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
             {
-                // Create a slice of values for the top dimension
-                var copy = Array.CreateInstance(
-                    matrix.Elements.GetType().GetElementType(), arrayLen);
-                Array.Copy(matrix.Elements, index, copy, 0, arrayLen);
-                // Write slice as value rank
-                if (m_commaRequired)
-                {
-                    m_writer.Write(",");
-                }
-                WriteVariantContents(copy, new TypeInfo(typeInfo.BuiltInType, 1));
-                index += arrayLen;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
             }
-            else
+
+            m_nestingLevel++;
+
+            try
             {
-                PushArray(fieldName);
-                for (var i = 0; i < arrayLen; i++)
+                var arrayLen = matrix.Dimensions[dim];
+                if (dim == matrix.Dimensions.Length - 1)
                 {
-                    WriteStructureMatrix(null, matrix, dim + 1, ref index, typeInfo);
+                    // Create a slice of values for the top dimension
+                    var copy = Array.CreateInstance(
+                        matrix.Elements.GetType().GetElementType(), arrayLen);
+                    Array.Copy(matrix.Elements, index, copy, 0, arrayLen);
+                    // Write slice as value rank
+                    if (m_commaRequired)
+                    {
+                        m_writer.Write(",");
+                    }
+                    WriteVariantContents(copy, new TypeInfo(typeInfo.BuiltInType, 1));
+                    index += arrayLen;
                 }
-                PopArray();
+                else
+                {
+                    PushArray(fieldName);
+                    for (var i = 0; i < arrayLen; i++)
+                    {
+                        WriteStructureMatrix(null, matrix, dim + 1, ref index, typeInfo);
+                    }
+                    PopArray();
+                }
+            }
+            finally
+            {
+                m_nestingLevel--;
             }
         }
 

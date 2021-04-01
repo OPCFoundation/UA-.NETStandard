@@ -402,16 +402,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeMatrixInArray(
         EncodingType encoderType,
         BuiltInType builtInType
-        //    [Values(
-        //    EncodingType.Binary,
-        //    EncodingType.Xml,
-        //    EncodingType.Json
-        //    )]
-        //EncodingType encoderType
             )
         {
-           // EncodingType encoderType = EncodingType.Binary;
-
             Assume.That(builtInType != BuiltInType.Null);
             int matrixDimension = RandomSource.NextInt32(8) + 2;
             int[] dimensions = new int[matrixDimension];
