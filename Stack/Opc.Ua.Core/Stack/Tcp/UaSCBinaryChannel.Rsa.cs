@@ -33,11 +33,9 @@ namespace Opc.Ua.Bindings
             HashAlgorithmName algorithm,
             RSASignaturePadding padding)
         {
-            RSA rsa = null;
-            try
+            // extract the private key.
+            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
             {
-                // extract the private key.
-                rsa = signingCertificate.GetRSAPrivateKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -45,10 +43,6 @@ namespace Opc.Ua.Bindings
 
                 // create the signature.
                 return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, padding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -62,11 +56,9 @@ namespace Opc.Ua.Bindings
             HashAlgorithmName algorithm,
             RSASignaturePadding padding)
         {
-            RSA rsa = null;
-            try
+            // extract the public key.
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
-                // extract the public key.
-                rsa = signingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -90,10 +82,6 @@ namespace Opc.Ua.Bindings
                 }
                 return true;
             }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
         }
 
         /// <summary>
@@ -105,11 +93,9 @@ namespace Opc.Ua.Bindings
             X509Certificate2 encryptingCertificate,
             RsaUtils.Padding padding)
         {
-            RSA rsa = null;
-            try
+            // get the encrypting key.
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                // get the encrypting key.
-                rsa = encryptingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -147,10 +133,6 @@ namespace Opc.Ua.Bindings
                 // return buffer
                 return new ArraySegment<byte>(encryptedBuffer, 0, (dataToEncrypt.Count / inputBlockSize) * outputBlockSize + headerToCopy.Count);
             }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
         }
 
         /// <summary>
@@ -162,11 +144,10 @@ namespace Opc.Ua.Bindings
             X509Certificate2 encryptingCertificate,
             RsaUtils.Padding padding)
         {
-            RSA rsa = null;
-            try
+            // get the encrypting key.
+            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
             {
-                // get the encrypting key.
-                rsa = encryptingCertificate.GetRSAPrivateKey();
+
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -203,10 +184,6 @@ namespace Opc.Ua.Bindings
 
                 // return buffers.
                 return new ArraySegment<byte>(decryptedBuffer, 0, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize + headerToCopy.Count);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
     }

@@ -106,15 +106,9 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(X509Certificate2 certificate)
         {
-            RSA rsaPublicKey = null;
-            try
+            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                rsaPublicKey = certificate.GetRSAPublicKey();
                 return rsaPublicKey.KeySize;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPublicKey);
             }
         }
 
@@ -491,7 +485,7 @@ namespace Opc.Ua
             string issuer,
             string serialnumber)
         {
-            X509Certificate2Collection certificates = await store.Enumerate();
+            X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
             foreach (var certificate in certificates)
             {

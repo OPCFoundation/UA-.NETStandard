@@ -231,7 +231,7 @@ namespace Opc.Ua
 
             // merge all existing revocation list
             if (issuerCrls != null)
-            {   
+            {
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
                     var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
@@ -390,17 +390,11 @@ namespace Opc.Ua
             }
 
             string passcode = Guid.NewGuid().ToString();
-            RSA rsaPrivateKey = null;
-            try
+            using (RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey())
             {
-                rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
                 byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
                     certificate, certificate.FriendlyName, rsaPrivateKey, passcode);
                 return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPrivateKey);
             }
         }
 

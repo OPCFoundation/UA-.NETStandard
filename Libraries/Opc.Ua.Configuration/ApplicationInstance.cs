@@ -268,7 +268,7 @@ namespace Opc.Ua.Configuration
                         await MessageDlg.ShowAsync().ConfigureAwait(false);
                     }
 
-                    throw e;
+                    throw;
                 }
 
                 return null;
@@ -285,14 +285,14 @@ namespace Opc.Ua.Configuration
             try
             {
                 configuration = await LoadAppConfig(
-                silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
-                .ConfigureAwait(false);
+                    silent, filePath, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                    .ConfigureAwait(false);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 if (!silent)
                 {
-                    throw e;
+                    throw;
                 }
             }
 
@@ -454,7 +454,7 @@ namespace Opc.Ua.Configuration
                     && e.Error != null && e.Error.Code == StatusCodes.BadCertificateUntrusted)
                 {
                     e.Accept = true;
-                    Utils.Trace((int)Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
+                    Utils.Trace(Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
                 }
             }
             catch (Exception exception)
