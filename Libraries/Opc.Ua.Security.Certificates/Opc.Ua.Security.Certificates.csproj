@@ -8,6 +8,7 @@
     <RootNamespace>Opc.Ua.Security.Certificates</RootNamespace>
     <Description>OPC UA Security X509 Certificates Class Library</Description>
     <IsPackable>true</IsPackable>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
