@@ -2686,59 +2686,57 @@ namespace Opc.Ua
                 switch (builtInType)
                 {
                     case BuiltInType.Boolean:
-                        return ReadBooleanArray(fieldName);
+                        return ReadBooleanArray(fieldName).ToArray();
                     case BuiltInType.SByte:
-                        return ReadSByteArray(fieldName);
+                        return ReadSByteArray(fieldName).ToArray();
                     case BuiltInType.Byte:
-                        return ReadByteArray(fieldName);
+                        return ReadByteArray(fieldName).ToArray();
                     case BuiltInType.Int16:
-                        return ReadInt16Array(fieldName);
+                        return ReadInt16Array(fieldName).ToArray();
                     case BuiltInType.UInt16:
-                        return ReadUInt16Array(fieldName);
+                        return ReadUInt16Array(fieldName).ToArray();
                     case BuiltInType.Int32:
-                        return ReadInt32Array(fieldName);
+                        return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.UInt32:
-                        return ReadUInt32Array(fieldName);
+                        return ReadUInt32Array(fieldName).ToArray();
                     case BuiltInType.Int64:
-                        return ReadInt64Array(fieldName);
+                        return ReadInt64Array(fieldName).ToArray();
                     case BuiltInType.UInt64:
-                        return ReadUInt64Array(fieldName);
+                        return ReadUInt64Array(fieldName).ToArray();
                     case BuiltInType.Float:
-                        return ReadFloatArray(fieldName);
+                        return ReadFloatArray(fieldName).ToArray();
                     case BuiltInType.Double:
-                        return ReadDoubleArray(fieldName);
+                        return ReadDoubleArray(fieldName).ToArray();
                     case BuiltInType.String:
-                        return ReadStringArray(fieldName);
+                        return ReadStringArray(fieldName).ToArray();
                     case BuiltInType.DateTime:
-                        return ReadDateTimeArray(fieldName);
+                        return ReadDateTimeArray(fieldName).ToArray();
                     case BuiltInType.Guid:
-                        return ReadGuidArray(fieldName);
+                        return ReadGuidArray(fieldName).ToArray();
                     case BuiltInType.ByteString:
-                        return ReadByteStringArray(fieldName);
+                        return ReadByteStringArray(fieldName).ToArray();
                     case BuiltInType.XmlElement:
-                        return ReadXmlElementArray(fieldName);
+                        return ReadXmlElementArray(fieldName).ToArray();
                     case BuiltInType.NodeId:
-                        return ReadNodeIdArray(fieldName);
+                        return ReadNodeIdArray(fieldName).ToArray();
                     case BuiltInType.ExpandedNodeId:
-                        return ReadExpandedNodeIdArray(fieldName);
+                        return ReadExpandedNodeIdArray(fieldName).ToArray();
                     case BuiltInType.StatusCode:
-                        return ReadStatusCodeArray(fieldName); 
+                        return ReadStatusCodeArray(fieldName).ToArray(); 
                     case BuiltInType.QualifiedName:
-                        return ReadQualifiedNameArray(fieldName);
+                        return ReadQualifiedNameArray(fieldName).ToArray();
                     case BuiltInType.LocalizedText:
-                        return ReadLocalizedTextArray(fieldName);
+                        return ReadLocalizedTextArray(fieldName).ToArray();
                     case BuiltInType.DataValue:
-                        return ReadDataValueArray(fieldName);
+                        return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Enumeration:
-                        //return binaryDecoder.ReadInt32Array(fieldName);
-                        //return binaryDecoder.ReadEnumeratedArray(fieldName, typeof(Int32));
-                        return ReadVariantArray(fieldName); // todo test this
+                        return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.Variant:
-                        return ReadVariantArray(fieldName);
+                        return ReadVariantArray(fieldName).ToArray();
                     case BuiltInType.ExtensionObject:
-                        return ReadExtensionObjectArray(fieldName);
+                        return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
-                        return ReadDiagnosticInfoArray(fieldName);
+                        return ReadDiagnosticInfoArray(fieldName).ToArray();
                     default:
                     {
                         throw new ServiceResultException(
@@ -2806,9 +2804,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.Enumeration:
-                        //return binaryDecoder.ReadInt32Array(fieldName);
-                        //return binaryDecoder.ReadEnumeratedArray(fieldName, typeof(Int32));
-                        return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray()); // todo test this
+                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray()); // todo test this
                     case BuiltInType.Variant:
                         return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.ExtensionObject:

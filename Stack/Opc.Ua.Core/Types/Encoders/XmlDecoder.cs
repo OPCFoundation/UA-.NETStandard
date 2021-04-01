@@ -2634,8 +2634,8 @@ namespace Opc.Ua
                 /*One dimensional Array parameters are always encoded by wrapping the elements in a container element 
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
-                TypeInfo typeInfo;
-                return ReadArrayElements(out typeInfo);
+                
+                return ReadArrayElements(fieldName, builtInType);
             }
 
             // write matrix.
@@ -2651,12 +2651,7 @@ namespace Opc.Ua
                     // dimensions are written before elements when encoding multi dimensional array!! UA Specs
                     dimensions = ReadInt32Array("Dimensions");
 
-                    if (BeginField("Elements", true))
-                    {
-                        object contents = ReadVariantContents(out typeInfo);
-                        elements = contents as Array;
-                        EndField("Elements");
-                    }                    
+                    elements = ReadArrayElements("Elements", builtInType);
 
                     PopNamespace();
 
@@ -2670,7 +2665,7 @@ namespace Opc.Ua
 
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    return new Matrix(elements, typeInfo.BuiltInType, dimensions.ToArray());
+                    return new Matrix(elements, builtInType, dimensions.ToArray());
                 }
 
                 return new Matrix(elements, typeInfo.BuiltInType);
@@ -2725,12 +2720,11 @@ namespace Opc.Ua
         /// <summary>
         /// Read array items from current ListOf element
         /// </summary>
-        /// <param name="typeInfo">provides the typeinfo for the elements that were read</param>
+        /// <param name="fieldName">provides the fieldName for the array</param>
+        /// <param name="builtInType">provides the BuiltInType of the elements that are read</param>
         /// <returns></returns>
-        private Array ReadArrayElements(out TypeInfo typeInfo)
+        private Array ReadArrayElements(string fieldName, BuiltInType builtInType)
         {
-            typeInfo = TypeInfo.Unknown;
-
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
             {
@@ -2741,188 +2735,160 @@ namespace Opc.Ua
             {
                 m_namespaces.Push(Namespaces.OpcUaXsd);
 
-                string typeName = m_reader.LocalName;
-
                 // process array types.
-                if (typeName.StartsWith("ListOf", StringComparison.Ordinal))
+
+                switch (builtInType)
                 {
-                    switch (typeName.Substring("ListOf".Length))
+                    case BuiltInType.Boolean:
                     {
-                        case "Boolean":
-                        {
-                            typeInfo = TypeInfo.Arrays.Boolean;
-                            BooleanCollection collection = ReadBooleanArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "SByte":
-                        {
-                            typeInfo = TypeInfo.Arrays.SByte;
-                            SByteCollection collection = ReadSByteArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Byte":
-                        {
-                            typeInfo = TypeInfo.Arrays.Byte;
-                            ByteCollection collection = ReadByteArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Int16":
-                        {
-                            typeInfo = TypeInfo.Arrays.Int16;
-                            Int16Collection collection = ReadInt16Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "UInt16":
-                        {
-                            typeInfo = TypeInfo.Arrays.UInt16;
-                            UInt16Collection collection = ReadUInt16Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Int32":
-                        {
-                            typeInfo = TypeInfo.Arrays.Int32;
-                            Int32Collection collection = ReadInt32Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "UInt32":
-                        {
-                            typeInfo = TypeInfo.Arrays.UInt32;
-                            UInt32Collection collection = ReadUInt32Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Int64":
-                        {
-                            typeInfo = TypeInfo.Arrays.Int64;
-                            Int64Collection collection = ReadInt64Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "UInt64":
-                        {
-                            typeInfo = TypeInfo.Arrays.UInt64;
-                            UInt64Collection collection = ReadUInt64Array(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Float":
-                        {
-                            typeInfo = TypeInfo.Arrays.Float;
-                            FloatCollection collection = ReadFloatArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Double":
-                        {
-                            typeInfo = TypeInfo.Arrays.Double;
-                            DoubleCollection collection = ReadDoubleArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "String":
-                        {
-                            typeInfo = TypeInfo.Arrays.String;
-                            StringCollection collection = ReadStringArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "DateTime":
-                        {
-                            typeInfo = TypeInfo.Arrays.DateTime;
-                            DateTimeCollection collection = ReadDateTimeArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Guid":
-                        {
-                            typeInfo = TypeInfo.Arrays.Guid;
-                            UuidCollection collection = ReadGuidArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "ByteString":
-                        {
-                            typeInfo = TypeInfo.Arrays.ByteString;
-                            ByteStringCollection collection = ReadByteStringArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "XmlElement":
-                        {
-                            typeInfo = TypeInfo.Arrays.XmlElement;
-                            XmlElementCollection collection = ReadXmlElementArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "NodeId":
-                        {
-                            typeInfo = TypeInfo.Arrays.NodeId;
-                            NodeIdCollection collection = ReadNodeIdArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "ExpandedNodeId":
-                        {
-                            typeInfo = TypeInfo.Arrays.ExpandedNodeId;
-                            ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "StatusCode":
-                        {
-                            typeInfo = TypeInfo.Arrays.StatusCode;
-                            StatusCodeCollection collection = ReadStatusCodeArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "DiagnosticInfo":
-                        {
-                            typeInfo = TypeInfo.Arrays.DiagnosticInfo;
-                            DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "QualifiedName":
-                        {
-                            typeInfo = TypeInfo.Arrays.QualifiedName;
-                            QualifiedNameCollection collection = ReadQualifiedNameArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "LocalizedText":
-                        {
-                            typeInfo = TypeInfo.Arrays.LocalizedText;
-                            LocalizedTextCollection collection = ReadLocalizedTextArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "ExtensionObject":
-                        {
-                            typeInfo = TypeInfo.Arrays.ExtensionObject;
-                            ExtensionObjectCollection collection = ReadExtensionObjectArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "DataValue":
-                        {
-                            typeInfo = TypeInfo.Arrays.DataValue;
-                            DataValueCollection collection = ReadDataValueArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
-                        case "Variant":
-                        {
-                            typeInfo = TypeInfo.Arrays.Variant;
-                            VariantCollection collection = ReadVariantArray(typeName);
-                            if (collection != null) return collection.ToArray();
-                            return null;
-                        }
+                        BooleanCollection collection = ReadBooleanArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.SByte:
+                    {
+                        SByteCollection collection = ReadSByteArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Byte:
+                    {
+                        ByteCollection collection = ReadByteArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Int16:
+                    {
+                        Int16Collection collection = ReadInt16Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.UInt16:
+                    {
+                        UInt16Collection collection = ReadUInt16Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Enumeration:
+                    case BuiltInType.Int32:
+                    {
+                        Int32Collection collection = ReadInt32Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.UInt32:
+                    {
+                        UInt32Collection collection = ReadUInt32Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Int64:
+                    {
+                        Int64Collection collection = ReadInt64Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.UInt64:
+                    {
+                        UInt64Collection collection = ReadUInt64Array(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Float:
+                    {
+                        FloatCollection collection = ReadFloatArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Double:
+                    {
+                        DoubleCollection collection = ReadDoubleArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.String:
+                    {
+                        StringCollection collection = ReadStringArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.DateTime:
+                    {
+                        DateTimeCollection collection = ReadDateTimeArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Guid:
+                    {
+                        UuidCollection collection = ReadGuidArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.ByteString:
+                    {
+                        ByteStringCollection collection = ReadByteStringArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.XmlElement:
+                    {
+                        XmlElementCollection collection = ReadXmlElementArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.NodeId:
+                    {
+                        NodeIdCollection collection = ReadNodeIdArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.ExpandedNodeId:
+                    {
+                        ExpandedNodeIdCollection collection = ReadExpandedNodeIdArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.StatusCode:
+                    {
+                        StatusCodeCollection collection = ReadStatusCodeArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.DiagnosticInfo:
+                    {
+                        DiagnosticInfoCollection collection = ReadDiagnosticInfoArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.QualifiedName:
+                    {
+                        QualifiedNameCollection collection = ReadQualifiedNameArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.LocalizedText:
+                    {
+                        LocalizedTextCollection collection = ReadLocalizedTextArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.ExtensionObject:
+                    {
+                        ExtensionObjectCollection collection = ReadExtensionObjectArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.DataValue:
+                    {
+                        DataValueCollection collection = ReadDataValueArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
+                    }
+                    case BuiltInType.Variant:
+                    {
+                        VariantCollection collection = ReadVariantArray(fieldName);
+                        if (collection != null) return collection.ToArray();
+                        return null;
                     }
                 }
 
@@ -2934,10 +2900,6 @@ namespace Opc.Ua
 
             return null;
         }
-
-
-
-
 
         /// <summary>
         /// Reads a string from the stream.

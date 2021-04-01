@@ -2398,7 +2398,7 @@ namespace Opc.Ua
                 if (matrix != null)
                 {
                     int index = 0;
-                    WriteStructureMatrix(matrix, 0, ref index, matrix.TypeInfo);
+                    WriteStructureMatrix(fieldName, matrix, 0, ref index, matrix.TypeInfo);
                     return;
                 }
             }
@@ -2411,6 +2411,7 @@ namespace Opc.Ua
         /// Write multi dimensional array in structure.
         /// </summary>
         private void WriteStructureMatrix(
+            string fieldName,
             Matrix matrix,
             int dim,
             ref int index,
@@ -2433,10 +2434,10 @@ namespace Opc.Ua
             }
             else
             {
-                PushArray(null);
+                PushArray(fieldName);
                 for (var i = 0; i < arrayLen; i++)
                 {
-                    WriteStructureMatrix(matrix, dim + 1, ref index, typeInfo);
+                    WriteStructureMatrix(null, matrix, dim + 1, ref index, typeInfo);
                 }
                 PopArray();
             }
