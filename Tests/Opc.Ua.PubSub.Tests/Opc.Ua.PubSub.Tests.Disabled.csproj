@@ -11,11 +11,27 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="resources\client.key" />
+    <None Remove="resources\client.pfx" />
+    <None Remove="resources\mosquitto.org.crt" />
+    <None Remove="resources\mosquitto.org.der" />
     <None Remove="resources\mosquitto_pwd.conf" />
     <None Remove="resources\password.txt" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="resources\client.key">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="resources\client.pfx">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="resources\mosquitto.org.crt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="resources\mosquitto.org.der">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="resources\mosquitto_pwd.conf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

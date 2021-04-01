@@ -151,11 +151,11 @@ namespace Opc.Ua.PubSub.Mqtt
             m_clientCertificatePath = clientCertificatePath ?? "";
             m_clientCertificatePassword = clientCertificatePassword ?? "";
 
-            if (m_caCertificatePath != null)
+            if (!string.IsNullOrEmpty(m_caCertificatePath))
             {
                 m_caCertificate = X509Certificate.CreateFromCertFile(m_caCertificatePath);
             }
-            if (clientCertificatePath != null)
+            if (!string.IsNullOrEmpty(clientCertificatePath))
             {
                 m_clientCertificate = new X509Certificate2(clientCertificatePath, m_clientCertificatePassword);
             }
@@ -193,11 +193,11 @@ namespace Opc.Ua.PubSub.Mqtt
 
             m_keyValuePairs = keyValuePairs;
 
-            if (m_caCertificatePath != null)
+            if (!string.IsNullOrEmpty(m_caCertificatePath))
             {
                 m_caCertificate = X509Certificate.CreateFromCertFile(m_caCertificatePath);
             }
-            if (clientCertificatePath != null)
+            if (!string.IsNullOrEmpty(clientCertificatePath))
             {
                 m_clientCertificate = new X509Certificate2(clientCertificatePath, m_clientCertificatePassword);
             }
