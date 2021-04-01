@@ -468,6 +468,51 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         /// <summary>
+        /// Create an Azure Publisher with the specified parameters for json
+        /// </summary>
+        /// <param name="transportProfileUri"></param>
+        /// <param name="addressUrl"></param>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <param name="jsonNetworkMessageContentMask"></param>
+        /// <param name="jsonDataSetMessageContentMask"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="dataSetMetaDataArray"></param>
+        /// <param name="nameSpaceIndexForData"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateAzurePublisherConfiguration(
+            string transportProfileUri, string addressUrl,
+            object publisherId, ushort writerGroupId,
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, string topic)
+        {
+            PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration(
+                transportProfileUri, addressUrl,
+                publisherId, writerGroupId,
+                (UInt32)jsonNetworkMessageContentMask,
+                (UInt32)jsonDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray, nameSpaceIndexForData);
+
+            foreach (var pubSubConnection in pubSubConfiguration.Connections)
+            {
+                foreach (var writerGroup in pubSubConnection.WriterGroups)
+                {
+                    BrokerWriterGroupTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(writerGroup.TransportSettings)
+                        as BrokerWriterGroupTransportDataType;
+                    if (brokerTransportSettings != null)
+                    {
+                        brokerTransportSettings.QueueName = topic;
+                    }
+                }
+            }
+
+            return pubSubConfiguration;
+        }
+    
+        /// <summary>
         /// Create a Publisher with the specified parameters for uadp
         /// </summary>
         /// <param name="transportProfileUri"></param>
