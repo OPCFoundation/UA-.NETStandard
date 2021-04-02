@@ -2521,7 +2521,7 @@ namespace Opc.Ua
         /// <summary>
         /// Push an Array item on the Read Stack
         /// </summary>
-        /// <param name="fieldName">TRhe array name</param>
+        /// <param name="fieldName">The array name</param>
         /// <param name="index">The index of the item that shall be placed on the Read Stack</param>
         /// <returns>true if successful</returns>
         public bool PushArray(string fieldName, int index)

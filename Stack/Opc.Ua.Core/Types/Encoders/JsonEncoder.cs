@@ -1164,7 +1164,6 @@ namespace Opc.Ua
             m_nestingLevel--;
         }
 
-
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
@@ -2354,7 +2353,7 @@ namespace Opc.Ua
                     case BuiltInType.ExtensionObject: { WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return; }
                     case BuiltInType.DataValue: { WriteDataValueArray(fieldName, (DataValue[])array); return; }
                     case BuiltInType.DiagnosticInfo: { WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return; }
-                    case BuiltInType.Enumeration: //todo test this!
+                    case BuiltInType.Enumeration:
                     {
                         Array enumArray = array as Array;
                         WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
