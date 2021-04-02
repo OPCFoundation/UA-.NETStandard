@@ -41,18 +41,15 @@ using MQTTnet.Packets;
 
 namespace Opc.Ua.PubSub.Mqtt
 {
-    public enum EnumMqttProtocolVersion
-    {
-        Unknown = MqttProtocolVersion.Unknown,
-        V310 = MqttProtocolVersion.V310,
-        V311 = MqttProtocolVersion.V311,
-        V500 = MqttProtocolVersion.V500
-    }
 
-    public enum EnumMqttClientConfigurationParameters
+    /// <summary>
+    /// The identifiers of the MqttClientConfigurationParameters
+    /// </summary>
+    internal enum EnumMqttClientConfigurationParameters
     {
         UserName,
         Password,
+        AzureClientId,
         CleanSession,
         ProtocolVersion,
 
@@ -72,9 +69,12 @@ namespace Opc.Ua.PubSub.Mqtt
         RejectedCertificateStoreStorePath
     }
 
-    public static class MqttClientConfigurationParametersExtensions
+    /// <summary>
+    /// Extension for providing string values corresponding to EnumMqttClientConfigurationParameters
+    /// </summary>
+    internal static class MqttClientConfigurationParametersExtensions
     {
-        public static QualifiedName GetQualifiedName(this EnumMqttClientConfigurationParameters mqttClientConfigurationParameters)
+        internal static QualifiedName GetQualifiedName(this EnumMqttClientConfigurationParameters mqttClientConfigurationParameters)
         {
             switch (mqttClientConfigurationParameters)
             {
@@ -82,6 +82,8 @@ namespace Opc.Ua.PubSub.Mqtt
                     return "UserName";
                 case EnumMqttClientConfigurationParameters.Password:
                     return "Password";
+                case EnumMqttClientConfigurationParameters.AzureClientId:
+                    return "AzureClientId";
                 case EnumMqttClientConfigurationParameters.CleanSession:
                     return "CleanSession";
                 case EnumMqttClientConfigurationParameters.ProtocolVersion:
@@ -119,14 +121,39 @@ namespace Opc.Ua.PubSub.Mqtt
     }
 
     /// <summary>
+    /// The Mqtt Protocol Version
+    /// </summary>
+    public enum EnumMqttProtocolVersion
+    {
+        /// <summary>
+        /// Unknown version
+        /// </summary>
+        Unknown = MqttProtocolVersion.Unknown,
+        /// <summary>
+        /// Mqtt V310
+        /// </summary>
+        V310 = MqttProtocolVersion.V310,
+        /// <summary>
+        /// Mqtt V311
+        /// </summary>
+        V311 = MqttProtocolVersion.V311,
+        /// <summary>
+        /// Mqtt V500
+        /// </summary>
+        V500 = MqttProtocolVersion.V500
+    }
+
+
+
+    /// <summary>
     /// The certificates used by the tls/ssl layer 
     /// </summary>
     public class MqttTlsCertificates
     {
         #region Private menbers
 
-        private X509Certificate     m_caCertificate;
-        private X509Certificate     m_clientCertificate;
+        private X509Certificate m_caCertificate;
+        private X509Certificate m_clientCertificate;
 
         private string m_caCertificatePath;
         private string m_clientCertificatePath;
@@ -134,7 +161,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
         KeyValuePairCollection m_keyValuePairs;
 
-        #endregion
+        #endregion Private menbers
 
         #region Constructor
         /// <summary>
@@ -202,16 +229,16 @@ namespace Opc.Ua.PubSub.Mqtt
             }
 
         }
-        #endregion
+        #endregion Constructor
 
-        #region Public Properties
-        public string CaCertificatePath { get { return m_caCertificatePath; } set { m_caCertificatePath = value; } }
-        public string clientCertificatePath { get { return m_clientCertificatePath; } set { m_clientCertificatePath = value; } }
-        public string ClientCertificatePassword { get { return m_clientCertificatePassword; } set { m_clientCertificatePassword = value; } }
+        #region Internal Properties
+        internal string caCertificatePath { get { return m_caCertificatePath; } set { m_caCertificatePath = value; } }
+        internal string clientCertificatePath { get { return m_clientCertificatePath; } set { m_clientCertificatePath = value; } }
+        internal string clientCertificatePassword { get { return m_clientCertificatePassword; } set { m_clientCertificatePassword = value; } }
 
-        public KeyValuePairCollection KeyValuePairs { get { return m_keyValuePairs; } set { m_keyValuePairs = value; } }
+        internal KeyValuePairCollection KeyValuePairs { get { return m_keyValuePairs; } set { m_keyValuePairs = value; } }
 
-        public List<X509Certificate> X509Certificates { get {
+        internal List<X509Certificate> X509Certificates { get {
 
                 List<X509Certificate> values = new List<X509Certificate>(); 
                 if (m_caCertificate != null)
@@ -225,7 +252,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
                 return values;
             } }
-        #endregion
+        #endregion  Internal Properties
     }
 
 
@@ -255,7 +282,7 @@ namespace Opc.Ua.PubSub.Mqtt
         public MqttTlsOptions()
         {
             m_certificates = null;
-            m_SslProtocolVersion = SslProtocols.Default;
+            m_SslProtocolVersion = SslProtocols.None;
             m_allowUntrustedCertificates   = false;
             m_ignoreCertificateChainErrors = false;
             m_ignoreRevocationListErrors   = false;
@@ -265,6 +292,10 @@ namespace Opc.Ua.PubSub.Mqtt
             m_rejectedCertificateStore = null;
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="kvpMqttOptions">The key value pairs representing the values from which to construct MqttTlsOptions</param>
         public MqttTlsOptions(KeyValuePairCollection kvpMqttOptions)
         {
             m_certificates = new MqttTlsCertificates(kvpMqttOptions);
@@ -323,10 +354,9 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <param name="allowUntrustedCertificates">Specifies if untrusted certificates should be accepted in the process of certificate validation</param>
         /// <param name="ignoreCertificateChainErrors">Specifies if Certificate Chain errors should be validated in the process of certificate validation</param>
         /// <param name="ignoreRevocationListErrors">Specifies if Certificate Revocation List errors should be validated in the process of certificate validation</param>
-        /// <param name="trustedIssuerCertificates">The trusted </param>
-        /// <param name="trustedPeerCertificates"></param>
-        /// <param name="rejectedCertificateStore"></param>
-        /// <param name=""></param>
+        /// <param name="trustedIssuerCertificates">The trusted issuer certifficates store identifier</param>
+        /// <param name="trustedPeerCertificates">The trusted peer certifficates store identifier</param>
+        /// <param name="rejectedCertificateStore">The rejected certifficates store identifier</param>
         public MqttTlsOptions(MqttTlsCertificates certificates = null,
             SslProtocols sslProtocolVersion = SslProtocols.Tls12,
             bool allowUntrustedCertificates = false,
@@ -401,16 +431,16 @@ namespace Opc.Ua.PubSub.Mqtt
         }
         #endregion
 
-        #region Public Properties
-        public MqttTlsCertificates Certificates { get => m_certificates; set => m_certificates = value; }
-        public SslProtocols SslProtocolVersion { get => m_SslProtocolVersion; set => m_SslProtocolVersion = value; }
-        public bool AllowUntrustedCertificates { get => m_allowUntrustedCertificates; set => m_allowUntrustedCertificates = value; }
-        public bool IgnoreCertificateChainErrors { get => m_ignoreCertificateChainErrors; set => m_ignoreCertificateChainErrors = value; }
-        public bool IgnoreRevocationListErrors { get => m_ignoreRevocationListErrors; set => m_ignoreRevocationListErrors = value; }
-        public CertificateStoreIdentifier TrustedIssuerCertificates { get => m_trustedIssuerCertificates; set => m_trustedIssuerCertificates = value; }
-        public CertificateStoreIdentifier TrustedPeerCertificates { get => m_trustedPeerCertificates; set => m_trustedPeerCertificates = value; }
-        public CertificateStoreIdentifier RejectedCertificateStore { get => m_rejectedCertificateStore; set => m_rejectedCertificateStore = value; }
-        public KeyValuePairCollection KeyValuePairs { get => m_keyValuePairs; set => m_keyValuePairs = value; }
+        #region Internal Properties
+        internal MqttTlsCertificates Certificates { get => m_certificates; set => m_certificates = value; }
+        internal SslProtocols SslProtocolVersion { get => m_SslProtocolVersion; set => m_SslProtocolVersion = value; }
+        internal bool AllowUntrustedCertificates { get => m_allowUntrustedCertificates; set => m_allowUntrustedCertificates = value; }
+        internal bool IgnoreCertificateChainErrors { get => m_ignoreCertificateChainErrors; set => m_ignoreCertificateChainErrors = value; }
+        internal bool IgnoreRevocationListErrors { get => m_ignoreRevocationListErrors; set => m_ignoreRevocationListErrors = value; }
+        internal CertificateStoreIdentifier TrustedIssuerCertificates { get => m_trustedIssuerCertificates; set => m_trustedIssuerCertificates = value; }
+        internal CertificateStoreIdentifier TrustedPeerCertificates { get => m_trustedPeerCertificates; set => m_trustedPeerCertificates = value; }
+        internal CertificateStoreIdentifier RejectedCertificateStore { get => m_rejectedCertificateStore; set => m_rejectedCertificateStore = value; }
+        internal KeyValuePairCollection KeyValuePairs { get => m_keyValuePairs; set => m_keyValuePairs = value; }
         #endregion
     }
 
@@ -422,6 +452,7 @@ namespace Opc.Ua.PubSub.Mqtt
         #region Private
         SecureString m_userName;
         SecureString m_password;
+        string m_azureClientId;
         bool m_cleanSession;
         EnumMqttProtocolVersion m_protocolVersion;
         MqttTlsOptions m_mqttTlsOptions;
@@ -436,6 +467,7 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             m_userName = null;
             m_password = null;
+            m_azureClientId = null;
             m_cleanSession = true;
             m_protocolVersion = EnumMqttProtocolVersion.V310;
             m_mqttTlsOptions = null;
@@ -445,19 +477,22 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <summary>
         /// Constructor 
         /// </summary>
-        /// <param name="userName"></param>
-        /// <param name="password"></param>
-        /// <param name="cleanSession"></param>
-        /// <param name="version"></param>
-        /// <param name="mqttTlsOptions"></param>
+        /// <param name="userName">UserName part of user credentials</param>
+        /// <param name="password">Password part of user credentials</param>
+        /// <param name="azureClientId">The Client Id used in an Azure connection</param>
+        /// <param name="cleanSession">Specifies if the MQTT session to the broker should be clean</param>
+        /// <param name="version">The version of the MQTT protocol (default V310)</param>
+        /// <param name="mqttTlsOptions">Instance of <see cref="MqttTlsOptions"/></param>
         public MqttClientProtocolConfiguration(SecureString userName = null,
                                                SecureString password = null,
+                                               string azureClientId = null,
                                                bool cleanSession = true,
                                                EnumMqttProtocolVersion version = EnumMqttProtocolVersion.V310,
                                                MqttTlsOptions  mqttTlsOptions = null)
         {
             m_userName = userName;
             m_password = password;
+            m_azureClientId = azureClientId;
             m_cleanSession = cleanSession;
             m_protocolVersion = version;
             m_mqttTlsOptions = mqttTlsOptions;
@@ -472,6 +507,10 @@ namespace Opc.Ua.PubSub.Mqtt
             kvpPassword.Key = EnumMqttClientConfigurationParameters.Password.GetQualifiedName();
             kvpPassword.Value = new System.Net.NetworkCredential(string.Empty, m_password).Password;
             m_keyValuePairs.Add(kvpPassword);
+            KeyValuePair kvpAzureClientId = new KeyValuePair();
+            kvpAzureClientId.Key = EnumMqttClientConfigurationParameters.AzureClientId.GetQualifiedName();
+            kvpAzureClientId.Value = m_azureClientId;
+            m_keyValuePairs.Add(kvpAzureClientId);
             KeyValuePair kvpCleanSession = new KeyValuePair();
             kvpCleanSession.Key = EnumMqttClientConfigurationParameters.CleanSession.GetQualifiedName();
             kvpCleanSession.Value = m_cleanSession;
@@ -516,12 +555,14 @@ namespace Opc.Ua.PubSub.Mqtt
                 }
             }
 
+            QualifiedName qAzureClientId = EnumMqttClientConfigurationParameters.AzureClientId.GetQualifiedName();
+            m_azureClientId = Convert.ToString(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qAzureClientId.Name))?.Value.Value);
+
             QualifiedName qCleanSession = EnumMqttClientConfigurationParameters.CleanSession.GetQualifiedName();
             m_cleanSession = Convert.ToBoolean(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qCleanSession.Name))?.Value.Value);
 
             QualifiedName qProtocolVersion = EnumMqttClientConfigurationParameters.ProtocolVersion.GetQualifiedName();
             m_protocolVersion = (EnumMqttProtocolVersion)Convert.ToInt32(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qProtocolVersion.Name))?.Value.Value);
-
 
             m_mqttTlsOptions = new MqttTlsOptions(keyValuePairs);
 
@@ -530,46 +571,32 @@ namespace Opc.Ua.PubSub.Mqtt
         }
         #endregion
 
+        #region Internal Properties
+        internal SecureString UserName { get => m_userName; set => m_userName = value; }
+
+        internal SecureString Password { get => m_password; set => m_password = value; }
+
+        internal string AzureClientId { get => m_azureClientId; set => m_azureClientId = value; }
+
+        internal bool CleanSession { get => m_cleanSession; set => m_cleanSession = value; }
+
+        internal bool UseCredentials { get => (m_userName != null) && (m_userName.Length != 0) ; }
+
+        internal bool UseAzureClientId { get => (m_azureClientId != null) && (m_azureClientId.Length != 0); }
+
+        internal EnumMqttProtocolVersion ProtocolVersion { get => m_protocolVersion; set => m_protocolVersion = value; }
+
+        internal MqttTlsOptions MqttTlsOptions { get => m_mqttTlsOptions; set => m_mqttTlsOptions = value; }
+
+
+        #endregion Internal Properties
+
         #region Public Properties
-        public SecureString UserName { get => m_userName; set => m_userName = value; }
-
-        public SecureString Password { get => m_password; set => m_password = value; }
-
-        public bool CleanSession { get => m_cleanSession; set => m_cleanSession = value; }
-
-        public bool UseCredentials { get => (m_userName != null) && (m_userName.Length != 0) ; }
-
-        public EnumMqttProtocolVersion ProtocolVersion { get => m_protocolVersion; set => m_protocolVersion = value; }
-
-        public MqttTlsOptions MqttTlsOptions { get => m_mqttTlsOptions; set => m_mqttTlsOptions = value; }
-
+        /// <summary>
+        /// The key value pairs representing the values of a MqttClientProtocolConfiguration
+        /// </summary>
         public KeyValuePairCollection KeyValuePairs { get => m_keyValuePairs; set => m_keyValuePairs = value; }
+        #endregion Public Propertis
 
-        #region Implement IEncodeable interface
-
-        public ExpandedNodeId TypeId => throw new NotImplementedException();
-
-        public ExpandedNodeId BinaryEncodingId => throw new NotImplementedException();
-
-        public ExpandedNodeId XmlEncodingId => throw new NotImplementedException();
-
-        public void Decode(IDecoder decoder)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Encode(IEncoder encoder)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool IsEqual(IEncodeable encodeable)
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion IEncodeable
-
-        #endregion Public Properties
     }
 }

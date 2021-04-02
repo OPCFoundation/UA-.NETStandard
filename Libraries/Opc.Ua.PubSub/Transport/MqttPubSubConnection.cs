@@ -450,27 +450,51 @@ namespace Opc.Ua.PubSub.Transport
                     MqttTlsOptions mqttTlsOptions = ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
                     if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                        ((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
+                        mqttProtocolConfiguration.UseCredentials)
                     {
                         m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
-                        mqttOptions = new MqttClientOptionsBuilder()
-                            .WithTcpServer(m_brokerHostName, m_brokerPort)
-                            .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
-                                             new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
-                            .WithKeepAlivePeriod(mqttKeepAlive)
-                            .WithProtocolVersion(mqttProtocolVersion)
-                            .WithTls(new MqttClientOptionsBuilderTlsParameters {
-                                UseTls = true,
-                                SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
-                                AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
-                                IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
-                                IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                                CertificateValidationHandler = ValidateCertificate
-                            })
-                            .Build();
+
+                        if (mqttProtocolConfiguration.UseAzureClientId)
+                        {
+                            mqttOptions = new MqttClientOptionsBuilder()
+                                .WithTcpServer(m_brokerHostName, m_brokerPort)
+                                .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
+                                                 new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
+                                .WithKeepAlivePeriod(mqttKeepAlive)
+                                .WithProtocolVersion(mqttProtocolVersion)
+                                .WithClientId(mqttProtocolConfiguration.AzureClientId)
+                                .WithTls(new MqttClientOptionsBuilderTlsParameters {
+                                    UseTls = true,
+                                    SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
+                                    AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
+                                    IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
+                                    IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
+                                    CertificateValidationHandler = ValidateCertificate
+                                })
+                                .Build();
+                        }
+                        else
+                        {
+                            mqttOptions = new MqttClientOptionsBuilder()
+                                .WithTcpServer(m_brokerHostName, m_brokerPort)
+                                .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
+                                                 new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
+                                .WithKeepAlivePeriod(mqttKeepAlive)
+                                .WithProtocolVersion(mqttProtocolVersion)
+                                .WithTls(new MqttClientOptionsBuilderTlsParameters {
+                                    UseTls = true,
+                                    SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
+                                    AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
+                                    IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
+                                    IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
+                                    CertificateValidationHandler = ValidateCertificate
+                                })
+                                .Build();
+                        }
+
                     }
                     else if (!networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                             ((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
+                             mqttProtocolConfiguration.UseCredentials)
                     {
                         mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
@@ -481,7 +505,7 @@ namespace Opc.Ua.PubSub.Transport
                             .Build();
                     }
                     else if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                             !((MqttClientProtocolConfiguration)transportProtocolConfiguration).UseCredentials)
+                             !mqttProtocolConfiguration.UseCredentials)
                     {
                         m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
                         mqttOptions = new MqttClientOptionsBuilder()
@@ -500,7 +524,7 @@ namespace Opc.Ua.PubSub.Transport
                             .Build();
                     }
                     //if (!networkAddressUrl.StartsWith(MqttSUriIdentifier) &&
-                    //        !((MqttClientProtocolConfiguration)Application.TransportProtocolConfiguration).UseCredentials)
+                    //        !mqttProtocolConfiguration.TransportProtocolConfiguration).UseCredentials)
                     else
                     {
                         mqttOptions = new MqttClientOptionsBuilder()
