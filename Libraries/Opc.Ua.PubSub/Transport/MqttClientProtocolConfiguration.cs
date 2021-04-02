@@ -70,7 +70,6 @@ namespace Opc.Ua.PubSub.Mqtt
         TrustedPeerCertificatesStorePath,
         RejectedCertificateStoreStoreType,
         RejectedCertificateStoreStorePath
-
     }
 
     public static class MqttClientConfigurationParametersExtensions

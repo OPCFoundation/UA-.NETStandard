@@ -334,6 +334,8 @@ namespace Opc.Ua.PubSub
         Json
     }
 
+    /// <summary>
+    /// Enum that specifies the poissible JSON message types
     /// </summary>
     [Flags]
     public enum JSONNetworkMessageType

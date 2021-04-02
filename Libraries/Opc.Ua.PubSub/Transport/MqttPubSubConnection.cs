@@ -520,8 +520,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Set up a new instance of a certificate validator based on passed in tls options
         /// </summary>
-        /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"></param>
-        /// <returns>A new instance of stack validator <see cref="CertificateValidator"></returns>
+        /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"/></param>
+        /// <returns>A new instance of stack validator <see cref="CertificateValidator"/></returns>
         private CertificateValidator SetupCertificateValidator(MqttTlsOptions mqttTlsOptions)
         {
             CertificateValidator crtValidator = new CertificateValidator();

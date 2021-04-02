@@ -26,8 +26,15 @@ namespace Opc.Ua
     /// </summary>
     public class JsonDecoder : IDecoder, IDisposable
     {
-        #region Private Fields
+        #region Public Fields
+        /// <summary>
+        /// The name of the Root array if the json is defined as an array 
+        /// </summary>
         public const string RootArrayName = "___root_array___";
+        #endregion
+
+        #region Private Fields
+
         private JsonTextReader m_reader;
         private Dictionary<string, object> m_root;
         private Stack<object> m_stack;
@@ -199,7 +206,6 @@ namespace Opc.Ua
             return message;
         }
 
-
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
@@ -244,116 +250,6 @@ namespace Opc.Ua
             }
 
             m_reader.Close();
-        }
-
-        private List<object> ReadArray()
-        {
-            List<object> elements = new List<object>();
-
-            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
-            {
-                switch (m_reader.TokenType)
-                {
-                    case JsonToken.Comment:
-                    {
-                        break;
-                    }
-
-                    case JsonToken.Null:
-                    {
-                        elements.Add(JTokenNullObject.Array);
-                        break;
-                    }
-                    case JsonToken.Date:
-                    case JsonToken.Boolean:
-                    case JsonToken.Integer:
-                    case JsonToken.Float:
-                    case JsonToken.String:
-                    {
-                        elements.Add(m_reader.Value);
-                        break;
-                    }
-
-                    case JsonToken.StartArray:
-                    {
-                        elements.Add(ReadArray());
-                        break;
-                    }
-
-                    case JsonToken.StartObject:
-                    {
-                        elements.Add(ReadObject());
-                        break;
-                    }
-
-                    default:
-                        break;
-                }
-            }
-
-            return elements;
-        }
-
-        private Dictionary<string, object> ReadObject()
-        {
-            Dictionary<string, object> fields = new Dictionary<string, object>();
-
-            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-            {
-                if (m_reader.TokenType == JsonToken.StartArray)
-                {
-                    fields[RootArrayName] = ReadArray();
-                }
-                else if (m_reader.TokenType == JsonToken.PropertyName)
-                {
-                    string name = (string)m_reader.Value;
-
-                    if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                    {
-                        switch (m_reader.TokenType)
-                        {
-                            case JsonToken.Comment:
-                            {
-                                break;
-                            }
-
-                            case JsonToken.Null:
-                            {
-                                fields[name] = JTokenNullObject.Object;
-                                break;
-                            }
-
-                            case JsonToken.Date:
-                            case JsonToken.Bytes:
-                            case JsonToken.Boolean:
-                            case JsonToken.Integer:
-                            case JsonToken.Float:
-                            case JsonToken.String:
-                            {
-                                fields[name] = m_reader.Value;
-                                break;
-                            }
-
-                            case JsonToken.StartArray:
-                            {
-                                fields[name] = ReadArray();
-                                break;
-                            }
-
-                            case JsonToken.StartObject:
-                            {
-                                fields[name] = ReadObject();
-                                break;
-                            }
-
-                            default:
-                                break;
-                        }
-                    }
-                }
-            }
-
-            return fields;
         }
 
         /// <summary>
@@ -923,7 +819,6 @@ namespace Opc.Ua
             return bytes;
         }
 
-
         /// <summary>
         /// Reads an XmlElement from the stream.
         /// </summary>
@@ -1124,7 +1019,6 @@ namespace Opc.Ua
                 m_stack.Pop();
             }
         }
-
 
         /// <summary>
         /// Reads an StatusCode from the stream.
@@ -1334,73 +1228,6 @@ namespace Opc.Ua
             return new LocalizedText(locale, text);
         }
 
-        private Variant ReadVariantBody(string fieldName, BuiltInType type)
-        {
-            switch (type)
-            {
-                case BuiltInType.Boolean: { return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean); }
-                case BuiltInType.SByte: { return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte); }
-                case BuiltInType.Byte: { return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte); }
-                case BuiltInType.Int16: { return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16); }
-                case BuiltInType.UInt16: { return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16); }
-                case BuiltInType.Int32: { return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32); }
-                case BuiltInType.UInt32: { return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32); }
-                case BuiltInType.Int64: { return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64); }
-                case BuiltInType.UInt64: { return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64); }
-                case BuiltInType.Float: { return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float); }
-                case BuiltInType.Double: { return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double); }
-                case BuiltInType.String: { return new Variant(ReadString(fieldName), TypeInfo.Scalars.String); }
-                case BuiltInType.ByteString: { return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString); }
-                case BuiltInType.DateTime: { return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime); }
-                case BuiltInType.Guid: { return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid); }
-                case BuiltInType.NodeId: { return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId); }
-                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeId(fieldName), TypeInfo.Scalars.ExpandedNodeId); }
-                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedName(fieldName), TypeInfo.Scalars.QualifiedName); }
-                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedText(fieldName), TypeInfo.Scalars.LocalizedText); }
-                case BuiltInType.StatusCode: { return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode); }
-                case BuiltInType.XmlElement: { return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement); }
-                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject); }
-                case BuiltInType.Variant: { return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant); }
-                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo); }
-                case BuiltInType.DataValue: { return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue); }
-            }
-
-            return Variant.Null;
-        }
-
-        private Variant ReadVariantArrayBody(string fieldName, BuiltInType type)
-        {
-            switch (type)
-            {
-                case BuiltInType.Boolean: { return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean); }
-                case BuiltInType.SByte: { return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte); }
-                case BuiltInType.Byte: { return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte); }
-                case BuiltInType.Int16: { return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16); }
-                case BuiltInType.UInt16: { return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16); }
-                case BuiltInType.Int32: { return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32); }
-                case BuiltInType.UInt32: { return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32); }
-                case BuiltInType.Int64: { return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64); }
-                case BuiltInType.UInt64: { return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64); }
-                case BuiltInType.Float: { return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float); }
-                case BuiltInType.Double: { return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double); }
-                case BuiltInType.String: { return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String); }
-                case BuiltInType.ByteString: { return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString); }
-                case BuiltInType.DateTime: { return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime); }
-                case BuiltInType.Guid: { return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid); }
-                case BuiltInType.NodeId: { return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId); }
-                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeIdArray(fieldName), TypeInfo.Arrays.ExpandedNodeId); }
-                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedNameArray(fieldName), TypeInfo.Arrays.QualifiedName); }
-                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedTextArray(fieldName), TypeInfo.Arrays.LocalizedText); }
-                case BuiltInType.StatusCode: { return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode); }
-                case BuiltInType.XmlElement: { return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement); }
-                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject); }
-                case BuiltInType.Variant: { return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant); }
-                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo); }
-            }
-
-            return Variant.Null;
-        }
-
         /// <summary>
         /// Reads an Variant from the stream.
         /// </summary>
@@ -1507,47 +1334,6 @@ namespace Opc.Ua
             }
 
             return dv;
-        }
-
-        private void EncodeAsJson(JsonTextWriter writer, object value)
-        {
-            var map = value as Dictionary<string, object>;
-
-            if (map != null)
-            {
-                EncodeAsJson(writer, map);
-                return;
-            }
-
-            var list = value as List<object>;
-
-            if (list != null)
-            {
-                writer.WriteStartArray();
-
-                foreach (var element in list)
-                {
-                    EncodeAsJson(writer, element);
-                }
-
-                writer.WriteStartArray();
-                return;
-            }
-
-            writer.WriteValue(value);
-        }
-
-        private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)
-        {
-            writer.WriteStartObject();
-
-            foreach (var field in value)
-            {
-                writer.WritePropertyName(field.Key);
-                EncodeAsJson(writer, field.Value);
-            }
-
-            writer.WriteEndObject();
         }
 
         /// <summary>
@@ -1724,30 +1510,6 @@ namespace Opc.Ua
             return (Enum)Enum.ToObject(enumType, ReadInt32(fieldName));
         }
 
-        private bool ReadArrayField(string fieldName, out List<object> array)
-        {
-            object token = array = null;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return false;
-            }
-
-            array = token as List<object>;
-
-            if (array == null)
-            {
-                return false;
-            }
-
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < array.Count)
-            {
-                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-            }
-
-            return true;
-        }
-
         /// <summary>
         /// Reads a boolean array from the stream.
         /// </summary>
@@ -1806,85 +1568,6 @@ namespace Opc.Ua
             }
 
             return values;
-        }
-        /// <summary>
-        /// Delegate for reading custom array item
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        public delegate object ReadCustomArrayItem(int index, JsonDecoder jsonDecoder);
-
-        /// <summary>
-        /// Reads Custom array
-        /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="readArrayItem"></param>
-        /// <returns></returns>
-        public List<object> ReadCustomArray(string fieldName, ReadCustomArrayItem readArrayItem)
-        {
-            List<object> values = new List<object>();
-
-            List<object> token = null;
-
-            if (!ReadArrayField(fieldName, out token))
-            {
-                return null;
-            }
-
-            for (int ii = 0; ii < token.Count; ii++)
-            {
-                try
-                {
-                    m_stack.Push(token[ii]);
-                    values.Add(readArrayItem(ii, this));
-                }
-                finally
-                {
-                    m_stack.Pop();
-                }
-            }
-            return values;
-        }
-
-
-        public bool PushStructure(string fieldName)
-        {
-            object token = null;
-
-            if (!ReadField(fieldName, out token))
-            {
-                return false;
-            }
-
-            if (token != null)
-            {
-                m_stack.Push(token);
-                return true;
-            }
-            return false;
-        }
-
-
-        public void Pop()
-        {
-            m_stack.Pop();
-        }
-
-        public bool PushArray(string fieldName, int index)
-        {
-            List<object> token = null;
-
-            if (!ReadArrayField(fieldName, out token))
-            {
-                return false;
-            }
-
-            if (index < token.Count)
-            {
-                m_stack.Push(token[index]);
-                return true;
-            }
-            return false;
         }
 
         /// <summary>
@@ -2675,10 +2358,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="valueRank"></param>
-        /// <param name="builtInType"></param>
-        /// <returns></returns>
         public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
         {
             if (valueRank == ValueRanks.OneDimension)
@@ -2803,7 +2482,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.Enumeration:
-                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray()); 
+                        return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.Variant:
                         return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.ExtensionObject:
@@ -2816,7 +2495,263 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region Public Methods
+        /// <summary>
+        /// Push the specified structure on the Read Stack
+        /// </summary>
+        /// <param name="fieldName">The name of the object that shall be placed on the Read Stack</param>
+        /// <returns>true if successful</returns>
+        public bool PushStructure(string fieldName)
+        {
+            object token = null;
+
+            if (!ReadField(fieldName, out token))
+            {
+                return false;
+            }
+
+            if (token != null)
+            {
+                m_stack.Push(token);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Push an Array item on the Read Stack
+        /// </summary>
+        /// <param name="fieldName">TRhe array name</param>
+        /// <param name="index">The index of the item that shall be placed on the Read Stack</param>
+        /// <returns>true if successful</returns>
+        public bool PushArray(string fieldName, int index)
+        {
+            List<object> token = null;
+
+            if (!ReadArrayField(fieldName, out token))
+            {
+                return false;
+            }
+
+            if (index < token.Count)
+            {
+                m_stack.Push(token[index]);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Pop the current object from the Read Stack
+        /// </summary>
+        public void Pop()
+        {
+            m_stack.Pop();
+        }
+        #endregion
+
         #region Private Methods
+        /// <summary>
+        /// Read the body of a Variant as a BuiltInType
+        /// </summary>
+        private Variant ReadVariantBody(string fieldName, BuiltInType type)
+        {
+            switch (type)
+            {
+                case BuiltInType.Boolean: { return new Variant(ReadBoolean(fieldName), TypeInfo.Scalars.Boolean); }
+                case BuiltInType.SByte: { return new Variant(ReadSByte(fieldName), TypeInfo.Scalars.SByte); }
+                case BuiltInType.Byte: { return new Variant(ReadByte(fieldName), TypeInfo.Scalars.Byte); }
+                case BuiltInType.Int16: { return new Variant(ReadInt16(fieldName), TypeInfo.Scalars.Int16); }
+                case BuiltInType.UInt16: { return new Variant(ReadUInt16(fieldName), TypeInfo.Scalars.UInt16); }
+                case BuiltInType.Int32: { return new Variant(ReadInt32(fieldName), TypeInfo.Scalars.Int32); }
+                case BuiltInType.UInt32: { return new Variant(ReadUInt32(fieldName), TypeInfo.Scalars.UInt32); }
+                case BuiltInType.Int64: { return new Variant(ReadInt64(fieldName), TypeInfo.Scalars.Int64); }
+                case BuiltInType.UInt64: { return new Variant(ReadUInt64(fieldName), TypeInfo.Scalars.UInt64); }
+                case BuiltInType.Float: { return new Variant(ReadFloat(fieldName), TypeInfo.Scalars.Float); }
+                case BuiltInType.Double: { return new Variant(ReadDouble(fieldName), TypeInfo.Scalars.Double); }
+                case BuiltInType.String: { return new Variant(ReadString(fieldName), TypeInfo.Scalars.String); }
+                case BuiltInType.ByteString: { return new Variant(ReadByteString(fieldName), TypeInfo.Scalars.ByteString); }
+                case BuiltInType.DateTime: { return new Variant(ReadDateTime(fieldName), TypeInfo.Scalars.DateTime); }
+                case BuiltInType.Guid: { return new Variant(ReadGuid(fieldName), TypeInfo.Scalars.Guid); }
+                case BuiltInType.NodeId: { return new Variant(ReadNodeId(fieldName), TypeInfo.Scalars.NodeId); }
+                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeId(fieldName), TypeInfo.Scalars.ExpandedNodeId); }
+                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedName(fieldName), TypeInfo.Scalars.QualifiedName); }
+                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedText(fieldName), TypeInfo.Scalars.LocalizedText); }
+                case BuiltInType.StatusCode: { return new Variant(ReadStatusCode(fieldName), TypeInfo.Scalars.StatusCode); }
+                case BuiltInType.XmlElement: { return new Variant(ReadXmlElement(fieldName), TypeInfo.Scalars.XmlElement); }
+                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObject(fieldName), TypeInfo.Scalars.ExtensionObject); }
+                case BuiltInType.Variant: { return new Variant(ReadVariant(fieldName), TypeInfo.Scalars.Variant); }
+                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfo(fieldName), TypeInfo.Scalars.DiagnosticInfo); }
+                case BuiltInType.DataValue: { return new Variant(ReadDataValue(fieldName), TypeInfo.Scalars.DataValue); }
+            }
+
+            return Variant.Null;
+        }
+
+        /// <summary>
+        /// Read the Body of a Variant as an Array
+        /// </summary>
+        private Variant ReadVariantArrayBody(string fieldName, BuiltInType type)
+        {
+            switch (type)
+            {
+                case BuiltInType.Boolean: { return new Variant(ReadBooleanArray(fieldName), TypeInfo.Arrays.Boolean); }
+                case BuiltInType.SByte: { return new Variant(ReadSByteArray(fieldName), TypeInfo.Arrays.SByte); }
+                case BuiltInType.Byte: { return new Variant(ReadByteArray(fieldName), TypeInfo.Arrays.Byte); }
+                case BuiltInType.Int16: { return new Variant(ReadInt16Array(fieldName), TypeInfo.Arrays.Int16); }
+                case BuiltInType.UInt16: { return new Variant(ReadUInt16Array(fieldName), TypeInfo.Arrays.UInt16); }
+                case BuiltInType.Int32: { return new Variant(ReadInt32Array(fieldName), TypeInfo.Arrays.Int32); }
+                case BuiltInType.UInt32: { return new Variant(ReadUInt32Array(fieldName), TypeInfo.Arrays.UInt32); }
+                case BuiltInType.Int64: { return new Variant(ReadInt64Array(fieldName), TypeInfo.Arrays.Int64); }
+                case BuiltInType.UInt64: { return new Variant(ReadUInt64Array(fieldName), TypeInfo.Arrays.UInt64); }
+                case BuiltInType.Float: { return new Variant(ReadFloatArray(fieldName), TypeInfo.Arrays.Float); }
+                case BuiltInType.Double: { return new Variant(ReadDoubleArray(fieldName), TypeInfo.Arrays.Double); }
+                case BuiltInType.String: { return new Variant(ReadStringArray(fieldName), TypeInfo.Arrays.String); }
+                case BuiltInType.ByteString: { return new Variant(ReadByteStringArray(fieldName), TypeInfo.Arrays.ByteString); }
+                case BuiltInType.DateTime: { return new Variant(ReadDateTimeArray(fieldName), TypeInfo.Arrays.DateTime); }
+                case BuiltInType.Guid: { return new Variant(ReadGuidArray(fieldName), TypeInfo.Arrays.Guid); }
+                case BuiltInType.NodeId: { return new Variant(ReadNodeIdArray(fieldName), TypeInfo.Arrays.NodeId); }
+                case BuiltInType.ExpandedNodeId: { return new Variant(ReadExpandedNodeIdArray(fieldName), TypeInfo.Arrays.ExpandedNodeId); }
+                case BuiltInType.QualifiedName: { return new Variant(ReadQualifiedNameArray(fieldName), TypeInfo.Arrays.QualifiedName); }
+                case BuiltInType.LocalizedText: { return new Variant(ReadLocalizedTextArray(fieldName), TypeInfo.Arrays.LocalizedText); }
+                case BuiltInType.StatusCode: { return new Variant(ReadStatusCodeArray(fieldName), TypeInfo.Arrays.StatusCode); }
+                case BuiltInType.XmlElement: { return new Variant(ReadXmlElementArray(fieldName), TypeInfo.Arrays.XmlElement); }
+                case BuiltInType.ExtensionObject: { return new Variant(ReadExtensionObjectArray(fieldName), TypeInfo.Arrays.ExtensionObject); }
+                case BuiltInType.Variant: { return new Variant(ReadVariantArray(fieldName), TypeInfo.Arrays.Variant); }
+                case BuiltInType.DiagnosticInfo: { return new Variant(ReadDiagnosticInfoArray(fieldName), TypeInfo.Arrays.DiagnosticInfo); }
+                case BuiltInType.DataValue: { return new Variant(ReadDataValueArray(fieldName), TypeInfo.Arrays.DataValue); }
+            }
+
+            return Variant.Null;
+        }
+
+        /// <summary>
+        /// Reads the content of an Array from json stream
+        /// </summary>
+        private List<object> ReadArray()
+        {
+            // check the nesting level for avoiding a stack overflow.
+            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    m_context.MaxEncodingNestingLevels);
+            }
+            m_nestingLevel++;
+
+            List<object> elements = new List<object>();
+
+            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndArray)
+            {
+                switch (m_reader.TokenType)
+                {
+                    case JsonToken.Comment:
+                    {
+                        break;
+                    }
+
+                    case JsonToken.Null:
+                    {
+                        elements.Add(JTokenNullObject.Array);
+                        break;
+                    }
+                    case JsonToken.Date:
+                    case JsonToken.Boolean:
+                    case JsonToken.Integer:
+                    case JsonToken.Float:
+                    case JsonToken.String:
+                    {
+                        elements.Add(m_reader.Value);
+                        break;
+                    }
+
+                    case JsonToken.StartArray:
+                    {
+                        elements.Add(ReadArray());
+                        break;
+                    }
+
+                    case JsonToken.StartObject:
+                    {
+                        elements.Add(ReadObject());
+                        break;
+                    }
+
+                    default:
+                        break;
+                }
+            }
+
+            m_nestingLevel--;
+            return elements;
+        }
+
+        /// <summary>
+        /// Reads an object from the json stream
+        /// </summary>
+        /// <returns></returns>
+        private Dictionary<string, object> ReadObject()
+        {
+            Dictionary<string, object> fields = new Dictionary<string, object>();
+
+            while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+            {
+                if (m_reader.TokenType == JsonToken.StartArray)
+                {
+                    fields[RootArrayName] = ReadArray();
+                }
+                else if (m_reader.TokenType == JsonToken.PropertyName)
+                {
+                    string name = (string)m_reader.Value;
+
+                    if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+                    {
+                        switch (m_reader.TokenType)
+                        {
+                            case JsonToken.Comment:
+                            {
+                                break;
+                            }
+
+                            case JsonToken.Null:
+                            {
+                                fields[name] = JTokenNullObject.Object;
+                                break;
+                            }
+
+                            case JsonToken.Date:
+                            case JsonToken.Bytes:
+                            case JsonToken.Boolean:
+                            case JsonToken.Integer:
+                            case JsonToken.Float:
+                            case JsonToken.String:
+                            {
+                                fields[name] = m_reader.Value;
+                                break;
+                            }
+
+                            case JsonToken.StartArray:
+                            {
+                                fields[name] = ReadArray();
+                                break;
+                            }
+
+                            case JsonToken.StartObject:
+                            {
+                                fields[name] = ReadObject();
+                                break;
+                            }
+
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+
+            return fields;
+        }
 
         /// <summary>
         /// Read the Matrix part (simple array or aray of arrays)
@@ -2911,6 +2846,71 @@ namespace Opc.Ua
                     return new NodeId(Guid.Empty, namespaceIndex);
                 }
             }
+        }
+
+        private void EncodeAsJson(JsonTextWriter writer, object value)
+        {
+            var map = value as Dictionary<string, object>;
+
+            if (map != null)
+            {
+                EncodeAsJson(writer, map);
+                return;
+            }
+
+            var list = value as List<object>;
+
+            if (list != null)
+            {
+                writer.WriteStartArray();
+
+                foreach (var element in list)
+                {
+                    EncodeAsJson(writer, element);
+                }
+
+                writer.WriteStartArray();
+                return;
+            }
+
+            writer.WriteValue(value);
+        }
+
+        private void EncodeAsJson(JsonTextWriter writer, Dictionary<string, object> value)
+        {
+            writer.WriteStartObject();
+
+            foreach (var field in value)
+            {
+                writer.WritePropertyName(field.Key);
+                EncodeAsJson(writer, field.Value);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        private bool ReadArrayField(string fieldName, out List<object> array)
+        {
+            object token = array = null;
+
+            if (!ReadField(fieldName, out token))
+            {
+                return false;
+            }
+
+            array = token as List<object>;
+
+            if (array == null)
+            {
+                return false;
+            }
+
+            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < array.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+
+            return true;
         }
         #endregion
     }

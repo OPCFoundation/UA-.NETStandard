@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Encoding
         private const string FieldDataSetClassId = "DataSetClassId";
         private const string FieldMessages = "Messages";
 
-        private JSONNetworkMessageType m_jsonNetworkMessageType;
+        private JSONNetworkMessageType m_jsonNetworkMessageType = JSONNetworkMessageType.DataSetMessage;
         #endregion
 
         #region Constructor
