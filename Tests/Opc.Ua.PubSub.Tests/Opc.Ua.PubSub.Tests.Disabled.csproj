@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="resources\BaltimoreCyberTrustRoot.crt.pem" />
     <None Remove="resources\client.key" />
     <None Remove="resources\client.pfx" />
     <None Remove="resources\mosquitto.org.crt" />
@@ -20,6 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="resources\BaltimoreCyberTrustRoot.crt.pem">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="resources\client.key">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

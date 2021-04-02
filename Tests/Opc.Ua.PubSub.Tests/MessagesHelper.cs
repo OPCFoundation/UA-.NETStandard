@@ -699,6 +699,41 @@ namespace Opc.Ua.PubSub.Tests
                 dataSetMetaDataArray, nameSpaceIndexForData);
         }
 
+        public static PubSubConfigurationDataType CreateAzureSubscriberConfiguration(
+            string transportProfileUri, string addressUrl,
+            object publisherId, ushort writerGroupId, bool setDataSetWriterId,
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData, string topic)
+        {
+            PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration(
+                transportProfileUri, addressUrl,
+                publisherId, writerGroupId, setDataSetWriterId,
+                (UInt32)jsonNetworkMessageContentMask,
+                (UInt32)jsonDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray, nameSpaceIndexForData);
+
+            foreach (var pubSubConnection in pubSubConfiguration.Connections)
+            {
+                foreach (var readerGroup in pubSubConnection.ReaderGroups)
+                {
+                    foreach (var dataSetReader in readerGroup.DataSetReaders)
+                    {
+                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
+                        as BrokerDataSetReaderTransportDataType;
+                        if (brokerTransportSettings != null)
+                        {
+                            brokerTransportSettings.QueueName = topic;
+                        }
+                    }
+                }
+            }
+
+            return pubSubConfiguration;
+        }
+
         /// <summary>
         /// Create a Publisher with the specified parameters for uadp
         /// </summary>
