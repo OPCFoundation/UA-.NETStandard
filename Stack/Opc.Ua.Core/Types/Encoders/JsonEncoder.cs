@@ -1080,6 +1080,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Writes an Variant to the stream with the especified reversible encoding parameter
+        /// </summary>
+        public void WriteVariant(string fieldName, Variant value, bool useReversibleEncoding)
+        {
+            bool currentValue = UseReversibleEncoding;
+
+            try
+            {
+                UseReversibleEncoding = useReversibleEncoding;
+                WriteVariant(fieldName, value);
+            }
+            finally
+            {
+                UseReversibleEncoding = currentValue;
+            }
+        }
+
+        /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
@@ -1144,25 +1162,6 @@ namespace Opc.Ua
             }
 
             m_nestingLevel--;
-        }
-
-
-        /// <summary>
-        /// Writes an Variant to the stream with the especified reversible encoding parameter
-        /// </summary>
-        public void WriteVariant(string fieldName, Variant value, bool useReversibleEncoding)
-        {
-            bool currentValue = UseReversibleEncoding;
-
-            try
-            {
-                UseReversibleEncoding = useReversibleEncoding;
-                WriteVariant(fieldName, value);
-            }
-            finally
-            {
-                UseReversibleEncoding = currentValue;
-            }
         }
 
 
@@ -2324,10 +2323,6 @@ namespace Opc.Ua
         /// <summary>
         /// Encode an array according to its valueRank and BuiltInType
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="array"></param>
-        /// <param name="valueRank"></param>
-        /// <param name="builtInType"></param>
         public void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType)
         {
             // write array.

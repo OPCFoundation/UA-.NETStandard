@@ -2621,10 +2621,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="valueRank"></param>
-        /// <param name="builtInType"></param>
-        /// <returns></returns>
         public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
         {
             if (valueRank == ValueRanks.OneDimension)

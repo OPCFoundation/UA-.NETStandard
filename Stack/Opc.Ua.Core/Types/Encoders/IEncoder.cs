@@ -336,10 +336,6 @@ namespace Opc.Ua
         /// <summary>
         /// Encode an array according to its valueRank and BuiltInType
         /// </summary>
-        /// <param name="fieldName"></param>
-        /// <param name="array"></param>
-        /// <param name="valueRank"></param>
-        /// <param name="builtInType"></param>
         void WriteArray(string fieldName, object array, int valueRank, BuiltInType builtInType);
     }
     
