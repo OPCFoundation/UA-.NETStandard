@@ -43,7 +43,17 @@ namespace Opc.Ua.PubSub.Tests
         private const UInt16 NamespaceIndexAllTypes = 3;
         
         private const string MqttAddressUrl = "mqtt://localhost:1883";
-       
+
+
+        [OneTimeSetUp()]
+        public void MyTestInitialize()
+        {
+            // add some namespaceUris to be used at encode/decode
+            ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/DI/");
+            ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/ADI/");
+            ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/IA/");
+        }
+
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
         public void ValidateMessageHeaderAndPublisherIdWithParameters(
            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, 
@@ -483,9 +493,9 @@ namespace Opc.Ua.PubSub.Tests
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
-                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
-                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
-                MessagesHelper.CreateDataSetMetaData3("DataSet3")
+                //MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                //MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                //MessagesHelper.CreateDataSetMetaData3("DataSet3")
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
@@ -738,6 +748,14 @@ namespace Opc.Ua.PubSub.Tests
 
                     // check dataValues values
                     string fieldName = fieldEncoded.FieldMetaData.Name;
+
+                    ExpandedNodeId encodedExpandedNodeId = dataValueEncoded.Value as ExpandedNodeId;
+                    ExpandedNodeId decodedExpandedNodeId = dataValueDecoded.Value as ExpandedNodeId;
+                    if (encodedExpandedNodeId != null && !encodedExpandedNodeId.IsAbsolute
+                        && decodedExpandedNodeId != null && decodedExpandedNodeId.IsAbsolute)
+                    {
+                        dataValueDecoded.Value = ExpandedNodeId.ToNodeId(decodedExpandedNodeId, ServiceMessageContext.GlobalContext.NamespaceUris);
+                    }
 
                     Assert.AreEqual(dataValueEncoded.Value, dataValueDecoded.Value,
                         "Wrong: Fields[{0}].DataValue.Value; DataSetWriterId = {1}",

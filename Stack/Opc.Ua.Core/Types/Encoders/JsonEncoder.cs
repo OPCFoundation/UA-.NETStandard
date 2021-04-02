@@ -1044,6 +1044,7 @@ namespace Opc.Ua
             PushStructure(fieldName);
 
             WriteString("Name", value.Name);
+
             WriteNamespaceIndex("Uri", value.NamespaceIndex);
 
             PopStructure();
@@ -1245,6 +1246,7 @@ namespace Opc.Ua
             var encodeable = value.Body as IEncodeable;
             if (!UseReversibleEncoding && encodeable != null)
             {
+                // the non reversible encoding, only the content of the Body field
                 var structureType = value.Body as IStructureTypeInfo;
                 if (structureType != null &&
                     structureType.StructureType == StructureType.Union)
@@ -1259,17 +1261,11 @@ namespace Opc.Ua
                 return;
             }
 
+            // this is the reversible encoding
             PushStructure(fieldName);
 
-            if (UseReversibleEncoding)
-            {
-                var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
-                WriteNodeId("TypeId", nodeId);
-            }
-            else
-            {
-                WriteExpandedNodeId("TypeId", value.TypeId);
-            }
+            var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
+            WriteNodeId("TypeId", nodeId);
 
             if (encodeable != null)
             {
