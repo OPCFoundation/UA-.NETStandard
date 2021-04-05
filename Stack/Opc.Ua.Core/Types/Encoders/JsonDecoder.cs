@@ -2809,7 +2809,7 @@ namespace Opc.Ua
 
             try
             {
-                if (currentArray.Count > 0)
+                if (currentArray?.Count > 0)
                 {
                     bool hasInnerArray = false;
                     for (int ii = 0; ii < currentArray.Count; ii++)
@@ -2929,7 +2929,8 @@ namespace Opc.Ua
 
         private bool ReadArrayField(string fieldName, out List<object> array)
         {
-            object token = array = null;
+            array = null;
+            object token;
 
             if (!ReadField(fieldName, out token))
             {
