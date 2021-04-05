@@ -2299,7 +2299,7 @@ namespace Opc.Ua
 
             PushArray(fieldName);
 
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+            if (values != null && m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
             }

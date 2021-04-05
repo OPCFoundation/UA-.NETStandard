@@ -329,14 +329,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Dispose(encoder);
 
             var buffer = encoderStream.ToArray();
-            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
-                    break;
-                default:
-                    formatted = Encoding.UTF8.GetString(buffer);
+                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
             }
             var decoderStream = new MemoryStream(buffer);
@@ -421,14 +417,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Dispose(encoder);
 
             var buffer = encoderStream.ToArray();
-            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
-                    break;
-                default:
-                    formatted = Encoding.UTF8.GetString(buffer);
+                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
             }
             var decoderStream = new MemoryStream(buffer);
