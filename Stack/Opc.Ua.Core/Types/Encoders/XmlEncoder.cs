@@ -1951,7 +1951,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, values == null, true, true))
             {
                 // check the length.
-                if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
+                if (values != null &&  m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }

@@ -2637,7 +2637,6 @@ namespace Opc.Ua
             {
                 Array elements = null;
                 Int32Collection dimensions = null;
-                TypeInfo typeInfo = null;
 
                 if (BeginField(fieldName, true))
                 {
@@ -2662,7 +2661,7 @@ namespace Opc.Ua
                     return new Matrix(elements, builtInType, dimensions.ToArray());
                 }
 
-                return new Matrix(elements, typeInfo.BuiltInType);
+                return new Matrix(elements, builtInType);
             }
 
             throw new ServiceResultException(StatusCodes.BadDecodingError,
