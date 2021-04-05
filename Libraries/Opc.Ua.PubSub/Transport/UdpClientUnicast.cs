@@ -37,9 +37,7 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpClientUnicast : UdpClient
     {
-        internal IPAddress Address { get; }
-        internal int Port { get; }
-
+        #region Constructor
         /// <summary>
         /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
         /// </summary>
@@ -67,6 +65,21 @@ namespace Opc.Ua.PubSub.Transport
             { }
 
             Client.Bind(new IPEndPoint(localAddress, port));
+
+            Utils.Trace("UdpClientUnicast was created for local Address: {0}:{1}.", localAddress, port);
         }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// The Unicast Ip Address
+        /// </summary>
+        internal IPAddress Address { get; }
+
+        /// <summary>
+        /// The Port
+        /// </summary>
+        internal int Port { get; }
+        #endregion
     }
 }

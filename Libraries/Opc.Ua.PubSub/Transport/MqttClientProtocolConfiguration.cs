@@ -143,8 +143,6 @@ namespace Opc.Ua.PubSub.Mqtt
         V500 = MqttProtocolVersion.V500
     }
 
-
-
     /// <summary>
     /// The certificates used by the tls/ssl layer 
     /// </summary>
@@ -238,9 +236,12 @@ namespace Opc.Ua.PubSub.Mqtt
 
         internal KeyValuePairCollection KeyValuePairs { get { return m_keyValuePairs; } set { m_keyValuePairs = value; } }
 
-        internal List<X509Certificate> X509Certificates { get {
+        internal List<X509Certificate> X509Certificates
+        {
+            get
+            {
 
-                List<X509Certificate> values = new List<X509Certificate>(); 
+                List<X509Certificate> values = new List<X509Certificate>();
                 if (m_caCertificate != null)
                 {
                     values.Add(m_caCertificate);
@@ -251,10 +252,10 @@ namespace Opc.Ua.PubSub.Mqtt
                 }
 
                 return values;
-            } }
+            }
+        }
         #endregion  Internal Properties
     }
-
 
     /// <summary>
     /// The implementation of the Tls client options
@@ -283,12 +284,12 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             m_certificates = null;
             m_SslProtocolVersion = SslProtocols.None;
-            m_allowUntrustedCertificates   = false;
+            m_allowUntrustedCertificates = false;
             m_ignoreCertificateChainErrors = false;
-            m_ignoreRevocationListErrors   = false;
+            m_ignoreRevocationListErrors = false;
 
             m_trustedIssuerCertificates = null;
-            m_trustedPeerCertificates   = null;
+            m_trustedPeerCertificates = null;
             m_rejectedCertificateStore = null;
         }
 
@@ -488,7 +489,7 @@ namespace Opc.Ua.PubSub.Mqtt
                                                string azureClientId = null,
                                                bool cleanSession = true,
                                                EnumMqttProtocolVersion version = EnumMqttProtocolVersion.V310,
-                                               MqttTlsOptions  mqttTlsOptions = null)
+                                               MqttTlsOptions mqttTlsOptions = null)
         {
             m_userName = userName;
             m_password = password;
@@ -517,14 +518,14 @@ namespace Opc.Ua.PubSub.Mqtt
             m_keyValuePairs.Add(kvpCleanSession);
             KeyValuePair kvpProtocolVersion = new KeyValuePair();
             kvpProtocolVersion.Key = EnumMqttClientConfigurationParameters.ProtocolVersion.GetQualifiedName();
-            kvpProtocolVersion.Value =(int)m_protocolVersion;
+            kvpProtocolVersion.Value = (int)m_protocolVersion;
             m_keyValuePairs.Add(kvpProtocolVersion);
 
             if (m_mqttTlsOptions != null)
             {
                 m_keyValuePairs.AddRange(m_mqttTlsOptions.KeyValuePairs);
             }
-           
+
         }
 
         /// <summary>
@@ -580,7 +581,7 @@ namespace Opc.Ua.PubSub.Mqtt
 
         internal bool CleanSession { get => m_cleanSession; set => m_cleanSession = value; }
 
-        internal bool UseCredentials { get => (m_userName != null) && (m_userName.Length != 0) ; }
+        internal bool UseCredentials { get => (m_userName != null) && (m_userName.Length != 0); }
 
         internal bool UseAzureClientId { get => (m_azureClientId != null) && (m_azureClientId.Length != 0); }
 

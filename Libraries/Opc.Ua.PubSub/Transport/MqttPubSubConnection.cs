@@ -89,7 +89,9 @@ namespace Opc.Ua.PubSub.Transport
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
             m_transportProtocol = TransportProtocol.MQTT;
-            m_messageMapping = messageMapping;           
+            m_messageMapping = messageMapping;
+
+            Utils.Trace("MqttPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }
 
         #endregion
@@ -276,13 +278,133 @@ namespace Opc.Ua.PubSub.Transport
         }
         #endregion Public Methods
 
+        #region Protected Methods
+        protected override bool InternalInitialize()
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Perform specific Start tasks
+        /// </summary>
+        protected override void InternalStart()
+        {
+            int nrOfPublishers = 0;
+            int nrOfSubscribers = 0;
+
+            lock (m_lock)
+            {
+                //cleanup all existing UdpClient previously open
+                InternalStop();
+
+                NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
+                       as NetworkAddressUrlDataType;
+                if (networkAddressUrlState == null)
+                {
+                    Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
+                              this.PubSubConnectionConfiguration.Name);
+                    return;
+                }
+
+                Uri connectionUri;
+                if (networkAddressUrlState.Url != null && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
+                {
+                    if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
+                    {
+                        m_brokerHostName = connectionUri.Host;
+                        m_brokerPort = connectionUri.Port;
+                    }
+                }
+
+                nrOfPublishers = Publishers.Count;
+                nrOfSubscribers = GetAllDataSetReaders().Count;
+            }
+
+            MqttClient pubClient = null;
+            MqttClient subClient = null;
+            IMqttClientOptions mqttOptions = GetMqttClientOptions();
+
+            //publisher initialization    
+            if (nrOfPublishers > 0)
+            {
+                pubClient = Task.Run(async () =>
+                          (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
+                                                                                 mqttOptions,
+                                                                                 null).ConfigureAwait(false)).Result;
+            }
+
+            //subscriber initialization   
+            if (nrOfSubscribers > 0)
+            {
+                // collect all topics from all ReaderGroups
+                StringCollection topics = new StringCollection();
+                foreach (var readGroup in PubSubConnectionConfiguration.ReaderGroups)
+                {
+                    foreach (var dataSetReader in readGroup.DataSetReaders)
+                    {
+                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
+                            as BrokerDataSetReaderTransportDataType;
+                        if (brokerTransportSettings != null)
+                        {
+                            topics.Add(brokerTransportSettings.QueueName);
+                        }
+                    }
+                }
+
+                subClient = Task.Run(async () =>
+                     (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
+                                                                            mqttOptions,
+                                                                            ProcessMqttMessage,
+                                                                            topics).ConfigureAwait(false)).Result;
+            }
+
+            lock (m_lock)
+            {
+                m_publisherMqttClient = pubClient;
+                m_subscriberMqttClient = subClient;
+            }
+
+            Utils.Trace("Connection '{0}' started {1} publishers and {2} subscribers.",
+                PubSubConnectionConfiguration.Name, nrOfPublishers, nrOfSubscribers);
+        }
+
+        /// <summary>
+        /// Perform specific Stop tasks
+        /// </summary>
+        protected override void InternalStop()
+        {
+            lock (m_lock)
+            {
+                if (m_publisherMqttClient != null)
+                {
+                    if (m_publisherMqttClient.IsConnected)
+                    {
+                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync());
+                    }
+                    m_publisherMqttClient.Dispose();
+                }
+
+                if (m_subscriberMqttClient != null)
+                {
+                    if (m_subscriberMqttClient.IsConnected)
+                    {
+                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync());
+                    }
+                    m_subscriberMqttClient.Dispose();
+                }
+            }
+        }
+        #endregion Protected Methods
+
         #region Private Methods
-
-
+        /// <summary>
+        /// Processes a
+        /// </summary>
+        /// <param name="eventArgs"></param>
         private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             string topic = eventArgs.ApplicationMessage.Topic;
-            Utils.Trace(Utils.TraceMasks.Information, "MqttPubSubConnection.ProcessReceivedMessage from topic={0}", topic);
+            Utils.Trace("Connection '{0}' - ProcessMqttMessage() from topic={0}", topic);
 
             // get the datasetreaders for received message topic
             List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
@@ -321,7 +443,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Utils.Trace(Utils.TraceMasks.Information, "No DataSetReader is registered for topic={0}.", topic);
+                Utils.Trace("Connection '{0}' - ProcessMqttMessage() No DataSetReader is registered for topic={0}.", topic);
             }
         }
 
@@ -365,6 +487,9 @@ namespace Opc.Ua.PubSub.Transport
               (context.ClientOptions?.TlsOptions?.IgnoreCertificateRevocationErrors ?? false)
              )
             {
+                Utils.Trace(Utils.TraceMasks.Security,
+                    "Connection '{0}' - Certificate '{1}' has status code {2} and is accepted.",
+                    PubSubConnectionConfiguration.Name, cert.Thumbprint, sre.Result.StatusCode);
                 return true;
             }
             catch (ServiceResultException sre) when
@@ -373,6 +498,9 @@ namespace Opc.Ua.PubSub.Transport
               (context.ClientOptions?.TlsOptions?.IgnoreCertificateChainErrors ?? false)
              )
             {
+                Utils.Trace(Utils.TraceMasks.Security,
+                    "Connection '{0}' - Certificate '{1}' has status code {2} and is accepted.",
+                    PubSubConnectionConfiguration.Name, cert.Thumbprint, sre.Result.StatusCode);
                 return true;
             }
             catch (ServiceResultException sre) when
@@ -381,15 +509,21 @@ namespace Opc.Ua.PubSub.Transport
               (context.ClientOptions?.TlsOptions?.AllowUntrustedCertificates ?? false)
              )
             {
+                Utils.Trace(Utils.TraceMasks.Security,
+                    "Connection '{0}' - Certificate '{1}' has status code {2} and is accepted.",
+                    PubSubConnectionConfiguration.Name, cert.Thumbprint, sre.Result.StatusCode);
                 return true;
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The validation of the certificate {0} has failed with {1}.",
-                    cert.Thumbprint, ex.Message);
+                Utils.Trace(Utils.TraceMasks.Error,
+                    "Connection '{0}' - The validation of the certificate {1} has failed with {2}.",
+                    PubSubConnectionConfiguration.Name, cert.Thumbprint, ex.Message);
                 return false;
             }
 
+            Utils.Trace("Connection '{0}' - Certificate '{1}' is accepted.",
+                PubSubConnectionConfiguration.Name, cert.Thumbprint);
             return true;
         }
 
@@ -401,7 +535,6 @@ namespace Opc.Ua.PubSub.Transport
         {
             const string MqttUrlIdentifier = "mqtt://";
             const string MqttSUrlIdentifier = "mqtts://";
-
 
             IMqttClientOptions mqttOptions = null;
             TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
@@ -420,8 +553,9 @@ namespace Opc.Ua.PubSub.Transport
             if (!networkAddressUrl.StartsWith(MqttUrlIdentifier) &&
                 !networkAddressUrl.StartsWith(MqttSUrlIdentifier))
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has an invalid Url value {1}. The Url should start either with {2} or with {3}",
-                    this.PubSubConnectionConfiguration.Name,
+                Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for connection '{0}' has an invalid Url value {1}. The Url should start either with {2} or with {3}",
+                    PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url,
                     MqttUrlIdentifier,
                     MqttSUrlIdentifier);
@@ -432,8 +566,9 @@ namespace Opc.Ua.PubSub.Transport
 
             if (transportProtocolConfiguration == null)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid TransportSettings configuration will use a default one.",
-                      this.PubSubConnectionConfiguration.Name);
+                Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for connection '{0}' has invalid TransportSettings configuration will use a default one.",
+                     PubSubConnectionConfiguration.Name);
                 mqttOptions = new MqttClientOptionsBuilder()
                                 .WithTcpServer(m_brokerHostName, m_brokerPort)
                                 .WithKeepAlivePeriod(mqttKeepAlive)
@@ -538,7 +673,6 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             return mqttOptions;
-
         }
 
         /// <summary>
@@ -576,129 +710,17 @@ namespace Opc.Ua.PubSub.Transport
             // Accept certificates in this case
             if (e.Error.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
             {
-                Utils.Trace(Utils.TraceMasks.Security, "Accepted Certificate: {0}", e.Certificate.Subject);
+                Utils.Trace(Utils.TraceMasks.Security, "Connection '{0}' - Accepted Certificate: {1}",
+                    PubSubConnectionConfiguration.Name, e.Certificate.Subject);
                 e.Accept = true;
                 return;
             }
-            Utils.Trace(Utils.TraceMasks.Security, "Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
+            Utils.Trace(Utils.TraceMasks.Security,
+                "Connection '{0}' -Rejected Certificate: {1} {2}",
+                PubSubConnectionConfiguration.Name, e.Error, e.Certificate.Subject);
         }
 
         #endregion Private methods
 
-        #region Protected Methods
-        protected override bool InternalInitialize()
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <summary>
-        /// Perform specific Start tasks
-        /// </summary>
-        protected override void InternalStart()
-        {
-            int nrOfPublishers = 0;
-            int nrOfSubscribers = 0;
-
-            lock (m_lock)
-            {
-                //cleanup all existing UdpClient previously open
-                InternalStop();
-
-                NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
-                       as NetworkAddressUrlDataType;
-                if (networkAddressUrlState == null)
-                {
-                    Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                              this.PubSubConnectionConfiguration.Name);
-                    return;
-                }
-
-                Uri connectionUri;
-                if (networkAddressUrlState.Url != null && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
-                {
-                    if ( (connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
-                    {
-                        m_brokerHostName = connectionUri.Host;
-                        m_brokerPort = connectionUri.Port;
-                    }
-                }
-
-                nrOfPublishers = Publishers.Count;
-                nrOfSubscribers = GetAllDataSetReaders().Count;
-            }
-
-            MqttClient pubClient = null;
-            MqttClient subClient = null;
-            IMqttClientOptions mqttOptions = GetMqttClientOptions();
-
-            //publisher initialization    
-            if (nrOfPublishers > 0)
-            {
-                pubClient = Task.Run(async () =>
-                          (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
-                                                                                 mqttOptions,
-                                                                                 null).ConfigureAwait(false)).Result;
-            }
-
-            //subscriber initialization   
-            if (nrOfSubscribers > 0)
-            {
-                // collect all topics from all ReaderGroups
-                StringCollection topics = new StringCollection();
-                foreach (var readGroup in PubSubConnectionConfiguration.ReaderGroups)
-                {
-                    foreach (var dataSetReader in readGroup.DataSetReaders)
-                    {
-                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
-                            as BrokerDataSetReaderTransportDataType;
-                        if (brokerTransportSettings != null)
-                        {
-                            topics.Add(brokerTransportSettings.QueueName);
-                        }
-                    }
-                }
-
-                subClient = Task.Run(async () =>
-                     (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
-                                                                            mqttOptions,
-                                                                            ProcessMqttMessage,
-                                                                            topics).ConfigureAwait(false)).Result;          
-            }
-
-            lock (m_lock)
-            {
-                m_publisherMqttClient = pubClient;
-                m_subscriberMqttClient = subClient;
-            }
-
-        }
-
-        /// <summary>
-        /// Perform specific Stop tasks
-        /// </summary>
-        protected override void InternalStop()
-        {
-            lock (m_lock)
-            {
-                if (m_publisherMqttClient != null)
-                {
-                    if (m_publisherMqttClient.IsConnected)
-                    {
-                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync());
-                    }
-                    m_publisherMqttClient.Dispose();
-                }
-
-                if (m_subscriberMqttClient != null)
-                {
-                    if (m_subscriberMqttClient.IsConnected)
-                    {
-                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync());
-                    }
-                    m_subscriberMqttClient.Dispose();
-                }
-            }
-        }
-        #endregion Protected Methods
     }
 }

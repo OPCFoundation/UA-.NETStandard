@@ -38,11 +38,9 @@ namespace Opc.Ua.PubSub.Transport
     /// Represents a specialized <see cref="UdpClient"/> class, configured for Multicast
     /// </summary>
     internal class UdpClientMulticast : UdpClient
-    {
-        internal IPAddress Address { get; }
-        internal IPAddress MulticastAddress { get; }
-        internal int Port { get; }
+    {      
 
+        #region Constructor
         /// <summary>
         /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
         /// and joins the specified multicast group
@@ -64,7 +62,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch(Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "UdpClientMulticast set SetSocketOption resulted in ex {0}", ex.Message);
+                Utils.Trace(Utils.TraceMasks.Error, "UdpClientMulticast set SetSocketOption resulted in ex {0}", ex.Message);
             }
             try
             {
@@ -73,7 +71,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}", ex.Message);
+                Utils.Trace(Utils.TraceMasks.Error, "UdpClientMulticast set ExclusiveAddressUse = false resulted in ex {0}", ex.Message);
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -85,7 +83,28 @@ namespace Opc.Ua.PubSub.Transport
             {
                 Client.Bind(new IPEndPoint(localAddress, port));
                 JoinMulticastGroup(multicastAddress, localAddress);
-            }            
+            }
+
+            Utils.Trace("UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
+                localAddress, port, multicastAddress);
         }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// The Local Address
+        /// </summary>
+        internal IPAddress Address { get; }
+
+        /// <summary>
+        /// The Multiuicast address
+        /// </summary>
+        internal IPAddress MulticastAddress { get; }
+
+        /// <summary>
+        /// The local port
+        /// </summary>
+        internal int Port { get; }
+        #endregion
     }
 }

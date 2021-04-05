@@ -34,7 +34,7 @@ using Opc.Ua.PubSub.Configuration;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// This entity represents a working connection for PubSub
+    /// Abstract class that represents a working connection for PubSub
     /// </summary>
     internal abstract class UaPubSubConnection : IUaPubSubConnection,  IDisposable
     {
@@ -45,17 +45,19 @@ namespace Opc.Ua.PubSub
         private PubSubConnectionDataType m_pubSubConnectionDataType;
         private UaPubSubApplication m_uaPubSubApplication;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
-      //  protected UaPubSubMessageDecoder m_messageDecoder;
         #endregion
 
         #region Constructor
         /// <summary>
         /// Create new instance of UaPubSubConnection with PubSubConnectionDataType configuration data
         /// </summary>
-        /// <param name="parentUaPubSubApplication"></param>
-        /// <param name="pubSubConnectionDataType"></param>
         public UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
+            if (parentUaPubSubApplication == null)
+            {
+                throw new ArgumentNullException(nameof(parentUaPubSubApplication));
+            }
+
             m_uaPubSubApplication = parentUaPubSubApplication;
             m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded += UaPubSubConfigurator_WriterGroupAdded;
             m_pubSubConnectionDataType = pubSubConnectionDataType;
@@ -65,17 +67,7 @@ namespace Opc.Ua.PubSub
             if (string.IsNullOrEmpty(pubSubConnectionDataType.Name))
             {
                 pubSubConnectionDataType.Name = "<connection>";
-            }
-        }
-
-        private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
-        {
-            PubSubConnectionDataType pubSubConnectionDataType = m_uaPubSubApplication.UaPubSubConfigurator.FindObjectById(e.ConnectionId) 
-                as PubSubConnectionDataType;
-            if (m_pubSubConnectionDataType == pubSubConnectionDataType)
-            {
-                UaPublisher publisher = new UaPublisher(this, e.WriterGroupDataType);
-                m_publishers.Add(publisher);
+                Utils.Trace("UaPubSubConnection() received a PubSubConnectionDataType object without name. '<connection>' will be used");
             }
         }
 
@@ -83,7 +75,7 @@ namespace Opc.Ua.PubSub
 
         #region Properties
         /// <summary>
-        /// Get assigned transport protocol for this connection instance
+        /// Get the assigned transport protocol for this connection instance
         /// </summary>
         public TransportProtocol TransportProtocol
         {
@@ -122,7 +114,39 @@ namespace Opc.Ua.PubSub
         internal IReadOnlyCollection<IUaPublisher> Publishers
         {
             get { return m_publishers.AsReadOnly(); }
-        }       
+        }
+        #endregion
+
+        #region IDisposable Implementation
+        /// <summary>
+        /// Releases all resources used by the current instance of the <see cref="UaPubSubConnection"/> class.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded -= UaPubSubConfigurator_WriterGroupAdded;
+                Stop();
+                // free managed resources
+                foreach (UaPublisher publisher in m_publishers)
+                {
+                    publisher.Dispose();
+                }
+
+                Utils.Trace("Connection '{0}' was disposed.", m_pubSubConnectionDataType.Name);
+            }
+        }
         #endregion
 
         #region Public Methods
@@ -140,6 +164,7 @@ namespace Opc.Ua.PubSub
                 }
             }
             InternalStart();
+            Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
         }
 
         /// <summary>
@@ -156,6 +181,7 @@ namespace Opc.Ua.PubSub
                     publisher.Stop();
                 }
             }
+            Utils.Trace("Connection '{0}' was stopped.", m_pubSubConnectionDataType.Name);
         }
 
         /// <summary>
@@ -192,15 +218,15 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create the network message built from the provided writerGroupConfiguration
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
+        /// <param name="writerGroupConfiguration">The writer group configuration </param>
+        /// <returns>An instance of the <see cref="UaNetworkMessage"/> created from the provided writerGroupConfiguration.</returns>
         public abstract UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
         /// Publish the network message
         /// </summary>
-        /// <param name="networkMessage"></param>
-        /// <returns></returns>
+        /// <param name="networkMessage">The network message that needs to be published.</param>
+        /// <returns>True if send was successfull.</returns>
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>
@@ -258,8 +284,8 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.
         /// </summary>
-        /// <param name="networkMessage"></param>
-        /// <param name="source"></param>
+        /// <param name="networkMessage">The network message that was received.</param>
+        /// <param name="source">The source of the received event.</param>
         protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
         {
             if (networkMessage.ReceivedDataSets != null && networkMessage.ReceivedDataSets.Count > 0)
@@ -272,13 +298,12 @@ namespace Opc.Ua.PubSub
 
                 //trigger notification for received subscribed data set
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
-                Utils.Trace(Utils.TraceMasks.Information,
-                    "UaPubSubConnection.RaiseNetworkMessageDataReceivedEvent from source={0}, with {1} DataSets", source, subscribedDataEventArgs.DataSets.Count);
+                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
+                    source, subscribedDataEventArgs.DataSets.Count);
             }
             else
             {
-                Utils.Trace(Utils.TraceMasks.Information,
-                    "Message from source={0} cannot be decoded.", source);
+                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() message from source={0} cannot be decoded.", source);
             }
         }
 
@@ -317,35 +342,22 @@ namespace Opc.Ua.PubSub
             }
             return maxKeepAlive;
         }
-        #endregion
+        #endregion        
 
-        #region IDisposable Implementation
-        /// <summary>
-        /// Releases all resources used by the current instance of the <see cref="UaPubSubConnection"/> class.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
+        #region Private Methods
 
         /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
-        ///  and optionally releases the managed resources.
+        /// Handler for <see cref="UaPubSubConfigurator.WriterGroupAdded"/> event. 
         /// </summary>
-        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
-        protected virtual void Dispose(bool disposing)
+        private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
         {
-            if (disposing)
+            PubSubConnectionDataType pubSubConnectionDataType = m_uaPubSubApplication.UaPubSubConfigurator.FindObjectById(e.ConnectionId)
+                as PubSubConnectionDataType;
+            if (m_pubSubConnectionDataType == pubSubConnectionDataType)
             {
-                m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded -= UaPubSubConfigurator_WriterGroupAdded;
-                Stop();
-                // free managed resources
-                foreach (UaPublisher publisher in m_publishers)
-                {
-                    publisher.Dispose();
-                }
-            }            
+                UaPublisher publisher = new UaPublisher(this, e.WriterGroupDataType);
+                m_publishers.Add(publisher);
+            }
         }
         #endregion
     }

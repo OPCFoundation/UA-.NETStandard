@@ -70,22 +70,16 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Determine if the connection has anything to publish -> at least one WriterDataSet is configured as enabled for current writer group
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
         bool CanPublish(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
         /// Create the network message built from the provided writerGroupConfiguration
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
         UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
         /// Publish the network message
         /// </summary>
-        /// <param name="networkMessage"></param>
-        /// <returns></returns>
         bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>

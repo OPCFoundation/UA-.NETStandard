@@ -31,7 +31,6 @@ using System;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Mqtt;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -50,11 +49,16 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             try
             {
+                Utils.SetTraceLog("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferenceSubscriber.log.txt", true);
+                Utils.SetTraceMask(Utils.TraceMasks.All);
+                Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
+
+
                 // Create subscriber configuration using UDP protocol and UADP Encoding
-                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp();
+                //PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp();
 
                 // Create subscriber configuration using MQTT protocol and JSON Encoding
-                //PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
+                PubSubConfigurationDataType pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
 
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))

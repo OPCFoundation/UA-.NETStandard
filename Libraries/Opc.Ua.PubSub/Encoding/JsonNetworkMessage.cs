@@ -27,10 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -307,7 +306,6 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     messagesList = new List<object>();
                 }
-                // todo decode when no network message header and not single message / single message 
                 if (messagesList != null)
                 {
                     // atempt decoding for each data set reader
@@ -355,7 +353,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the object in a binary stream.
         /// </summary>
-        /// <param name="jsonEncoder"></param>
         private void Encode(JsonEncoder jsonEncoder)
         {
             if (jsonEncoder == null)
@@ -374,7 +371,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
-        /// <param name="jsonEncoder"></param>
         private void EncodeNetworkMessageHeader(JsonEncoder jsonEncoder)
         {
             jsonEncoder.WriteString(FieldMessageId, MessageId);
@@ -394,7 +390,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode DataSetMessages
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeMessages(JsonEncoder encoder)
         {
             if (DataSetMessages != null && DataSetMessages.Count > 0)
@@ -429,7 +424,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode ReplyTo
         /// </summary>
-        /// <param name="jsonEncoder"></param>
         private void EncodeReplyTo(JsonEncoder jsonEncoder)
         {
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)

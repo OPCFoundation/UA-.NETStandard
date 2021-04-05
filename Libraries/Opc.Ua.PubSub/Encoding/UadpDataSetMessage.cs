@@ -47,22 +47,6 @@ namespace Opc.Ua.PubSub.Encoding
         private const DataSetFlags1EncodingMask PreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0x07;
         private const DataSetFlags1EncodingMask DataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0xF9;
 
-        // UadpDataSetMessage header as byte sizes 
-        private const UInt16 DataSetFlags1HeaderSize = 1;
-        private const UInt16 DataSetFlags2HeaderSize = 1;
-        private const UInt16 SequenceNumberHeaderSize = 2;
-        private const UInt16 TimestampHeaderSize = 8;
-        private const UInt16 PicosecondsHeaderSize = 2;
-        private const UInt16 StatusHeaderSize = 2;
-        private const UInt16 ConfigurationMajorVersionHeaderSize = 4;
-        private const UInt16 ConfigurationMinorVersionHeaderSize = 4;
-
-        private const UInt16 DataSetFieldCountSize = 2;
-
-        // to avoid unsafe code
-        private const UInt16 SizeOfDateTime = 8;
-        private const UInt16 SizeOfGuid = 16;
-
         // Configuration Major and Major current version (VersionTime)
         private const UInt32 ConfigMajorVersion = 1;
         private const UInt32 ConfigMinorVersion = 1;
@@ -74,7 +58,7 @@ namespace Opc.Ua.PubSub.Encoding
         #region Constructors
 
         /// <summary>
-        /// Constructor
+        /// Constructor for <see cref="UadpDataSetMessage"/>.
         /// </summary>
         public UadpDataSetMessage()
         {
@@ -83,15 +67,13 @@ namespace Opc.Ua.PubSub.Encoding
 
             TimeStamp = DateTime.UtcNow;
 
-            // configurable !?
             // If this bit is set to false, the rest of this DataSetMessage is considered invalid, and shall not be processed by the Subscriber.
             DataSetFlags1 |= DataSetFlags1EncodingMask.MessageIsValid;
         }
 
         /// <summary>
-        /// Constructor with DataSet parameter
-        /// </summary>
-        /// <param name="dataSet"></param>        
+        /// Constructor for <see cref="UadpDataSetMessage"/> with DataSet parameter
+        /// </summary>     
         public UadpDataSetMessage(DataSet dataSet = null) : this()
         {
             m_dataSet = dataSet;
@@ -295,6 +277,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             #endregion
         }
+
         /// <summary>
         /// Encode dataset
         /// </summary>
@@ -612,7 +595,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     return;
                 }
-                object valueToEncode = variant.Value;                
+                object valueToEncode = variant.Value;
 
                 if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                 {
@@ -692,123 +675,11 @@ namespace Opc.Ua.PubSub.Encoding
                 else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
                 {
                     binaryEncoder.WriteArray(null, valueToEncode, field.FieldMetaData.ValueRank, (BuiltInType)field.FieldMetaData.BuiltInType);
-                 }
-                //else if (field.FieldMetaData.ValueRank > ValueRanks.OneDimension)
-                //{
-                //    Matrix matrix = valueToEncode as Matrix;
-                //    binaryEncoder.WriteMatrix(null, matrix);
-
-                    // *Multi-dimensional Arrays are encoded as an Int32 Array containing the dimensions followed by 
-                    // * a list of all the values in the Array. The total number of values is equal to the product of the dimensions.
-                    // * The number of values is 0 if one or more dimension is less than or equal to 0.*/
-
-                    //// write array dimensions for matrix
-                    //if (matrix != null)
-                    //{
-                    //    binaryEncoder.WriteInt32Array(null, (int[])matrix.Dimensions);
-                    //}
-
-                    //switch ((BuiltInType)field.FieldMetaData.BuiltInType)
-                    //{
-                    //    case BuiltInType.Boolean:
-                    //        binaryEncoder.WriteBooleanArray("BooleanArray", (bool[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.SByte:
-                    //        binaryEncoder.WriteSByteArray("SByteArray", (sbyte[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Byte:
-                    //        binaryEncoder.WriteByteArray("ByteArray", (byte[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Int16:
-                    //        binaryEncoder.WriteInt16Array("ByteArray", (short[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.UInt16:
-                    //        binaryEncoder.WriteUInt16Array("UInt16Array", (ushort[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Int32:
-                    //        binaryEncoder.WriteInt32Array("Int32Array", (int[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.UInt32:
-                    //        binaryEncoder.WriteUInt32Array("UInt32Array", (uint[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Int64:
-                    //        binaryEncoder.WriteInt64Array("Int64Array", (long[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.UInt64:
-                    //        binaryEncoder.WriteUInt64Array("UInt64Array", (ulong[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Float:
-                    //        binaryEncoder.WriteFloatArray("FloatArray", (float[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Double:
-                    //        binaryEncoder.WriteDoubleArray("DoubleArray", (double[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.DateTime:
-                    //        binaryEncoder.WriteDateTimeArray("DateTimeArray", (DateTime[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Guid:
-                    //        binaryEncoder.WriteGuidArray("GuidArray", (Uuid[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.String:
-                    //        binaryEncoder.WriteStringArray("StringArray", (string[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.ByteString:
-                    //        binaryEncoder.WriteByteStringArray("StringArray", (byte[][])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.QualifiedName:
-                    //        binaryEncoder.WriteQualifiedNameArray("QualifiedNameArray", (QualifiedName[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.LocalizedText:
-                    //        binaryEncoder.WriteLocalizedTextArray("LocalizedTextArray", (LocalizedText[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.NodeId:
-                    //        binaryEncoder.WriteNodeIdArray("NodeIdArray", (NodeId[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.ExpandedNodeId:
-                    //        binaryEncoder.WriteExpandedNodeIdArray("ExpandedNodeIdArray", (ExpandedNodeId[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.StatusCode:
-                    //        binaryEncoder.WriteStatusCodeArray("StatusCodeArray", (StatusCode[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.XmlElement:
-                    //        binaryEncoder.WriteXmlElementArray("XmlElementArray", (System.Xml.XmlElement[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Variant:
-                    //        binaryEncoder.WriteVariantArray("VariantArray", (Variant[])valueToEncode);
-                    //        break;
-                    //    case BuiltInType.Enumeration:
-                    //        int[] ints = valueToEncode as int[];
-                    //        if (ints == null)
-                    //        {
-                    //            Enum[] enums = valueToEncode as Enum[];
-                    //            if (enums != null)
-                    //            {
-                    //                ints = new int[enums.Length];
-                    //                for (int ii = 0; ii < enums.Length; ii++)
-                    //                {
-                    //                    ints[ii] = (int)(object)enums[ii];
-                    //                }
-                    //            }
-                    //        }
-                    //        if (ints != null)
-                    //        {
-                    //            binaryEncoder.WriteInt32Array(null, ints);
-                    //        }
-                    //        else
-                    //        {
-                    //            // TODO log?
-                    ////        }
-                    //        break;
-                    //    case BuiltInType.ExtensionObject:
-                    //        binaryEncoder.WriteExtensionObjectArray("ExtensionObjectArray", (ExtensionObject[])valueToEncode);
-                    //        break;
-                    //}                   
-               //}
-
+                }           
             }
             catch (Exception ex)
             {
-                Utils.Trace("Error encoding field {0} - {1}", field.FieldMetaData.Name, ex);
+                Utils.Trace(ex, "Error encoding field {0}.", field.FieldMetaData.Name);
             }
         }
 
@@ -834,7 +705,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case ValueRanks.TwoDimensions:
                             return binaryDecoder.ReadArray(null, fieldMetaData.ValueRank, (BuiltInType)fieldMetaData.BuiltInType);
 
-                        case ValueRanks.OneOrMoreDimensions:                        
+                        case ValueRanks.OneOrMoreDimensions:
                         case ValueRanks.Any:// Scalar or Array with any number of dimensions
                         case ValueRanks.ScalarOrOneDimension:
                         // not implemented

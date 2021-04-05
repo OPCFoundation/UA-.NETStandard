@@ -41,7 +41,6 @@ namespace Opc.Ua.PubSub
     public class UaPubSubApplication : IDisposable
     {
         #region Fields
-        private object m_lock = new object();
         private List<IUaPubSubConnection> m_uaPubSubConnections;
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
@@ -78,8 +77,9 @@ namespace Opc.Ua.PubSub
             m_uaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
-        }
 
+            Utils.Trace("An instance of UaPubSubApplication was created.");
+        }
 
         #endregion
 
@@ -89,7 +89,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public static string[] SupportedTransportProfiles
         {
-            get { return new string[] { Profiles.PubSubUdpUadpTransport }; }
+            get
+            {
+                return new string[] { Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles.PubSubMqttUadpTransport };
+            }
         }
 
         /// <summary>
@@ -183,10 +186,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            foreach(var connection in m_uaPubSubConnections)
+            Utils.Trace("UaPubSubApplication is starting.");
+            foreach (var connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
+            Utils.Trace("UaPubSubApplication was started.");
         }
 
         /// <summary>
@@ -194,10 +199,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
+            Utils.Trace("UaPubSubApplication is stopping.");
             foreach (var connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
+            Utils.Trace("UaPubSubApplication is stopped.");
         }
 
         #endregion
@@ -228,8 +235,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetAdded"/> event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void UaPubSubConfigurator_PublishedDataSetAdded(object sender, PublishedDataSetEventArgs e)
         {
             DataCollector.AddPublishedDataSet(e.PublishedDataSetDataType);

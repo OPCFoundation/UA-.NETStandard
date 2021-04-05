@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Mqtt
                     // Subscribe to provided topics, messages are also filtered on the receiveMessageHandler
                     await mqttClient.SubscribeAsync(topics.ToArray());
 
-                    Utils.Trace("{0} Subscribed");
+                    Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
                 });
             }
             else

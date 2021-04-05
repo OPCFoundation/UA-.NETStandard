@@ -40,11 +40,14 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public abstract class UaNetworkMessage
     {
+        #region Protected Fields
         /// <summary>
         /// list of DataSet messages
         /// </summary>
         protected readonly List<UaDataSetMessage> m_uaDataSetMessages;
+        #endregion
 
+        #region Constructor
         /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
@@ -55,11 +58,9 @@ namespace Opc.Ua.PubSub
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
         }
+        #endregion
 
-        /// <summary>
-        /// Get the writer group configuration for this network message
-        /// </summary>
-        internal WriterGroupDataType WriterGroupConfiguration { get; set; }
+        #region Properties
 
         /// <summary>
         /// Get and Set WriterGroupId
@@ -77,6 +78,11 @@ namespace Opc.Ua.PubSub
         public List<DataSet> ReceivedDataSets { get; internal set; }
 
         /// <summary>
+        /// Get the writer group configuration for this network message
+        /// </summary>
+        internal WriterGroupDataType WriterGroupConfiguration { get; set; }
+
+        /// <summary>
         /// DataSet messages
         /// </summary>
         internal ReadOnlyCollection<UaDataSetMessage> DataSetMessages
@@ -86,7 +92,9 @@ namespace Opc.Ua.PubSub
                 return new ReadOnlyCollection<UaDataSetMessage>(m_uaDataSetMessages);
             }
         }
+        #endregion
 
+        #region Public Methods
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
@@ -99,7 +107,9 @@ namespace Opc.Ua.PubSub
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
         public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
+        #endregion
 
+        #region Protectd Methods
         /// <summary>
         /// Read the bytes from a Stream
         /// </summary>
@@ -114,5 +124,7 @@ namespace Opc.Ua.PubSub
                 return ms.ToArray();
             }
         }
+        #endregion
+
     }
 }

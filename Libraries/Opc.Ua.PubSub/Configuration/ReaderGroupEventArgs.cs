@@ -50,5 +50,5 @@ namespace Opc.Ua.PubSub.Configuration
         /// Reference to <see cref="ReaderGroupDataType"/> object
         /// </summary>
         public ReaderGroupDataType ReaderGroupDataType { get; set; }
-    }    
+    }
 }

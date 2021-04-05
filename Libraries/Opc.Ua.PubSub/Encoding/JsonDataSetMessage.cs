@@ -27,11 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -57,7 +56,7 @@ namespace Opc.Ua.PubSub.Encoding
         #region Constructors
 
         /// <summary>
-        /// Constructor
+        /// Create new instance of <see cref="JsonDataSetMessage"/>.
         /// </summary>
         public JsonDataSetMessage()
         {
@@ -65,7 +64,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Constructor with DataSet parameter
+        /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
         /// <param name="dataSet"></param>        
         public JsonDataSetMessage(DataSet dataSet = null) : this()
@@ -215,7 +214,7 @@ namespace Opc.Ua.PubSub.Encoding
                     DecodeDataSetMessageHeader(jsonDecoder);
 
                     // push into PayloadStructure if there was a dataset header
-                    jsonDecoder.PushStructure("Payload");
+                    jsonDecoder.PushStructure(FieldPayload);
                 }
 
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
@@ -425,7 +424,7 @@ namespace Opc.Ua.PubSub.Encoding
                 return null;
             }
 
-            //build the DataSet Fields collection based oin the decoded values and the target 
+            //build the DataSet Fields collection based on the decoded values and the target 
             List<Field> dataFields = new List<Field>();
             for (int i = 0; i < dataValues.Count; i++)
             {
@@ -456,7 +455,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode DataSet message header
         /// </summary>
-        /// <param name="encoder"></param>
         private void EncodeDataSetMessageHeader(JsonEncoder encoder)
         {
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
@@ -488,8 +486,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes The DataSet message payload
         /// </summary>
-        /// <param name="jsonEncoder"></param>
-        /// <param name="pushStructure"></param>
         internal void EncodePayload(JsonEncoder jsonEncoder, bool pushStructure = true)
         {
             if (pushStructure)
@@ -509,8 +505,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes a dataSet field
         /// </summary>
-        /// <param name="encoder"></param>
-        /// <param name="field"></param>
         private void EncodeField(JsonEncoder encoder, Field field)
         {
             string fieldName = field.FieldMetaData.Name;
@@ -579,13 +573,15 @@ namespace Opc.Ua.PubSub.Encoding
         }
         #endregion
 
+        #region Private Decode Methods
+
         /// <summary>
         /// Decode RawData type 
         /// </summary>
         /// <returns></returns>
         private object DecodeRawData(JsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
         {
-            if (fieldMetaData.BuiltInType != 0)// && fieldMetaData.DataType.Equals(new NodeId(fieldMetaData.BuiltInType)))
+            if (fieldMetaData.BuiltInType != 0)
             {
                 try
                 {
@@ -600,12 +596,12 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     else
                     {
-                        Utils.Trace("Decoding ValueRank = {0} not supported yet !!!", fieldMetaData.ValueRank);
+                        Utils.Trace("JsonDataSetMessage - Decoding ValueRank = {0} not supported yet !!!", fieldMetaData.ValueRank);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(ex, "Error reading element for RawData.");
+                    Utils.Trace(ex, "JsonDataSetMessage - Error reading element for RawData.");
                     return (StatusCodes.BadDecodingError);
                 }
             }
@@ -724,11 +720,11 @@ namespace Opc.Ua.PubSub.Encoding
             }
             catch (Exception ex)
             {
-                // log
-                Utils.Trace(ex, "JsonDataSetMessage: Error decoding field {0}", fieldName);
+                Utils.Trace(ex, "JsonDataSetMessage - Error decoding field {0}", fieldName);
             }
 
             return null;
         }
+        #endregion
     }
 }

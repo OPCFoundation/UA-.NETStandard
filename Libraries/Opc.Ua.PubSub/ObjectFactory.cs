@@ -27,9 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.Transport;
-using Opc.Ua.PubSub.Encoding;
 using System;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub
 {
@@ -41,9 +40,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create connections from PubSubConnectionDataType configuration objects.
         /// </summary>
-        /// <param name="uaPubSubApplication"></param>
-        /// <param name="pubSubConnectionDataType"></param>
-        /// <returns></returns>
+        /// <param name="uaPubSubApplication">The parent <see cref="UaPubSubApplication"/></param>
+        /// <param name="pubSubConnectionDataType">The configuration object for the new <see cref="UaPubSubConnection"/></param>
+        /// <returns>The new instance of <see cref="UaPubSubConnection"/>.</returns>
         public static UaPubSubConnection CreateConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
             if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubUdpUadpTransport)

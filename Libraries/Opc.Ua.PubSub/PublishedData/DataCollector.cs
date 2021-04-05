@@ -127,10 +127,10 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <param name="dataSetName"></param>
         /// <returns></returns>
         public DataSet CollectData(string dataSetName)
-        {   
+        {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
             if (publishedDataSet != null)
-            {               
+            {
                 if (publishedDataSet.DataSetSource != null)
                 {
                     DataSet dataSet = new DataSet(dataSetName);
@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     if (dataValue == null)
                                     {
                                         dataValue = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
-                                    }                                    
+                                    }
                                 }
                                 else
                                 {
@@ -186,12 +186,12 @@ namespace Opc.Ua.PubSub.PublishedData
                                     }
                                 }
                                 dataValue.ServerTimestamp = DateTime.UtcNow;
-                                
+
                                 #region FieldMetaData -> MaxStringLength size validation                                 
-                                
+
                                 Field field = dataSet.Fields[i];
                                 Variant variant = dataValue.WrappedValue;
-                                
+
                                 bool shouldBringToConstraints(uint givenStrlen)
                                 {
                                     if (field.FieldMetaData.MaxStringLength > 0 &&
@@ -235,7 +235,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                         if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                                         {
                                             byte[] byteStringFieldValue = variant.Value as byte[];
-                                            if (byteStringFieldValue!= null && shouldBringToConstraints((uint)byteStringFieldValue.Length))
+                                            if (byteStringFieldValue != null && shouldBringToConstraints((uint)byteStringFieldValue.Length))
                                             {
                                                 byte[] byteArray = (byte[])byteStringFieldValue.Clone();
                                                 Array.Resize(ref byteArray, (int)field.FieldMetaData.MaxStringLength);
@@ -258,7 +258,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                                     }
                                                 }
                                             }
-                                            dataValue.Value = valueArray;                                            
+                                            dataValue.Value = valueArray;
                                         }
                                         break;
                                     default:
@@ -269,7 +269,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 dataSet.Fields[i].Value = dataValue;
                             }
-                            catch(Exception ex)
+                            catch (Exception ex)
                             {
                                 dataSet.Fields[i].Value = new DataValue(StatusCodes.Bad, DateTime.UtcNow);
                                 Utils.Trace(Utils.TraceMasks.Information, "DataCollector.CollectData for dataset {0} field {1} resulted in ex {2}",
@@ -278,7 +278,7 @@ namespace Opc.Ua.PubSub.PublishedData
                         }
                         return dataSet;
                     }
-                    
+
                 }
             }
             return null;

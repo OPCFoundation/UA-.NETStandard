@@ -40,10 +40,7 @@ namespace Opc.Ua.PubSub.Transport
     /// interface (the one to which the endpoint belongs to).
     /// </summary>
     internal class UdpClientBroadcast : UdpClient
-    {
-        internal IPAddress Address { get; }
-        internal int Port { get; }
-        internal UsedInContext PubSubContext { get; }
+    {      
 
         #region Constructors
         /// <summary>
@@ -62,18 +59,39 @@ namespace Opc.Ua.PubSub.Transport
 
             IPEndPoint boundEndpoint = null;
             if( !RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || pubSubContext == UsedInContext.Publisher)
-            {//Running on Windows or Publisher on Windows/Linux
+            {
+                //Running on Windows or Publisher on Windows/Linux
                 boundEndpoint = new IPEndPoint(address, port);
             }
             else
-            {//Running on Linux and Subscriber
+            {
+                //Running on Linux and Subscriber
                 // On Linux must bind to IPAddress.Any on receiving side to get Broadcast messages 
                 boundEndpoint = new IPEndPoint(IPAddress.Any, port);
             }
 
             Client.Bind(boundEndpoint);
             EnableBroadcast = true;
+
+            Utils.Trace("UdpClientBroadcast was created for address: {0}:{1} - {2}.", address, port, pubSubContext);
         }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// The Ip Address
+        /// </summary>
+        internal IPAddress Address { get; }
+
+        /// <summary>
+        /// The port
+        /// </summary>
+        internal int Port { get; }
+
+        /// <summary>
+        /// Publisher or Subscriber context where the UdpClient is used
+        /// </summary>
+        internal UsedInContext PubSubContext { get; }
         #endregion
 
         #region Private methods
@@ -114,5 +132,4 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
     }
-
 }

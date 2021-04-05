@@ -264,7 +264,6 @@ namespace Opc.Ua.PubSub.Transport
             return false;
         }
 
-
         /// <summary>
         /// Checks if the address provided is an IPv4 broadcast address
         /// </summary>

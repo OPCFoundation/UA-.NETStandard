@@ -76,8 +76,6 @@ namespace Opc.Ua.PubSub.Encoding
 
         #region Properties
 
-
-
         /// <summary>
         /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage  
         /// </summary>
@@ -163,8 +161,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set GroupFlags
         /// </summary>
         public GroupFlagsEncodingMask GroupFlags { get; private set; }
-
-
 
         /// <summary>
         /// Get and Set VersionTime type: it represents the time in seconds since the year 2000
@@ -254,7 +250,6 @@ namespace Opc.Ua.PubSub.Encoding
             SetFlags();
         }
 
-
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
@@ -287,7 +282,7 @@ namespace Opc.Ua.PubSub.Encoding
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
             using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
-            {                
+            {
                 //decode bytes using dataset reader information
                 DecodeSubscribedDataSets(decoder, dataSetReaders);
             }
@@ -475,7 +470,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 //ignore network messages that are not dataSet messages
                 if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage)
-                    //|| PublisherId == null)
+                //|| PublisherId == null)
                 {
                     return;
                 }

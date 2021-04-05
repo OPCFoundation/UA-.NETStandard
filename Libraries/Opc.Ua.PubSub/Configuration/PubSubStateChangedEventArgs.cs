@@ -56,5 +56,5 @@ namespace Opc.Ua.PubSub.Configuration
         /// Old <see cref="PubSubState"/> 
         /// </summary>
         public PubSubState OldState { get; set; }
-    }    
+    }
 }
