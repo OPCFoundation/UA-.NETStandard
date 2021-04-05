@@ -1246,7 +1246,7 @@ namespace Opc.Ua
             var encodeable = value.Body as IEncodeable;
             if (!UseReversibleEncoding && encodeable != null)
             {
-                // the non reversible encoding, only the content of the Body field
+                // non reversible encoding, only the content of the Body field is encoded
                 var structureType = value.Body as IStructureTypeInfo;
                 if (structureType != null &&
                     structureType.StructureType == StructureType.Union)
@@ -1261,7 +1261,7 @@ namespace Opc.Ua
                 return;
             }
 
-            // this is the reversible encoding
+            // reversible encoding
             PushStructure(fieldName);
 
             var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
