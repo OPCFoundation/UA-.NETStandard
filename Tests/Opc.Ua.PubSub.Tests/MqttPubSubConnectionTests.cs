@@ -1000,7 +1000,7 @@ namespace Opc.Ua.PubSub.Tests
         }
 
         [Test(Description = "Validate mqtt Azure hub pub/sub connections.")]
-        public void ValidateMqttPubSubConnectionToAzureHub(
+        public void ValidateMqttPubSubConnectionToAzureHubWithoutCertificate(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             //Arrange
@@ -1022,8 +1022,6 @@ namespace Opc.Ua.PubSub.Tests
             securePassword.MakeReadOnly();
 
             string storeName = "OPC Foundation";
-            //string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            //CopyResourceToStore(localAppData, storeName, @"resources\BaltimoreCyberTrustRoot.crt.pem");
             
             CertificateStoreIdentifier trustedIssuerCertificates = new CertificateTrustList {
                 StoreType = "Directory",
@@ -1048,17 +1046,163 @@ namespace Opc.Ua.PubSub.Tests
                     rejectedCertificateStore: rejectedCertificateStore)
                 );
 
-            //ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V311,
-            //    userName: secureUser, password: securePassword, azureClientId: azureClientId,
-            //    mqttTlsOptions: new MqttTlsOptions(ignoreRevocationListErrors: true,
-            //         ignoreCertificateChainErrors: true,
-            //         allowUntrustedCertificates: true,
-            //         certificates: new MqttTlsCertificates(
-            //             caCertificatePath: Path.Combine(localAppData, Path.Combine(storeName, @"pki\trusted\certs\BaltimoreCyberTrustRoot.crt.pem"))),
-            //         trustedIssuerCertificates: trustedIssuerCertificates,
-            //         trustedPeerCertificates: trustedPeerCertificates,
-            //         rejectedCertificateStore: rejectedCertificateStore)
-            //     );
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+                | JsonNetworkMessageContentMask.PublisherId
+                | JsonNetworkMessageContentMask.DataSetMessageHeader;
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+
+            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                //MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                //MessagesHelper.CreateDataSetMetaData3("DataSet3")
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreateAzurePublisherConfiguration(
+                Profiles.PubSubMqttJsonTransport,
+                azureBrokerUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, topic: publisherTopic);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Configure the mqtt publisher configuration with the MQTTbroker
+            PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(publisherConfiguration, publisherId);
+            Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
+            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            Assert.IsNotNull(mqttPublisherConnection.ConnectionProperties, "The MQTT publisher connection properties are not valid.");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
+
+            WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
+            JsonWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
+                as JsonWriterGroupMessageDataType;
+
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            JsonNetworkMessage uaNetworkMessage = publisherConnection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+                JsonNetworkMessage;
+            Assert.IsNotNull(uaNetworkMessage, "CreateNetworkMessage did not return an JsonNetworkMessage.");
+
+            bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
+                && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
+
+            PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateAzureSubscriberConfiguration(
+                Profiles.PubSubMqttJsonTransport,
+                azureBrokerUrl, publisherId: publisherId, writerGroupId: writerGroupId, setDataSetWriterId: hasDataSetWriterId,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, topic: publisherTopic);
+            Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
+
+            // Create subscriber application for multiple datasets
+            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
+            Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
+            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
+
+            // Configure the mqtt subscriber configuration with the MQTTbroker
+            PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
+            Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
+            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
+
+            var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
+            IUaPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections.First();
+            Assert.IsNotNull(subscriberConnection, "Subscriber first connection should not be null");
+
+            //Act
+            // it will signal if the uadp message was received from local ip
+            m_shutdownEvent = new ManualResetEvent(false);
+
+            subscriberApplication.DataReceived += UaPubSubApplication_DataReceived;
+            subscriberConnection.Start();
+
+            publisherConnection.Start();
+            publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+
+            //Assert
+            if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
+            {
+                Assert.Fail("The JSON message was not received");
+            }
+
+            subscriberConnection.Stop();
+            publisherConnection.Stop();
+
+            /*
+            // publish message 
+            var payload = Encoding.ASCII.GetBytes(< some json string >);
+            var message = new MqttApplicationMessage {
+                Topic = topic,
+                Payload = payload,
+                QualityOfServiceLevel = MqttQualityOfServiceLevel.AtLeastOnce,
+                ContentType = "application/json"
+            };
+
+            mqttClient.PublishAsync(message, token).Wait(token);
+            */
+        }
+
+        [Test(Description = "Validate mqtt Azure hub pub/sub connections.")]
+        public void ValidateMqttPubSubConnectionToAzureHubWithCertificate(
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        {
+            //Arrange
+            UInt16 writerGroupId = 1;
+
+            string azureHostname = "<hostname>.azure-devices.net";
+            string azureBrokerUrl = $"mqtts://{azureHostname}:8883";
+            string azureClientId = "<deviceId>";
+            string publisherTopic = "devices/<deviceId>/messages/events";
+
+            string mqttUser = "<azure_user>";
+            SecureString secureUser = new SecureString();
+            Array.ForEach(mqttUser.ToArray(), secureUser.AppendChar);
+            secureUser.MakeReadOnly();
+
+            string mqttPassword = "<azure_password>";
+            SecureString securePassword = new SecureString();
+            Array.ForEach(mqttPassword.ToArray(), securePassword.AppendChar);
+            securePassword.MakeReadOnly();
+
+            string storeName = "OPC Foundation";
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            CopyResourceToStore(localAppData, storeName, @"resources\BaltimoreCyberTrustRoot.crt.pem");
+
+            CertificateStoreIdentifier trustedIssuerCertificates = new CertificateTrustList {
+                StoreType = "Directory",
+                StorePath = $"%LocalApplicationData%/{storeName}/pki/issuer"
+            };
+            CertificateStoreIdentifier trustedPeerCertificates = new CertificateTrustList {
+                StoreType = "Directory",
+                StorePath = $"%LocalApplicationData%/{storeName}/pki/trusted"
+            };
+            CertificateStoreIdentifier rejectedCertificateStore = new CertificateTrustList {
+                StoreType = "Directory",
+                StorePath = $"%LocalApplicationData%/{storeName}/pki/rejected"
+            };
+
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V311,
+                userName: secureUser, password: securePassword, azureClientId: azureClientId,
+                mqttTlsOptions: new MqttTlsOptions(ignoreRevocationListErrors: true,
+                     ignoreCertificateChainErrors: true,
+                     allowUntrustedCertificates: true,
+                     certificates: new MqttTlsCertificates(
+                         caCertificatePath: Path.Combine(localAppData, Path.Combine(storeName, @"pki\trusted\certs\BaltimoreCyberTrustRoot.crt.pem"))),
+                     trustedIssuerCertificates: trustedIssuerCertificates,
+                     trustedPeerCertificates: trustedPeerCertificates,
+                     rejectedCertificateStore: rejectedCertificateStore)
+                 );
 
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.PublisherId
