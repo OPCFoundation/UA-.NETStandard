@@ -888,9 +888,27 @@ namespace Opc.Ua
                     idType = (IdType)ReadInt32("IdType");
                 }
 
-                if (value.ContainsKey("Namespace"))
+                object namespaceToken = null;
+
+                if (ReadField("Namespace", out namespaceToken))
                 {
-                    namespaceIndex = ReadUInt16("Namespace");
+                    var index = namespaceToken as long?;
+
+                    if (index == null)
+                    {
+                        string namespaceUri = namespaceToken as string;
+                        if (namespaceUri != null)
+                        {
+                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                        }
+                    }
+                    else
+                    {
+                        if (index.Value >= 0 || index.Value < UInt16.MaxValue)
+                        {
+                            namespaceIndex = (ushort)index.Value;
+                        }
+                    }
                 }
 
                 if (value.ContainsKey("Id"))
@@ -1164,9 +1182,28 @@ namespace Opc.Ua
                     name = ReadString("Name");
                 }
 
-                if (value.ContainsKey("Uri"))
+                object namespaceToken = null;
+
+                if (ReadField("Uri", out namespaceToken))
                 {
-                    namespaceIndex = ReadUInt16("Uri");
+                    var index = namespaceToken as long?;
+
+                    if (index == null)
+                    {
+                        // handle non reversible encoding
+                        string namespaceUri = namespaceToken as string;
+                        if (namespaceUri != null)
+                        {
+                            namespaceIndex = m_context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                        }
+                    }
+                    else
+                    {
+                        if (index.Value >= 0 || index.Value < UInt16.MaxValue)
+                        {
+                            namespaceIndex = (ushort)index.Value;
+                        }
+                    }
                 }
             }
             finally
@@ -1196,6 +1233,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
+                // read non reversible encoding
                 text = token as string;
 
                 if (text != null)
