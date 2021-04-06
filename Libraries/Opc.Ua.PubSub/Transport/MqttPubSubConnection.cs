@@ -413,7 +413,12 @@ namespace Opc.Ua.PubSub.Transport
                 if (dsReader == null) continue;
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
                     ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
-                if (brokerDataSetReaderTransportDataType == null || brokerDataSetReaderTransportDataType.QueueName != topic)
+                string queueName = brokerDataSetReaderTransportDataType.QueueName;
+                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length-1)
+                {
+                    queueName = queueName.Substring(0, queueName.Length - 1);
+                }
+                if (brokerDataSetReaderTransportDataType == null || !topic.StartsWith(queueName))
                 {
                     continue;
                 }
