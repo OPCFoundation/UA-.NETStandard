@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub
             }
 
             m_pubSubConnection = pubSubConnection;
-            m_writerGroupConfiguration = writerGroupConfiguration;            
+            m_writerGroupConfiguration = writerGroupConfiguration;
 
             Initialize();
         }
@@ -197,7 +197,7 @@ namespace Opc.Ua.PubSub
                                 PublishMessage();
                             });
                         }
-                    }                    
+                    }
                 }
                 while (true);
             }
@@ -219,7 +219,7 @@ namespace Opc.Ua.PubSub
                 if (uaNetworkMessage != null)
                 {
                     bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                    Utils.Trace(Utils.TraceMasks.Information, 
+                    Utils.Trace(Utils.TraceMasks.Information,
                         "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
                 }
             }

@@ -470,7 +470,6 @@ namespace Opc.Ua.PubSub.Encoding
 
                 //ignore network messages that are not dataSet messages
                 if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage)
-                //|| PublisherId == null)
                 {
                     return;
                 }
