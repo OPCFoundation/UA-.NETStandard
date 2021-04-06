@@ -54,7 +54,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
 
                 // Create the UA Publisher application using configuration file
-                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))               
+                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
                     // Start values simulator
                     PublishedValuesWrites valuesSimulator = new PublishedValuesWrites(uaPubSubApplication);
@@ -394,7 +394,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 };
 
             return pubSubConfiguration;
-        }        
+        }
 
         /// <summary>
         /// Creates a PubSubConfiguration object for MQTT & Json programmatically.
@@ -418,7 +418,6 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
             pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
 
             #region Define WriterGroup1 - Json
@@ -459,7 +458,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 | JsonDataSetMessageContentMask.Status
                 | JsonDataSetMessageContentMask.Timestamp),
             };
-                
+
             dataSetWriter1.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
             writerGroup1.DataSetWriters.Add(dataSetWriter1);
 
@@ -479,7 +478,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 | JsonDataSetMessageContentMask.Timestamp),
             };
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
-            writerGroup1.DataSetWriters.Add(dataSetWriter2);           
+            writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
             #endregion
@@ -766,6 +765,6 @@ namespace Quickstarts.ConsoleReferencePublisher
                 };
 
             return pubSubConfiguration;
-        }        
+        }
     }
 }
