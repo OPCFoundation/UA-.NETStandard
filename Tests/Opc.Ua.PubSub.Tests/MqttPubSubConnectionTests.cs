@@ -999,7 +999,9 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt Azure hub pub/sub connections.")]
+        [Test(Description = "Validate mqtt Azure hub pub/sub connections without certificate.")]
+        [Ignore("Due to Azure device connectivity restriction only a publisher or a subscriber can connect at one time." +
+            "The the following sample you disable disable the publisher or subscriber code based on test scenario.")]
         public void ValidateMqttPubSubConnectionToAzureHubWithoutCertificate(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
@@ -1010,7 +1012,8 @@ namespace Opc.Ua.PubSub.Tests
             string azureBrokerUrl = $"mqtts://{azureHostname}:8883";
             string azureClientId = "<deviceId>";
             string publisherTopic = "devices/<deviceId>/messages/events";
-                        
+            string subscriberTopic = "devices/<deviceId>/messages/devicebound/#";
+
             string mqttUser = "<azure_user>";
             SecureString secureUser = new SecureString();
             Array.ForEach(mqttUser.ToArray(), secureUser.AppendChar);
@@ -1101,7 +1104,7 @@ namespace Opc.Ua.PubSub.Tests
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, topic: publisherTopic);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, topic: subscriberTopic);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -1137,23 +1140,12 @@ namespace Opc.Ua.PubSub.Tests
             }
 
             subscriberConnection.Stop();
-            publisherConnection.Stop();
-
-            /*
-            // publish message 
-            var payload = Encoding.ASCII.GetBytes(< some json string >);
-            var message = new MqttApplicationMessage {
-                Topic = topic,
-                Payload = payload,
-                QualityOfServiceLevel = MqttQualityOfServiceLevel.AtLeastOnce,
-                ContentType = "application/json"
-            };
-
-            mqttClient.PublishAsync(message, token).Wait(token);
-            */
+            //publisherConnection.Stop();
         }
 
-        [Test(Description = "Validate mqtt Azure hub pub/sub connections.")]
+        [Test(Description = "Validate mqtt Azure hub pub/sub connections with Baltimore certificate.")]
+        [Ignore("Due to Azure device connectivity restriction only a publisher or a subscriber can connect at one time." +
+            "The the following sample you disable disable the publisher or subscriber code based on test scenario.")]
         public void ValidateMqttPubSubConnectionToAzureHubWithCertificate(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
@@ -1164,6 +1156,7 @@ namespace Opc.Ua.PubSub.Tests
             string azureBrokerUrl = $"mqtts://{azureHostname}:8883";
             string azureClientId = "<deviceId>";
             string publisherTopic = "devices/<deviceId>/messages/events";
+            string subscriberTopic = "devices/<deviceId>/messages/devicebound/#";
 
             string mqttUser = "<azure_user>";
             SecureString secureUser = new SecureString();
@@ -1259,7 +1252,7 @@ namespace Opc.Ua.PubSub.Tests
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, topic: publisherTopic);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, topic: subscriberTopic);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -1296,19 +1289,7 @@ namespace Opc.Ua.PubSub.Tests
 
             subscriberConnection.Stop();
             publisherConnection.Stop();
-
-            /*
-            // publish message 
-            var payload = Encoding.ASCII.GetBytes(< some json string >);
-            var message = new MqttApplicationMessage {
-                Topic = topic,
-                Payload = payload,
-                QualityOfServiceLevel = MqttQualityOfServiceLevel.AtLeastOnce,
-                ContentType = "application/json"
-            };
-
-            mqttClient.PublishAsync(message, token).Wait(token);
-            */
+     
         }
 
         /// <summary>
