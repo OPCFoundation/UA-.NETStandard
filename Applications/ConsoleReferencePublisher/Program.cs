@@ -214,7 +214,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     },
                 };
             publishedDataSetSimple.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
+                MinorVersion = 0,
                 MajorVersion = 1
             };
 
@@ -365,7 +365,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 };
 
             publishedDataSetAllTypes.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
+                MinorVersion = 0,
                 MajorVersion = 1
             };
             PublishedDataItemsDataType publishedDataSetAllTypesSource = new PublishedDataItemsDataType();
@@ -588,7 +588,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     },
                 };
             publishedDataSetSimple.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
+                MinorVersion = 0,
                 MajorVersion = 1
             };
 
@@ -738,7 +738,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     },
                 };
             publishedDataSetAllTypes.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
+                MinorVersion = 0,
                 MajorVersion = 1
             };
             PublishedDataItemsDataType publishedDataSetAllTypesSource = new PublishedDataItemsDataType();
