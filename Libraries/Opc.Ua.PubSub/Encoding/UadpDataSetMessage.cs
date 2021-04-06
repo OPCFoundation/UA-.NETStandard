@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         // Configuration Major and Major current version (VersionTime)
         private const UInt32 ConfigMajorVersion = 1;
-        private const UInt32 ConfigMinorVersion = 0;
+        private const UInt32 ConfigMinorVersion = 1;
 
         private DataSet m_dataSet;
 
