@@ -23,7 +23,7 @@
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
     <PackageReference Include="System.Security.Cryptography.Primitives" Version="4.3.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="4.3.0" />
-    <PackageReference Include="coverlet.msbuild" Version="3.0.2">
+    <PackageReference Include="coverlet.msbuild" Version="3.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
