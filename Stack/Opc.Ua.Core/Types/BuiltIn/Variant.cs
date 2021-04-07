@@ -1516,11 +1516,6 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
             Variant? variant = obj as Variant?;
 
             if (variant != null)

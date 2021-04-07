@@ -35,12 +35,16 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Quickstarts.ReferenceServer
 {
+    /// <summary>
+    /// A dialog which asks for user input.
+    /// </summary>
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
         private string m_message = string.Empty;
@@ -80,6 +84,9 @@ namespace Quickstarts.ReferenceServer
         }
     }
 
+    /// <summary>
+    /// The error code why the server exited.
+    /// </summary>
     public enum ExitCode : int
     {
         Ok = 0,
@@ -89,9 +96,12 @@ namespace Quickstarts.ReferenceServer
         ErrorInvalidCommandLine = 0x100
     };
 
-    public class Program
+    /// <summary>
+    /// The program.
+    /// </summary>
+    public static class Program
     {
-        public static int Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".Net Core");
 
@@ -99,11 +109,13 @@ namespace Quickstarts.ReferenceServer
             bool showHelp = false;
             bool autoAccept = false;
             bool console = false;
+            string password = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "c|console", "log trace to console", c => console = c != null }
+                { "c|console", "log trace to console", c => console = c != null },
+                { "p|password=", "optional password for private key", (string p) => password = p }
             };
 
             try
@@ -131,10 +143,14 @@ namespace Quickstarts.ReferenceServer
                 return (int)ExitCode.ErrorInvalidCommandLine;
             }
 
-            MyRefServer server = new MyRefServer(autoAccept, console);
-            server.Run();
+            var server = new MyRefServer() {
+                AutoAccept = autoAccept,
+                LogConsole = console,
+                Password = password
+            };
+            await server.Run().ConfigureAwait(false);
 
-            return (int)MyRefServer.ExitCode;
+            return (int)server.ExitCode;
         }
     }
 
@@ -143,33 +159,28 @@ namespace Quickstarts.ReferenceServer
         private ReferenceServer m_server;
         private Task m_status;
         private DateTime m_lastEventTime;
-        private bool m_autoAccept = false;
-        private bool m_logConsole = false;
-        private static ExitCode s_exitCode;
+        public bool LogConsole { get; set; } = false;
+        public bool AutoAccept { get; set; } = false;
+        public string Password { get; set; } = null;
+        public ExitCode ExitCode { get; private set; }
 
-        public MyRefServer(bool autoAccept, bool logConsole)
-        {
-            m_autoAccept = autoAccept;
-            m_logConsole = logConsole;
-        }
-
-        public void Run()
+        public async Task Run()
         {
             try
             {
-                s_exitCode = ExitCode.ErrorServerNotStarted;
-                ConsoleSampleServer().Wait();
+                ExitCode = ExitCode.ErrorServerNotStarted;
+                await StartConsoleReferenceServerAsync().ConfigureAwait(false);
                 Console.WriteLine("Server started. Press Ctrl-C to exit...");
-                s_exitCode = ExitCode.ErrorServerRunning;
+                ExitCode = ExitCode.ErrorServerRunning;
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Exception: {0}", ex.Message);
-                s_exitCode = ExitCode.ErrorServerException;
+                ExitCode = ExitCode.ErrorServerException;
                 return;
             }
 
-            ManualResetEvent quitEvent = new ManualResetEvent(false);
+            var quitEvent = new ManualResetEvent(false);
             try
             {
                 Console.CancelKeyPress += (sender, eArgs) => {
@@ -198,18 +209,16 @@ namespace Quickstarts.ReferenceServer
                 }
             }
 
-            s_exitCode = ExitCode.Ok;
+            ExitCode = ExitCode.Ok;
         }
-
-        public static ExitCode ExitCode { get => s_exitCode; }
 
         private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                if (m_autoAccept)
+                if (AutoAccept)
                 {
-                    if (!m_logConsole)
+                    if (!LogConsole)
                     {
                         Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
                     }
@@ -218,27 +227,29 @@ namespace Quickstarts.ReferenceServer
                     return;
                 }
             }
-            if (!m_logConsole)
+            if (!LogConsole)
             {
                 Console.WriteLine("Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
             }
             Utils.Trace(Utils.TraceMasks.Security, "Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
         }
 
-        private async Task ConsoleSampleServer()
+        private async Task StartConsoleReferenceServerAsync()
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+            CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = "Quickstart Reference Server",
                 ApplicationType = ApplicationType.Server,
-                ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer"
+                ConfigSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer",
+                CertificatePasswordProvider = PasswordProvider
             };
 
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 
             var loggerConfiguration = new Serilog.LoggerConfiguration();
-            if (m_logConsole)
+            if (LogConsole)
             {
                 loggerConfiguration.WriteTo.Console(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning);
             }
@@ -275,7 +286,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // start the status thread
-            m_status = Task.Run(new Action(StatusThread));
+            m_status = Task.Run(new Action(StatusThreadAsync));
 
             // print notification on session events
             m_server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
@@ -294,24 +305,24 @@ namespace Quickstarts.ReferenceServer
             lock (session.DiagnosticsLock)
             {
                 StringBuilder item = new StringBuilder();
-                item.Append(string.Format("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName));
+                item.AppendFormat("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
                 if (lastContact)
                 {
-                    item.Append(string.Format("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()));
+                    item.AppendFormat("Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
                 }
                 else
                 {
                     if (session.Identity != null)
                     {
-                        item.Append(string.Format(":{0,20}", session.Identity.DisplayName));
+                        item.AppendFormat(":{0,20}", session.Identity.DisplayName);
                     }
-                    item.Append(string.Format(":{0}", session.Id));
+                    item.AppendFormat(":{0}", session.Id);
                 }
                 Console.WriteLine(item.ToString());
             }
         }
 
-        private async void StatusThread()
+        private async void StatusThreadAsync()
         {
             while (m_server != null)
             {

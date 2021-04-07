@@ -82,7 +82,7 @@ namespace Opc.Ua
                 clientCertificate,
                 messageContext);
 
-            // create a WCF XML channel.
+            // create a registration channel.
             if (channel == null)
             {
                 Uri endpointUrl = new Uri(description.EndpointUrl);

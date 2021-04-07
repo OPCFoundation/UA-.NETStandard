@@ -343,6 +343,24 @@ namespace Opc.Ua.Server
                     return activeNode;
                 }
 
+                case ObjectTypes.HistoryServerCapabilitiesType:
+                {
+                    if (passiveNode is HistoryServerCapabilitiesState)
+                    {
+                        break;
+                    }
+
+                    HistoryServerCapabilitiesState activeNode = new HistoryServerCapabilitiesState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
@@ -864,40 +882,49 @@ namespace Opc.Ua.Server
                     return m_historyCapabilities;
                 }
 
-                HistoryServerCapabilitiesState state = new HistoryServerCapabilitiesState(null);
+                // search the Node in PredefinedNodes.
+                HistoryServerCapabilitiesState historyServerCapabilitiesNode = (HistoryServerCapabilitiesState)FindPredefinedNode(
+                    ObjectIds.HistoryServerCapabilities,
+                    typeof(HistoryServerCapabilitiesState));
 
-                NodeId nodeId = CreateNode(
-                    SystemContext,
-                    null,
-                    ReferenceTypeIds.HasComponent,
-                    new QualifiedName(BrowseNames.HistoryServerCapabilities),
-                    state);
-
-                state.AccessHistoryDataCapability.Value = false;
-                state.AccessHistoryEventsCapability.Value = false;
-                state.MaxReturnDataValues.Value = 0;
-                state.MaxReturnEventValues.Value = 0;
-                state.ReplaceDataCapability.Value = false;
-                state.UpdateDataCapability.Value = false;
-                state.InsertEventCapability.Value = false;
-                state.ReplaceEventCapability.Value = false;
-                state.UpdateEventCapability.Value = false;
-                state.InsertAnnotationCapability.Value = false;
-                state.InsertDataCapability.Value = false;
-                state.DeleteRawCapability.Value = false;
-                state.DeleteAtTimeCapability.Value = false;
-
-                NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
-
-                if (parent != null)
+                if (historyServerCapabilitiesNode == null)
                 {
-                    parent.AddReference(ReferenceTypes.HasComponent, false, state.NodeId);
-                    state.AddReference(ReferenceTypes.HasComponent, true, parent.NodeId);
+                    // create new node if not found.
+                    historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
+
+                    NodeId nodeId = CreateNode(
+                        SystemContext,
+                        null,
+                        ReferenceTypeIds.HasComponent,
+                        new QualifiedName(BrowseNames.HistoryServerCapabilities),
+                        historyServerCapabilitiesNode);
+
+                    historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
+                    historyServerCapabilitiesNode.AccessHistoryEventsCapability.Value = false;
+                    historyServerCapabilitiesNode.MaxReturnDataValues.Value = 0;
+                    historyServerCapabilitiesNode.MaxReturnEventValues.Value = 0;
+                    historyServerCapabilitiesNode.ReplaceDataCapability.Value = false;
+                    historyServerCapabilitiesNode.UpdateDataCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertEventCapability.Value = false;
+                    historyServerCapabilitiesNode.ReplaceEventCapability.Value = false;
+                    historyServerCapabilitiesNode.UpdateEventCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertAnnotationCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertDataCapability.Value = false;
+                    historyServerCapabilitiesNode.DeleteRawCapability.Value = false;
+                    historyServerCapabilitiesNode.DeleteAtTimeCapability.Value = false;
+
+                    NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
+
+                    if (parent != null)
+                    {
+                        parent.AddReference(ReferenceTypes.HasComponent, false, historyServerCapabilitiesNode.NodeId);
+                        historyServerCapabilitiesNode.AddReference(ReferenceTypes.HasComponent, true, parent.NodeId);
+                    }
+
+                    AddPredefinedNode(SystemContext, historyServerCapabilitiesNode);
                 }
 
-                AddPredefinedNode(SystemContext, state);
-
-                m_historyCapabilities = state;
+                m_historyCapabilities = historyServerCapabilitiesNode;
                 return m_historyCapabilities;
             }
         }

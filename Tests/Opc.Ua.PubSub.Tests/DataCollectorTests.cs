@@ -153,7 +153,7 @@ namespace Opc.Ua.PubSub.Tests
                     });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
-            #endregion
+            #endregion 
 
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);

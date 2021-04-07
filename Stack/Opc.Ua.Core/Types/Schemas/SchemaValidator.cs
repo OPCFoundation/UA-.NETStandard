@@ -305,6 +305,7 @@ namespace Opc.Ua.Schema
         }
 
         #endregion
+
         #region Private Fields
         private Dictionary<string, string> m_knownFiles;
         private Dictionary<string, object> m_loadedFiles;

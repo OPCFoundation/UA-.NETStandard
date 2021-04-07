@@ -28,6 +28,14 @@ namespace Opc.Ua
         public int FirstExplicitFieldIndex { get; set; }
     }
 
+    public partial class EnumDefinition
+    {
+        /// <summary>
+        /// If TRUE the values are bit positions rather than values.
+        /// </summary>
+        public bool IsOptionSet { get; set; }
+    }
+
     public partial class NodeStateCollection
     {
         /// <summary>

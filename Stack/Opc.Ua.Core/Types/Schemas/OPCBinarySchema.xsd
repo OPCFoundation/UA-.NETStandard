@@ -87,6 +87,7 @@
         <xs:sequence>
           <xs:element name="EnumeratedValue" type="EnumeratedValue" maxOccurs="unbounded" />
         </xs:sequence>
+        <xs:attribute name="IsOptionSet" type="xs:boolean" default="false" />
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
