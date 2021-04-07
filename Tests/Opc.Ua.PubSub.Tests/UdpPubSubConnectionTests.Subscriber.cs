@@ -40,6 +40,7 @@ using Opc.Ua.PubSub.Transport;
 namespace Opc.Ua.PubSub.Tests
 {
     [TestFixture(Description = "Tests for UdpPubSubConnection class - Subscriber ")]
+    [Ignore("A network interface controller is necessary in order to run correctly.")]
     public partial class UdpPubSubConnectionTests
     {
         private static object m_lock = new object();
@@ -111,6 +112,7 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber unicast ip - Publisher broadcast ip")]
+        [Ignore("A network interface controller is necessary in order to run correctly.")]
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromBroadcast()
         {
             // Arrange
@@ -176,6 +178,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber multicast ip - Publisher multicast ip;" +
                             "Setting Subscriber as unicast or broadcast not functional. Just multicast to multicast works fine;")]
+        [Ignore("A network interface controller is necessary in order to run correctly.")]
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromMulticast()
         {
             // Arrange

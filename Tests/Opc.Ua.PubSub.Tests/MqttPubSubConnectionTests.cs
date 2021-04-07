@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt local pub/sub connection with uadp data. The local mosquitto broker should be started")]
+        [Test(Description = "Validate mqtt local pub/sub connection with uadp data.")]
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
         public void ValidateMqttLocalPubSubConnectionWithUadp(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Tests
             
         }
 
-        [Test(Description = "Validate mqtt local pub/sub connection with json data. The local mosquitto broker should be started")]
+        [Test(Description = "Validate mqtt local pub/sub connection with json data.")]
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
         public void ValidateMqttLocalPubSubConnectionWithJson(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
@@ -275,7 +275,7 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt local pub/sub connection with credentials and uadp data. The local mosquitto broker should be started with parameters")]
+        [Test(Description = "Validate mqtt local pub/sub connection with credentials and uadp data.")]
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
         public void ValidateMqttLocalPubSubConnectionWithCredentialsAndUapd(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
@@ -393,7 +393,7 @@ namespace Opc.Ua.PubSub.Tests
             publisherConnection.Stop();
         }
 
-        [Test(Description = "Validate mqtt local pub/sub connection with credentials and json data. The local mosquitto broker should be started with parameters")]
+        [Test(Description = "Validate mqtt local pub/sub connection with credentials and json data.")]
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
         public void ValidateMqttLocalPubSubConnectionWithCredentialsAndJson(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
@@ -513,9 +513,10 @@ namespace Opc.Ua.PubSub.Tests
             publisherConnection.Stop();
         }
 
-        [Test(Description = "Validate mqtt local pub/sub connection. The local mosquitto broker should be started")]
+        [Test(Description = "Validate mqtt local pub/sub connection with certificates.")]
+        [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
         public void ValidateLocalMqttPubSubConnectionWithCertificates(
-            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
             RestartMosquitto("mosquitto", @"-c .\resources\mosquitto_certif.conf");
 
@@ -524,21 +525,36 @@ namespace Opc.Ua.PubSub.Tests
 
             string mqttlocalBrokerUrl = "mqtt://" + GetFirstActiveNic() + ":1883";
 
-            string certificatePath = Path.Combine(Directory.GetCurrentDirectory(), @"resources\mosquitto.local.crt");
+            string storeName = "OPC Foundation";
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            CopyResourceToStore(localAppData, storeName, @"resources\mosquitto.org.crt");
+            CopyResourceToStore(localAppData, storeName, @"resources\mosquitto.org.der");
 
-            //CertificateStoreIdentifier certificateStore = new CertificateStoreIdentifier();
-            //certificateStore.StorePath = certificatePath;
+            CertificateStoreIdentifier trustedIssuerCertificates = new CertificateTrustList {
+                StoreType = "Directory",
+                StorePath = @"%LocalApplicationData%/OPC Foundation/pki/issuer"
+            };
+            CertificateStoreIdentifier trustedPeerCertificates = new CertificateTrustList {
+                StoreType = "Directory",
+                StorePath = @"%LocalApplicationData%/OPC Foundation/pki/trusted"
+            };
+            CertificateStoreIdentifier rejectedCertificateStore = new CertificateTrustList {
+                StoreType = "Directory",
+                StorePath = @"%LocalApplicationData%/OPC Foundation/pki/rejected"
+            };
 
-            MqttTlsCertificates mqttTlsCertificates =
-                new MqttTlsCertificates(caCertificatePath: certificatePath, clientCertificatePath: certificatePath);
+            // Please enter a valid client certificate 
+            string clientCertificatePath = @"<client certificate path>\client.pfx";
 
-            ITransportProtocolConfiguration mqttConfiguration =
-                new MqttClientProtocolConfiguration(
-                    mqttTlsOptions: new MqttTlsOptions(certificates: mqttTlsCertificates,
-                    allowUntrustedCertificates: true,
-                    ignoreCertificateChainErrors: true,
-                    ignoreRevocationListErrors: true),
-                    version: EnumMqttProtocolVersion.V500);
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500,
+               mqttTlsOptions: new MqttTlsOptions(ignoreRevocationListErrors: true,
+               certificates: new MqttTlsCertificates(
+                   caCertificatePath: Path.Combine(localAppData, Path.Combine(storeName, @"pki\trusted\certs\mosquitto.org.crt")),
+                   clientCertificatePath: clientCertificatePath,
+                   clientCertificatePassword: ""),
+                trustedIssuerCertificates: trustedIssuerCertificates,
+                trustedPeerCertificates: trustedPeerCertificates,
+                rejectedCertificateStore: rejectedCertificateStore));
 
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
                 | UadpNetworkMessageContentMask.WriterGroupId
@@ -634,7 +650,7 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt pub/sub unencrypted connections to public free web brokers.")]
+        [Test(Description = "Validate mqtt pub/sub unencrypted connections using public web brokers.")]
         [Ignore("A connection to Internet necessary to run correctly.")]
         public void ValidateMqttUnencryptedPubSubConnectionToPublicWebBrokers(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
@@ -742,11 +758,11 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt pub/sub encrypted connections to public free web brokers.")]
+        [Test(Description = "Validate mqtt pub/sub encrypted with CA certificate connections using mosquitto web broker.")]
         [Ignore("A connection to Internet necessary to run correctly.")]
-        public void ValidateMqttEncryptedPubSubConnectionToPublicWebBrokers(
+        public void ValidateMqttEncryptedWithCACertificatePubSubConnectionToPublicWebBroker(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
-            [Values("mqtts://test.mosquitto.org:8883")] // , "mqtts://broker.hivemq.com:8883"
+            [Values("mqtts://test.mosquitto.org:8883")] 
                 string mqttsBrokerUrl)
         {
             //Arrange
@@ -870,13 +886,13 @@ namespace Opc.Ua.PubSub.Tests
 
             subscriberConnection.Stop();
             publisherConnection.Stop();
-
         }
 
-        [Test(Description = "Validate mqtt pub/sub encrypted connections to public free web brokers.")]
+        [Test(Description = "Validate mqtt to public web broker pub/sub connections with certificates using mosquitto web broker.")]
+        [Ignore("A connection to Internet necessary and a valid client certificate should be installed in order to run correctly.")]
         public void ValidateMqttEncryptedWithCertificatesPubSubConnectionToPublicWebBrokers(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId,
-            [Values("mqtts://test.mosquitto.org:8883")] // , "mqtts://broker.hivemq.com:8883"
+            [Values("mqtts://test.mosquitto.org:8883")] 
                 string mqttsBrokerUrl)
         {
             //Arrange
@@ -900,11 +916,14 @@ namespace Opc.Ua.PubSub.Tests
                 StorePath = @"%LocalApplicationData%/OPC Foundation/pki/rejected"
             };
 
+            // Please enter a valid client certificate 
+            string clientCertificatePath = @"<client certificate path>\client.pfx";
+
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500,
                mqttTlsOptions: new MqttTlsOptions(ignoreRevocationListErrors: true,
                certificates: new MqttTlsCertificates(
                    caCertificatePath: Path.Combine(localAppData, Path.Combine(storeName, @"pki\trusted\certs\mosquitto.org.crt")),
-                   clientCertificatePath: @"resources\client.pfx",
+                   clientCertificatePath: clientCertificatePath,
                    clientCertificatePassword: ""),
                 trustedIssuerCertificates: trustedIssuerCertificates,
                 trustedPeerCertificates: trustedPeerCertificates,
@@ -1233,7 +1252,7 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
-        [Test(Description = "Validate mqtt Azure hub pub/sub connections without certificate.")]
+        [Test(Description = "Validate mqtt Azure pub/sub connections without certificate.")]
         [Ignore("A connection to Internet necessary to run correctly. Due to Azure device connectivity restriction only a publisher or a subscriber can connect at one time." +
             "In the following sample you should disable the publisher or subscriber code based on the test scenario.")]
         public void ValidateMqttPubSubConnectionToAzureHubWithoutCertificate(
@@ -1377,7 +1396,7 @@ namespace Opc.Ua.PubSub.Tests
             publisherConnection.Stop();
         }
 
-        [Test(Description = "Validate mqtt Azure hub pub/sub connections with Baltimore certificate.")]
+        [Test(Description = "Validate mqtt Azure pub/sub connections with Baltimore certificate.")]
         [Ignore("A connection to Internet necessary to run correctly. Due to Azure device connectivity restriction only a publisher or a subscriber can connect at one time." +
             "In the following sample you should disable the publisher or subscriber code based on the test scenario.")]
         public void ValidateMqttPubSubConnectionToAzureHubWithCertificate(

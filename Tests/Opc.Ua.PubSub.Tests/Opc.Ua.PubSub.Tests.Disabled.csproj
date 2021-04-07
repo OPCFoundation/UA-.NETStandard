@@ -11,23 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="resources\BaltimoreCyberTrustRoot.crt.pem" />
-    <None Remove="resources\client.key" />
-    <None Remove="resources\client.pfx" />
-    <None Remove="resources\mosquitto.org.crt" />
-    <None Remove="resources\mosquitto.org.der" />
-    <None Remove="resources\mosquitto_pwd.conf" />
-    <None Remove="resources\password.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="resources\BaltimoreCyberTrustRoot.crt.pem">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="resources\client.key">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="resources\client.pfx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="resources\mosquitto.org.crt">

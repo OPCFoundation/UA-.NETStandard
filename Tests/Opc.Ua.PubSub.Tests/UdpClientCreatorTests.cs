@@ -49,6 +49,7 @@ namespace Opc.Ua.PubSub.Tests
         private string m_defaultUrl;
 
         [OneTimeSetUp()]
+        [Ignore("A network interface controller is necessary in order to run correctly.")]
         public void MyTestInitialize()
         {
             var localhost = UdpPubSubConnectionTests.GetFirstNic();
