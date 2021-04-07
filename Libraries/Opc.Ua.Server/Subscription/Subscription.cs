@@ -1974,7 +1974,7 @@ namespace Opc.Ua.Server
                 {
                     MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
 
-                    if (eventMonitoredItem.EventFilter != null)
+                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
                         // add to list that gets reported to the NodeManagers.
                         monitoredItems.Add(eventMonitoredItem);
@@ -2010,7 +2010,7 @@ namespace Opc.Ua.Server
 
                     MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
 
-                    if (eventMonitoredItem.EventFilter != null)
+                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
                         // add to list that gets reported to the NodeManagers.
                         monitoredItems.Add(eventMonitoredItem);
@@ -2079,7 +2079,7 @@ namespace Opc.Ua.Server
                 {
                     MonitoredItem eventMonitoredItem = monitoredItem as MonitoredItem;
 
-                    if (eventMonitoredItem.EventFilter != null)
+                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
                         // queue start refresh event.
                         eventMonitoredItem.QueueEvent(e, true);
