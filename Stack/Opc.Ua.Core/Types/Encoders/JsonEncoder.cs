@@ -1261,11 +1261,17 @@ namespace Opc.Ua
                 return;
             }
 
-            // reversible encoding
             PushStructure(fieldName);
 
-            var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
-            WriteNodeId("TypeId", nodeId);
+            if (UseReversibleEncoding)
+            {
+                var nodeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
+                WriteNodeId("TypeId", nodeId);
+            }
+            else
+            {
+                WriteExpandedNodeId("TypeId", value.TypeId);
+            }
 
             if (encodeable != null)
             {
@@ -2272,7 +2278,7 @@ namespace Opc.Ua
                     {
                         if (UseReversibleEncoding)
                         {
-                            // liniarize the matrix
+                            // linearize the matrix
                             value = matrix.Elements;
                             valueRank = ValueRanks.OneDimension;
                         }

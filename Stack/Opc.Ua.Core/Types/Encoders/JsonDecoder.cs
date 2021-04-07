@@ -1044,10 +1044,9 @@ namespace Opc.Ua
         public StatusCode ReadStatusCode(string fieldName)
         {
             object token;
-            // read non reversible status code
             if (!ReadField(fieldName, out token))
             {
-                // the status coede was not found
+                // the status code was not found
                 return StatusCodes.Good;
             }
 
@@ -2792,7 +2791,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Read the Matrix part (simple array or aray of arrays)
+        /// Read the Matrix part (simple array or array of arrays)
         /// </summary>
         private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level)
         {
