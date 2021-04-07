@@ -55,8 +55,17 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPublisher(IUaPubSubConnection pubSubConnection, WriterGroupDataType writerGroupConfiguration)
         {
+            if (pubSubConnection == null)
+            {
+                throw new ArgumentNullException(nameof(pubSubConnection));
+            }
+            if (writerGroupConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(writerGroupConfiguration));
+            }
+
             m_pubSubConnection = pubSubConnection;
-            m_writerGroupConfiguration = writerGroupConfiguration;            
+            m_writerGroupConfiguration = writerGroupConfiguration;
 
             Initialize();
         }
@@ -80,7 +89,33 @@ namespace Opc.Ua.PubSub
             get { return m_writerGroupConfiguration; }
         }
         #endregion
-        
+
+        #region IDisposable Implementation
+        /// <summary>
+        /// Releases all resources used by the current instance of the <see cref="UaPublisher"/> class.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Stop();
+                // free managed resources
+                m_shutdownEvent.Dispose();
+            }
+        }
+        #endregion
+
         #region Public Methods
 
         /// <summary>
@@ -97,6 +132,7 @@ namespace Opc.Ua.PubSub
                     PublishData();
                 });
             }
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
         }
 
         /// <summary>
@@ -108,6 +144,7 @@ namespace Opc.Ua.PubSub
             {
                 m_shutdownEvent.Set();
             }
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", m_writerGroupConfiguration.Name);
         }
         #endregion
 
@@ -160,7 +197,7 @@ namespace Opc.Ua.PubSub
                                 PublishMessage();
                             });
                         }
-                    }                    
+                    }
                 }
                 while (true);
             }
@@ -182,7 +219,7 @@ namespace Opc.Ua.PubSub
                 if (uaNetworkMessage != null)
                 {
                     bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                    Utils.Trace(Utils.TraceMasks.Information, 
+                    Utils.Trace(Utils.TraceMasks.Information,
                         "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
                 }
             }
@@ -192,32 +229,6 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(e, "UaPublisher.PublishMessage");
             }
         }
-        #endregion
-
-        #region IDisposable Implementation
-        /// <summary>
-        /// Releases all resources used by the current instance of the <see cref="UaPublisher"/> class.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
-        ///  and optionally releases the managed resources.
-        /// </summary>
-        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Stop();
-                // free managed resources
-                m_shutdownEvent.Dispose();
-            }
-        }
-        #endregion
+        #endregion        
     }
 }

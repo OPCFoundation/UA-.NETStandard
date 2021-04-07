@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <returns></returns>
         public PublishedDataSetDataType FindPublishedDataSetByName(string name)
         {
-            foreach(PublishedDataSetDataType publishedDataSet in m_pubSubConfiguration.PublishedDataSets)
+            foreach (PublishedDataSetDataType publishedDataSet in m_pubSubConfiguration.PublishedDataSets)
             {
                 if (name == publishedDataSet.Name)
                 {
@@ -423,7 +423,7 @@ namespace Opc.Ua.PubSub.Configuration
                 Utils.Trace(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
             }
             //todo implement state validation
-            return StatusCodes.Bad; 
+            return StatusCodes.Bad;
         }
 
         /// <summary>
@@ -470,11 +470,11 @@ namespace Opc.Ua.PubSub.Configuration
                          * Before the Objects are removed, their state is changed to Disabled_0*/
 
                         // Find all associated DataSetWriter objects
-                        foreach(var connection in m_pubSubConfiguration.Connections)
+                        foreach (var connection in m_pubSubConfiguration.Connections)
                         {
-                            foreach(var writerGroup in connection.WriterGroups)
+                            foreach (var writerGroup in connection.WriterGroups)
                             {
-                                foreach(var dataSetWriter in writerGroup.DataSetWriters.ToArray())
+                                foreach (var dataSetWriter in writerGroup.DataSetWriters.ToArray())
                                 {
                                     if (dataSetWriter.DataSetName == publishedDataSetDataType.Name)
                                     {
@@ -494,8 +494,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                         if (PublishedDataSetRemoved != null)
                         {
-                            PublishedDataSetRemoved(this, new PublishedDataSetEventArgs()
-                            {
+                            PublishedDataSetRemoved(this, new PublishedDataSetEventArgs() {
                                 PublishedDataSetId = publishedDataSetId,
                                 PublishedDataSetDataType = publishedDataSetDataType
                             });
@@ -553,7 +552,7 @@ namespace Opc.Ua.PubSub.Configuration
                 uint newextensionFieldId = m_nextId++;
                 //remember connection 
                 m_idsToObjects.Add(newextensionFieldId, extensionField);
-                m_objectsToIds.Add(extensionField, newextensionFieldId);     
+                m_objectsToIds.Add(extensionField, newextensionFieldId);
                 publishedDataSetDataType.ExtensionFields.Add(extensionField);
 
                 // raise ExtensionFieldAdded event
@@ -565,7 +564,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                 return StatusCodes.Good;
             }
-        }            
+        }
 
         /// <summary>
         /// Removes an extension field from a published data set
@@ -589,7 +588,7 @@ namespace Opc.Ua.PubSub.Configuration
                     return StatusCodes.BadNodeIdInvalid;
                 }
                 // locate the extension field 
-                foreach(KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields.ToArray())
+                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields.ToArray())
                 {
                     if (extensionField.Equals(extensionFieldToRemove))
                     {
@@ -603,7 +602,7 @@ namespace Opc.Ua.PubSub.Configuration
                         }
                         return StatusCodes.Good;
                     }
-                }                
+                }
             }
             return StatusCodes.BadNodeIdInvalid;
         }
@@ -631,7 +630,7 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     //validate connection name 
                     bool duplicateName = false;
-                    foreach(var connection in m_pubSubConfiguration.Connections)
+                    foreach (var connection in m_pubSubConfiguration.Connections)
                     {
                         if (connection.Name == pubSubConnectionDataType.Name)
                         {
@@ -764,8 +763,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                         if (ConnectionRemoved != null)
                         {
-                            ConnectionRemoved(this, new ConnectionEventArgs()
-                            {
+                            ConnectionRemoved(this, new ConnectionEventArgs() {
                                 ConnectionId = connectionId,
                                 PubSubConnectionDataType = pubSubConnectionDataType
                             });
@@ -937,8 +935,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                             if (WriterGroupRemoved != null)
                             {
-                                WriterGroupRemoved(this, new WriterGroupEventArgs()
-                                {
+                                WriterGroupRemoved(this, new WriterGroupEventArgs() {
                                     WriterGroupId = writerGroupId,
                                     WriterGroupDataType = writerGroupDataType,
                                     ConnectionId = parentConnectionId
@@ -1033,7 +1030,7 @@ namespace Opc.Ua.PubSub.Configuration
                 // Unexpected exception 
                 Utils.Trace(ex, "UaPubSubConfigurator.AddDataSetWriter: Exception");
             }
-             return StatusCodes.BadInvalidArgument;
+            return StatusCodes.BadInvalidArgument;
         }
 
         /// <summary>
@@ -1093,8 +1090,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                             if (DataSetWriterRemoved != null)
                             {
-                                DataSetWriterRemoved(this, new DataSetWriterEventArgs()
-                                {
+                                DataSetWriterRemoved(this, new DataSetWriterEventArgs() {
                                     WriterGroupId = parentWriterGroupId,
                                     DataSetWriterDataType = dataSetWriterDataType,
                                     DataSetWriterId = dataSetWriterId
@@ -1196,7 +1192,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                         return StatusCodes.Good;
                     }
-                   
+
                 }
             }
             catch (Exception ex)
@@ -1269,8 +1265,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                             if (ReaderGroupRemoved != null)
                             {
-                                ReaderGroupRemoved(this, new ReaderGroupEventArgs()
-                                {
+                                ReaderGroupRemoved(this, new ReaderGroupEventArgs() {
                                     ReaderGroupId = readerGroupId,
                                     ReaderGroupDataType = readerGroupDataType,
                                     ConnectionId = parentConnectionId
@@ -1425,8 +1420,7 @@ namespace Opc.Ua.PubSub.Configuration
 
                             if (DataSetReaderRemoved != null)
                             {
-                                DataSetReaderRemoved(this, new DataSetReaderEventArgs()
-                                {
+                                DataSetReaderRemoved(this, new DataSetReaderEventArgs() {
                                     ReaderGroupId = parenReaderGroupId,
                                     DataSetReaderDataType = dataSetReaderDataType,
                                     DataSetReaderId = dataSetReaderId
@@ -1556,8 +1550,7 @@ namespace Opc.Ua.PubSub.Configuration
                 m_idsToPubSubState[id] = newState;
                 if (PubSubStateChanged != null)
                 {
-                    PubSubStateChanged(this, new PubSubStateChangedEventArgs()
-                    {
+                    PubSubStateChanged(this, new PubSubStateChangedEventArgs() {
                         ConfigurationObject = configurationObject,
                         ConfigurationObjectId = id,
                         NewState = newState,

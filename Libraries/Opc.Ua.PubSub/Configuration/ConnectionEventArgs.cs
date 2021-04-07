@@ -40,6 +40,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// ConfigurationId of <see cref="PubSubConnectionDataType"/> object
         /// </summary>
         public uint ConnectionId { get; set; }
+
         /// <summary>
         /// Reference to <see cref="PubSubConnectionDataType"/> object
         /// </summary>

@@ -27,34 +27,59 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using System;
+using System.Net;
+using System.Net.Sockets;
 
-namespace Opc.Ua.PubSub.Configuration
+namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
-    /// EventArgs class for <see cref="PubSubState"/> Change events
+    /// Represents a specialized <see cref="UdpClient"/> class, configured for Unicast
     /// </summary>
-    public class PubSubStateChangedEventArgs : EventArgs
+    internal class UdpClientUnicast : UdpClient
     {
+        #region Constructor
         /// <summary>
-        /// Reference to the object whose <see cref="PubSubState"/> was changed
+        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
         /// </summary>
-        public object ConfigurationObject { get; set; }
+        /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
+        /// <param name="port">The port.</param>       
+        /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
+        public UdpClientUnicast(IPAddress localAddress, int port) : base()
+        {
+            Address = localAddress;
+            Port = port;
+
+            try
+            {
+                // this might throw exception on some platforms
+                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            }
+            catch
+            { }
+            try
+            {
+                // this might throw exception on some platforms
+                ExclusiveAddressUse = false;
+            }
+            catch
+            { }
+
+            Client.Bind(new IPEndPoint(localAddress, port));
+
+            Utils.Trace("UdpClientUnicast was created for local Address: {0}:{1}.", localAddress, port);
+        }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// The Unicast Ip Address
+        /// </summary>
+        internal IPAddress Address { get; }
 
         /// <summary>
-        /// Configuration Id of the object whose <see cref="PubSubState"/> was changed
+        /// The Port
         /// </summary>
-        public uint ConfigurationObjectId { get; set; }
-
-        /// <summary>
-        /// New <see cref="PubSubState"/> 
-        /// </summary>
-        public PubSubState NewState { get; set; }
-
-        /// <summary>
-        /// Old <see cref="PubSubState"/> 
-        /// </summary>
-        public PubSubState OldState { get; set; }
+        internal int Port { get; }
+        #endregion
     }
 }

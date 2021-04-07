@@ -35,7 +35,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
     /// Where is a method call used in 
@@ -263,7 +263,6 @@ namespace Opc.Ua.PubSub.Uadp
             }
             return false;
         }
-
 
         /// <summary>
         /// Checks if the address provided is an IPv4 broadcast address

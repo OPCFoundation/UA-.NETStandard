@@ -27,34 +27,24 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
 using System;
+using System.Net;
 
-namespace Opc.Ua.PubSub.Configuration
+namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
-    /// EventArgs class for <see cref="PubSubState"/> Change events
+    /// EventArgs class for UadpMessage received
     /// </summary>
-    public class PubSubStateChangedEventArgs : EventArgs
+    internal class UadpDataEventArgs : EventArgs
     {
         /// <summary>
-        /// Reference to the object whose <see cref="PubSubState"/> was changed
+        /// Uadp message bytes
         /// </summary>
-        public object ConfigurationObject { get; set; }
+        internal byte[] Message { get; set; }
 
         /// <summary>
-        /// Configuration Id of the object whose <see cref="PubSubState"/> was changed
+        /// Get the Source EndPoint
         /// </summary>
-        public uint ConfigurationObjectId { get; set; }
-
-        /// <summary>
-        /// New <see cref="PubSubState"/> 
-        /// </summary>
-        public PubSubState NewState { get; set; }
-
-        /// <summary>
-        /// Old <see cref="PubSubState"/> 
-        /// </summary>
-        public PubSubState OldState { get; set; }
+        internal IPEndPoint SourceEndPoint { get; set; }
     }
 }

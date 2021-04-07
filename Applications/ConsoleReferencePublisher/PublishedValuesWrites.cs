@@ -55,7 +55,12 @@ namespace Quickstarts.ConsoleReferencePublisher
         private PublishedDataSetDataTypeCollection m_publishedDataSets;
         private IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
-
+        string[] m_aviationAlphabet = new string[] {
+            "Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India",
+            "Juliet", "Kilo", "Lima", "Mike",  "November",  "Oscar", "Papa", "Quebec", "Romeo",
+            "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-Ray", "Yankee", "Zulu"
+        };
+        int m_aviationAlphabetIndex = 0;
         private object m_lock = new object();
 
         #endregion
@@ -140,8 +145,15 @@ namespace Quickstarts.ConsoleReferencePublisher
             WriteFieldData("SByte", NamespaceIndexAllTypes, new DataValue(new Variant((sbyte)0), StatusCodes.Good, DateTime.UtcNow));
             WriteFieldData("UInt16", NamespaceIndexAllTypes, new DataValue(new Variant((UInt16)0), StatusCodes.Good, DateTime.UtcNow));
             WriteFieldData("UInt32", NamespaceIndexAllTypes, new DataValue(new Variant((UInt32)0), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData("UInt64", NamespaceIndexAllTypes, new DataValue(new Variant((UInt64)0), StatusCodes.Good, DateTime.UtcNow));
             WriteFieldData("Float", NamespaceIndexAllTypes, new DataValue(new Variant((float)0F), StatusCodes.Good, DateTime.UtcNow));
             WriteFieldData("Double", NamespaceIndexAllTypes, new DataValue(new Variant((double)0.0), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData("String", NamespaceIndexAllTypes, new DataValue(new Variant(m_aviationAlphabet[0]), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData("ByteString", NamespaceIndexAllTypes, new DataValue(new Variant(new byte[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData("Guid", NamespaceIndexAllTypes, new DataValue(new Variant(Guid.NewGuid()), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData("DateTime", NamespaceIndexAllTypes, new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData("UInt32Array", NamespaceIndexAllTypes, new DataValue(new Variant(new UInt32[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow));
+
             #endregion
         }
 
@@ -235,8 +247,8 @@ namespace Quickstarts.ConsoleReferencePublisher
                 case BuiltInType.Byte:
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
-                        Byte byteValue = Convert.ToByte(dataValue.Value);
-                        dataValue.Value = byteValue + 1;
+                        byte byteValue = Convert.ToByte(dataValue.Value);
+                        dataValue.Value = (byte)(byteValue + 1);
                         valueUpdated = true;
                     }
                     break;
@@ -295,6 +307,31 @@ namespace Quickstarts.ConsoleReferencePublisher
                         dataValue.Value = (UInt32)Interlocked.Increment(ref longIdentifier);
                         valueUpdated = true;
                     }
+                    else if (variable.ValueRank == ValueRanks.OneDimension)
+                    {
+                        uint[] values = dataValue.Value as uint[];
+                        if (values != null)
+                        {
+                            for (int i = 0; i < values.Length; i++)
+                            {
+                                UInt32 uint32Value = values[i];
+                                long longIdentifier = uint32Value;
+                                Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
+                                values[i] = (UInt32)Interlocked.Increment(ref longIdentifier);                                
+                            }
+                            valueUpdated = true;
+                        }
+                    }
+                    break;
+                case BuiltInType.UInt64:
+                    if (variable.ValueRank == ValueRanks.Scalar)
+                    {
+                        UInt64 uint64Value = Convert.ToUInt64(dataValue.Value);
+                        float longIdentifier = uint64Value + 1;
+                        Interlocked.CompareExchange(ref longIdentifier, 0, UInt64.MaxValue);
+                        dataValue.Value = (UInt64)longIdentifier;
+                        valueUpdated = true;
+                    }
                     break;
                 case BuiltInType.Float:
                     if (variable.ValueRank == ValueRanks.Scalar)
@@ -318,6 +355,21 @@ namespace Quickstarts.ConsoleReferencePublisher
                     if (variable.ValueRank == ValueRanks.Scalar)
                     {
                         dataValue.Value = DateTime.UtcNow;
+                        valueUpdated = true;
+                    }
+                    break;
+                case BuiltInType.Guid:
+                    if (variable.ValueRank == ValueRanks.Scalar)
+                    {
+                        dataValue.Value = Guid.NewGuid();
+                        valueUpdated = true;
+                    }
+                    break;
+                case BuiltInType.String:
+                    if (variable.ValueRank == ValueRanks.Scalar)
+                    {
+                        m_aviationAlphabetIndex = (m_aviationAlphabetIndex + 1) % m_aviationAlphabet.Length;
+                        dataValue.Value = m_aviationAlphabet[m_aviationAlphabetIndex];
                         valueUpdated = true;
                     }
                     break;

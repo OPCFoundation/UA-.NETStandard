@@ -317,4 +317,41 @@ namespace Opc.Ua.PubSub
         /// </summary>
         AMQP
     }
+
+
+    /// <summary>
+    /// Enum that specifies the message mapping for a UaPubSub connection
+    /// </summary>
+    public enum MessageMapping
+    {
+        /// <summary>
+        /// UADP message type
+        /// </summary>
+        Uadp,
+        /// <summary>
+        /// JSON message type
+        /// </summary>
+        Json
+    }
+
+    /// <summary>
+    /// Enum that specifies the poissible JSON message types
+    /// </summary>
+    [Flags]
+    public enum JSONNetworkMessageType
+    {
+        /// <summary>
+        /// DataSet message
+        /// </summary>
+        DataSetMessage = 0,
+        /// <summary>
+        /// Discovery Request message
+        /// </summary>
+        DiscoveryRequest = 4,
+        /// <summary>
+        /// Discovery Response message
+        /// </summary>
+        DiscoveryResponse = 8
+    }
+ 
 }

@@ -31,12 +31,12 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.PublishedData;
-using Opc.Ua.PubSub.Uadp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests
 {
@@ -74,6 +74,7 @@ namespace Opc.Ua.PubSub.Tests
         public void MyTestInitialize()
         {
             // Create a publisher application
+            // todo refactor to use the MessagesHelper create configuration
             string publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
@@ -132,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate dataset message mask with DataValue data type;" +
                             "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)")]
-        public void ValidateDataSetMessageMaskWithDataValueType()
+        public void ValidateNetworkMessageMaskWithDataValueType()
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
@@ -482,13 +483,13 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             // read first dataset message
-            UadpDataSetMessage[] uadpDataSetMessages = uaNetworkMessage.UadpDataSetMessages.ToArray();
+            UaDataSetMessage[] uadpDataSetMessages = uaNetworkMessage.DataSetMessages.ToArray();
             Assert.IsNotEmpty(uadpDataSetMessages, "uadpDataSetMessages collection should not be empty");
 
-            UadpDataSetMessage uadpDataSetMessage = uadpDataSetMessages[0];
+            UaDataSetMessage uadpDataSetMessage = uadpDataSetMessages[0];
             Assert.IsNotNull(uadpDataSetMessage, "uadpDataSetMessage should not be null");
 
-            return uadpDataSetMessage;
+            return uadpDataSetMessage as UadpDataSetMessage;
         }
 
         /// <summary>
@@ -509,11 +510,11 @@ namespace Opc.Ua.PubSub.Tests
 
             // workaround
             uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
-            DataSet dataSetReader = uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
+            DataSet dataSetDecoded = uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
             decoder.Dispose();
 
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
-            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded, dataSetReader);
+            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded, dataSetDecoded);
         }
 
 
@@ -525,7 +526,7 @@ namespace Opc.Ua.PubSub.Tests
         /// <returns></returns>
         private void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded, DataSet dataSetReader)
         {
-            UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.MessageContentMask;
+            UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.DataSetMessageContentMask;
 
             Assert.AreEqual(uadpDataSetMessageEncode.DataSetFlags1, uadpDataSetMessageDecoded.DataSetFlags1,
                     "DataSetMessages DataSetFlags1 do not match:");

@@ -27,34 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-using System;
+using NUnit.Framework;
 
-namespace Opc.Ua.PubSub.Configuration
+namespace Opc.Ua.PubSub.Tests
 {
-    /// <summary>
-    /// EventArgs class for <see cref="PubSubState"/> Change events
-    /// </summary>
-    public class PubSubStateChangedEventArgs : EventArgs
+    [TestFixture(Description = "Tests for Encoding/Decoding of JsonDataSetMessage objects")]
+    public class JsonDataSetMessageTests
     {
-        /// <summary>
-        /// Reference to the object whose <see cref="PubSubState"/> was changed
-        /// </summary>
-        public object ConfigurationObject { get; set; }
-
-        /// <summary>
-        /// Configuration Id of the object whose <see cref="PubSubState"/> was changed
-        /// </summary>
-        public uint ConfigurationObjectId { get; set; }
-
-        /// <summary>
-        /// New <see cref="PubSubState"/> 
-        /// </summary>
-        public PubSubState NewState { get; set; }
-
-        /// <summary>
-        /// Old <see cref="PubSubState"/> 
-        /// </summary>
-        public PubSubState OldState { get; set; }
+        [OneTimeSetUp()]
+        public void MyTestInitialize()
+        {
+            // todo
+        }
     }
 }

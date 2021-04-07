@@ -27,10 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
-using System.Net;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
@@ -47,11 +46,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the DataSet collection received
         /// </summary>
-        public List<DataSet> DataSets { get; internal set; }
+        public List<DataSet> DataSets { get; internal set; }       
 
         /// <summary>
-        /// Get the Source EndPoint
+        /// Get the source information
         /// </summary>
-        public IPEndPoint SourceEndPoint { get; internal set; }
+        public string Source { get; internal set; }
     }
 }

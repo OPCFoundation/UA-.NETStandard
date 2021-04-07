@@ -27,24 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Net;
-
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// EventArgs class for UadpMessage received
+    /// Base class for a DataSet message implementation
     /// </summary>
-    internal class UadpDataEventArgs : EventArgs
+    public abstract class UaDataSetMessage
     {
-        /// <summary>
-        /// Uadp message bytes
-        /// </summary>
-        internal byte[] Message { get; set; }
-
-        /// <summary>
-        /// Get the Source EndPoint
-        /// </summary>
-        internal IPEndPoint SourceEndPoint { get; set; }
     }
 }

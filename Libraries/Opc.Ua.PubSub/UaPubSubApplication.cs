@@ -41,7 +41,6 @@ namespace Opc.Ua.PubSub
     public class UaPubSubApplication : IDisposable
     {
         #region Fields
-        private object m_lock = new object();
         private List<IUaPubSubConnection> m_uaPubSubConnections;
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
@@ -78,6 +77,8 @@ namespace Opc.Ua.PubSub
             m_uaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
+
+            Utils.Trace("An instance of UaPubSubApplication was created.");
         }
 
         #endregion
@@ -88,7 +89,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public static string[] SupportedTransportProfiles
         {
-            get { return new string[] { Profiles.UadpTransport }; }
+            get
+            {
+                return new string[] { Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles.PubSubMqttUadpTransport };
+            }
         }
 
         /// <summary>
@@ -160,7 +164,8 @@ namespace Opc.Ua.PubSub
         /// <param name="pubSubConfiguration">The configuration object.</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null, IUaPubSubDataStore dataStore = null)
+        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null,
+            IUaPubSubDataStore dataStore = null)
         {
             // if no argument received, start with empty configuration
             if (pubSubConfiguration == null)
@@ -169,7 +174,7 @@ namespace Opc.Ua.PubSub
             }
 
             UaPubSubApplication uaPubSubApplication = new UaPubSubApplication(dataStore);
-            uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);            
+            uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
             return uaPubSubApplication;
         }
         #endregion
@@ -181,10 +186,12 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            foreach(var connection in m_uaPubSubConnections)
+            Utils.Trace("UaPubSubApplication is starting.");
+            foreach (var connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
+            Utils.Trace("UaPubSubApplication was started.");
         }
 
         /// <summary>
@@ -192,11 +199,14 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
+            Utils.Trace("UaPubSubApplication is stopping.");
             foreach (var connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
-        }        
+            Utils.Trace("UaPubSubApplication is stopped.");
+        }
+
         #endregion
 
         #region Internal Methods
@@ -225,8 +235,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetAdded"/> event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void UaPubSubConfigurator_PublishedDataSetAdded(object sender, PublishedDataSetEventArgs e)
         {
             DataCollector.AddPublishedDataSet(e.PublishedDataSetDataType);

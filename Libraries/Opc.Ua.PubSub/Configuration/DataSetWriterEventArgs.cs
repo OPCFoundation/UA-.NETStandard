@@ -50,5 +50,5 @@ namespace Opc.Ua.PubSub.Configuration
         /// Reference to <see cref="DataSetWriterDataType"/> object
         /// </summary>
         public DataSetWriterDataType DataSetWriterDataType { get; set; }
-    }   
+    }
 }

@@ -34,19 +34,21 @@ using System.Net.Sockets;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Uadp;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub.Tests
 {
-    [TestFixture(Description = "Tests for UadpPubSubConnection class - Subscriber ")]
-    public partial class UadpPubSubConnectionTests
+    [TestFixture(Description = "Tests for UdpPubSubConnection class - Subscriber ")]
+    [Ignore("A network interface controller is necessary in order to run correctly.")]
+    public partial class UdpPubSubConnectionTests
     {
         private static object m_lock = new object();
         private byte[] m_sentBytes;
 
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber unicast ip - Publisher unicast ip")]
-        public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromUnicast()
+        public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromUnicast()
         {
             // Arrange
             var localhost = GetFirstNic();
@@ -62,8 +64,8 @@ namespace Opc.Ua.PubSub.Tests
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
-            
-            UadpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UadpPubSubConnection;
+
+            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberConnection.UadpMessageReceived += DataReceived;
@@ -78,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UadpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act  
@@ -110,7 +112,8 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber unicast ip - Publisher broadcast ip")]
-        public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromBroadcast()
+        [Ignore("A network interface controller is necessary in order to run correctly.")]
+        public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromBroadcast()
         {
             // Arrange
             var localhost = GetFirstNic();
@@ -127,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            UadpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberConnection.UadpMessageReceived += DataReceived;
@@ -145,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UadpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act  
@@ -175,7 +178,8 @@ namespace Opc.Ua.PubSub.Tests
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber multicast ip - Publisher multicast ip;" +
                             "Setting Subscriber as unicast or broadcast not functional. Just multicast to multicast works fine;")]
-        public void ValidateUadpPubSubConnectionNetworkMessageReceiveFromMulticast()
+        [Ignore("A network interface controller is necessary in order to run correctly.")]
+        public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromMulticast()
         {
             // Arrange
             var localhost = GetFirstNic();
@@ -195,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            UadpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberConnection.UadpMessageReceived += DataReceived;
@@ -210,7 +214,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UadpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UadpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act  
@@ -274,18 +278,14 @@ namespace Opc.Ua.PubSub.Tests
         /// </summary>
         /// <param name="publisherConnection"></param>
         /// <returns></returns>
-        private byte[] PrepareData(UadpPubSubConnection publisherConnection)
+        private byte[] PrepareData(UdpPubSubConnection publisherConnection)
         {
             try
             {
                 WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
                 UaNetworkMessage message = publisherConnection.CreateNetworkMessage(writerGroup0);
 
-                ServiceMessageContext messageContext = new ServiceMessageContext();
-                BinaryEncoder encoder = new BinaryEncoder(messageContext);
-                message.Encode(encoder);
-                byte[] bytes = ReadBytes(encoder.BaseStream);
-                encoder.Dispose();
+                byte[] bytes = message.Encode();               
 
                 return bytes;
             }
@@ -296,19 +296,6 @@ namespace Opc.Ua.PubSub.Tests
             return new byte[0];
         }
 
-        /// <summary>
-        /// Read All bytes from a given stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        private byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
+        
     }
 }

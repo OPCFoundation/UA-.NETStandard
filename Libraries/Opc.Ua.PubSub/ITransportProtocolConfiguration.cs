@@ -27,46 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Net;
-using System.Net.Sockets;
-
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Represents a specialized <see cref="UdpClient"/> class, configured for Unicast
+    /// Interface for accessing the configuration of the TransportProtocol
     /// </summary>
-    internal class UdpClientUnicast : UdpClient
+    public interface ITransportProtocolConfiguration
     {
-        internal IPAddress Address { get; }
-        internal int Port { get; }
-
         /// <summary>
-        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
+        /// Retrieve the configuration in KeyValuePairCollection format
         /// </summary>
-        /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
-        /// <param name="port">The port.</param>       
-        /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
-        public UdpClientUnicast(IPAddress localAddress, int port) : base()
-        {
-            Address = localAddress;
-            Port = port;
-
-            try
-            {
-                // this might throw exception on some platforms
-                Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            }
-            catch
-            { }
-            try
-            {
-                // this might throw exception on some platforms
-                ExclusiveAddressUse = false;
-            }
-            catch
-            { }
-
-            Client.Bind(new IPEndPoint(localAddress, port));
-        }
+        /// <returns></returns>
+        KeyValuePairCollection KeyValuePairs { get; set; }
     }
 }

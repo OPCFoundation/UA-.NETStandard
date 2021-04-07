@@ -32,36 +32,20 @@ using System;
 using System.Collections.Generic;
 using System.Xml;
 
-namespace Opc.Ua.PubSub.Uadp
+namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
     /// The UADPDataSetMessage class handler.
     /// It handles the UADPDataSetMessage encoding 
     /// </summary>
-    internal class UadpDataSetMessage
+    internal class UadpDataSetMessage : UaDataSetMessage
     {
         #region Fields
 
         // Validation masks
         private const byte FieldTypeUsedBits = 0x06;
-        private const DataSetFlags1EncodingMask PreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask) 0x07;
-        private const DataSetFlags1EncodingMask DataSetFlags1UsedBits = (DataSetFlags1EncodingMask) 0xF9;
-
-        // UadpDataSetMessage header as byte sizes 
-        private const UInt16 DataSetFlags1HeaderSize = 1;
-        private const UInt16 DataSetFlags2HeaderSize = 1;
-        private const UInt16 SequenceNumberHeaderSize = 2;
-        private const UInt16 TimestampHeaderSize = 8;
-        private const UInt16 PicosecondsHeaderSize = 2;
-        private const UInt16 StatusHeaderSize = 2;
-        private const UInt16 ConfigurationMajorVersionHeaderSize = 4;
-        private const UInt16 ConfigurationMinorVersionHeaderSize = 4;
-
-        private const UInt16 DataSetFieldCountSize = 2;
-
-        // to avoid unsafe code
-        private const UInt16 SizeOfDateTime = 8;
-        private const UInt16 SizeOfGuid = 16;
+        private const DataSetFlags1EncodingMask PreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0x07;
+        private const DataSetFlags1EncodingMask DataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0xF9;
 
         // Configuration Major and Major current version (VersionTime)
         private const UInt32 ConfigMajorVersion = 1;
@@ -74,7 +58,7 @@ namespace Opc.Ua.PubSub.Uadp
         #region Constructors
 
         /// <summary>
-        /// Constructor
+        /// Constructor for <see cref="UadpDataSetMessage"/>.
         /// </summary>
         public UadpDataSetMessage()
         {
@@ -83,15 +67,13 @@ namespace Opc.Ua.PubSub.Uadp
 
             TimeStamp = DateTime.UtcNow;
 
-            // configurable !?
             // If this bit is set to false, the rest of this DataSetMessage is considered invalid, and shall not be processed by the Subscriber.
             DataSetFlags1 |= DataSetFlags1EncodingMask.MessageIsValid;
         }
 
         /// <summary>
-        /// Constructor with DataSet parameter
-        /// </summary>
-        /// <param name="dataSet"></param>        
+        /// Constructor for <see cref="UadpDataSetMessage"/> with DataSet parameter
+        /// </summary>     
         public UadpDataSetMessage(DataSet dataSet = null) : this()
         {
             m_dataSet = dataSet;
@@ -120,7 +102,7 @@ namespace Opc.Ua.PubSub.Uadp
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
         /// The UADP message mapping specific flags are defined by the UadpDataSetMessageContentMask DataType.
         /// </summary>
-        public UadpDataSetMessageContentMask MessageContentMask { get; private set; }
+        public UadpDataSetMessageContentMask DataSetMessageContentMask { get; private set; }
 
         #endregion
 
@@ -184,14 +166,6 @@ namespace Opc.Ua.PubSub.Uadp
         {
             get { return m_dataSet; }
         }
-
-        /// <summary>
-        /// Get decoded data DataSets from possible dataset readers
-        /// </summary>
-        public List<DataSet> DecodedDataSets
-        {
-            get; private set;
-        }
         #endregion
 
         /// <summary>
@@ -202,7 +176,7 @@ namespace Opc.Ua.PubSub.Uadp
         /// <summary>
         /// Get and Set the startPosition in decoder
         /// </summary>
-        public int StartPositionInStream { get; set; }        
+        public int StartPositionInStream { get; set; }
 
         #endregion Properties
 
@@ -218,7 +192,7 @@ namespace Opc.Ua.PubSub.Uadp
 
             #region DataSetFlags1: Bit range 1-2: Field Encoding
 
-            DataSetFlags1 &= DataSetFlags1UsedBits; 
+            DataSetFlags1 &= DataSetFlags1UsedBits;
 
             FieldTypeEncodingMask fieldType = FieldTypeEncodingMask.Reserved;
             if (FieldContentMask == DataSetFieldContentMask.None)
@@ -241,7 +215,7 @@ namespace Opc.Ua.PubSub.Uadp
                 fieldType = FieldTypeEncodingMask.RawData;
             }
 
-            DataSetFlags1 |= (DataSetFlags1EncodingMask)((byte)fieldType<<1) ;
+            DataSetFlags1 |= (DataSetFlags1EncodingMask)((byte)fieldType << 1);
 
             #endregion
         }
@@ -252,29 +226,29 @@ namespace Opc.Ua.PubSub.Uadp
         /// <param name="messageContentMask"></param>
         public void SetMessageContentMask(UadpDataSetMessageContentMask messageContentMask)
         {
-            MessageContentMask = messageContentMask;
+            DataSetMessageContentMask = messageContentMask;
 
             DataSetFlags1 &= PreservedDataSetFlags1UsedBits;
             DataSetFlags2 = 0;
 
             #region DataSetFlags1: Bit range 3-7: Enabled flags options
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.SequenceNumber;
             }
-            
-            if ((MessageContentMask & UadpDataSetMessageContentMask.Status) != 0)
+
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.Status) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.Status;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.MinorVersion) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion;
             }
@@ -289,13 +263,13 @@ namespace Opc.Ua.PubSub.Uadp
             // 0010 Event
             // 0011 Keep Alive
             //Always Key frame is sent.
-            if ((MessageContentMask & UadpDataSetMessageContentMask.Timestamp) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
                 DataSetFlags2 |= DataSetFlags2EncodingMask.Timestamp;
             }
 
-            if ((MessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) != 0)
+            if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) != 0)
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
                 DataSetFlags2 |= DataSetFlags2EncodingMask.PicoSeconds;
@@ -303,6 +277,7 @@ namespace Opc.Ua.PubSub.Uadp
 
             #endregion
         }
+
         /// <summary>
         /// Encode dataset
         /// </summary>
@@ -314,7 +289,7 @@ namespace Opc.Ua.PubSub.Uadp
             {
                 StartPositionInStream = DataSetOffset;
                 binaryEncoder.Position = DataSetOffset;
-            }           
+            }
 
             EncodeDataSetMessageHeader(binaryEncoder);
             EncodePayload(binaryEncoder);
@@ -336,7 +311,7 @@ namespace Opc.Ua.PubSub.Uadp
         /// <returns></returns>
         public DataSet DecodePossibleDataSetReader(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
         {
-            UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings) 
+            UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
                 as UadpDataSetReaderMessageDataType;
             if (messageSettings != null)
             {
@@ -354,14 +329,18 @@ namespace Opc.Ua.PubSub.Uadp
                         return null;
                     }
                 }
+                else
+                {
+                    StartPositionInStream = (int)(binaryDecoder.BaseStream.Position);
+                }
             }
             if (binaryDecoder.BaseStream.Length <= StartPositionInStream)
             {
                 return null;
             }
-            binaryDecoder.BaseStream.Position = StartPositionInStream;            
+            binaryDecoder.BaseStream.Position = StartPositionInStream;
             DecodeDataSetMessageHeader(binaryDecoder);
-            return DecodeFieldMessageData(binaryDecoder, dataSetReader); 
+            return DecodeFieldMessageData(binaryDecoder, dataSetReader);
         }
         #endregion
 
@@ -385,7 +364,7 @@ namespace Opc.Ua.PubSub.Uadp
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.SequenceNumber) != 0)
             {
-                encoder.WriteUInt16("SequenceNumber", (UInt16) SequenceNumber);
+                encoder.WriteUInt16("SequenceNumber", (UInt16)SequenceNumber);
             }
 
             if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
@@ -528,10 +507,11 @@ namespace Opc.Ua.PubSub.Uadp
                 {
                     fieldCount = binaryDecoder.ReadUInt16("DataSetFieldCount");
                 }
-                
+
                 TargetVariablesDataType targetVariablesData =
                    ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
 
+                // todo investigate if Target attribute and node id are mandatory
                 if (targetVariablesData == null || targetVariablesData.TargetVariables.Count != fieldCount)
                 {
                     // dataset cannot be decoded because the configuration is not for TargetVariables 
@@ -580,6 +560,8 @@ namespace Opc.Ua.PubSub.Uadp
                 {
                     Field dataField = new Field();
                     dataField.Value = dataValues[i];
+                    dataField.FieldMetaData = metaDataType.Fields[i];
+                    // todo investigate if Target attribute and node id are mandatory
                     dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
                     dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
                     dataFields.Add(dataField);
@@ -613,166 +595,91 @@ namespace Opc.Ua.PubSub.Uadp
                 {
                     return;
                 }
+                object valueToEncode = variant.Value;
 
                 if (field.FieldMetaData.ValueRank == ValueRanks.Scalar)
                 {
                     switch ((BuiltInType)field.FieldMetaData.BuiltInType)
                     {
                         case BuiltInType.Boolean:
-                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(variant.Value));
+                            binaryEncoder.WriteBoolean("Bool", Convert.ToBoolean(valueToEncode));
                             break;
                         case BuiltInType.SByte:
-                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(variant.Value));
+                            binaryEncoder.WriteSByte("SByte", Convert.ToSByte(valueToEncode));
                             break;
                         case BuiltInType.Byte:
-                            binaryEncoder.WriteByte("Byte", Convert.ToByte(variant.Value));
+                            binaryEncoder.WriteByte("Byte", Convert.ToByte(valueToEncode));
                             break;
                         case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16( variant.Value));
+                            binaryEncoder.WriteInt16("Int16", Convert.ToInt16(valueToEncode));
                             break;
                         case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(variant.Value));
+                            binaryEncoder.WriteUInt16("UInt16", Convert.ToUInt16(valueToEncode));
                             break;
                         case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(variant.Value));
+                            binaryEncoder.WriteInt32("Int32", Convert.ToInt32(valueToEncode));
                             break;
                         case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(variant.Value));
+                            binaryEncoder.WriteUInt32("UInt32", Convert.ToUInt32(valueToEncode));
                             break;
                         case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(variant.Value));
+                            binaryEncoder.WriteInt64("Int64", Convert.ToInt64(valueToEncode));
                             break;
                         case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(variant.Value));
+                            binaryEncoder.WriteUInt64("UInt64", Convert.ToUInt64(valueToEncode));
                             break;
                         case BuiltInType.Float:
-                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(variant.Value));
+                            binaryEncoder.WriteFloat("Float", Convert.ToSingle(valueToEncode));
                             break;
                         case BuiltInType.Double:
-                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(variant.Value));
+                            binaryEncoder.WriteDouble("Double", Convert.ToDouble(valueToEncode));
                             break;
                         case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(variant.Value));
+                            binaryEncoder.WriteDateTime("DateTime", Convert.ToDateTime(valueToEncode));
                             break;
                         case BuiltInType.Guid:
-                            binaryEncoder.WriteGuid("GUID", (Uuid)variant.Value);
+                            binaryEncoder.WriteGuid("GUID", (Uuid)valueToEncode);
                             break;
                         case BuiltInType.String:
-                            binaryEncoder.WriteString("String", variant.Value as string);
+                            binaryEncoder.WriteString("String", valueToEncode as string);
                             break;
                         case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteString("ByteString", (byte[])variant.Value);
+                            binaryEncoder.WriteByteString("ByteString", (byte[])valueToEncode);
                             break;
                         case BuiltInType.QualifiedName:
-                            binaryEncoder.WriteQualifiedName("QualifiedName", variant.Value as QualifiedName);
+                            binaryEncoder.WriteQualifiedName("QualifiedName", valueToEncode as QualifiedName);
                             break;
                         case BuiltInType.LocalizedText:
-                            binaryEncoder.WriteLocalizedText("LocalizedText", variant.Value as LocalizedText);
+                            binaryEncoder.WriteLocalizedText("LocalizedText", valueToEncode as LocalizedText);
                             break;
                         case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeId("NodeId", variant.Value as NodeId);
+                            binaryEncoder.WriteNodeId("NodeId", valueToEncode as NodeId);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            binaryEncoder.WriteExpandedNodeId("ExpandedNodeId", variant.Value as ExpandedNodeId);
+                            binaryEncoder.WriteExpandedNodeId("ExpandedNodeId", valueToEncode as ExpandedNodeId);
                             break;
                         case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)variant.Value);
+                            binaryEncoder.WriteStatusCode("StatusCode", (StatusCode)valueToEncode);
                             break;
                         case BuiltInType.XmlElement:
-                            binaryEncoder.WriteXmlElement("XmlElement", variant.Value as XmlElement);
+                            binaryEncoder.WriteXmlElement("XmlElement", valueToEncode as XmlElement);
                             break;
                         case BuiltInType.Enumeration:
-                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(variant.Value));
+                            binaryEncoder.WriteInt32("Enumeration", Convert.ToInt32(valueToEncode));
                             break;
                         case BuiltInType.ExtensionObject:
-                            binaryEncoder.WriteExtensionObject("ExtensionObject", variant.Value as ExtensionObject);
+                            binaryEncoder.WriteExtensionObject("ExtensionObject", valueToEncode as ExtensionObject);
                             break;
                     }
                 }
-                else
+                else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
                 {
-                    switch ((BuiltInType)field.FieldMetaData.BuiltInType)
-                    {
-                        case BuiltInType.Boolean:
-                            binaryEncoder.WriteBooleanArray("BooleanArray", (bool[])variant.Value);
-                            break;
-                        case BuiltInType.SByte:
-                            binaryEncoder.WriteSByteArray("SByteArray", (sbyte[])variant.Value);
-                            break;
-                        case BuiltInType.Byte:
-                            binaryEncoder.WriteByteArray("ByteArray", (byte[])variant.Value);
-                            break;
-                        case BuiltInType.Int16:
-                            binaryEncoder.WriteInt16Array("ByteArray", (short[])variant.Value);
-                            break;
-                        case BuiltInType.UInt16:
-                            binaryEncoder.WriteUInt16Array("UInt16Array", (ushort[])variant.Value);
-                            break;
-                        case BuiltInType.Int32:
-                            binaryEncoder.WriteInt32Array("Int32Array", (int[])variant.Value);
-                            break;
-                        case BuiltInType.UInt32:
-                            binaryEncoder.WriteUInt32Array("UInt32Array", (uint[])variant.Value);
-                            break;
-                        case BuiltInType.Int64:
-                            binaryEncoder.WriteInt64Array("Int64Array", (long[])variant.Value);
-                            break;
-                        case BuiltInType.UInt64:
-                            binaryEncoder.WriteUInt64Array("UInt64Array", (ulong[])variant.Value);
-                            break;
-                        case BuiltInType.Float:
-                            binaryEncoder.WriteFloatArray("FloatArray", (float[])variant.Value);
-                            break;
-                        case BuiltInType.Double:
-                            binaryEncoder.WriteDoubleArray("DoubleArray", (double[])variant.Value);
-                            break;
-                        case BuiltInType.DateTime:
-                            binaryEncoder.WriteDateTimeArray("DateTimeArray", (DateTime[])variant.Value);
-                            break;
-                        case BuiltInType.Guid:
-                            binaryEncoder.WriteGuidArray("GuidArray", (Uuid[])variant.Value);
-                            break;
-                        case BuiltInType.String:
-                            binaryEncoder.WriteStringArray("StringArray", (string[])variant.Value);
-                            break;
-                        case BuiltInType.ByteString:
-                            binaryEncoder.WriteByteStringArray("StringArray", (byte[][])variant.Value);
-                            break;
-                        case BuiltInType.QualifiedName:
-                            binaryEncoder.WriteQualifiedNameArray("QualifiedNameArray", (QualifiedName[])variant.Value);
-                            break;
-                        case BuiltInType.LocalizedText:
-                            binaryEncoder.WriteLocalizedTextArray("LocalizedTextArray", (LocalizedText[])variant.Value);
-                            break;
-                        case BuiltInType.NodeId:
-                            binaryEncoder.WriteNodeIdArray("NodeIdArray", (NodeId[])variant.Value);
-                            break;
-                        case BuiltInType.ExpandedNodeId:
-                            binaryEncoder.WriteExpandedNodeIdArray("ExpandedNodeIdArray", (ExpandedNodeId[])variant.Value);
-                            break;
-                        case BuiltInType.StatusCode:
-                            binaryEncoder.WriteStatusCodeArray("StatusCodeArray", (StatusCode[])variant.Value);
-                            break;
-                        case BuiltInType.XmlElement:
-                            binaryEncoder.WriteXmlElementArray("XmlElementArray", (System.Xml.XmlElement[])variant.Value);
-                            break;
-                        case BuiltInType.Variant:
-                            binaryEncoder.WriteVariantArray("VariantArray", (Variant[])variant.Value);
-                            break;
-                        case BuiltInType.Enumeration:
-                            //TODO make this work
-                            //binaryEncoder.WriteInt32Array("EnumerationArray", Convert.ToInt32(variant.Value));
-                            binaryEncoder.WriteVariantArray("EnumerationArray", (Variant[])variant.Value);
-                            break;
-                        case BuiltInType.ExtensionObject:
-                            binaryEncoder.WriteExtensionObjectArray("ExtensionObjectArray", (ExtensionObject[])variant.Value);
-                            break;
-                    }
-                }
+                    binaryEncoder.WriteArray(null, valueToEncode, field.FieldMetaData.ValueRank, (BuiltInType)field.FieldMetaData.BuiltInType);
+                }           
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Utils.Trace("Error encoding field {0} - {1}", field.FieldMetaData.Name, ex);
+                Utils.Trace(ex, "Error encoding field {0}.", field.FieldMetaData.Name);
             }
         }
 
@@ -790,20 +697,18 @@ namespace Opc.Ua.PubSub.Uadp
                 {
                     switch (fieldMetaData.ValueRank)
                     {
-                       
+
                         case ValueRanks.Scalar:
                             return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
-                       
+
                         case ValueRanks.OneDimension:
-                            return DecodeRawArrayOneDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType);
-
                         case ValueRanks.TwoDimensions:
-                        case ValueRanks.OneOrMoreDimensions:
-                            //return DecodeRawArrayMultiDimension(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ArrayDimensions);
+                            return binaryDecoder.ReadArray(null, fieldMetaData.ValueRank, (BuiltInType)fieldMetaData.BuiltInType);
 
+                        case ValueRanks.OneOrMoreDimensions:
                         case ValueRanks.Any:// Scalar or Array with any number of dimensions
-                        case ValueRanks.ScalarOrOneDimension:                           
-                            //return DecodeRawArrayOrScalar(binaryDecoder, (BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ArrayDimensions);
+                        case ValueRanks.ScalarOrOneDimension:
+                        // not implemented
 
                         default:
                             Utils.Trace("Decoding ValueRank = {0} not supported yet !!!", fieldMetaData.ValueRank);
@@ -817,75 +722,6 @@ namespace Opc.Ua.PubSub.Uadp
                 }
             }
             return null;
-        }
-
-        /// <summary>
-        /// Decode an array type according to dimensions constraints specified in 6.2.2.1.3 FieldMetaData
-        /// </summary>
-        /// <param name="binaryDecoder"></param>
-        /// <param name="builtInType"></param>
-        /// <returns></returns>
-        private object DecodeRawArrayOneDimension(BinaryDecoder binaryDecoder, BuiltInType builtInType)
-        {
-
-            switch ((BuiltInType)builtInType)
-            {
-                case BuiltInType.Boolean:
-                    return binaryDecoder.ReadBooleanArray(null);
-                case BuiltInType.SByte:
-                    return binaryDecoder.ReadSByteArray(null);
-                case BuiltInType.Byte:
-                    return binaryDecoder.ReadByteArray(null);
-                case BuiltInType.Int16:
-                    return binaryDecoder.ReadInt16Array(null);
-                case BuiltInType.UInt16:
-                    return binaryDecoder.ReadUInt16Array(null);
-                case BuiltInType.Int32:
-                    return binaryDecoder.ReadInt32Array(null);
-                case BuiltInType.UInt32:
-                    return binaryDecoder.ReadUInt32Array(null);
-                case BuiltInType.Int64:
-                    return binaryDecoder.ReadInt64Array(null);
-                case BuiltInType.UInt64:
-                    return binaryDecoder.ReadUInt64Array(null);
-                case BuiltInType.Float:
-                    return binaryDecoder.ReadFloatArray(null);
-                case BuiltInType.Double:
-                    return binaryDecoder.ReadDoubleArray(null);
-                case BuiltInType.String:
-                    return binaryDecoder.ReadStringArray(null);
-                case BuiltInType.DateTime:
-                    return binaryDecoder.ReadDateTimeArray(null);
-                case BuiltInType.Guid:
-                    return binaryDecoder.ReadGuidArray(null);
-                case BuiltInType.ByteString:
-                    return binaryDecoder.ReadByteStringArray(null);
-                case BuiltInType.XmlElement:
-                    return binaryDecoder.ReadXmlElementArray(null);
-                case BuiltInType.NodeId:
-                    return binaryDecoder.ReadNodeIdArray(null);
-                case BuiltInType.ExpandedNodeId:
-                    return binaryDecoder.ReadExpandedNodeIdArray(null);
-                case BuiltInType.StatusCode:
-                    return binaryDecoder.ReadStatusCodeArray(null);
-                case BuiltInType.QualifiedName:
-                    return binaryDecoder.ReadQualifiedNameArray(null);
-                case BuiltInType.LocalizedText:
-                    return binaryDecoder.ReadLocalizedTextArray(null);
-                case BuiltInType.DataValue:
-                    return binaryDecoder.ReadDataValueArray(null);
-                case BuiltInType.Enumeration:
-                    //return binaryDecoder.ReadInt32Array(null);
-                    //return binaryDecoder.ReadEnumeratedArray(null, typeof(Int32));
-                    return binaryDecoder.ReadVariantArray(null);
-                case BuiltInType.Variant:
-                    return binaryDecoder.ReadVariantArray(null);
-                case BuiltInType.ExtensionObject:
-                    return binaryDecoder.ReadExtensionObjectArray(null);
-                    
-                default:
-                    return null;
-            }
         }
 
         /// <summary>
