@@ -308,6 +308,22 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
+                else if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh2)
+                {
+                    ConditionRefresh2MethodState activeNode = new ConditionRefresh2MethodState(passiveMethod.Parent);
+                    activeNode.Create(context, passiveMethod);
+
+                    // replace the node in the parent.
+                    if (passiveMethod.Parent != null)
+                    {
+                        passiveMethod.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    activeNode.OnCall = OnConditionRefresh2;
+
+                    return activeNode;
+                }
+
 
                 return predefinedNode;
             }
@@ -383,6 +399,28 @@ namespace Opc.Ua.Server
             }
 
             Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Handles a request to refresh conditions for a subscription and specific monitored item.
+        /// </summary>
+        private ServiceResult OnConditionRefresh2(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint subscriptionId,
+            uint monitoredItemId)
+        {
+            ServerSystemContext systemContext = context as ServerSystemContext;
+
+            if (systemContext == null)
+            {
+                systemContext = this.SystemContext;
+            }
+
+            Server.ConditionRefresh2(systemContext.OperationContext, subscriptionId, monitoredItemId);
 
             return ServiceResult.Good;
         }

@@ -1965,19 +1965,104 @@ namespace Opc.Ua.Server
         /// </summary>
         public void ConditionRefresh()
         {
-            ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
             List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
+
+            lock (m_lock)
+            {
+                // build list of items to refresh.
+                foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
+                {
+                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+
+                    if (eventMonitoredItem.EventFilter != null)
+                    {
+                        // add to list that gets reported to the NodeManagers.
+                        monitoredItems.Add(eventMonitoredItem);
+                    }
+                }
+
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return;
+                }
+            }
+
+            ConditionRefresh(monitoredItems, 0);
+        }
+
+
+        /// <summary>
+        /// Refreshes the conditions.
+        /// </summary>
+        public uint ConditionRefresh2(uint monitoredItemId)
+        {
+            uint statusCode = StatusCodes.Good;
+
+            List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
+
+            lock (m_lock)
+            {
+                // build list of items to refresh.
+                if ( m_monitoredItems.ContainsKey(monitoredItemId) )
+                {
+                    LinkedListNode<IMonitoredItem> monitoredItem = m_monitoredItems[monitoredItemId];
+
+                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+
+                    if (eventMonitoredItem.EventFilter != null)
+                    {
+                        // add to list that gets reported to the NodeManagers.
+                        monitoredItems.Add(eventMonitoredItem);
+                    }
+                }
+                else
+                {
+                    return StatusCodes.BadMonitoredItemIdInvalid;
+                }
+
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return statusCode;
+                }
+            }
+
+            ConditionRefresh(monitoredItems, monitoredItemId);
+
+            return statusCode;
+        }
+
+        /// <summary>
+        /// Refreshes the conditions.  Works for both ConditionRefresh and ConditionRefresh2
+        /// </summary>
+        public void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId )
+        {
+            ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
 
             lock (m_lock)
             {
                 // generate start event.
                 RefreshStartEventState e = new RefreshStartEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
-                    "RefreshStartEvent",
-                    "en-US",
-                    "Condition refresh started for subscription {0}.",
-                    m_id);
+                TranslationInfo message = null;
+
+                if (monitoredItemId > 0)
+                {
+                    message = new TranslationInfo(
+                        "RefreshStartEvent",
+                        "en-US",
+                        "Condition refresh started for subscription {0} monitored item {1}.",
+                        m_id, monitoredItemId);
+                }
+                else
+                {
+                    message = new TranslationInfo(
+                        "RefreshStartEvent",
+                        "en-US",
+                        "Condition refresh started for subscription {0}.",
+                        m_id);
+                }
 
                 e.Initialize(
                     systemContext,
@@ -1990,17 +2075,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTime.UtcNow, false);
 
                 // build list of items to refresh.
-                foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
+                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
-                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+                    MonitoredItem eventMonitoredItem = monitoredItem as MonitoredItem;
 
                     if (eventMonitoredItem.EventFilter != null)
                     {
                         // queue start refresh event.
                         eventMonitoredItem.QueueEvent(e, true);
-
-                        // add to list that gets reported to the NodeManagers.
-                        monitoredItems.Add(eventMonitoredItem);
                     }
                 }
 
@@ -2029,11 +2111,24 @@ namespace Opc.Ua.Server
                 // generate start event.
                 RefreshEndEventState e = new RefreshEndEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
-                    "RefreshEndEvent",
-                    "en-US",
-                    "Condition refresh completed for subscription {0}.",
-                    m_id);
+                TranslationInfo message = null;
+
+                if (monitoredItemId > 0)
+                {
+                    message = new TranslationInfo(
+                        "RefreshEndEvent",
+                        "en-US",
+                        "Condition refresh completed for subscription {0} monitored item {1}.",
+                        m_id, monitoredItemId);
+                }
+                else
+                {
+                    message = new TranslationInfo(
+                        "RefreshEndEvent",
+                        "en-US",
+                        "Condition refresh completed for subscription {0}.",
+                        m_id);
+                }
 
                 e.Initialize(
                     systemContext,

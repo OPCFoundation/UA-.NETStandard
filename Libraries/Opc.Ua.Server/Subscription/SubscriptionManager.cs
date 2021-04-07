@@ -352,6 +352,32 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Refreshes the conditions for the specified subscription and monitored item.
+        /// </summary>
+        public void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId)
+        {
+            Subscription subscription = null;
+
+            lock (m_lock)
+            {
+                if (!m_subscriptions.TryGetValue(subscriptionId, out subscription))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "Cannot refresh conditions for a subscription that does not exist.");
+                }
+            }
+
+            // ensure a condition refresh is allowed.
+            subscription.ValidateConditionRefresh(context);
+
+            // do the actual refresh in the background.
+            Task.Run(() => {
+                DoConditionRefresh2(subscription, monitoredItemId);
+            });
+        }
+
+        /// <summary>
         /// Completes a refresh conditions request.
         /// </summary>
         private void DoConditionRefresh(object state)
@@ -363,6 +389,26 @@ namespace Opc.Ua.Server
                 if (subscription != null)
                 {
                     subscription.ConditionRefresh();
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Server: Publish Subscriptions Thread Exited Unexpectedly");
+            }
+        }
+
+        /// <summary>
+        /// Completes a refresh conditions request.
+        /// </summary>
+        private void DoConditionRefresh2(object state, uint monitoredItemId)
+        {
+            try
+            {
+                Subscription subscription = state as Subscription;
+
+                if (subscription != null)
+                {
+                    subscription.ConditionRefresh2( monitoredItemId );
                 }
             }
             catch (Exception e)
