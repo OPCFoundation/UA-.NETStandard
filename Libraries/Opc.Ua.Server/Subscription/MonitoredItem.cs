@@ -241,7 +241,7 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE {1}", m_id, new TimeSpan(m_nextSamplingTime - now).TotalSeconds);
+                        Utils.Trace((int)TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE {1}ms", m_id, m_nextSamplingTime - now);
                         return false;
                     }
                 }

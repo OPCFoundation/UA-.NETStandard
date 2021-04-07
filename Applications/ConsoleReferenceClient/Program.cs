@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 
@@ -35,10 +36,10 @@ namespace Quickstarts.ConsoleReferenceClient
 {
     public static class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            Console.WriteLine("OPC UA Console Reference Client");
-
+            IOutput console = new ConsoleOutput();
+            console.WriteLine("OPC UA Console Reference Client");
             try
             {
                 // Define the UA Client application
@@ -47,14 +48,14 @@ namespace Quickstarts.ConsoleReferenceClient
                 application.ApplicationType = ApplicationType.Client;
 
                 // load the application configuration.
-                application.LoadApplicationConfiguration("ConsoleReferenceClient.Config.xml", false).Wait();
+                await application.LoadApplicationConfiguration("ConsoleReferenceClient.Config.xml", silent: false);
                 // check the application certificate.
-                application.CheckApplicationInstanceCertificate(false, 0).Wait();
+                await application.CheckApplicationInstanceCertificate(silent: false, minimumKeySize: 0);
 
                 // create the UA Client object and connect to configured server.
-                UAClient uaClient = new UAClient(application.ApplicationConfiguration);
-
-                if (uaClient.Connect())
+                UAClient uaClient = new UAClient(application.ApplicationConfiguration, console, ClientBase.ValidateResponse);
+                bool connected = await uaClient.ConnectAsync();
+                if (connected)
                 {
                     // Run tests for available methods.
                     uaClient.ReadNodes();
@@ -64,22 +65,22 @@ namespace Quickstarts.ConsoleReferenceClient
 
                     uaClient.SubscribeToDataChanges();
                     // Wait for some DataChange notifications from MonitoredItems
-                    System.Threading.Thread.Sleep(20000);
+                    await Task.Delay(20_000);
 
                     uaClient.Disconnect();
                 }
                 else
                 {
-                    Console.WriteLine("Could not connect to server!");
+                    console.WriteLine("Could not connect to server!");
                 }
 
-                Console.WriteLine("\nProgram ended.");
-                Console.WriteLine("Press any key to finish...");
+                console.WriteLine("\nProgram ended.");
+                console.WriteLine("Press any key to finish...");
                 Console.ReadKey();
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                console.WriteLine(ex.Message);
             }
         }
     }

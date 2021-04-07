@@ -523,7 +523,6 @@ namespace Opc.Ua
                 case DataTypes.Enumeration: { return typeof(Int32); }
 
                 // subtype of DateTime
-                case DataTypes.Date: 
                 case DataTypes.UtcTime: goto case DataTypes.DateTime;
                 // subtype of ByteString
                 case DataTypes.ApplicationInstanceCertificate:
@@ -552,7 +551,6 @@ namespace Opc.Ua
                 case DataTypes.LocaleId:
                 case DataTypes.NormalizedString:
                 case DataTypes.NumericRange:
-                case DataTypes.Time:
                 case DataTypes.TimeString: goto case DataTypes.String;
             }
 
@@ -1357,7 +1355,6 @@ namespace Opc.Ua
                 switch (id)
                 {
                     case DataTypes.Duration: { return (double)0; }
-                    case DataTypes.Date: { return DateTime.MinValue; }
                     case DataTypes.UtcTime: { return DateTime.MinValue; }
                     case DataTypes.Counter: { return (uint)0; }
                     case DataTypes.IntegerId: { return (uint)0; }

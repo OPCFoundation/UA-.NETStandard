@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(plainCert);
             VerifyApplicationCert(app, plainCert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.True(X509Utils.VerifySelfSigned(cert), "Verify Self signed.");
         }
 
         /// <summary>

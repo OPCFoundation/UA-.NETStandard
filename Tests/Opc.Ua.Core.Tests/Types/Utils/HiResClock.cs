@@ -49,13 +49,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            HiResClock.Disabled = false;
+            HiResClock.Reset();
         }
 
         [TearDown]
         protected void TearDown()
         {
-            HiResClock.Disabled = false;
+            HiResClock.Reset();
         }
         #endregion
 
@@ -74,6 +74,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.True(HiResClock.Disabled);
             Assert.AreEqual(TimeSpan.TicksPerSecond, HiResClock.Frequency);
             Assert.AreEqual(TimeSpan.TicksPerMillisecond, HiResClock.TicksPerMillisecond);
+            HiResClock.Disabled = false;
+            Assert.True(HiResClock.Disabled);
+            HiResClock.Reset();
             HiResClock.Disabled = false;
             Assert.False(HiResClock.Disabled);
         }
