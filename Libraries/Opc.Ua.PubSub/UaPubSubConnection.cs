@@ -288,18 +288,17 @@ namespace Opc.Ua.PubSub
         /// <param name="source">The source of the received event.</param>
         protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
         {
-            if (networkMessage.ReceivedDataSets != null && networkMessage.ReceivedDataSets.Count > 0)
+            if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
                 SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
-                    NetworkMessageSequenceNumber = networkMessage.SequenceNumber,
-                    DataSets = networkMessage.ReceivedDataSets,
+                    NetworkMessage = networkMessage,
                     Source = source
                 };
 
                 //trigger notification for received subscribed data set
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
                 Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
-                    source, subscribedDataEventArgs.DataSets.Count);
+                    source, subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
             else
             {

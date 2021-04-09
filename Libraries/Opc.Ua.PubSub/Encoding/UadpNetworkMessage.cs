@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// UADP Network Message
     /// </summary>
-    internal class UadpNetworkMessage : UaNetworkMessage
+    public class UadpNetworkMessage : UaNetworkMessage
     {
         #region Fields
         // The UADPVersion for this specification version is 1.
@@ -152,7 +152,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set DataSetClassId
         /// </summary>
         public Guid DataSetClassId { get; set; }
-
         #endregion
 
         #region Group Header
@@ -171,6 +170,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set NetworkMessageNumber
         /// </summary>
         public UInt16 NetworkMessageNumber { get; set; }
+
+        /// <summary>
+        /// Get and Set SequenceNumber
+        /// </summary>
+        public UInt16 SequenceNumber { get; set; }
 
         #endregion
 
@@ -454,8 +458,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public void DecodeSubscribedDataSets(BinaryDecoder binaryDecoder, IList<DataSetReaderDataType> dataSetReaders)
         {
-            ReceivedDataSets = new List<DataSet>();
-
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
                 return;
@@ -524,6 +526,9 @@ namespace Opc.Ua.PubSub.Encoding
                 //6.1
                 DecodePayloadSize(binaryDecoder);
 
+                // the list of decode dataset messages for this network message
+                List<UaDataSetMessage> dataSetMessages = new List<UaDataSetMessage>();
+
                 /* 6.2.8.3 DataSetWriterId
                 The parameter DataSetWriterId with DataType UInt16 defines the DataSet selected in the Publisher for the DataSetReader.
                 If the value is 0 (null), the parameter shall be ignored and all received DataSetMessages pass the DataSetWriterId filter.*/
@@ -539,16 +544,26 @@ namespace Opc.Ua.PubSub.Encoding
                     // Restore the encoded fields (into dataset for now) for each possible dataset reader
                     foreach (UadpDataSetMessage uadpDataSetMessage in uadpDataSetMessages)
                     {
+                        if (uadpDataSetMessage.DataSet != null)
+                        {
+                            continue; // this dataset message was already decoded
+                        }
                         if (dataSetReader.DataSetWriterId == 0 || uadpDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId)
                         {
-                            //decode dataset message using the reader
-                            DataSet dataSet = uadpDataSetMessage.DecodePossibleDataSetReader(binaryDecoder, dataSetReader);
-                            if (dataSet != null)
+                            //atempt to decode dataset message using the reader
+                            uadpDataSetMessage.DecodePossibleDataSetReader(binaryDecoder, dataSetReader);
+                            if (uadpDataSetMessage.DataSet != null)
                             {
-                                ReceivedDataSets.Add(dataSet);
+                                dataSetMessages.Add(uadpDataSetMessage);
                             }
                         }
-                    }
+                    }                    
+                }
+
+                if (m_uaDataSetMessages.Count == 0)
+                {
+                    // set the list of dataset messages to the network message
+                    m_uaDataSetMessages.AddRange(dataSetMessages);
                 }
             }
             catch (Exception ex)

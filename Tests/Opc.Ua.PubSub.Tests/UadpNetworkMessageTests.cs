@@ -975,8 +975,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessageDecoded.Decode(bytes, m_firstDataSetReadersType);            
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
-            // TODO Fix: this might be broken after refactor
-            Compare(uadpNetworkMessage, uaNetworkMessageDecoded, uaNetworkMessageDecoded.ReceivedDataSets);
+            Compare(uadpNetworkMessage, uaNetworkMessageDecoded);
         }
 
         /// <summary>
@@ -1026,7 +1025,7 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
         /// <returns></returns>
-        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded, List<DataSet> subscribedDataSets)
+        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
         {
             UadpNetworkMessageContentMask networkMessageContentMask = uadpNetworkMessageEncode.NetworkMessageContentMask;
 
@@ -1090,9 +1089,8 @@ namespace Opc.Ua.PubSub.Tests
                 Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
                     uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
 
-                Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");
-
                 // check if the encoded match the decoded DataSetWriterId's
+                
                 foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
                 {
                     UadpDataSetMessage uadpDataSetMessageDecoded =
@@ -1107,7 +1105,7 @@ namespace Opc.Ua.PubSub.Tests
 
                     // check payload data fields count 
                     // get related dataset from subscriber DataSets
-                    DataSet decodedDataSet = subscribedDataSets.FirstOrDefault(dataSet => dataSet.Name == uadpDataSetMessage.DataSet.Name);
+                    DataSet decodedDataSet = uadpDataSetMessageDecoded.DataSet;
                     Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
 
                     Assert.AreEqual(uadpDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,

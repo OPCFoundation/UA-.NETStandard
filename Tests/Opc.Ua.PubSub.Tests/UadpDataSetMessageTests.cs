@@ -510,11 +510,11 @@ namespace Opc.Ua.PubSub.Tests
 
             // workaround
             uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
-            DataSet dataSetDecoded = uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
+            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, m_firstDataSetReaderType);
             decoder.Dispose();
 
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
-            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded, dataSetDecoded);
+            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
         }
 
 
@@ -524,8 +524,9 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="uadpDataSetMessageEncode"></param>
         /// <param name="uadpDataSetMessageDecoded"></param>
         /// <returns></returns>
-        private void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded, DataSet dataSetReader)
+        private void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded)
         {
+            DataSet dataSetDecoded = uadpDataSetMessageDecoded.DataSet;
             UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.DataSetMessageContentMask;
 
             Assert.AreEqual(uadpDataSetMessageEncode.DataSetFlags1, uadpDataSetMessageDecoded.DataSetFlags1,
@@ -569,13 +570,13 @@ namespace Opc.Ua.PubSub.Tests
             }
 
             // check also the payload data
-            Assert.AreEqual(uadpDataSetMessageEncode.DataSet.Fields.Length, dataSetReader.Fields.Length,
+            Assert.AreEqual(uadpDataSetMessageEncode.DataSet.Fields.Length, dataSetDecoded.Fields.Length,
                 "DataSetMessages DataSet fields size do not match:");
 
             for (int index = 0; index < uadpDataSetMessageEncode.DataSet.Fields.Length; index++)
             {
                 Field dataSetFieldEncoded = uadpDataSetMessageEncode.DataSet.Fields[index];
-                Field dataSetFieldDecoded = dataSetReader.Fields[index];
+                Field dataSetFieldDecoded = dataSetDecoded.Fields[index];
 
                 Assert.IsNotNull(dataSetFieldEncoded.Value, "DataSetFieldEncoded.Value is null");
                 Assert.IsNotNull(dataSetFieldDecoded.Value, "DataSetFieldDecoded.Value is null");

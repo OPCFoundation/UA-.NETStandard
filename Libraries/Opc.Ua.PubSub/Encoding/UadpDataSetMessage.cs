@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// The UADPDataSetMessage class handler.
     /// It handles the UADPDataSetMessage encoding 
     /// </summary>
-    internal class UadpDataSetMessage : UaDataSetMessage
+    public class UadpDataSetMessage : UaDataSetMessage
     {
         #region Fields
 
@@ -51,8 +51,6 @@ namespace Opc.Ua.PubSub.Encoding
         private const UInt32 ConfigMajorVersion = 1;
         private const UInt32 ConfigMinorVersion = 1;
 
-        private DataSet m_dataSet;
-
         #endregion
 
         #region Constructors
@@ -60,7 +58,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Constructor for <see cref="UadpDataSetMessage"/>.
         /// </summary>
-        public UadpDataSetMessage()
+        public UadpDataSetMessage() 
         {
             ConfigurationMajorVersion = ConfigMajorVersion;
             ConfigurationMinorVersion = ConfigMinorVersion;
@@ -76,7 +74,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>     
         public UadpDataSetMessage(DataSet dataSet = null) : this()
         {
-            m_dataSet = dataSet;
+            DataSet = dataSet;
         }
 
         #endregion
@@ -159,13 +157,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public UInt16 Status { get; set; }
 
-        /// <summary>
-        /// Get DataSet
-        /// </summary>
-        public DataSet DataSet
-        {
-            get { return m_dataSet; }
-        }
         #endregion
 
         /// <summary>
@@ -304,12 +295,10 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Decode dataset
+        /// Atempt to Decode dataset
         /// </summary>
-        /// <param name="binaryDecoder"></param>
-        /// <param name="dataSetReader"></param>
         /// <returns></returns>
-        public DataSet DecodePossibleDataSetReader(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
+        public void DecodePossibleDataSetReader(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
         {
             UadpDataSetReaderMessageDataType messageSettings = ExtensionObject.ToEncodeable(dataSetReader.MessageSettings)
                 as UadpDataSetReaderMessageDataType;
@@ -326,7 +315,7 @@ namespace Opc.Ua.PubSub.Encoding
                     else if (messageSettings.DataSetOffset != 0)
                     {
                         //configuration is different from real position in message, the dataset cannot be decoded
-                        return null;
+                        return;
                     }
                 }
                 else
@@ -336,11 +325,11 @@ namespace Opc.Ua.PubSub.Encoding
             }
             if (binaryDecoder.BaseStream.Length <= StartPositionInStream)
             {
-                return null;
+                return;
             }
             binaryDecoder.BaseStream.Position = StartPositionInStream;
             DecodeDataSetMessageHeader(binaryDecoder);
-            return DecodeFieldMessageData(binaryDecoder, dataSetReader);
+            DataSet = DecodeFieldMessageData(binaryDecoder, dataSetReader);
         }
         #endregion
 
@@ -403,16 +392,16 @@ namespace Opc.Ua.PubSub.Encoding
             switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
-                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)m_dataSet.Fields.Length);
-                    foreach (Field field in m_dataSet.Fields)
+                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)DataSet.Fields.Length);
+                    foreach (Field field in DataSet.Fields)
                     {
                         // 00 Variant type
                         binaryEncoder.WriteVariant("Variant", field.Value.WrappedValue);
                     }
                     break;
                 case FieldTypeEncodingMask.DataValue:
-                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)m_dataSet.Fields.Length);
-                    foreach (Field field in m_dataSet.Fields)
+                    binaryEncoder.WriteUInt16("DataSetFieldCount", (UInt16)DataSet.Fields.Length);
+                    foreach (Field field in DataSet.Fields)
                     {
                         // 10 DataValue type 
                         binaryEncoder.WriteDataValue("DataValue", field.Value);
@@ -420,7 +409,7 @@ namespace Opc.Ua.PubSub.Encoding
                     break;
                 case FieldTypeEncodingMask.RawData:
                     // DataSetFieldCount is not persisted for RawData
-                    foreach (Field field in m_dataSet.Fields)
+                    foreach (Field field in DataSet.Fields)
                     {
                         EncodeFieldAsRawData(binaryEncoder, field);
                     }

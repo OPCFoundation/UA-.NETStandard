@@ -50,7 +50,6 @@ namespace Opc.Ua.PubSub.Transport
     internal class MqttPubSubConnection : UaPubSubConnection
     {
         #region Private Fields
-        private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
         private string m_brokerHostName = "localhost";
@@ -210,16 +209,12 @@ namespace Opc.Ua.PubSub.Transport
                 // Network message header
                 jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
 
-                // Writer group header
-                //jsonNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
-
                 networkMessage = jsonNetworkMessage;
             }
 
             if (networkMessage != null)
             {
                 networkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
-                networkMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_sequenceNumber) % UInt16.MaxValue);
             }
             return networkMessage;
         }

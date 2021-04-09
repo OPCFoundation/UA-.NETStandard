@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// The UADPDataSetMessage class handler.
     /// It handles the UADPDataSetMessage encoding 
     /// </summary>
-    internal class JsonDataSetMessage : UaDataSetMessage
+    public class JsonDataSetMessage : UaDataSetMessage
     {
         #region Fields
         private const string FieldDataSetWriterId = "DataSetWriterId";
@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Encoding
         private const string FieldStatus = "Status";
         private const string FieldPayload = "Payload";
 
-        private DataSet m_dataSet;
+        
         private FieldTypeEncodingMask m_fieldTypeEncoding;
 
         #endregion
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="dataSet"></param>        
         public JsonDataSetMessage(DataSet dataSet = null) : this()
         {
-            m_dataSet = dataSet;
+            DataSet = dataSet;
         }
 
         #endregion
@@ -124,15 +124,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set Status
         /// </summary>
         public StatusCode Status { get; set; }
-
-        /// <summary>
-        /// Get DataSet
-        /// </summary>
-        public DataSet DataSet
-        {
-            get { return m_dataSet; }
-        }
-
         #endregion
         #endregion Properties
 
@@ -202,9 +193,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder">The json decoder trhat contains the json stream.</param>
         /// <param name="messagesCount">Number of Messages found in current jsonDecoder.</param>
         /// <param name="messagesListName">The name of the Messages list</param>
-        /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>
-        /// <returns>A dataset if decode was successful.</returns>
-        public DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, int messagesCount, string messagesListName, DataSetReaderDataType dataSetReader)
+        /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>        
+        public void DecodePossibleDataSetReader(JsonDecoder jsonDecoder, int messagesCount, string messagesListName, DataSetReaderDataType dataSetReader)
         {
             if (messagesCount == 0)
             {
@@ -218,9 +208,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
-                DataSet dataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
-
-                return dataSet;
+                DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
             }
             else
             {
@@ -230,27 +218,25 @@ namespace Opc.Ua.PubSub.Encoding
                     if (wasPush)
                     {
                         // atempt decoding the DataSet fields
-                        DataSet dataSet = DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
+                        DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
+                        
                         // redo jsonDecoder stack
                         jsonDecoder.Pop();
 
-                        if (dataSet != null)
+                        if (DataSet != null)
                         {
-                            return dataSet;
+                            // the dataset was decoded
+                            return;
                         }
                     }
                 }
             }
-            return null;
         }
 
         /// <summary>
-        /// Decode dataset from the Keyvalue pairs
+        /// Atempt to decode dataset from the Keyvalue pairs
         /// </summary>
-        /// <param name="jsonDecoder"></param>
-        /// <param name="dataSetReader"></param>
-        /// <returns></returns>
-        private DataSet DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
+        private void DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
             // check if there shall be a dataset header and decode it
             if (HasDataSetMessageHeader)
@@ -260,7 +246,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (dataSetReader.DataSetWriterId != 0 && DataSetWriterId != dataSetReader.DataSetWriterId)
             {
-                return null;
+                return;
             }
 
             object token = null;
@@ -273,7 +259,7 @@ namespace Opc.Ua.PubSub.Encoding
                     if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
                     {
                         // filter out payload that has more fields than the searched datasetMetadata
-                        return null;
+                        return;
                     }
                     // check also the field names from reader, if any extra field names then the payload is not matching 
                     foreach (string key in payload.Keys)
@@ -282,7 +268,7 @@ namespace Opc.Ua.PubSub.Encoding
                         if (field == null)
                         {
                             // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
-                            return null;
+                            return;
                         }
                     }
                 }
@@ -292,7 +278,7 @@ namespace Opc.Ua.PubSub.Encoding
                     bool wasPush = jsonDecoder.PushStructure(FieldPayload);
                     if (wasPush)
                     {
-                        return DecodePayloadContent(jsonDecoder, dataSetReader);
+                        DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
                     }
                 }
                 finally
@@ -301,15 +287,11 @@ namespace Opc.Ua.PubSub.Encoding
                     jsonDecoder.Pop();
                 }
             }
-            return null;
         }
 
         /// <summary>
         /// Decode the Content of the Payload and create a DataSet object from it
         /// </summary>
-        /// <param name="jsonDecoder"></param>
-        /// <param name="dataSetReader"></param>
-        /// <returns></returns>
         private DataSet DecodePayloadContent(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
             TargetVariablesDataType targetVariablesData =

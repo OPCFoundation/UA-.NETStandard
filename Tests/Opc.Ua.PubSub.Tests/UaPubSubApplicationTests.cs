@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Tests
 
             // Assert
             Assert.IsTrue(uaPubSubApplication.PubSubConnections != null, "uaPubSubApplication.PubSubConnections collection is null");
-            Assert.AreEqual(2, uaPubSubApplication.PubSubConnections.Count, "uaPubSubApplication.PubSubConnections count");
+            Assert.AreEqual(3, uaPubSubApplication.PubSubConnections.Count, "uaPubSubApplication.PubSubConnections count");
             UaPubSubConnection connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");

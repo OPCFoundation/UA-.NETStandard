@@ -65,17 +65,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get and Set WriterGroupId
         /// </summary>
-        public UInt16 WriterGroupId { get; set; }
+        public UInt16 WriterGroupId { get; set; }       
 
-        /// <summary>
-        /// Get and Set SequenceNumber
-        /// </summary>
-        public UInt16 SequenceNumber { get; set; }
-
-        /// <summary>
-        /// Get the received <see cref="DataSet"/> collection 
-        /// </summary>
-        public List<DataSet> ReceivedDataSets { get; internal set; }
+        ///// <summary>
+        ///// Get the received <see cref="DataSet"/> collection 
+        ///// </summary>
+        //public List<DataSet> ReceivedDataSets { get; internal set; }
 
         /// <summary>
         /// Get the writer group configuration for this network message
@@ -85,7 +80,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSet messages
         /// </summary>
-        internal ReadOnlyCollection<UaDataSetMessage> DataSetMessages
+        public ReadOnlyCollection<UaDataSetMessage> DataSetMessages
         {
             get
             {

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.PubSub.PublishedData;
+
 namespace Opc.Ua.PubSub
 {
     /// <summary>
@@ -34,5 +36,21 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public abstract class UaDataSetMessage
     {
+        private DataSet m_dataSet;
+
+        /// <summary>
+        /// Get DataSet
+        /// </summary>
+        public DataSet DataSet
+        {
+            get
+            {
+                return m_dataSet;
+            }
+            internal set
+            {
+                m_dataSet = value;
+            }
+        }
     }
 }

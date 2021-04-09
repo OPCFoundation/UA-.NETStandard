@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -50,7 +51,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             try
             {
                 Utils.SetTraceLog("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferenceSubscriber.log.txt", true);
-                Utils.SetTraceMask(Utils.TraceMasks.All);
+                Utils.SetTraceMask(Utils.TraceMasks.Error);
                 Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
 
 
@@ -106,17 +107,26 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         {
             lock (m_lock)
             {
-                Console.WriteLine("Data Received from Source={0}, SequenceNumber={1}, DataSet count={2}",
-                    e.Source, e.NetworkMessageSequenceNumber, e.DataSets.Count);
-
-                foreach (DataSet dataSet in e.DataSets)
+                if (e.NetworkMessage is UadpNetworkMessage)
                 {
+                    Console.WriteLine("UADP Network message was received from Source={0}, SequenceNumber={1}, DataSet count={2}",
+                            e.Source, ((UadpNetworkMessage)e.NetworkMessage).SequenceNumber, e.NetworkMessage.DataSetMessages.Count);
+                }
+                else if (e.NetworkMessage is JsonNetworkMessage)
+                {
+                    Console.WriteLine("JSON Network message was received from Source={0}, MessageId={1}, DataSet count={2}",
+                            e.Source, ((JsonNetworkMessage)e.NetworkMessage).MessageId, e.NetworkMessage.DataSetMessages.Count);
+                }
+
+                foreach (UaDataSetMessage dataSetMessage in e.NetworkMessage.DataSetMessages)
+                {
+                    DataSet dataSet = dataSetMessage.DataSet;
                     Console.WriteLine("\tDataSet.Name={0}, DataSetWriterId={1}", dataSet.Name, dataSet.DataSetWriterId);
 
                     for (int i = 0; i < dataSet.Fields.Length; i++)
                     {
                         Console.WriteLine("\t\tTargetNodeId:{0}, Attribute:{1}, Value:{2}",
-                            dataSet.Fields[i].TargetNodeId, dataSet.Fields[i].TargetAttribute, dataSet.Fields[i].Value);
+                            dataSet.Fields[i].TargetNodeId, dataSet.Fields[i].TargetAttribute, dataSetMessage.DataSet.Fields[i].Value);
                     }
                 }
                 Console.WriteLine("------------------------------------------------");

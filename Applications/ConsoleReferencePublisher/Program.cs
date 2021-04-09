@@ -44,7 +44,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             try
             {
                 Utils.SetTraceLog("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferencePublisher.log.txt", true);
-                Utils.SetTraceMask(Utils.TraceMasks.All);
+                Utils.SetTraceMask(Utils.TraceMasks.Error);
                 Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
 
                 // Create configuration using UDP protocol and UADP Encoding
@@ -430,7 +430,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.MaxNetworkMessageSize = 1500;
 
             JsonWriterGroupMessageDataType jsonMessageSettings = new JsonWriterGroupMessageDataType() {
-                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
+                NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader                
                        | JsonNetworkMessageContentMask.DataSetMessageHeader
                         | JsonNetworkMessageContentMask.PublisherId
                         | JsonNetworkMessageContentMask.DataSetClassId
