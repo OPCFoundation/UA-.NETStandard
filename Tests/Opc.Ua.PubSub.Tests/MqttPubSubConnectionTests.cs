@@ -275,6 +275,8 @@ namespace Opc.Ua.PubSub.Tests
 
         }
 
+        #region Private methods
+
         /// <summary>
         /// Data received handler
         /// </summary>
@@ -353,7 +355,6 @@ namespace Opc.Ua.PubSub.Tests
                 startInfo.Arguments = arguments;
                 process.StartInfo = startInfo;
                 process.Start();
-                //proc.WaitForExit();
                 processes = Process.GetProcessesByName(processName);
             }
             catch(Exception)
@@ -417,5 +418,6 @@ namespace Opc.Ua.PubSub.Tests
                 Assert.IsNotNull(storeLocation, "Directory store location does not exists!");
             }
         }
+        #endregion
     }
 }
