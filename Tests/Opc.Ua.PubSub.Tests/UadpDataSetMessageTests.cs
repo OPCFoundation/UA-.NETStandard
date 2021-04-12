@@ -64,12 +64,6 @@ namespace Opc.Ua.PubSub.Tests
         private const ushort TestDataSetWriterId = 1;
         private const ushort MessageContentMask = 0x3f;
 
-        private DataSetFieldContentMask fieldContentMaskVariant = DataSetFieldContentMask.None;
-        private DataSetFieldContentMask fieldContentMaskDataValue = DataSetFieldContentMask.StatusCode | DataSetFieldContentMask.SourceTimestamp
-                                                              | DataSetFieldContentMask.ServerTimestamp | DataSetFieldContentMask.SourcePicoSeconds
-                                                              | DataSetFieldContentMask.ServerPicoSeconds;
-        private DataSetFieldContentMask fieldContentMaskRawData = DataSetFieldContentMask.RawData;
-
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
@@ -115,10 +109,25 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate dataset message mask with Variant data type;" +
                             "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)")]
-        public void ValidateDataSetMessageMaskWithVariantType()
+        public void ValidateDataSetMessageMask(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             // change network message mask
@@ -131,47 +140,26 @@ namespace Opc.Ua.PubSub.Tests
             }
         }
 
-        [Test(Description = "Validate dataset message mask with DataValue data type;" +
-                            "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)")]
-        public void ValidateNetworkMessageMaskWithDataValueType()
+        [Test(Description = "Validate TimeStamp")]
+        public void ValidateDataSetTimeStamp(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // change network message mask
-            for (uint dataSetMessageContentMask = 0; dataSetMessageContentMask < MessageContentMask; dataSetMessageContentMask++)
-            {
-                uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)dataSetMessageContentMask);
-
-                // Assert
-                CompareEncodeDecode(uadpDataSetMessage);
-            }
-        }
-
-        [Test(Description = "Validate dataset message mask with RawData data type;" +
-                            "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)")]
-        public void ValidateDataSetMessageMaskWithRawDataType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
-
-            // Act  
-            // change network message mask
-            for (uint dataSetMessageContentMask = 0; dataSetMessageContentMask < MessageContentMask; dataSetMessageContentMask++)
-            {
-                uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)dataSetMessageContentMask);
-
-                // Assert
-                CompareEncodeDecode(uadpDataSetMessage);
-            }
-        }
-
-        [Test(Description = "Validate TimeStamp with Variant data type")]
-        public void ValidateDataSetTimeStampWithVariantType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Timestamp);
@@ -181,39 +169,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        [Test(Description = "Validate TimeStamp with DataValue data type")]
-        public void ValidateDataSetTimeStampWithDataValueType()
+        [Test(Description = "Validate PicoSeconds")]
+        public void ValidatePicoSeconds(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Timestamp);
-            uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate TimeStamp with RawData data type")]
-        public void ValidateDataSetTimeStampWithRawDataType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Timestamp);
-            uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate PicoSeconds with Variant data type")]
-        public void ValidatePicoSecondsWithVariantType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.PicoSeconds);
@@ -223,39 +198,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        [Test(Description = "Validate PicoSeconds with DataValue data type")]
-        public void ValidatePicoSecondsWithDataValueType()
+        [Test(Description = "Validate Status")]
+        public void ValidateStatus(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.PicoSeconds);
-            uadpDataSetMessage.PicoSeconds = 10;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate PicoSeconds with RawData data type")]
-        public void ValidatePicoSecondsWithRawDataType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.PicoSeconds);
-            uadpDataSetMessage.PicoSeconds = 10;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate Status with Variant data type")]
-        public void ValidateStatusWithVariantType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Status);
@@ -265,39 +227,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        [Test(Description = "Validate Status with RawData data type")]
-        public void ValidateStatusWithRawDataType()
+        [Test(Description = "Validate MajorVersion")]
+        public void ValidateMajorVersion(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Status);
-            uadpDataSetMessage.Status = 0x0384;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate Status with DataValue data type")]
-        public void ValidateStatusWithDataValueType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Status);
-            uadpDataSetMessage.Status = 0x0384;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate MajorVersion with Variant data type")]
-        public void ValidateMajorVersionWithVariantType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion);
@@ -307,40 +256,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        [Test(Description = "Validate MajorVersion with DataValue data type")]
-        public void ValidateMajorVersionWithDataValueType()
+        [Test(Description = "Validate MinorVersion")]
+        public void ValidateMinorVersion(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion);
-            uadpDataSetMessage.ConfigurationMajorVersion = 2;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate MajorVersion with RawData data type")]
-        public void ValidateMajorVersionWithRawDataType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion);
-            uadpDataSetMessage.ConfigurationMajorVersion = 2;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-
-        [Test(Description = "Validate MinorVersion with Variant data type")]
-        public void ValidateMinorVersionWithVariantType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MinorVersion);
@@ -350,67 +285,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        [Test(Description = "Validate MinorVersion with DataValue data type")]
-        public void ValidateMinorVersionWithDataValueType()
+        [Test(Description = "Validate SequenceNumber")]
+        public void ValidateSequenceNumber(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.ConfigurationMinorVersion = 101;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate MinorVersion with RawData data type")]
-        public void ValidateMinorVersionWithRawDataType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.ConfigurationMinorVersion = 101;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate SequenceNumber with Variant data type")]
-        public void ValidateSequenceNumberWithVariantType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskVariant);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.SequenceNumber);
-            uadpDataSetMessage.SequenceNumber = 1000;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate SequenceNumber with DataValue data type")]
-        public void ValidateSequenceNumberWithDataValueType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.SequenceNumber);
-            uadpDataSetMessage.SequenceNumber = 1000;
-
-            // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
-        }
-
-        [Test(Description = "Validate SequenceNumber with RawData data type")]
-        public void ValidateSequenceNumberWithRawDataType()
-        {
-            // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(fieldContentMaskRawData);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.SequenceNumber);
