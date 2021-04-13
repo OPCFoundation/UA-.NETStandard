@@ -564,6 +564,11 @@ namespace Opc.Ua.PubSub.Mqtt
 
             QualifiedName qProtocolVersion = EnumMqttClientConfigurationParameters.ProtocolVersion.GetQualifiedName();
             m_protocolVersion = (EnumMqttProtocolVersion)Convert.ToInt32(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qProtocolVersion.Name))?.Value.Value);
+            if (m_protocolVersion == EnumMqttProtocolVersion.Unknown)
+            {
+                Utils.Trace(Utils.TraceMasks.Information, "Mqtt protocol version is Unknown and it will default to V310");
+                m_protocolVersion = EnumMqttProtocolVersion.V310;
+            }
 
             m_mqttTlsOptions = new MqttTlsOptions(keyValuePairs);
 
