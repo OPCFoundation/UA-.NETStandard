@@ -37,7 +37,7 @@ jobs:
     inputs:
       command: test
       projects: '**/*.Tests.csproj'
-      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} --collect:"XPlat Code Coverage"'
   - script: |
       bash <(curl -s https://codecov.io/bash)
 
