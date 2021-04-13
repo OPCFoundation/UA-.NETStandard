@@ -571,7 +571,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Remove configuration endpoints from list.
         /// </summary>

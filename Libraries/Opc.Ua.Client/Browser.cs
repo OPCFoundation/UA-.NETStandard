@@ -157,7 +157,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// The reference type to follow.
-        /// </summary>        
+        /// </summary>
         [DataMember(Order = 4)]
         public NodeId ReferenceTypeId
         {
@@ -172,7 +172,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Whether subtypes of the reference type should be included.
-        /// </summary>   
+        /// </summary>
         [DataMember(Order = 5)]
         public bool IncludeSubtypes
         {
