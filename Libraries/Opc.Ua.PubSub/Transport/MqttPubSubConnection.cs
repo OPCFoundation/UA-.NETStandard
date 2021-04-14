@@ -134,6 +134,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     if (publishedDataSet != null && dataSet != null)
                     {
+                        UaDataSetMessage uaDataSetMessage = null;
                         if (m_messageMapping == MessageMapping.Uadp && uadpMessageSettings != null)
                         {
                             // try to create Uadp message
@@ -143,15 +144,11 @@ namespace Opc.Ua.PubSub.Transport
                             if (uadpDataSetMessageSettings != null)
                             {
                                 UadpDataSetMessage uadpDataSetMessage = new UadpDataSetMessage(dataSet);
-                                uadpDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                                 uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)uadpDataSetMessageSettings.DataSetMessageContentMask);
                                 uadpDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                                uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
                                 uadpDataSetMessage.ConfiguredSize = uadpDataSetMessageSettings.ConfiguredSize;
                                 uadpDataSetMessage.DataSetOffset = uadpDataSetMessageSettings.DataSetOffset;
-                                uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-                                uadpDataSetMessage.Status = (ushort)StatusCodes.Good;
-                                dataSetMessages.Add(uadpDataSetMessage);
+                                uaDataSetMessage = uadpDataSetMessage;
                             }
                         }
                         else if (m_messageMapping == MessageMapping.Json && jsonMessageSettings != null)
@@ -161,20 +158,24 @@ namespace Opc.Ua.PubSub.Transport
                             if (jsonDataSetMessageSettings != null)
                             {
                                 JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage(dataSet);
-                                jsonDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                                 jsonDataSetMessage.SetMessageContentMask((JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask);
                                 jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                                jsonDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
-
-                                if (publishedDataSet.DataSetMetaData != null)
-                                {
-                                    jsonDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
-                                }
-
-                                jsonDataSetMessage.Timestamp = DateTime.UtcNow;
-                                jsonDataSetMessage.Status = StatusCodes.BadUnexpectedError;
-                                dataSetMessages.Add(jsonDataSetMessage);
+                                uaDataSetMessage = jsonDataSetMessage;
                             }
+                        }
+
+                        if (uaDataSetMessage != null)
+                        {
+                            // set common properties of dataset message
+                            uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
+                            uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
+                            if (publishedDataSet.DataSetMetaData != null)
+                            {
+                                uaDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
+                            }
+                            uaDataSetMessage.Timestamp = DateTime.UtcNow;
+                            uaDataSetMessage.Status = StatusCodes.BadUnexpectedError;
+                            dataSetMessages.Add(uaDataSetMessage);
                         }
                     }
                 }
@@ -409,7 +410,7 @@ namespace Opc.Ua.PubSub.Transport
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
                     ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
                 string queueName = brokerDataSetReaderTransportDataType.QueueName;
-                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length-1)
+                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
                 {
                     queueName = queueName.Substring(0, queueName.Length - 1);
                 }

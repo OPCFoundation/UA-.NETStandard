@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.Tests
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Timestamp);
-            uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
+            uadpDataSetMessage.Timestamp = DateTime.UtcNow;
 
             // Assert
             CompareEncodeDecode(uadpDataSetMessage);
@@ -200,28 +200,23 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description = "Validate Status")]
         public void ValidateStatus(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
-            )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+            [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
+                UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+                UadpDataSetMessageContentMask.SequenceNumber,
+                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion,
+                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion | UadpDataSetMessageContentMask.SequenceNumber)]
+            UadpDataSetMessageContentMask messageContentMask,
+            [Values(StatusCodes.Good, StatusCodes.UncertainDataSubNormal, StatusCodes.BadAggregateListMismatch, StatusCodes.BadUnknownResponse,
+            StatusCodes.Bad, StatusCodes.BadAggregateConfigurationRejected, StatusCodes.BadAggregateInvalidInputs, StatusCodes.BadAlreadyExists)]
+            uint statusCode
+            )
         {
             // Arrange
-            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(DataSetFieldContentMask.None);
 
             // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.Status);
-            uadpDataSetMessage.Status = 0x0384;
+            uadpDataSetMessage.SetMessageContentMask(messageContentMask | UadpDataSetMessageContentMask.Status);
+            uadpDataSetMessage.Status = statusCode;
 
             // Assert
             CompareEncodeDecode(uadpDataSetMessage);
@@ -250,7 +245,7 @@ namespace Opc.Ua.PubSub.Tests
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion);
-            uadpDataSetMessage.ConfigurationMajorVersion = 2;
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = 2;
 
             // Assert
             CompareEncodeDecode(uadpDataSetMessage);
@@ -279,7 +274,7 @@ namespace Opc.Ua.PubSub.Tests
 
             // Act  
             uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.ConfigurationMinorVersion = 101;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = 101;
 
             // Assert
             CompareEncodeDecode(uadpDataSetMessage);
@@ -431,7 +426,7 @@ namespace Opc.Ua.PubSub.Tests
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) ==
                 UadpDataSetMessageContentMask.Timestamp)
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.TimeStamp, uadpDataSetMessageDecoded.TimeStamp,
+                Assert.AreEqual(uadpDataSetMessageEncode.Timestamp, uadpDataSetMessageDecoded.Timestamp,
                     "DataSetMessages TimeStamp do not match:");
             }
 
@@ -452,14 +447,14 @@ namespace Opc.Ua.PubSub.Tests
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) ==
                 UadpDataSetMessageContentMask.MajorVersion)
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.ConfigurationMajorVersion, uadpDataSetMessageDecoded.ConfigurationMajorVersion,
+                Assert.AreEqual(uadpDataSetMessageEncode.MetaDataVersion.MajorVersion, uadpDataSetMessageDecoded.MetaDataVersion.MajorVersion,
                     "DataSetMessages ConfigurationMajorVersion do not match:");
             }
 
             if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) ==
                 UadpDataSetMessageContentMask.MinorVersion)
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.ConfigurationMinorVersion, uadpDataSetMessageDecoded.ConfigurationMinorVersion,
+                Assert.AreEqual(uadpDataSetMessageEncode.MetaDataVersion.MinorVersion, uadpDataSetMessageDecoded.MetaDataVersion.MinorVersion,
                     "DataSetMessages ConfigurationMajorVersion do not match:");
             }
 

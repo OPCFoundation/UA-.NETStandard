@@ -48,7 +48,6 @@ namespace Opc.Ua.PubSub.Encoding
         private const string FieldStatus = "Status";
         private const string FieldPayload = "Payload";
 
-        
         private FieldTypeEncodingMask m_fieldTypeEncoding;
 
         #endregion
@@ -58,9 +57,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/>.
         /// </summary>
-        public JsonDataSetMessage()
+        public JsonDataSetMessage() : base()
         {
-            Timestamp = DateTime.UtcNow;
         }
 
         /// <summary>
@@ -76,20 +74,6 @@ namespace Opc.Ua.PubSub.Encoding
 
         #region Properties
 
-        #region Inherited from DatasetWriter
-
-        /// <summary>
-        /// Get and Set corresponding DataSetWriterId
-        /// </summary>
-        public ushort DataSetWriterId { get; set; }
-
-        /// <summary>
-        /// Get DataSetFieldContentMask
-        /// This DataType defines flags to include DataSet field related information like status and 
-        /// timestamp in addition to the value in the DataSetMessage.
-        /// </summary>
-        public DataSetFieldContentMask FieldContentMask { get; private set; }
-
         /// <summary>
         /// Get JsonDataSetMessageContentMask
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
@@ -101,30 +85,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Flag that indicates if the dataset message header is encoded
         /// </summary>
         public bool HasDataSetMessageHeader { get; set; }
-        #endregion
 
-        #region DataSetMessage settings
-        /// <summary>
-        /// Get and Set SequenceNumber
-        /// A strictly monotonically increasing sequence number assigned by the publisher to each DataSetMessage sent.
-        /// </summary>
-        public uint SequenceNumber { get; set; }
-
-        /// <summary>
-        /// The version of the DataSetMetaData which describes the contents of the Payload.
-        /// </summary>
-        public ConfigurationVersionDataType MetaDataVersion { get; set; }
-
-        /// <summary>
-        /// Get and Set Timestamp
-        /// </summary>
-        public DateTime Timestamp { get; set; }
-
-        /// <summary>
-        /// Get and Set Status
-        /// </summary>
-        public StatusCode Status { get; set; }
-        #endregion
         #endregion Properties
 
         #region Public Methods
@@ -133,7 +94,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Set DataSetFieldContentMask 
         /// </summary>
         /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
-        public void SetFieldContentMask(DataSetFieldContentMask fieldContentMask)
+        public override void SetFieldContentMask(DataSetFieldContentMask fieldContentMask)
         {
             FieldContentMask = fieldContentMask;
 
@@ -219,7 +180,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         // atempt decoding the DataSet fields
                         DecodePossibleDataSetReader(jsonDecoder, dataSetReader);
-                        
+
                         // redo jsonDecoder stack
                         jsonDecoder.Pop();
 

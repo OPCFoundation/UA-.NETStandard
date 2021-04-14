@@ -232,8 +232,8 @@ namespace Opc.Ua.PubSub.Transport
                             uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
                             uadpDataSetMessage.ConfiguredSize = dataSetMessageSettings.ConfiguredSize;
                             uadpDataSetMessage.DataSetOffset = dataSetMessageSettings.DataSetOffset;
-                            uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-                            uadpDataSetMessage.Status = (ushort)StatusCodes.Good;
+                            uadpDataSetMessage.Timestamp = DateTime.UtcNow;
+                            uadpDataSetMessage.Status = StatusCodes.Good;
                             dataSetMessages.Add(uadpDataSetMessage);
                         }
                     }
@@ -279,7 +279,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
                     {
                         // Get encoded bytes
-                        byte[] bytes = networkMessage.Encode();                        
+                        byte[] bytes = networkMessage.Encode();
 
                         foreach (var udpClient in m_publisherUdpClients)
                         {

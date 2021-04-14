@@ -46,11 +46,6 @@ namespace Opc.Ua.PubSub.Encoding
         private const byte FieldTypeUsedBits = 0x06;
         private const DataSetFlags1EncodingMask PreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0x07;
         private const DataSetFlags1EncodingMask DataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0xF9;
-
-        // Configuration Major and Major current version (VersionTime)
-        private const UInt32 ConfigMajorVersion = 1;
-        private const UInt32 ConfigMinorVersion = 1;
-
         #endregion
 
         #region Constructors
@@ -58,13 +53,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Constructor for <see cref="UadpDataSetMessage"/>.
         /// </summary>
-        public UadpDataSetMessage() 
+        public UadpDataSetMessage() : base()
         {
-            ConfigurationMajorVersion = ConfigMajorVersion;
-            ConfigurationMinorVersion = ConfigMinorVersion;
-
-            TimeStamp = DateTime.UtcNow;
-
             // If this bit is set to false, the rest of this DataSetMessage is considered invalid, and shall not be processed by the Subscriber.
             DataSetFlags1 |= DataSetFlags1EncodingMask.MessageIsValid;
         }
@@ -79,21 +69,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         #endregion
 
-        #region Properties
-
-        #region Inherited from DatasetWriter
-
-        /// <summary>
-        /// Get and Set corresponding DataSetWriterId
-        /// </summary>
-        public ushort DataSetWriterId { get; set; }
-
-        /// <summary>
-        /// Get DataSetFieldContentMask
-        /// This DataType defines flags to include DataSet field related information like status and 
-        /// timestamp in addition to the value in the DataSetMessage.
-        /// </summary>
-        public DataSetFieldContentMask FieldContentMask { get; private set; }
+        #region Properties   
 
         /// <summary>
         /// Get UadpDataSetMessageContentMask
@@ -101,10 +77,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// The UADP message mapping specific flags are defined by the UadpDataSetMessageContentMask DataType.
         /// </summary>
         public UadpDataSetMessageContentMask DataSetMessageContentMask { get; private set; }
-
-        #endregion
-
-        #region DataSetMessage settings
 
         /// <summary>
         /// Get DataSetFlags1
@@ -127,37 +99,9 @@ namespace Opc.Ua.PubSub.Encoding
         public ushort DataSetOffset { get; set; }
 
         /// <summary>
-        /// Get and Set SequenceNumber
-        /// A strictly monotonically increasing sequence number assigned by the publisher to each DataSetMessage sent.
-        /// </summary>
-        public uint SequenceNumber { get; set; }
-
-        /// <summary>
-        /// Get and Set Major version
-        /// </summary>
-        public uint ConfigurationMajorVersion { get; set; }
-
-        /// <summary>
-        /// Get and Set Minor version
-        /// </summary>
-        public uint ConfigurationMinorVersion { get; set; }
-
-        /// <summary>
-        /// Get and Set Timestamp
-        /// </summary>
-        public DateTime TimeStamp { get; set; }
-
-        /// <summary>
         /// Get and Set Pico seconds
         /// </summary>
         public UInt16 PicoSeconds { get; set; }
-
-        /// <summary>
-        /// Get and Set Status
-        /// </summary>
-        public UInt16 Status { get; set; }
-
-        #endregion
 
         /// <summary>
         /// Get and Set Decoded payload size (hold it here for now)
@@ -176,8 +120,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Set DataSetFieldContentMask 
         /// </summary>
-        /// <param name="fieldContentMask"></param>
-        public void SetFieldContentMask(DataSetFieldContentMask fieldContentMask)
+        /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
+        public override void SetFieldContentMask(DataSetFieldContentMask fieldContentMask)
         {
             FieldContentMask = fieldContentMask;
 
@@ -358,7 +302,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
             {
-                encoder.WriteDateTime("Timestamp", TimeStamp);
+                encoder.WriteDateTime("Timestamp", Timestamp);
             }
 
             if ((DataSetFlags2 & DataSetFlags2EncodingMask.PicoSeconds) != 0)
@@ -368,17 +312,19 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.Status) != 0)
             {
-                encoder.WriteUInt16("Status", Status);
+                // This is the high order 16 bits of the StatusCode DataType representing
+                // the numeric value of the Severity and SubCode of the StatusCode DataType.
+                encoder.WriteUInt16("Status", (UInt16)(Status.Code >> 16));
             }
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
             {
-                encoder.WriteUInt32("ConfigurationMajorVersion", ConfigurationMajorVersion);
+                encoder.WriteUInt32("ConfigurationMajorVersion", MetaDataVersion.MajorVersion);
             }
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion) != 0)
             {
-                encoder.WriteUInt32("ConfigurationMinorVersion", ConfigurationMinorVersion);
+                encoder.WriteUInt32("ConfigurationMinorVersion", MetaDataVersion.MinorVersion);
             }
         }
 
@@ -447,7 +393,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((DataSetFlags2 & DataSetFlags2EncodingMask.Timestamp) != 0)
             {
-                TimeStamp = decoder.ReadDateTime("Timestamp");
+                Timestamp = decoder.ReadDateTime("Timestamp");
             }
 
             if ((DataSetFlags2 & DataSetFlags2EncodingMask.PicoSeconds) != 0)
@@ -457,18 +403,28 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.Status) != 0)
             {
-                Status = decoder.ReadUInt16("Status");
+                // This is the high order 16 bits of the StatusCode DataType representing
+                // the numeric value of the Severity and SubCode of the StatusCode DataType.
+                UInt16 code = decoder.ReadUInt16("Status");
+
+                Status = ((uint)code) << 16;
             }
 
+            uint minorVersion = ConfigMinorVersion;
+            uint majorVersion = ConfigMajorVersion;
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
             {
-                ConfigurationMajorVersion = decoder.ReadUInt32("ConfigurationMajorVersion");
+                majorVersion = decoder.ReadUInt32("ConfigurationMajorVersion");
             }
 
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion) != 0)
             {
-                ConfigurationMinorVersion = decoder.ReadUInt32("ConfigurationMinorVersion");
+                minorVersion = decoder.ReadUInt32("ConfigurationMinorVersion");
             }
+            MetaDataVersion = new ConfigurationVersionDataType() {
+                MinorVersion = minorVersion,
+                MajorVersion = majorVersion
+            };
         }
 
         /// <summary>
@@ -664,7 +620,7 @@ namespace Opc.Ua.PubSub.Encoding
                 else if (field.FieldMetaData.ValueRank >= ValueRanks.OneDimension)
                 {
                     binaryEncoder.WriteArray(null, valueToEncode, field.FieldMetaData.ValueRank, (BuiltInType)field.FieldMetaData.BuiltInType);
-                }           
+                }
             }
             catch (Exception ex)
             {
