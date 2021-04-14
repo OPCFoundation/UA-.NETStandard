@@ -26,6 +26,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 7. [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
 8. Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
 9. Sessions and Subscriptions.
+10. [PubSub](Docs/PubSub.md) component.
 
 ##### Samples and Nuget packages
 
