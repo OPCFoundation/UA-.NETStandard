@@ -7,11 +7,11 @@ The *UAPubSubApplication* class is the root element of the OPC UA PubSub impleme
 
 *UAPubSubApplication* instances are created using the static Create() methods from the UAPubSubApplication class:
 
-    public  static UaPubSubApplication Create(IUaPubSubDataStore dataStore)
+    public static UaPubSubApplication Create(IUaPubSubDataStore dataStore)
 
 Creates a UAPubSubApplication instance, with an empty configuration and associates it with the provided dataStore.
 
-    public  static UaPubSubApplication Create(string configFilePath, IUaPubSubDataStore dataStore = null)
+    public static UaPubSubApplication Create(string configFilePath, IUaPubSubDataStore dataStore = null)
 
 Creates UAPubSubApplication from configuration file path and assigns the provided dataStore.
 
@@ -20,8 +20,7 @@ Creates UAPubSubApplication from configuration file path and assigns the provide
 
 
 
-    public  static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null, 
-	IUaPubSubDataStore dataStore = null)  
+    public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null, IUaPubSubDataStore dataStore = null)  
 
 Creates UAPubSubApplication from configuration object and dataStore.
 
