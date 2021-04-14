@@ -38,7 +38,6 @@ using MQTTnet.Protocol;
 using MQTTnet.Server;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
 using MQTTnet.Formatter;
 using System.Security.Cryptography.X509Certificates;
 

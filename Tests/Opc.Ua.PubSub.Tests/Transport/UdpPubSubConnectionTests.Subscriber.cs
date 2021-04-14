@@ -37,7 +37,7 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     [TestFixture(Description = "Tests for UdpPubSubConnection class - Subscriber ")]
     [Ignore("A network interface controller is necessary in order to run correctly.")]

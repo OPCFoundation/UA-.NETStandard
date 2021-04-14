@@ -38,13 +38,13 @@ using System.ServiceProcess;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
-using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.PubSub.Transport;
+using Opc.Ua.PubSub.Tests.Encoding;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     [TestFixture(Description = "Tests for Mqtt connections")]
-    public class MqttPubSubConnectionTests
+    public partial class MqttPubSubConnectionTests
     {
         private const UInt16 NamespaceIndexAllTypes = 3;
 
@@ -286,45 +286,6 @@ namespace Opc.Ua.PubSub.Tests
         {
             m_shutdownEvent.Set();
         }
-        
-        /// <summary>
-        /// Get first active nic on local computer
-        /// </summary>
-        /// <returns></returns>
-        private static IPAddress GetFirstActiveNic()
-        {
-            IPAddress firstActiveIPAddr = null;
-            string localComputerName = Dns.GetHostName();
-            try
-            { // get host IP addresses
-                IPAddress[] hostIPs = Dns.GetHostAddresses(localComputerName);
-                // get local IP addresses
-                IPAddress[] localIPs = Dns.GetHostAddresses(Dns.GetHostName());
-
-                // test if any host IP equals to any local IP or to localhost
-                foreach (IPAddress hostIP in hostIPs)
-                {
-                    // is loopback type?
-                    if (IPAddress.IsLoopback(hostIP))
-                    {
-                        continue;
-                    }
-                    // ip address available
-                    foreach (IPAddress localIP in localIPs)
-                    {
-                        if (hostIP.Equals(localIP))
-                        {
-                            firstActiveIPAddr = localIP;
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
-
-            return firstActiveIPAddr;
-        }
 
         /// <summary>
         /// Start/stop local mosquitto
@@ -355,69 +316,17 @@ namespace Opc.Ua.PubSub.Tests
                 startInfo.Arguments = arguments;
                 process.StartInfo = startInfo;
                 process.Start();
+                //proc.WaitForExit();
                 processes = Process.GetProcessesByName(processName);
             }
-            catch(Exception)
+            catch (Exception)
             {
                 Assert.Fail("The mosquitto could not be restarted!");
             }
 
         }
 
-        /// <summary>
-        /// Copy to the test store where the certificates that will be loaded
-        /// </summary>
-        private void CopyResourceToStore(string storeLocation, string folderStoreName, string certificateFile)
-        {
-            string certificateSourcePath = Path.Combine(Directory.GetCurrentDirectory(), certificateFile);
-            if (Directory.Exists(storeLocation))
-            {
-                try
-                {
-                    string opcFoundationStorePath = Path.Combine(storeLocation, folderStoreName);
-                    if (!Directory.Exists(opcFoundationStorePath))
-                    {
-                        Directory.CreateDirectory(opcFoundationStorePath);
-                    }
-                    string pkiStorePath = Path.Combine(opcFoundationStorePath, "pki");
-                    if (!Directory.Exists(pkiStorePath))
-                    {
-                        Directory.CreateDirectory(pkiStorePath);
-                    }
-                    string pkiTrustedStorePath = Path.Combine(pkiStorePath, "trusted");
-                    if (!Directory.Exists(pkiTrustedStorePath))
-                    {
-                        Directory.CreateDirectory(pkiTrustedStorePath);
-                    }
-                    string pkiTrustedCertsStorePath = Path.Combine(pkiTrustedStorePath, "certs");
-                    if (!Directory.Exists(pkiTrustedCertsStorePath))
-                    {
-                        Directory.CreateDirectory(pkiTrustedCertsStorePath);
-                    }
-                    string pkiRejectedStorePath = Path.Combine(pkiStorePath, "rejected");
-                    if (!Directory.Exists(pkiRejectedStorePath))
-                    {
-                        Directory.CreateDirectory(pkiRejectedStorePath);
-                    }
-                    string pkiRejectedCertsStorePath = Path.Combine(pkiRejectedStorePath, "certs");
-                    if (!Directory.Exists(pkiRejectedCertsStorePath))
-                    {
-                        Directory.CreateDirectory(pkiRejectedCertsStorePath);
-                    }
 
-                    string certificateStoreFile = Path.Combine(pkiTrustedCertsStorePath, Path.GetFileName(certificateSourcePath));
-                    File.Copy(certificateSourcePath, certificateStoreFile, true);
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsNotNull(storeLocation, "Certificate could not be loaded to store: {0}!", storeLocation);
-                }
-            }
-            else
-            {
-                Assert.IsNotNull(storeLocation, "Directory store location does not exists!");
-            }
-        }
         #endregion
     }
 }

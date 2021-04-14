@@ -36,8 +36,8 @@ namespace Opc.Ua.PubSub.Tests
 {
     partial class PubSubStateMachineTests
     {
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
         private string publisherConfigurationFile = null;
         private string subscriberConfigurationFile = null;
 

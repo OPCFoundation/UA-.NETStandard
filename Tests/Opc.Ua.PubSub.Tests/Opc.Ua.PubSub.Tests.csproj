@@ -7,6 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="DataCollectorTests.cs" />
+    <Compile Remove="MessagesHelper.cs" />
+    <Compile Remove="PubSubConfiguratorTests.cs" />
+    <Compile Remove="UadpDataSetMessageTests.cs" />
+    <Compile Remove="UadpNetworkMessageTests.cs" />
+    <Compile Remove="UdpClientCreatorTests.cs" />
+    <Compile Remove="UdpPubSubConnectionTests.cs" />
+    <Compile Remove="UdpPubSubConnectionTests.Publisher.cs" />
+    <Compile Remove="UdpPubSubConnectionTests.Subscriber.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
     <PackageReference Include="NUnit" Version="3.13.1" />
     <PackageReference Include="NUnit.Console" Version="3.12.0" />
@@ -31,10 +43,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="SubscriberConfiguration.xml">
+    <None Update="Configuration\SubscriberConfiguration.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="PublisherConfiguration.xml">
+    <None Update="Configuration\PublisherConfiguration.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

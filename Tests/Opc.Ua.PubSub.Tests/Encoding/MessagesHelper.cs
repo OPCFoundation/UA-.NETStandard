@@ -29,9 +29,9 @@
 
 using System;
 using System.Xml;
-using Opc.Ua.PubSub.Mqtt;
+using Opc.Ua.PubSub.Transport;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
     public class MessagesHelper
     {

@@ -38,13 +38,13 @@ using System.IO;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpNetworkMessage objects")]
     public class UadpNetworkMessageTests
     {
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_publisherApplication;

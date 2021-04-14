@@ -33,7 +33,7 @@ using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
 using System;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubConfiguratorTests
@@ -51,8 +51,8 @@ namespace Opc.Ua.PubSub.Tests
         static int CallCountWriterGroupAdded = 0;
         static int CallCountWriterGroupRemoved = 0;
         
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
 
         UaPubSubConfigurator m_uaPubSubConfigurator;
 

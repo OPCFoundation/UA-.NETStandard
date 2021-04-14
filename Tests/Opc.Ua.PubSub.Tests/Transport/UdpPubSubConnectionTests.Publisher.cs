@@ -37,7 +37,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     
     [TestFixture(Description = "Tests for UdpPubSubConnection class - Publisher ")]

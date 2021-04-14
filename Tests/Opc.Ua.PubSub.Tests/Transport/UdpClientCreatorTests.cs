@@ -35,11 +35,11 @@ using System.Net.Sockets;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Transport;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     public partial class UdpClientCreatorTests
     {
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
 
         private const string UrlScheme = "opc.udp://";
         // generic well known address

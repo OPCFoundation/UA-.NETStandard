@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Tests
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
     {
-        private const string ConfigurationFileName = "PublisherConfiguration.xml";
+        private const string ConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
         private PubSubConfigurationDataType m_pubSubConfiguration;
 
         [OneTimeSetUp()]

@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Tests
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
     {
-        private const string ConfigurationFileName = "PublisherConfiguration.xml";
+        private const string ConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
         public const int NamespaceIndex = 2;
 
         [Test(Description = "Validate AddPublishedDataSet with null parameter.")]

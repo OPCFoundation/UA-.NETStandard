@@ -36,7 +36,7 @@ using MQTTnet.Client;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Options;
 
-namespace Opc.Ua.PubSub.Mqtt
+namespace Opc.Ua.PubSub.Transport
 {
     internal class MqttClientCreator
     {

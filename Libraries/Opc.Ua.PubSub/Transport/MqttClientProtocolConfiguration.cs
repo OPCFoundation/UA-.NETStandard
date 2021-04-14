@@ -39,7 +39,7 @@ using MQTTnet.Diagnostics.PacketInspection;
 using MQTTnet.Formatter;
 using MQTTnet.Packets;
 
-namespace Opc.Ua.PubSub.Mqtt
+namespace Opc.Ua.PubSub.Transport
 {
 
     /// <summary>
