@@ -32,7 +32,7 @@ using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
+using Opc.Ua.PubSub.Transport;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Quickstarts.ConsoleReferenceSubscriber

@@ -31,7 +31,7 @@ using System;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Mqtt;
+using Opc.Ua.PubSub.Transport;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
