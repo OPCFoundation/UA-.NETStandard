@@ -1,31 +1,27 @@
 
 
 
+
 # UaPubSubApplication Class
 
 The *UAPubSubApplication* class is the root element of the OPC UA PubSub implementation.
 
 *UAPubSubApplication* instances are created using the static Create() methods from the UAPubSubApplication class:
 
-    public static UaPubSubApplication Create(IUaPubSubDataStore dataStore)
+ - **Create(IUaPubSubDataStore dataStore)**
+ Creates a UAPubSubApplication instance, with an empty configuration and associates it with the provided dataStore.
 
-Creates a UAPubSubApplication instance, with an empty configuration and associates it with the provided dataStore.
+ - **Create(string configFilePath, IUaPubSubDataStore dataStore = null)**
+ Creates UAPubSubApplication from configuration file path and assigns the provided dataStore.
 
-    public static UaPubSubApplication Create(string configFilePath, IUaPubSubDataStore dataStore = null)
+	 - If the configFilePath parameter is null or points to an non-existent file the method will throw an ArgumentException.   
+	 - If the dataStore parameter is null or it is omitted, the dataStore will be initialized with a new instance of UaPubSubDataStore.
 
-Creates UAPubSubApplication from configuration file path and assigns the provided dataStore.
-
- - If the configFilePath parameter is null or points to an non-existent file the method will throw an ArgumentException.   
- - If the dataStore parameter is null or it is omitted, the dataStore will be initialized with a new instance of UaPubSubDataStore.
-
-
-
-    public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null, IUaPubSubDataStore dataStore = null)  
-
+ - **Create(PubSubConfigurationDataType pubSubConfiguration = null, IUaPubSubDataStore dataStore = null)**  
 Creates UAPubSubApplication from configuration object and dataStore.
 
- - If the pubSubConfiguration parameter is null or omitted the UaPubSubApplication instance will be created with an empty configuration.
- - If the dataStore parameter is null or it is omitted, the dataStore will be initialized with a new instance of UaPubSubDataStore.
+	 - If the pubSubConfiguration parameter is null or omitted the UaPubSubApplication instance will be created with an empty configuration.
+	 - If the dataStore parameter is null or it is omitted, the dataStore will be initialized with a new instance of UaPubSubDataStore.
 Note: UAPubSubApplication configuration can be altered using the [UaPubSubConfigurator Class](PubSub_UaPubSubConfigurator.md) instance associated with it.
 
 The *UaPubSubApplication* class has the following read-only properties:
