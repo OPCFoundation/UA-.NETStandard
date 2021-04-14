@@ -384,7 +384,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             publishedDataSetAllTypes.DataSetMetaData.DataSetClassId = Uuid.Empty;
             publishedDataSetAllTypes.DataSetMetaData.Name = publishedDataSetAllTypes.Name;
             publishedDataSetAllTypes.DataSetMetaData.Fields = new FieldMetaDataCollection()
-               {
+                {
                     new FieldMetaData()
                     {
                         Name = "BoolToggle",

@@ -317,7 +317,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                                 UInt32 uint32Value = values[i];
                                 long longIdentifier = uint32Value;
                                 Interlocked.CompareExchange(ref longIdentifier, 0, UInt32.MaxValue);
-                                values[i] = (UInt32)Interlocked.Increment(ref longIdentifier);                                
+                                values[i] = (UInt32)Interlocked.Increment(ref longIdentifier);
                             }
                             valueUpdated = true;
                         }
