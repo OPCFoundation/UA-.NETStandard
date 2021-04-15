@@ -28,10 +28,8 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Configuration;
 using System;
+using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {

@@ -30,7 +30,7 @@
 using System;
 using NUnit.Framework;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubDataStore class")]
     public class UaPubSubDataStoreTests

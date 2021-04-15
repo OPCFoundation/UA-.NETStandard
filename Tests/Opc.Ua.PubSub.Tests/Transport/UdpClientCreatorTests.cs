@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be null");
             Assert.IsNotEmpty(publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be empty");
 
-            PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections.First();
             Assert.IsNotNull(publisherConnection1, "publisherConnection1 should not be null");
             
             NetworkAddressUrlDataType networkAddressUrlState1 = ExtensionObject.ToEncodeable(publisherConnection1.Address)

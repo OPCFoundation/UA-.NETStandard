@@ -28,10 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
@@ -75,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests
             {
                 Assert.IsTrue(publisher!= null, "connection.Publishers[{0}] is null", index);
                 Assert.IsTrue(publisher.PubSubConnection == connection, "connection.Publishers[{0}].PubSubConnection is not set correctly", index);
-                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
+                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections.First().WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
                 index++;
             }
         }

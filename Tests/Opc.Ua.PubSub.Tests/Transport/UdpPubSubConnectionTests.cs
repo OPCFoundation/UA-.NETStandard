@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Assert
             Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
             PubSubConnectionDataType connectionConfiguration = m_udpPublisherConnection.PubSubConnectionConfiguration;
-            PubSubConnectionDataType originalConnectionConfiguration = m_publisherConfiguration.Connections[0];
+            PubSubConnectionDataType originalConnectionConfiguration = m_publisherConfiguration.Connections.First();
             Assert.IsNotNull(connectionConfiguration, "The UADP connection configuration from UADP connection object is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.Name, connectionConfiguration.Name, "The connection configuration Name is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.PublisherId, connectionConfiguration.PublisherId, "The connection configuration PublisherId is invalid.");
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
              
             //Arrange
-            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
+            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
             UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
                 as UadpWriterGroupMessageDataType;
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
             //Arrange
-            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
+            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
 
             //Act  
             m_udpPublisherConnection.ResetSequenceNumber();
