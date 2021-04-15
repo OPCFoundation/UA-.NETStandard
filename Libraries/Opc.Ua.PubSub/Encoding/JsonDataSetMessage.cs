@@ -261,9 +261,9 @@ namespace Opc.Ua.PubSub.Encoding
 
             object token;
             List<DataValue> dataValues = new List<DataValue>();
-            for (int index = 0; index < dataSetMetaData.Fields.Count; index++)
+            for (int index = 0; index < dataSetMetaData?.Fields.Count; index++)
             {
-                FieldMetaData fieldMetaData = dataSetMetaData.Fields[index];
+                FieldMetaData fieldMetaData = dataSetMetaData?.Fields[index];
 
                 if (jsonDecoder.ReadField(fieldMetaData.Name, out token))
                 {
@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Encoding
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
-                            object value = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], dataSetMetaData.Fields[index].Name);
+                            object value = DecodeRawData(jsonDecoder, dataSetMetaData?.Fields[index], dataSetMetaData?.Fields[index].Name);
                             dataValues.Add(new DataValue(new Variant(value)));
                             break;
                         case FieldTypeEncodingMask.DataValue:
@@ -285,13 +285,13 @@ namespace Opc.Ua.PubSub.Encoding
                                 if (wasPush2 && jsonDecoder.ReadField("Value", out token))
                                 {
                                     // the Value was encoded using the non reversible json encoding 
-                                    token = DecodeRawData(jsonDecoder, dataSetMetaData.Fields[index], "Value");
+                                    token = DecodeRawData(jsonDecoder, dataSetMetaData?.Fields[index], "Value");
                                     dataValue = new DataValue(new Variant(token));
                                 }
                                 else
                                 {
                                     // handle Good StatusCode that was not encoded
-                                    if (dataSetMetaData.Fields[index].BuiltInType == (byte)BuiltInType.StatusCode)
+                                    if (dataSetMetaData?.Fields[index].BuiltInType == (byte)BuiltInType.StatusCode)
                                     {
                                         dataValue = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
                                     }
@@ -348,7 +348,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case FieldTypeEncodingMask.Variant:
                         case FieldTypeEncodingMask.RawData:
                             // handle StatusCodes.Good which is not encoded and therefore must be created at decode
-                            if (dataSetMetaData.Fields[index].BuiltInType == (byte)BuiltInType.StatusCode)
+                            if (dataSetMetaData?.Fields[index].BuiltInType == (byte)BuiltInType.StatusCode)
                             {
                                 dataValues.Add(new DataValue(new Variant(new StatusCode(StatusCodes.Good))));
                             }
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
             }
 
-            if (dataValues.Count != dataSetMetaData.Fields.Count)
+            if (dataValues.Count != dataSetMetaData?.Fields.Count)
             {
                 return null;
             }
@@ -372,7 +372,7 @@ namespace Opc.Ua.PubSub.Encoding
             for (int i = 0; i < dataValues.Count; i++)
             {
                 Field dataField = new Field();
-                dataField.FieldMetaData = dataSetMetaData.Fields[i];
+                dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                 dataField.Value = dataValues[i];
                 // todo investigate if Target attribute and node id are mandatory
                 if (targetVariablesData != null && targetVariablesData.TargetVariables != null

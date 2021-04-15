@@ -191,7 +191,7 @@ namespace Opc.Ua.PubSub.Transport
             if (m_messageMapping == MessageMapping.Uadp)
             {
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings.NetworkMessageContentMask);
+                uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
                 // Network message header
                 uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
 
@@ -204,7 +204,7 @@ namespace Opc.Ua.PubSub.Transport
             else if (m_messageMapping == MessageMapping.Json)
             {
                 JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings.NetworkMessageContentMask);
+                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
                 jsonNetworkMessage.MessageId = Guid.NewGuid().ToString();
                 // Network message header
                 jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (dsReader == null) continue;
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
                     ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
-                string queueName = brokerDataSetReaderTransportDataType.QueueName;
+                string queueName = brokerDataSetReaderTransportDataType?.QueueName;
                 if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
                 {
                     queueName = queueName.Substring(0, queueName.Length - 1);

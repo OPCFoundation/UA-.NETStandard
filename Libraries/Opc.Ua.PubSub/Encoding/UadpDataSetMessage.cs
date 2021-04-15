@@ -505,7 +505,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     Field dataField = new Field();
                     dataField.Value = dataValues[i];
-                    dataField.FieldMetaData = metaDataType.Fields[i];
+                    dataField.FieldMetaData = metaDataType?.Fields[i];
                     // todo investigate if Target attribute and node id are mandatory
                     dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
                     dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
