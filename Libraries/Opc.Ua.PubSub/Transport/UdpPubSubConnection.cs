@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
-using Opc.Ua.PubSub.Encoding;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Transport
 {

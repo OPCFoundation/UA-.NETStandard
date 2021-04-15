@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
@@ -65,7 +64,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get and Set WriterGroupId
         /// </summary>
-        public UInt16 WriterGroupId { get; set; }       
+        public UInt16 WriterGroupId { get; set; }
 
         ///// <summary>
         ///// Get the received <see cref="DataSet"/> collection 
@@ -120,6 +119,5 @@ namespace Opc.Ua.PubSub
             }
         }
         #endregion
-
     }
 }

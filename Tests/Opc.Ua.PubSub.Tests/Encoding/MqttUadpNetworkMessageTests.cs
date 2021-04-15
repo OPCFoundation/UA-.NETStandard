@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
@@ -441,6 +440,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.GroupVersion = 1;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -511,6 +511,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.NetworkMessageNumber = 1;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -581,6 +582,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.SequenceNumber = 1;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -718,6 +720,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -787,7 +790,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            
+
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.PicoSeconds = 10;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -855,6 +859,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpNetworkMessage;
 
             // set DataSetClassId
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
@@ -1005,7 +1010,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // check payload data fields count 
                 // get related dataset from subscriber DataSets
                 DataSet decodedDataSet = receivedDataSetMessages[i].DataSet;
-                Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
+                Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage?.DataSet.Name);
 
                 Assert.AreEqual(uadpDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,
                     "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);

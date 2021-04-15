@@ -31,10 +31,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Security;
-using System.Security.Cryptography.X509Certificates;
-using System.ServiceProcess;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
@@ -108,8 +104,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
             WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
-                as UadpWriterGroupMessageDataType;
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
@@ -217,8 +211,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
             WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
-            JsonWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
-                as JsonWriterGroupMessageDataType;
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
@@ -303,21 +295,21 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     mosquittoProcess.Kill();
                 }
 
-                Process process = new Process();
-                ProcessStartInfo startInfo =
+                using (Process process = new Process())
+                {
+                    ProcessStartInfo startInfo =
                    new ProcessStartInfo(
                         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
                         Path.Combine(processName, $"{processName}.exe")));
-                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                //startInfo.CreateNoWindow = true;
-                //startInfo.RedirectStandardOutput = true;
-                //startInfo.UseShellExecute = true;
-                //startInfo.Verb = "runas";
-                startInfo.Arguments = arguments;
-                process.StartInfo = startInfo;
-                process.Start();
-                //proc.WaitForExit();
-                processes = Process.GetProcessesByName(processName);
+                    startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    //startInfo.CreateNoWindow = true;
+                    //startInfo.RedirectStandardOutput = true;
+                    //startInfo.UseShellExecute = true;
+                    //startInfo.Verb = "runas";
+                    startInfo.Arguments = arguments;
+                    process.StartInfo = startInfo;
+                    process.Start();
+                }
             }
             catch (Exception)
             {

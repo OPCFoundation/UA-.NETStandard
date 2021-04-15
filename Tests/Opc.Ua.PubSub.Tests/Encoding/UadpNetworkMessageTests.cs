@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.PubSub;
 using System;
 using System.Collections.Generic;
 using System.Linq;

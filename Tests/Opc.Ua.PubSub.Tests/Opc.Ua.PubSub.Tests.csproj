@@ -10,8 +10,14 @@
     <Compile Remove="DataCollectorTests.cs" />
     <Compile Remove="MessagesHelper.cs" />
     <Compile Remove="PubSubConfiguratorTests.cs" />
+    <Compile Remove="PubSubStateMachineTests.Publisher.cs" />
+    <Compile Remove="PubSubStateMachineTests.StateChangeMethods.cs" />
+    <Compile Remove="PubSubStateMachineTests.Subscriber.cs" />
     <Compile Remove="UadpDataSetMessageTests.cs" />
     <Compile Remove="UadpNetworkMessageTests.cs" />
+    <Compile Remove="UaPublisherTests.cs" />
+    <Compile Remove="UaPubSubApplicationTests.cs" />
+    <Compile Remove="UaPubSubDataStoreTests.cs" />
     <Compile Remove="UdpClientCreatorTests.cs" />
     <Compile Remove="UdpPubSubConnectionTests.cs" />
     <Compile Remove="UdpPubSubConnectionTests.Publisher.cs" />

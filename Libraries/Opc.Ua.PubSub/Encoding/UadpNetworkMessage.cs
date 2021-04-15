@@ -27,10 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -557,7 +555,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 dataSetMessages.Add(uadpDataSetMessage);
                             }
                         }
-                    }                    
+                    }
                 }
 
                 if (m_uaDataSetMessages.Count == 0)

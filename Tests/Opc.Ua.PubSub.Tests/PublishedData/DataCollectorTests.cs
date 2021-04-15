@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.PublishedData
 {
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
@@ -59,8 +60,8 @@ namespace Opc.Ua.PubSub.Tests
 
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act  
-            dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets[0]);
-            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets[0].Name);
+            dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets.First());
+            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets.First().Name);
             //Assert
             Assert.IsNotNull(collectedDataSet, 
                 "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.", pubSubConfiguration.PublishedDataSets[0].Name);

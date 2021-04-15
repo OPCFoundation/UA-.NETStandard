@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Net;
 using System.Net.Sockets;
 
@@ -54,15 +55,19 @@ namespace Opc.Ua.PubSub.Transport
                 // this might throw exception on some platforms
                 Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             }
-            catch
-            { }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "SetSocketOption has thrown exception ");
+            }
             try
             {
                 // this might throw exception on some platforms
                 ExclusiveAddressUse = false;
             }
-            catch
-            { }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "Setting ExclusiveAddressUse to false has thrown exception ");
+            }
 
             Client.Bind(new IPEndPoint(localAddress, port));
 

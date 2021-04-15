@@ -2104,10 +2104,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidArray", namespaceIndexAllTypes), Attributes.Value, guidValueArray);
             DataValue byteStringValueArray = new DataValue(new Variant(new ByteStringCollection() { new byte[] { 1, 2, 3 }, new byte[] { 5, 6, 7 } }));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringArray", namespaceIndexAllTypes), Attributes.Value, byteStringValueArray);
-            XmlDocument document1 = new XmlDocument();
+
             XmlElement xmlElement1 = document.CreateElement("test1");
             xmlElement1.InnerText = "Text_2";
-            XmlDocument document2 = new XmlDocument();
+
             XmlElement xmlElement2 = document.CreateElement("test2");
             xmlElement2.InnerText = "Text_2";
             DataValue xmlElementValueArray = new DataValue(new Variant(new XmlElementCollection() { xmlElement1, xmlElement2 }));
@@ -2164,18 +2164,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidMatrix", namespaceIndexAllTypes), Attributes.Value, guidValueMatrix);
             DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[][] { new byte[]{ 1, 2 }, new byte[] { 11, 12 }, new byte[] { 21, 22 }, new byte[] { 31, 32 } }, BuiltInType.ByteString, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringMatrix", namespaceIndexAllTypes), Attributes.Value, byteStringValueMatrix);
-            XmlDocument document1m = new XmlDocument();
+
             XmlElement xmlElement1m = document.CreateElement("test1m");
             xmlElement1m.InnerText = "Text_1m";
-            XmlDocument document2m = new XmlDocument();
+
             XmlElement xmlElement2m = document.CreateElement("test2m");
             xmlElement2m.InnerText = "Text_2m";
-            XmlDocument document3m = new XmlDocument();
+
             XmlElement xmlElement3m = document.CreateElement("test3m");
             xmlElement3m.InnerText = "Text_3m";
-            XmlDocument document4m = new XmlDocument();
+
             XmlElement xmlElement4m = document.CreateElement("test4m");
             xmlElement4m.InnerText = "Text_4m";
+
             DataValue xmlElementValueMatrix = new DataValue(new Variant(new Matrix(new XmlElement[]{ xmlElement1m, xmlElement2m , xmlElement3m, xmlElement4m }, BuiltInType.XmlElement, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElementMatrix", namespaceIndexAllTypes), Attributes.Value, xmlElementValueMatrix);
             DataValue nodeIdValueMatrix = new DataValue(new Variant(new Matrix(new NodeId[] { new NodeId(30, 1), new NodeId(20, 3), new NodeId(10, 3), new NodeId(50, 7) }, BuiltInType.NodeId, 2, 2)));
