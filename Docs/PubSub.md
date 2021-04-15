@@ -115,6 +115,7 @@ It is important to feed the IUaPubSubDataStore object from current [UaPubSubAppl
 The *IUaPubSubDataStore* instance that is passed to the *UaPubSubApplication* will be used to create the *DataCollector* object responsible to build the [DataSet ](#dataset-class) objects that are encoded and sent as part of NetworkMessages.
 
 The following diagram highlights the *IUaPubSubDataStore* interface within the PubSub Library from OPC UA .NET Standard Stack from OPC Foundation:
+
 ![IUaPubSubDataStore](Images/IUaPubSubDataStore.png)
 
 ## DataSet Class
