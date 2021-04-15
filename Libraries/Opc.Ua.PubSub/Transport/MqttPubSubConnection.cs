@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub.Transport
                                 uaDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
                             }
                             uaDataSetMessage.Timestamp = DateTime.UtcNow;
-                            uaDataSetMessage.Status = StatusCodes.BadUnexpectedError;
+                            uaDataSetMessage.Status = StatusCodes.Good;
                             dataSetMessages.Add(uaDataSetMessage);
                         }
                     }
