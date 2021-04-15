@@ -97,8 +97,8 @@ namespace Opc.Ua.PubSub.Transport
 
             while (mqttClient.IsConnected == false)
             {
-               Connect(reconnectInterval, mqttClientOptions, mqttClient);
-               await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
+                Connect(reconnectInterval, mqttClientOptions, mqttClient);
+                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
             }
 
             // Setup reconnect handler
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace("MQTT client {0} connect atempt returned {0}", mqttClient?.Options?.ClientId, result?.ResultCode);
                 }
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
                 Utils.Trace("MQTT client {0} connect atempt returned {1} will try to reconnect in {2} seconds",
                     mqttClient?.Options?.ClientId,

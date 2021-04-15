@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// Abstract class that represents a working connection for PubSub
     /// </summary>
-    internal abstract class UaPubSubConnection : IUaPubSubConnection,  IDisposable
+    internal abstract class UaPubSubConnection : IUaPubSubConnection, IDisposable
     {
         #region Fields
         protected object m_lock = new object();
@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub
         public bool IsRunning
         {
             get { return m_isRunning; }
-        }       
+        }
         #endregion
 
         #region Internal Properties
@@ -154,7 +154,7 @@ namespace Opc.Ua.PubSub
         /// Start Publish/Subscribe jobs associated with this instance
         /// </summary>
         public void Start()
-        {    
+        {
             lock (m_lock)
             {
                 m_isRunning = true;
@@ -213,8 +213,8 @@ namespace Opc.Ua.PubSub
             }
 
             return false;
-        }       
-        
+        }
+
         /// <summary>
         /// Create the network message built from the provided writerGroupConfiguration
         /// </summary>

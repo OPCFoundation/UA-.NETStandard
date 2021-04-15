@@ -32,16 +32,10 @@ using System.Collections.Generic;
 using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using MQTTnet;
-using MQTTnet.Client.ExtendedAuthenticationExchange;
-using MQTTnet.Client.Options;
-using MQTTnet.Diagnostics.PacketInspection;
 using MQTTnet.Formatter;
-using MQTTnet.Packets;
 
 namespace Opc.Ua.PubSub.Transport
 {
-
     /// <summary>
     /// The identifiers of the MqttClientConfigurationParameters
     /// </summary>
@@ -603,6 +597,5 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public KeyValuePairCollection KeyValuePairs { get => m_keyValuePairs; set => m_keyValuePairs = value; }
         #endregion Public Propertis
-
     }
 }

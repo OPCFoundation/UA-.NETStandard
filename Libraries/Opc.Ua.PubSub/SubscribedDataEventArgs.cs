@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {

@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     //you might get more than one IP for a hostname since 
                     //DNS supports more than one record
-                    foreach(IPAddress address in hostEntry.AddressList)
+                    foreach (IPAddress address in hostEntry.AddressList)
                     {
                         if (address.AddressFamily == AddressFamily.InterNetwork)
                         {
@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Utils.Trace(ex, "Could not resolve host name: {0}", hostName);
                 }
@@ -243,7 +243,7 @@ namespace Opc.Ua.PubSub.Transport
                     udpClient.Dispose();
                     udpClient = null;
                 }
-            }       
+            }
 
             return udpClient;
         }

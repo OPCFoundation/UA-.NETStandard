@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get flag that indicates if the Connection is in running state
         /// </summary>
-        bool IsRunning { get; }        
+        bool IsRunning { get; }
 
         /// <summary>
         /// Start Publish/Subscribe jobs associated with this instance

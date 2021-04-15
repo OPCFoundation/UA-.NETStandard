@@ -30,16 +30,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Options;
+using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using MQTTnet.Server;
-using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
-using MQTTnet.Formatter;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Transport
 {

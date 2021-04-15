@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
