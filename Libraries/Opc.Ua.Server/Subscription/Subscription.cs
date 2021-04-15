@@ -2040,6 +2040,12 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
 
+            string messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}.", m_id);
+            if ( monitoredItemId > 0 )
+            {
+                messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}, monitored item {1}.", m_id, monitoredItemId);
+            }
+
             lock (m_lock)
             {
                 // generate start event.
@@ -2047,22 +2053,10 @@ namespace Opc.Ua.Server
 
                 TranslationInfo message = null;
 
-                if (monitoredItemId > 0)
-                {
-                    message = new TranslationInfo(
-                        "RefreshStartEvent",
-                        "en-US",
-                        "Condition refresh started for subscription {0} monitored item {1}.",
-                        m_id, monitoredItemId);
-                }
-                else
-                {
-                    message = new TranslationInfo(
-                        "RefreshStartEvent",
-                        "en-US",
-                        "Condition refresh started for subscription {0}.",
-                        m_id);
-                }
+                message = new TranslationInfo(
+                    "RefreshStartEvent",
+                    "en-US",
+                    String.Format(messageTemplate, "started") );
 
                 e.Initialize(
                     systemContext,
@@ -2113,22 +2107,10 @@ namespace Opc.Ua.Server
 
                 TranslationInfo message = null;
 
-                if (monitoredItemId > 0)
-                {
-                    message = new TranslationInfo(
-                        "RefreshEndEvent",
-                        "en-US",
-                        "Condition refresh completed for subscription {0} monitored item {1}.",
-                        m_id, monitoredItemId);
-                }
-                else
-                {
-                    message = new TranslationInfo(
-                        "RefreshEndEvent",
-                        "en-US",
-                        "Condition refresh completed for subscription {0}.",
-                        m_id);
-                }
+                message = new TranslationInfo(
+                    "RefreshEndEvent",
+                    "en-US",
+                    String.Format(messageTemplate, "completed"));
 
                 e.Initialize(
                     systemContext,
