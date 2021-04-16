@@ -85,7 +85,7 @@ namespace Opc.Ua.Client
         NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
     }
 
-    /// <summary cref="INodeCache" />
+    /// <inheritdoc/>
     public class NodeCache : INodeCache
     {
         #region Constructors
@@ -627,7 +627,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region INodeCache Methods
-        /// <summary cref="INodeCache.LoadUaDefinedTypes(ISystemContext)" />
+        /// <inheritdoc/>
         public void LoadUaDefinedTypes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
@@ -648,13 +648,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary cref="INodeCache.Clear()" />
+        /// <inheritdoc/>
         public void Clear()
         {
             m_nodes.Clear();
         }
 
-        /// <summary cref="INodeCache.FetchNode(ExpandedNodeId)" />
+        /// <inheritdoc/>
         public Node FetchNode(ExpandedNodeId nodeId)
         {
             NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
@@ -702,7 +702,7 @@ namespace Opc.Ua.Client
             return source;
         }
 
-        /// <summary cref="INodeCache.FetchSuperTypes(ExpandedNodeId)" />
+        /// <inheritdoc/>
         public void FetchSuperTypes(ExpandedNodeId nodeId)
         {
             // find the target node,
@@ -731,7 +731,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary cref="INodeCache.FindReferences(ExpandedNodeId, NodeId, bool, bool)" />
+        /// <inheritdoc/>
         public IList<INode> FindReferences(
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
@@ -766,7 +766,7 @@ namespace Opc.Ua.Client
             return targets;
         }
 
-        /// <summary cref="INodeCache.GetDisplayText(INode)" />
+        /// <inheritdoc/>
         public string GetDisplayText(INode node)
         {
             // check for null.
@@ -817,7 +817,7 @@ namespace Opc.Ua.Client
             return node.ToString();
         }
 
-        /// <summary cref="INodeCache.GetDisplayText(ExpandedNodeId)" />
+        /// <inheritdoc/>
         public string GetDisplayText(ExpandedNodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
@@ -835,7 +835,7 @@ namespace Opc.Ua.Client
             return Utils.Format("{0}", nodeId);
         }
 
-        /// <summary cref="INodeCache.GetDisplayText(ReferenceDescription)" />
+        /// <inheritdoc/>
         public string GetDisplayText(ReferenceDescription reference)
         {
             if (reference == null || NodeId.IsNull(reference.NodeId))
@@ -853,7 +853,7 @@ namespace Opc.Ua.Client
             return reference.ToString();
         }
 
-        /// <summary cref="INodeCache.BuildBrowsePath(ILocalNode, IList{QualifiedName})" />
+        /// <inheritdoc/>
         public NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath)
         {
             NodeId typeId = null;
