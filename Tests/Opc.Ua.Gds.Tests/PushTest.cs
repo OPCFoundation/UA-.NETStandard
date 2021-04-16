@@ -280,7 +280,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(402)]
         public void CreateSigningRequestRsaMinNullParms()
         {
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NET5_0
             Assert.Ignore("SHA1 not supported on .NET Standard 2.1.");
 #endif
             ConnectPushClient(true);
