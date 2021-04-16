@@ -557,7 +557,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
         /// </summary>
-        public NodeCache NodeCache => m_nodeCache;
+        public INodeCache NodeCache => m_nodeCache;
 
         /// <summary>
         /// Gets the context to use for filter operations.

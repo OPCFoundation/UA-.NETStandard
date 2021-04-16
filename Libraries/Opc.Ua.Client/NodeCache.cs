@@ -36,7 +36,57 @@ namespace Opc.Ua.Client
     /// <summary>
     /// A client side cache of the server's type model.
     /// </summary>
-    public class NodeCache : INodeTable, ITypeTable
+    public interface INodeCache : INodeTable, ITypeTable
+    {
+        /// <summary>
+        /// Loads the UA defined types into the cache.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        void LoadUaDefinedTypes(ISystemContext context);
+
+        /// <summary>
+        /// Removes all nodes from the cache.
+        /// </summary>
+        void Clear();
+
+        /// <summary>
+        /// Fetches a node from the server and updates the cache.
+        /// </summary>
+        Node FetchNode(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Adds the supertypes of the node to the cache.
+        /// </summary>
+        void FetchSuperTypes(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Returns the references of the specified node that meet the criteria specified.
+        /// </summary>
+        IList<INode> FindReferences(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
+
+        /// <summary>
+        /// Returns a display name for a node.
+        /// </summary>
+        string GetDisplayText(INode node);
+
+        /// <summary>
+        /// Returns a display name for a node.
+        /// </summary>
+        string GetDisplayText(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Returns a display name for the target of a reference.
+        /// </summary>
+        string GetDisplayText(ReferenceDescription reference);
+
+        /// <summary>
+        /// Builds the relative path from a type to a node.
+        /// </summary>
+        NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
+    }
+
+    /// <inheritdoc/>
+    public class NodeCache : INodeCache
     {
         #region Constructors
         /// <summary>
@@ -576,11 +626,8 @@ namespace Opc.Ua.Client
         }
         #endregion
 
-        #region Public Methods
-        /// <summary>
-        /// Loads the UA defined types into the cache.
-        /// </summary>
-        /// <param name="context">The context.</param>
+        #region INodeCache Methods
+        /// <inheritdoc/>
         public void LoadUaDefinedTypes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
@@ -601,17 +648,13 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Removes all nodes from the cache.
-        /// </summary>
+        /// <inheritdoc/>
         public void Clear()
         {
             m_nodes.Clear();
         }
 
-        /// <summary>
-        /// Fetches a node from the server and updates the cache.
-        /// </summary>
+        /// <inheritdoc/>
         public Node FetchNode(ExpandedNodeId nodeId)
         {
             NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
@@ -659,9 +702,7 @@ namespace Opc.Ua.Client
             return source;
         }
 
-        /// <summary>
-        /// Adds the supertypes of the node to the cache.
-        /// </summary>
+        /// <inheritdoc/>
         public void FetchSuperTypes(ExpandedNodeId nodeId)
         {
             // find the target node,
@@ -690,9 +731,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary>
-        /// Returns the references of the specified node that meet the criteria specified.
-        /// </summary>
+        /// <inheritdoc/>
         public IList<INode> FindReferences(
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
@@ -727,9 +766,7 @@ namespace Opc.Ua.Client
             return targets;
         }
 
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
+        /// <inheritdoc/>
         public string GetDisplayText(INode node)
         {
             // check for null.
@@ -780,9 +817,7 @@ namespace Opc.Ua.Client
             return node.ToString();
         }
 
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
+        /// <inheritdoc/>
         public string GetDisplayText(ExpandedNodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
@@ -800,9 +835,7 @@ namespace Opc.Ua.Client
             return Utils.Format("{0}", nodeId);
         }
 
-        /// <summary>
-        /// Returns a display name for the target of a reference.
-        /// </summary>
+        /// <inheritdoc/>
         public string GetDisplayText(ReferenceDescription reference)
         {
             if (reference == null || NodeId.IsNull(reference.NodeId))
@@ -820,9 +853,7 @@ namespace Opc.Ua.Client
             return reference.ToString();
         }
 
-        /// <summary>
-        /// Builds the relative path from a type to a node.
-        /// </summary>
+        /// <inheritdoc/>
         public NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath)
         {
             NodeId typeId = null;
