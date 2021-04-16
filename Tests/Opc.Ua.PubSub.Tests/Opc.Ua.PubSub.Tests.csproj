@@ -31,10 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="SubscriberConfiguration.xml">
+    <None Update="Configuration\SubscriberConfiguration.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="PublisherConfiguration.xml">
+    <None Update="Configuration\PublisherConfiguration.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -37,7 +37,7 @@ using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     [TestFixture(Description = "Tests for UdpPubSubConnection class - Subscriber ")]
     [Ignore("A network interface controller is necessary in order to run correctly.")]
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act  
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberConnection.UadpMessageReceived += DataReceived;
@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act  
@@ -199,7 +199,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication is null");
 
-            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
+            UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
             subscriberConnection.UadpMessageReceived += DataReceived;
@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub.Tests
             UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            UdpPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             //Act  
@@ -282,7 +282,7 @@ namespace Opc.Ua.PubSub.Tests
         {
             try
             {
-                WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
+                WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
                 UaNetworkMessage message = publisherConnection.CreateNetworkMessage(writerGroup0);
 
                 byte[] bytes = message.Encode();               

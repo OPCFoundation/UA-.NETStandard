@@ -30,12 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Tests for Encoding/Decoding of JsonNetworkMessage objects")]
     public class MqttJsonNetworkMessageTests
@@ -699,30 +698,30 @@ namespace Opc.Ua.PubSub.Tests
             #endregion
 
             #region Payload header + Payload data
-            List<DataSet> receivedDataSets = jsonNetworkMessageDecoded.ReceivedDataSets;
+            List<UaDataSetMessage> receivedDataSetMessages = jsonNetworkMessageDecoded.DataSetMessages.ToList();
 
-            Assert.IsNotNull(receivedDataSets, "ReceivedDataSets is null");
+            Assert.IsNotNull(receivedDataSetMessages, "Received DataSetMessages is null");
 
             // check the number of JsonDataSetMessage counts
             if ((networkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) == 0)
             {
                 Assert.AreEqual(jsonNetworkMessageEncode.DataSetMessages.Count,
-                    receivedDataSets.Count, "JsonDataSetMessages.Count was not decoded correctly (Count = {0})", receivedDataSets.Count);
+                    receivedDataSetMessages.Count, "JsonDataSetMessages.Count was not decoded correctly (Count = {0})", receivedDataSetMessages.Count);
             }
             else
             {
-                Assert.AreEqual(1, receivedDataSets.Count,
-                   "JsonDataSetMessages.Count was not decoded correctly. There is no SingleDataSetMessage (Coount = {0})", receivedDataSets.Count);
+                Assert.AreEqual(1, receivedDataSetMessages.Count,
+                   "JsonDataSetMessages.Count was not decoded correctly. There is no SingleDataSetMessage (Coount = {0})", receivedDataSetMessages.Count);
             }
 
             // check if the encoded match the received decoded DataSets
-            for(int i =0; i < receivedDataSets.Count; i++)
+            for(int i =0; i < receivedDataSetMessages.Count; i++)
             {
                 JsonDataSetMessage jsonDataSetMessage = jsonNetworkMessageEncode.DataSetMessages[i] as JsonDataSetMessage;
                 Assert.IsNotNull(jsonDataSetMessage, "DataSet [{0}] is missing from publisher datasets!", i);
                 // check payload data fields count 
                 // get related dataset from subscriber DataSets
-                DataSet decodedDataSet = receivedDataSets[i];
+                DataSet decodedDataSet = receivedDataSetMessages[i].DataSet;
                 Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", jsonDataSetMessage.DataSet.Name);
 
                 Assert.AreEqual(jsonDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,

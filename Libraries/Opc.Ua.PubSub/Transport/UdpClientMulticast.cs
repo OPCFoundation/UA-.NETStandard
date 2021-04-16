@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -38,7 +38,7 @@ namespace Opc.Ua.PubSub.Transport
     /// Represents a specialized <see cref="UdpClient"/> class, configured for Multicast
     /// </summary>
     internal class UdpClientMulticast : UdpClient
-    {      
+    {
 
         #region Constructor
         /// <summary>
@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Transport
                 // this might throw exception on some platforms
                 Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "UdpClientMulticast set SetSocketOption resulted in ex {0}", ex.Message);
             }

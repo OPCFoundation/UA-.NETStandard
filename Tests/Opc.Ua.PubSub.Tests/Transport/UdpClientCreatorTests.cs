@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -35,11 +35,11 @@ using System.Net.Sockets;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Transport;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     public partial class UdpClientCreatorTests
     {
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
 
         private const string UrlScheme = "opc.udp://";
         // generic well known address
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be null");
             Assert.IsNotEmpty(publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be empty");
 
-            PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections.First();
             Assert.IsNotNull(publisherConnection1, "publisherConnection1 should not be null");
             
             NetworkAddressUrlDataType networkAddressUrlState1 = ExtensionObject.ToEncodeable(publisherConnection1.Address)

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Encoding
     /// <summary>
     /// Json Network Message
     /// </summary>
-    internal class JsonNetworkMessage : UaNetworkMessage
+    public class JsonNetworkMessage : UaNetworkMessage
     {
         #region Fields
         private const string DefaultMessageType = "ua-data";
@@ -252,7 +252,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
         {
-            ReceivedDataSets = new List<DataSet>();
             try
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
@@ -333,10 +332,10 @@ namespace Opc.Ua.PubSub.Encoding
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader = (networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
 
-                        DataSet dataSet = jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, messagesList.Count, messagesListName, dataSetReader);
-                        if (dataSet != null)
+                        jsonDataSetMessage.DecodePossibleDataSetReader(jsonDecoder, messagesList.Count, messagesListName, dataSetReader);
+                        if (jsonDataSetMessage.DataSet != null)
                         {
-                            ReceivedDataSets.Add(dataSet);
+                            m_uaDataSetMessages.Add(jsonDataSetMessage);
                         }
                     }
                 }

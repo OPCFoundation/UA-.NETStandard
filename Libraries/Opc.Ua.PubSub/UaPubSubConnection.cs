@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// Abstract class that represents a working connection for PubSub
     /// </summary>
-    internal abstract class UaPubSubConnection : IUaPubSubConnection,  IDisposable
+    internal abstract class UaPubSubConnection : IUaPubSubConnection, IDisposable
     {
         #region Fields
         protected object m_lock = new object();
@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub
         public bool IsRunning
         {
             get { return m_isRunning; }
-        }       
+        }
         #endregion
 
         #region Internal Properties
@@ -154,7 +154,7 @@ namespace Opc.Ua.PubSub
         /// Start Publish/Subscribe jobs associated with this instance
         /// </summary>
         public void Start()
-        {    
+        {
             lock (m_lock)
             {
                 m_isRunning = true;
@@ -213,8 +213,8 @@ namespace Opc.Ua.PubSub
             }
 
             return false;
-        }       
-        
+        }
+
         /// <summary>
         /// Create the network message built from the provided writerGroupConfiguration
         /// </summary>
@@ -288,18 +288,17 @@ namespace Opc.Ua.PubSub
         /// <param name="source">The source of the received event.</param>
         protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
         {
-            if (networkMessage.ReceivedDataSets != null && networkMessage.ReceivedDataSets.Count > 0)
+            if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
                 SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
-                    NetworkMessageSequenceNumber = networkMessage.SequenceNumber,
-                    DataSets = networkMessage.ReceivedDataSets,
+                    NetworkMessage = networkMessage,
                     Source = source
                 };
 
                 //trigger notification for received subscribed data set
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
                 Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
-                    source, subscribedDataEventArgs.DataSets.Count);
+                    source, subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
             else
             {

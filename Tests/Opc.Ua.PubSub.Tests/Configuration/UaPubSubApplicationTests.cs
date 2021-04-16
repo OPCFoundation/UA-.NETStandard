@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,15 +28,16 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
     {
-        private const string ConfigurationFileName = "PublisherConfiguration.xml";
+        private const string ConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
         private PubSubConfigurationDataType m_pubSubConfiguration;
 
         [OneTimeSetUp()]
@@ -66,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests
 
             // Assert
             Assert.IsTrue(uaPubSubApplication.PubSubConnections != null, "uaPubSubApplication.PubSubConnections collection is null");
-            Assert.AreEqual(2, uaPubSubApplication.PubSubConnections.Count, "uaPubSubApplication.PubSubConnections count");
+            Assert.AreEqual(3, uaPubSubApplication.PubSubConnections.Count, "uaPubSubApplication.PubSubConnections count");
             UaPubSubConnection connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");
@@ -75,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests
             {
                 Assert.IsTrue(publisher!= null, "connection.Publishers[{0}] is null", index);
                 Assert.IsTrue(publisher.PubSubConnection == connection, "connection.Publishers[{0}].PubSubConnection is not set correctly", index);
-                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
+                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections.First().WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
                 index++;
             }
         }

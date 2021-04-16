@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -98,12 +98,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get reference to the associated <see cref="UaPubSubConfigurator"/> instance.
         /// </summary>
-        public UaPubSubConfigurator UaPubSubConfigurator {  get { return m_uaPubSubConfigurator; } }
-        
+        public UaPubSubConfigurator UaPubSubConfigurator { get { return m_uaPubSubConfigurator; } }
+
         /// <summary>
         /// Get reference to current DataStore. Write here all node values needed to be published by this PubSubApplication
         /// </summary>
-        public IUaPubSubDataStore DataStore {  get { return m_dataStore; } }
+        public IUaPubSubDataStore DataStore { get { return m_dataStore; } }
         #endregion
 
         #region Internal Properties
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(IUaPubSubDataStore dataStore)
-        {     
+        {
             return Create(new PubSubConfigurationDataType(), dataStore);
         }
 
@@ -180,7 +180,6 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Public Methods
-
         /// <summary>
         /// Start Publish/Subscribe jobs associated with this instance
         /// </summary>
@@ -286,7 +285,7 @@ namespace Opc.Ua.PubSub
                 m_uaPubSubConnections.Add(newUaPubSubConnection);
             }
         }
-        #endregion       
+        #endregion
 
         #region IDisposable Implementation
         /// <summary>
@@ -314,13 +313,13 @@ namespace Opc.Ua.PubSub
 
                 Stop();
                 // free managed resources
-                foreach(var connection in m_uaPubSubConnections)
+                foreach (var connection in m_uaPubSubConnections)
                 {
                     connection.Dispose();
                 }
                 m_uaPubSubConnections.Clear();
             }
-        }       
+        }
         #endregion
     }
 }

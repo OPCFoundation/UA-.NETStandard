@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,20 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Options;
+using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using MQTTnet.Server;
-using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
-using MQTTnet.Formatter;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -50,7 +48,6 @@ namespace Opc.Ua.PubSub.Transport
     internal class MqttPubSubConnection : UaPubSubConnection
     {
         #region Private Fields
-        private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
         private string m_brokerHostName = "localhost";
@@ -135,6 +132,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     if (publishedDataSet != null && dataSet != null)
                     {
+                        UaDataSetMessage uaDataSetMessage = null;
                         if (m_messageMapping == MessageMapping.Uadp && uadpMessageSettings != null)
                         {
                             // try to create Uadp message
@@ -144,15 +142,11 @@ namespace Opc.Ua.PubSub.Transport
                             if (uadpDataSetMessageSettings != null)
                             {
                                 UadpDataSetMessage uadpDataSetMessage = new UadpDataSetMessage(dataSet);
-                                uadpDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                                 uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)uadpDataSetMessageSettings.DataSetMessageContentMask);
                                 uadpDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                                uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
                                 uadpDataSetMessage.ConfiguredSize = uadpDataSetMessageSettings.ConfiguredSize;
                                 uadpDataSetMessage.DataSetOffset = uadpDataSetMessageSettings.DataSetOffset;
-                                uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-                                uadpDataSetMessage.Status = (ushort)StatusCodes.Good;
-                                dataSetMessages.Add(uadpDataSetMessage);
+                                uaDataSetMessage = uadpDataSetMessage;
                             }
                         }
                         else if (m_messageMapping == MessageMapping.Json && jsonMessageSettings != null)
@@ -162,20 +156,24 @@ namespace Opc.Ua.PubSub.Transport
                             if (jsonDataSetMessageSettings != null)
                             {
                                 JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage(dataSet);
-                                jsonDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                                 jsonDataSetMessage.SetMessageContentMask((JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask);
                                 jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                                jsonDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
-
-                                if (publishedDataSet.DataSetMetaData != null)
-                                {
-                                    jsonDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
-                                }
-
-                                jsonDataSetMessage.Timestamp = DateTime.UtcNow;
-                                jsonDataSetMessage.Status = StatusCodes.BadUnexpectedError;
-                                dataSetMessages.Add(jsonDataSetMessage);
+                                uaDataSetMessage = jsonDataSetMessage;
                             }
+                        }
+
+                        if (uaDataSetMessage != null)
+                        {
+                            // set common properties of dataset message
+                            uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
+                            uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
+                            if (publishedDataSet.DataSetMetaData != null)
+                            {
+                                uaDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
+                            }
+                            uaDataSetMessage.Timestamp = DateTime.UtcNow;
+                            uaDataSetMessage.Status = StatusCodes.Good;
+                            dataSetMessages.Add(uaDataSetMessage);
                         }
                     }
                 }
@@ -192,7 +190,7 @@ namespace Opc.Ua.PubSub.Transport
             if (m_messageMapping == MessageMapping.Uadp)
             {
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings.NetworkMessageContentMask);
+                uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
                 // Network message header
                 uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
 
@@ -205,13 +203,10 @@ namespace Opc.Ua.PubSub.Transport
             else if (m_messageMapping == MessageMapping.Json)
             {
                 JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings.NetworkMessageContentMask);
+                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
                 jsonNetworkMessage.MessageId = Guid.NewGuid().ToString();
                 // Network message header
                 jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
-
-                // Writer group header
-                //jsonNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
                 networkMessage = jsonNetworkMessage;
             }
@@ -219,7 +214,6 @@ namespace Opc.Ua.PubSub.Transport
             if (networkMessage != null)
             {
                 networkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
-                networkMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_sequenceNumber) % UInt16.MaxValue);
             }
             return networkMessage;
         }
@@ -333,7 +327,7 @@ namespace Opc.Ua.PubSub.Transport
                                                                                  null).ConfigureAwait(false)).Result;
             }
 
-            //subscriber initialization   
+            //subscriber initialization
             if (nrOfSubscribers > 0)
             {
                 // collect all topics from all ReaderGroups
@@ -413,8 +407,8 @@ namespace Opc.Ua.PubSub.Transport
                 if (dsReader == null) continue;
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
                     ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
-                string queueName = brokerDataSetReaderTransportDataType.QueueName;
-                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length-1)
+                string queueName = brokerDataSetReaderTransportDataType?.QueueName;
+                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
                 {
                     queueName = queueName.Substring(0, queueName.Length - 1);
                 }
@@ -673,7 +667,6 @@ namespace Opc.Ua.PubSub.Transport
                             .WithProtocolVersion(mqttProtocolVersion)
                             .Build();
                     }
-
                 }
             }
 
@@ -724,8 +717,6 @@ namespace Opc.Ua.PubSub.Transport
                 "Connection '{0}' -Rejected Certificate: {1} {2}",
                 PubSubConnectionConfiguration.Name, e.Error, e.Certificate.Subject);
         }
-
         #endregion Private methods
-
     }
 }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.PubSub;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,13 +36,13 @@ using System.IO;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 using Opc.Ua.PubSub.Encoding;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpNetworkMessage objects")]
     public class UadpNetworkMessageTests
     {
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_publisherApplication;
@@ -61,11 +59,6 @@ namespace Opc.Ua.PubSub.Tests
         public const ushort NamespaceIndexMassTest = 4;
 
         private const uint NetworkMessageContentMask = 0x3ff;
-        private DataSetFieldContentMask fieldContentMaskVariant = DataSetFieldContentMask.None;
-        private DataSetFieldContentMask fieldContentMaskDataValue = DataSetFieldContentMask.StatusCode | DataSetFieldContentMask.SourceTimestamp
-                                                                                                       | DataSetFieldContentMask.ServerTimestamp | DataSetFieldContentMask.SourcePicoSeconds
-                                                                                                       | DataSetFieldContentMask.ServerPicoSeconds;
-        private DataSetFieldContentMask fieldContentMaskRawData = DataSetFieldContentMask.RawData;
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -105,335 +98,89 @@ namespace Opc.Ua.PubSub.Tests
 
             m_firstDataSetReadersType = GetFirstDataSetReaders();
         }
-                
-        [Test(Description = "Validate PublisherId as byte with Variant data type")]
-        public void ValidatePublisherIdByteWithVariantType()
+
+        [Test(Description = "Validate PublisherId with supported data types")]
+        public void ValidatePublisherId(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask,
+           [Values((byte)10, (UInt16)10, (UInt32)10, (UInt64)10, "abc", "Test$!#$%^&*87", "Begrüßung")] object publisherId)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             // Check PublisherId as byte type
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (byte)10;
+            uaNetworkMessage.PublisherId = publisherId;
 
             // Assert
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate PublisherId as byte with DataValue data type")]
-        public void ValidatePublisherIdByteWithDataValueType()
+       [Test(Description = "Invalidate PublisherId with wrong data type")]
+        public void InvalidatePublisherId([
+           Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask,
+           [Values((float)10, (double)10)] object publisherId)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             // Check PublisherId as byte type
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (byte)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as byte with RawData data type")]
-        public void ValidatePublisherIdByteWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (byte)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt16  with Variant data type")]
-        public void ValidatePublisherIdUInt16WithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-
-
-            // Act  
-            // Check PublisherId as UInt16 type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt16  with DataValue data type")]
-        public void ValidatePublisherIdUInt16WithDataValueType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt16  with RawData data type")]
-        public void ValidatePublisherIdUInt16WithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt32 with Variant data type")]
-        public void ValidatePublisherIdUInt32WithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.PublisherId = (UInt32)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt32 with DataValue data type")]
-        public void ValidatePublisherIdUInt32WithDataValueType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt32)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt32 with RawData data type")]
-        public void ValidatePublisherIdUInt32WithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt32)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt64 with Variant data type")]
-        public void ValidatePublisherIdUInt64WithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.PublisherId = (UInt64)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt64 with DataValue data type")]
-        public void ValidatePublisherIdUInt64WithDataValueType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt64)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as UInt64 with RawData data type")]
-        public void ValidatePublisherIdUInt64WithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt64)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as string with Variant data type")]
-        public void ValidatePublisherIdStringWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-            
-            // Act  
-            // Check PublisherId as string type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = "10";
-            
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as string with DataValue data type")]
-        public void ValidatePublisherIdStringWithDataValueType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = "10";
-            //uaNetworkMessage.PublisherId = "Test$!#$%^&*87";
-            //uaNetworkMessage.PublisherId = "Begrüßung";
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PublisherId as string with RawData data type")]
-        public void ValidatePublisherIdStringWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = "10";
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Invalidate PublisherId as float with Variant data type")]
-        public void InValidatePublisherIdFloatWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-            Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
-
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.PublisherId = (float)10;
+            uaNetworkMessage.PublisherId = publisherId;
 
             // Assert
             InvalidCompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Invalidate PublisherId as float with DataValue data type")]
-        public void InValidatePublisherIdFloatWithDataValueType()
+        [Test(Description = "Validate GroupHeader")]
+        public void ValidateGroupHeader(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (float)10;
-
-            // Assert
-            InvalidCompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Invalidate PublisherId as float with RawData data type")]
-        public void InValidatePublisherIdFloatWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (float)10;
-
-            // Assert
-            InvalidCompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Invalidate PublisherId as double with Variant data type")]
-        public void InValidatePublisherIdDoubleWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.PublisherId = (double)10;
-
-            // Assert
-            InvalidCompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Invalidate PublisherId as double with DataValue data type")]
-        public void InValidatePublisherIdDoubleWithDataValueType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (double)10;
-
-            // Assert
-            InvalidCompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Invalidate PublisherId as double with RawData data type")]
-        public void InValidatePublisherIdDoubleWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // Check PublisherId as byte type
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (double)10;
-
-            // Assert
-            InvalidCompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate GroupHeader with Variant data type")]
-        public void ValidateGroupHeaderWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             // GroupFlags are changed internally by the group header options (WriterGroupId, GroupVersion, NetworkMessageNumber, SequenceNumber)
@@ -445,43 +192,28 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate GroupHeader with DataValue data type")]
-        public void ValidateGroupHeaderWithDataValueType()
+        
+
+        [Test(Description = "Validate WriterGroupId")]
+        public void ValidateWriterGroupIdWithVariantType(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            // GroupFlags are changed internally by the group header options (WriterGroupId, GroupVersion, NetworkMessageNumber, SequenceNumber)
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupHeader |
-                                                          UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate GroupHeader with RawData data type")]
-        public void ValidateGroupHeaderWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            // GroupFlags are changed internally by the group header options (WriterGroupId, GroupVersion, NetworkMessageNumber, SequenceNumber)
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupHeader |
-                                                          UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate WriterGroupId with Variant data type")]
-        public void ValidateWriterGroupIdWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
@@ -494,45 +226,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate WriterGroupId with DataValue data type")]
-        public void ValidateWriterGroupIdWithDataValueType()
+        [Test(Description = "Validate GroupVersion")]
+        public void ValidateGroupVersionWithVariantType(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.WriterGroupId = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate WriterGroupId with RawData data type")]
-        public void ValidateWriterGroupIdWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.WriterGroupId |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.WriterGroupId = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate GroupVersion with Variant data type")]
-        public void ValidateGroupVersionWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupVersion |
@@ -545,45 +258,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate GroupVersion with DataValue data type")]
-        public void ValidateGroupVersionWithDataValueType()
+        [Test(Description = "Validate NetworkMessageNumber")]
+        public void ValidateNetworkMessageNumber(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupVersion |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.GroupVersion = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate GroupVersion with RawData data type")]
-        public void ValidateGroupVersionWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.GroupVersion |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.GroupVersion = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate NetworkMessageNumber with Variant data type")]
-        public void ValidateNetworkMessageNumberWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.NetworkMessageNumber |
@@ -596,45 +290,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate NetworkMessageNumber with DataValue data type")]
-        public void ValidateNetworkMessageNumberWithDataValueType()
+        [Test(Description = "Validate SequenceNumber")]
+        public void ValidateSequenceNumber(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.NetworkMessageNumber |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.NetworkMessageNumber = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate NetworkMessageNumber with RawData data type")]
-        public void ValidateNetworkMessageNumberWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.NetworkMessageNumber |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.NetworkMessageNumber = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate SequenceNumber with Variant data type")]
-        public void ValidateSequenceNumberWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.SequenceNumber |
@@ -647,45 +322,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate SequenceNumber with DataValue data type")]
-        public void ValidateSequenceNumberWithDataValueType()
+        [Test(Description = "Validate PayloadHeader")]
+        public void ValidatePayloadHeader(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.SequenceNumber |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.SequenceNumber = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate SequenceNumber with RawData data type")]
-        public void ValidateSequenceNumberWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.SequenceNumber |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.SequenceNumber = 1;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PayloadHeader with Variant data type")]
-        public void ValidatePayloadHeaderWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PayloadHeader |
@@ -696,41 +352,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate PayloadHeader with DataValue data type")]
-        public void ValidatePayloadHeaderWithDataValueType()
+        [Test(Description = "Validate Timestamp")]
+        public void ValidateTimestamp(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PayloadHeader |
-                                                          UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PayloadHeader with RawData data type")]
-        public void ValidatePayloadHeaderWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(DataSetFieldContentMask.RawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PayloadHeader |
-                                                          UadpNetworkMessageContentMask.PublisherId);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate Timestamp with Variant data type")]
-        public void ValidateTimestampWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.Timestamp |
@@ -743,45 +384,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate Timestamp with DataValue data type")]
-        public void ValidateTimestampWithDataValueType()
+        [Test(Description = "Validate PicoSeconds")]
+        public void ValidatePicoSeconds(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.Timestamp |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.Timestamp = DateTime.UtcNow;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate Timestamp with RawData data type")]
-        public void ValidateTimestampWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.Timestamp |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.Timestamp = DateTime.UtcNow;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PicoSeconds with Variant data type")]
-        public void ValidatePicoSecondsWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PicoSeconds |
@@ -794,73 +416,26 @@ namespace Opc.Ua.PubSub.Tests
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        [Test(Description = "Validate PicoSeconds with DataValue data type")]
-        public void ValidatePicoSecondsWithDataValueType()
+        [Test(Description = "Validate DataSetClassId")]
+        public void ValidateDataSetClassIdWithVariantType(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
         {
             // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PicoSeconds |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.PicoSeconds = 10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate PicoSeconds with RawData data type")]
-        public void ValidatePicoSecondsWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.PicoSeconds |
-                                                          UadpNetworkMessageContentMask.PublisherId |
-                                                          UadpNetworkMessageContentMask.PayloadHeader);
-            uaNetworkMessage.PublisherId = (UInt16)10;
-            uaNetworkMessage.PicoSeconds = 10;
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate DataSetClassId with Variant data type")]
-        public void ValidateDataSetClassIdWithVariantType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskVariant);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.DataSetClassId);
-            uaNetworkMessage.DataSetClassId = Guid.NewGuid();
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate DataSetClassId with DataValue data type")]
-        public void ValidateDataSetClassIdWithDataValueType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskDataValue);
-
-            // Act  
-            uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.DataSetClassId);
-            uaNetworkMessage.DataSetClassId = Guid.NewGuid();
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage);
-        }
-
-        [Test(Description = "Validate DataSetClassId with RawData data type")]
-        public void ValidateDataSetClassIdWithRawDataType()
-        {
-            // Arrange
-            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(fieldContentMaskRawData);
+            UadpNetworkMessage uaNetworkMessage = CreateNetworkMessage(dataSetFieldContentMask);
 
             // Act  
             uaNetworkMessage.SetNetworkMessageContentMask(UadpNetworkMessageContentMask.DataSetClassId);
@@ -975,8 +550,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessageDecoded.Decode(bytes, m_firstDataSetReadersType);            
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
-            // TODO Fix: this might be broken after refactor
-            Compare(uadpNetworkMessage, uaNetworkMessageDecoded, uaNetworkMessageDecoded.ReceivedDataSets);
+            Compare(uadpNetworkMessage, uaNetworkMessageDecoded);
         }
 
         /// <summary>
@@ -1026,7 +600,7 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
         /// <returns></returns>
-        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded, List<DataSet> subscribedDataSets)
+        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
         {
             UadpNetworkMessageContentMask networkMessageContentMask = uadpNetworkMessageEncode.NetworkMessageContentMask;
 
@@ -1090,9 +664,8 @@ namespace Opc.Ua.PubSub.Tests
                 Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
                     uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
 
-                Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");
-
                 // check if the encoded match the decoded DataSetWriterId's
+                
                 foreach (UadpDataSetMessage uadpDataSetMessage in uadpNetworkMessageEncode.DataSetMessages)
                 {
                     UadpDataSetMessage uadpDataSetMessageDecoded =
@@ -1107,7 +680,7 @@ namespace Opc.Ua.PubSub.Tests
 
                     // check payload data fields count 
                     // get related dataset from subscriber DataSets
-                    DataSet decodedDataSet = subscribedDataSets.FirstOrDefault(dataSet => dataSet.Name == uadpDataSetMessage.DataSet.Name);
+                    DataSet decodedDataSet = uadpDataSetMessageDecoded.DataSet;
                     Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
 
                     Assert.AreEqual(uadpDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,

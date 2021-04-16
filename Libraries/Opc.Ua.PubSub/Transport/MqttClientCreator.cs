@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,7 +36,7 @@ using MQTTnet.Client;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Options;
 
-namespace Opc.Ua.PubSub.Mqtt
+namespace Opc.Ua.PubSub.Transport
 {
     internal class MqttClientCreator
     {
@@ -97,8 +97,8 @@ namespace Opc.Ua.PubSub.Mqtt
 
             while (mqttClient.IsConnected == false)
             {
-               Connect(reconnectInterval, mqttClientOptions, mqttClient);
-               await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
+                Connect(reconnectInterval, mqttClientOptions, mqttClient);
+                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
             }
 
             // Setup reconnect handler
@@ -141,7 +141,7 @@ namespace Opc.Ua.PubSub.Mqtt
                     Utils.Trace("MQTT client {0} connect atempt returned {0}", mqttClient?.Options?.ClientId, result?.ResultCode);
                 }
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
                 Utils.Trace("MQTT client {0} connect atempt returned {1} will try to reconnect in {2} seconds",
                     mqttClient?.Options?.ClientId,

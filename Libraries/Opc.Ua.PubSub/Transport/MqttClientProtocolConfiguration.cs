@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -32,16 +32,10 @@ using System.Collections.Generic;
 using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using MQTTnet;
-using MQTTnet.Client.ExtendedAuthenticationExchange;
-using MQTTnet.Client.Options;
-using MQTTnet.Diagnostics.PacketInspection;
 using MQTTnet.Formatter;
-using MQTTnet.Packets;
 
-namespace Opc.Ua.PubSub.Mqtt
+namespace Opc.Ua.PubSub.Transport
 {
-
     /// <summary>
     /// The identifiers of the MqttClientConfigurationParameters
     /// </summary>
@@ -564,6 +558,11 @@ namespace Opc.Ua.PubSub.Mqtt
 
             QualifiedName qProtocolVersion = EnumMqttClientConfigurationParameters.ProtocolVersion.GetQualifiedName();
             m_protocolVersion = (EnumMqttProtocolVersion)Convert.ToInt32(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qProtocolVersion.Name))?.Value.Value);
+            if (m_protocolVersion == EnumMqttProtocolVersion.Unknown)
+            {
+                Utils.Trace(Utils.TraceMasks.Information, "Mqtt protocol version is Unknown and it will default to V310");
+                m_protocolVersion = EnumMqttProtocolVersion.V310;
+            }
 
             m_mqttTlsOptions = new MqttTlsOptions(keyValuePairs);
 
@@ -598,6 +597,5 @@ namespace Opc.Ua.PubSub.Mqtt
         /// </summary>
         public KeyValuePairCollection KeyValuePairs { get => m_keyValuePairs; set => m_keyValuePairs = value; }
         #endregion Public Propertis
-
     }
 }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,12 +28,10 @@
  * ======================================================================*/
 
 using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Configuration;
 using System;
+using Opc.Ua.PubSub.Configuration;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubConfiguratorTests
@@ -51,8 +49,8 @@ namespace Opc.Ua.PubSub.Tests
         static int CallCountWriterGroupAdded = 0;
         static int CallCountWriterGroupRemoved = 0;
         
-        private const string PublisherConfigurationFileName = "PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = "SubscriberConfiguration.xml";
+        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
 
         UaPubSubConfigurator m_uaPubSubConfigurator;
 
