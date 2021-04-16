@@ -369,7 +369,7 @@ namespace Opc.Ua.Server
             }
 
             // ensure a condition refresh is allowed.
-            subscription.ValidateConditionRefresh(context);
+            subscription.ValidateConditionRefresh2(context, monitoredItemId);
 
             // do the actual refresh in the background.
             Task.Run(() => {

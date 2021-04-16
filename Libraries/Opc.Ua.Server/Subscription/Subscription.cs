@@ -1961,6 +1961,24 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Verifies that a condition refresh operation is permitted.
+        /// </summary>
+        public void ValidateConditionRefresh2(OperationContext context, uint monitoredItemId)
+        {
+            ValidateConditionRefresh(context);
+
+            lock (m_lock)
+            {
+                if (!m_monitoredItems.ContainsKey(monitoredItemId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid,
+                        "Cannot refresh conditions for a monitored item that does not exist.");
+                }
+            }
+        }
+
+
+        /// <summary>
         /// Refreshes the conditions.
         /// </summary>
         public void ConditionRefresh()
@@ -2015,7 +2033,8 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid,
+                        "Cannot refresh conditions for a monitored item that does not exist.") ;
                 }
 
                 // nothing to do if no event subscriptions.
