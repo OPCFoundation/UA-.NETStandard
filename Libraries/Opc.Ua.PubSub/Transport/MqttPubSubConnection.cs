@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
@@ -328,7 +327,7 @@ namespace Opc.Ua.PubSub.Transport
                                                                                  null).ConfigureAwait(false)).Result;
             }
 
-            //subscriber initialization   
+            //subscriber initialization
             if (nrOfSubscribers > 0)
             {
                 // collect all topics from all ReaderGroups
@@ -668,7 +667,6 @@ namespace Opc.Ua.PubSub.Transport
                             .WithProtocolVersion(mqttProtocolVersion)
                             .Build();
                     }
-
                 }
             }
 
@@ -719,8 +717,6 @@ namespace Opc.Ua.PubSub.Transport
                 "Connection '{0}' -Rejected Certificate: {1} {2}",
                 PubSubConnectionConfiguration.Name, e.Error, e.Certificate.Subject);
         }
-
         #endregion Private methods
-
     }
 }
