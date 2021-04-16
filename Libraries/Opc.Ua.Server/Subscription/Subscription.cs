@@ -1991,14 +1991,11 @@ namespace Opc.Ua.Server
             ConditionRefresh(monitoredItems, 0);
         }
 
-
         /// <summary>
         /// Refreshes the conditions.
         /// </summary>
-        public uint ConditionRefresh2(uint monitoredItemId)
+        public void ConditionRefresh2(uint monitoredItemId)
         {
-            uint statusCode = StatusCodes.Good;
-
             List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
 
             lock (m_lock)
@@ -2018,25 +2015,23 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    return StatusCodes.BadMonitoredItemIdInvalid;
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
 
                 // nothing to do if no event subscriptions.
                 if (monitoredItems.Count == 0)
                 {
-                    return statusCode;
+                    return;
                 }
             }
 
             ConditionRefresh(monitoredItems, monitoredItemId);
-
-            return statusCode;
         }
 
         /// <summary>
         /// Refreshes the conditions.  Works for both ConditionRefresh and ConditionRefresh2
         /// </summary>
-        public void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId )
+        private void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId )
         {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
 
