@@ -755,6 +755,7 @@ namespace Opc.Ua
         /// <returns>Returns a collection of UserTokenPolicy objects, the return type is <seealso cref="UserTokenPolicyCollection"/> . </returns>
         public virtual UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
+            int policyId = 0;
             UserTokenPolicyCollection policies = new UserTokenPolicyCollection();
 
             if (configuration.ServerConfiguration == null || configuration.ServerConfiguration.UserTokenPolicies == null)
@@ -764,28 +765,30 @@ namespace Opc.Ua
 
             foreach (UserTokenPolicy policy in configuration.ServerConfiguration.UserTokenPolicies)
             {
-                // ensure a security policy is specified for user tokens.
-                if (description.SecurityMode == MessageSecurityMode.None)
+                UserTokenPolicy clone = (UserTokenPolicy)policy.MemberwiseClone();
+
+                if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
-                    if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
+                    // ensure each policy has a unique id.
+                    if (description.SecurityMode == MessageSecurityMode.None)
                     {
-                        UserTokenPolicy clone = (UserTokenPolicy)policy.MemberwiseClone();
+                        // ensure a security policy is specified for user tokens.
                         clone.SecurityPolicyUri = SecurityPolicies.Basic256;
-                        policies.Add(clone);
-                        continue;
+                        clone.PolicyId = Utils.Format("{0}", ++policyId);
                     }
+                    else
+                    {
+                        clone.PolicyId = Utils.Format("{0}", policyId++);
+                    }
+
+                    policyId++;
                 }
-
-                policies.Add(policy);
-            }
-
-            // ensure each policy has a unique id.
-            for (int ii = 0; ii < policies.Count; ii++)
-            {
-                if (String.IsNullOrEmpty(policies[ii].PolicyId))
+                else
                 {
-                    policies[ii].PolicyId = Utils.Format("{0}", ii);
+                    clone.PolicyId = Utils.Format("{0}", policyId++);
                 }
+
+                policies.Add(clone);
             }
 
             return policies;

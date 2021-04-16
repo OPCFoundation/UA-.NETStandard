@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -127,7 +126,7 @@ namespace Opc.Ua.Client
 
             foreach (Subscription subscription in template.Subscriptions)
             {
-                this.AddSubscription(new Subscription(subscription, copyEventHandlers));
+                AddSubscription(new Subscription(subscription, copyEventHandlers));
             }
         }
         #endregion
@@ -169,7 +168,6 @@ namespace Opc.Ua.Client
                     }
 
                     m_instanceCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
-
                 }
 
                 // check for valid certificate.
@@ -230,7 +228,7 @@ namespace Opc.Ua.Client
             m_systemContext.EncodeableFactory = m_factory;
             m_systemContext.NamespaceUris = m_namespaceUris;
             m_systemContext.ServerUris = m_serverUris;
-            m_systemContext.TypeTable = this.TypeTree;
+            m_systemContext.TypeTable = TypeTree;
             m_systemContext.PreferredLocales = null;
             m_systemContext.SessionId = null;
             m_systemContext.UserIdentity = null;
@@ -324,7 +322,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -338,7 +336,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -559,7 +557,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
         /// </summary>
-        public NodeCache NodeCache => m_nodeCache;
+        public INodeCache NodeCache => m_nodeCache;
 
         /// <summary>
         /// Gets the context to use for filter operations.
@@ -1250,7 +1248,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
@@ -1288,7 +1285,6 @@ namespace Opc.Ua.Client
                 stream.Dispose();
             }
         }
-
 
         /// <summary>
         /// Load the list of subscriptions saved in a file.
@@ -1466,7 +1462,6 @@ namespace Opc.Ua.Client
             return browser.Browse(variable.DataType);
         }
 
-
         /// <summary>
         /// Returns the data description for the encoding.
         /// </summary>
@@ -1490,7 +1485,6 @@ namespace Opc.Ua.Client
 
             return references[0];
         }
-
 
         /// <summary>
         ///  Returns the data dictionary that contains the description.
@@ -1813,7 +1807,7 @@ namespace Opc.Ua.Client
                     {
                         if (value.Value == null)
                         {
-                            variableNode.ArrayDimensions = new uint[0];
+                            variableNode.ArrayDimensions = Array.Empty<uint>();
                         }
                         else
                         {
@@ -2206,7 +2200,6 @@ namespace Opc.Ua.Client
             return value;
         }
 
-
         /// <summary>
         /// Fetches all references for the specified node.
         /// </summary>
@@ -2345,9 +2338,9 @@ namespace Opc.Ua.Client
 
             if (!requireEncryption)
             {
-                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None && 
+                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
                     !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
-            }           
+            }
 
             // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
@@ -2382,8 +2375,8 @@ namespace Opc.Ua.Client
             byte[] clientNonce = Utils.Nonce.CreateNonce(length);
             NodeId sessionId = null;
             NodeId sessionCookie = null;
-            byte[] serverNonce = new byte[0];
-            byte[] serverCertificateData = new byte[0];
+            byte[] serverNonce = Array.Empty<byte>();
+            byte[] serverCertificateData = Array.Empty<byte>();
             SignatureData serverSignature = null;
             EndpointDescriptionCollection serverEndpoints = null;
             SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
@@ -3029,7 +3022,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Reads the values for a set of variables.
         /// </summary>
@@ -3115,7 +3107,6 @@ namespace Opc.Ua.Client
                 values[ii] = value;
             }
         }
-
 
         /// <summary>
         /// Reads the display name for a set of Nodes.
@@ -4577,7 +4568,6 @@ namespace Opc.Ua.Client
             }
             return clientCertificate;
         }
-
 
         /// <summary>
         /// Load certificate chain for connection.
