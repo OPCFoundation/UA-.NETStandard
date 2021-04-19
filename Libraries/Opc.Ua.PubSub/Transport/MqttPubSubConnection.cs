@@ -398,7 +398,7 @@ namespace Opc.Ua.PubSub.Transport
         private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             string topic = eventArgs.ApplicationMessage.Topic;
-            Utils.Trace("Connection '{0}' - ProcessMqttMessage() from topic={0}", topic);
+            Utils.Trace("Connection '{0}' - ProcessMqttMessage() received from topic={0}", topic);
 
             // get the datasetreaders for received message topic
             List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
@@ -407,15 +407,46 @@ namespace Opc.Ua.PubSub.Transport
                 if (dsReader == null) continue;
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
                     ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
-                string queueName = brokerDataSetReaderTransportDataType?.QueueName;
-                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
+
+                string queueName = brokerDataSetReaderTransportDataType.QueueName;
+                if (queueName != "#")
                 {
-                    queueName = queueName.Substring(0, queueName.Length - 1);
+                    // The following block of code checks if the received topic is the expected one
+                    // In case the message is received from Azure the topic is received with an appended GUID which needs to be filtered out
+                    // The match is done using the following logic
+                    if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
+                    {
+                        // Keep the queueName without #
+                        queueName = queueName.Substring(0, queueName.Length - 1);
+                    }
+                    if (brokerDataSetReaderTransportDataType == null || !topic.StartsWith(queueName))
+                    {
+                        // Ignore message
+                        continue;
+                    }
+                    if (topic.Length > queueName.Length)
+                    {
+                        // Keep the portion of the topic having the length of the queueName
+                        string filterTopic = topic.Substring(0, queueName.Length);
+                        if (filterTopic != queueName)
+                        {
+                            // Ignore message
+                            continue;
+                        }
+                    }
+                    else if ((topic.Length == queueName.Length) && (topic != queueName))
+                    {
+                        // Ignore message
+                        continue;
+                    }
+                    else if (topic.Length < queueName.Length)
+                    {
+                        // Ignore message
+                        continue;
+                    }
                 }
-                if (brokerDataSetReaderTransportDataType == null || !topic.StartsWith(queueName))
-                {
-                    continue;
-                }
+                // At this point the message is accepted 
+                // if ((topic.Length == queueName.Length) && (topic == queueName)) || (queueName == #)
                 dataSetReaders.Add(dsReader);
             }
 
