@@ -374,10 +374,11 @@ namespace Opc.Ua.PubSub.Encoding
                 Field dataField = new Field();
                 dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                 dataField.Value = dataValues[i];
-                // todo investigate if Target attribute and node id are mandatory
+                
                 if (targetVariablesData != null && targetVariablesData.TargetVariables != null
                     && i < targetVariablesData.TargetVariables.Count)
                 {
+                    // remember the target Attribute and target nodeId
                     dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
                     dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
                 }

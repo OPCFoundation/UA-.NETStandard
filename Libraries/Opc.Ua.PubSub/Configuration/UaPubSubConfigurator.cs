@@ -422,6 +422,7 @@ namespace Opc.Ua.PubSub.Configuration
                 // Unexpected exception 
                 Utils.Trace(ex, "UaPubSubConfigurator.AddPublishedDataSet: Exception");
             }
+
             //todo implement state validation
             return StatusCodes.Bad;
         }

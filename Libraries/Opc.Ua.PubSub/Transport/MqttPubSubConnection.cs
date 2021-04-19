@@ -239,7 +239,6 @@ namespace Opc.Ua.PubSub.Transport
                                 as BrokerWriterGroupTransportDataType;
                             if (transportSettings == null)
                             {
-                                //TODO Wrong configuration of writer group MessageSettings, log error
                                 return false;
                             }
 

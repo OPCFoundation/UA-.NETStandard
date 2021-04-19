@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Transport;
@@ -42,17 +44,61 @@ namespace Quickstarts.ConsoleReferencePublisher
         {
             Console.WriteLine("OPC UA Console Reference Publisher");
 
+            // command line options
+            bool showHelp = false;
+            bool useMqttJson = true;
+            bool useUdpUadp = false;
+            Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                    { "h|help", "Show usage information", v => showHelp = v != null },
+                    { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
+                    { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
+                };
+
+            IList<string> extraArgs = null;
             try
             {
-                Utils.SetTraceLog("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferencePublisher.log.txt", true);
-                Utils.SetTraceMask(Utils.TraceMasks.Error);
-                Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
+                extraArgs = options.Parse(args);
+                if (extraArgs.Count > 0)
+                {
+                    foreach (string extraArg in extraArgs)
+                    {
+                        Console.WriteLine("Error: Unknown option: {0}", extraArg);
+                        showHelp = true;
+                    }
+                }
+            }
+            catch (OptionException e)
+            {
+                Console.WriteLine(e.Message);
+                showHelp = true;
+            }
 
-                // Create configuration using UDP protocol and UADP Encoding
-                //PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();
+            if (showHelp)
+            {
+                Console.WriteLine("Usage: dotnet ConsoleReferencePublisher.dll [OPTIONS]");
+                Console.WriteLine();
 
-                // Create configuration using MQTT protocol and JSON Encoding
-                PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
+                Console.WriteLine("Options:");
+                options.WriteOptionDescriptions(Console.Out);
+                return;
+            }
+            try
+            {
+                InitializeLog();
+
+                PubSubConfigurationDataType pubSubConfiguration = null;
+                if (useUdpUadp)
+                {
+                    // Create configuration using UDP protocol and UADP Encoding
+                    pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();
+                    Console.WriteLine("The Pubsub Connection was initialized using UDP & UADP Profile.");
+                }
+                else
+                {
+                    // Create configuration using MQTT protocol and JSON Encoding
+                    pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
+                    Console.WriteLine("The Pubsub Connection was initialized using MQTT & JSON Profile.");
+                }
 
                 // Create the UA Publisher application using configuration file
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
@@ -92,11 +138,13 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
         }
 
+        #region Private Methods
+
         /// <summary>
         /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreatePublisherConfiguration_UdpUadp()
+        private static PubSubConfigurationDataType CreatePublisherConfiguration_UdpUadp()
         {
             // Define a PubSub connection with PublisherId 1
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -199,7 +247,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Creates a PubSubConfiguration object for MQTT & Json programmatically.
         /// </summary>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson()
+        private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson()
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -527,5 +575,17 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             return publishedDataSetAllTypes;
         }
+
+        /// <summary>
+        /// Initialize logging
+        /// </summary>
+        private static void InitializeLog()
+        {
+            // Initialize logger
+            Utils.SetTraceLog("%CommonApplicationData%\\OPC Foundation\\Logs\\Quickstarts.ConsoleReferencePublisher.log.txt", true);
+            Utils.SetTraceMask(Utils.TraceMasks.Error);
+            Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
+        }
+        #endregion
     }
 }

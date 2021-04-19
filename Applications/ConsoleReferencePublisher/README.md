@@ -1,4 +1,5 @@
 
+
 # OPC Foundation UA .Net Standard Library - Console Reference Publisher
 
 ## Introduction
@@ -18,9 +19,33 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 ## Start the Publisher
 1. Open a command prompt.
 2. Navigate to the folder **Applications/ConsoleReferencePublisher**.
-3. To run the Publisher sample type `dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1.` 
+3. To run the Publisher sample execute: 
+
+`dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1` 
+
+
 The Publisher will start and publish network messages that can be consumed by the Reference Subscriber. 
 Publisher Initialization
+
+## Command Line Arguments for *ConsoleReferencePublisher*
+ **ConsoleReferencePublisher** can be executed using the following command line arguments:
+ 
+
+ -  -h|help - Shows usage information
+ -  -m|mqtt_json - Creates a connection using there MQTT with Json encoding Profile. This is the default option.
+ -  -u|udp_uadp - Creates a connection using there UDP with UADP encoding Profile. 
+
+To run the Publisher sample using a connection with MQTT with Json encoding execute: 
+
+		dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1 
+
+		or 
+
+		dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1 -m
+
+To run the Publisher sample using a connection with the UDP with UADP encoding execute: 
+
+		dotnet run --project ConsoleReferencePublisher.csproj --framework netcoreapp3.1 -u
 
 # Programmer's Guide
 To create a new OPC UA Publisher application:
@@ -36,15 +61,15 @@ The following four steps are required to implement a functional Publisher:
 
  1. Create [Publisher Configuration](#publisher-configuration).
  
-        // Create configuration using UDP protocol and UADP Encoding 
-        PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();
-    
-      Or use the alternative configuration object for MQTT with JSON encoding
-                
-        // Create configuration using MQTT protocol and JSON Encoding
+		// Create configuration using MQTT protocol and JSON Encoding
         PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
-
-    The CreatePublisherConfiguration methods can be found in  [Console Reference Publisher](./Program.cs)
+    
+      Or use the alternative configuration object for UDP with UADP encoding
+	  
+		// Create configuration using UDP protocol and UADP Encoding 
+        PubSubConfigurationDataType pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();      
+        
+	The CreatePublisherConfiguration methods can be found in  [ConsoleReferencePublisher/Program.cs](./Program.cs) file.
 
  2. Create an instance of the [UaPubSubApplication Class](../../Docs/PubSub.md#uapubsubapplication-class) using the configuration data from step 1.
  

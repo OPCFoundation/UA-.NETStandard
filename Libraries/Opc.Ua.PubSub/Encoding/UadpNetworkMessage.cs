@@ -411,7 +411,6 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PromotedFields) != 0)
             {
-                // todo:
                 // ExtendedFlags1: Bit 7: ExtendedFlags2 enabled
                 ExtendedFlags1 |= ExtendedFlags1EncodingMask.ExtendedFlags2;
 

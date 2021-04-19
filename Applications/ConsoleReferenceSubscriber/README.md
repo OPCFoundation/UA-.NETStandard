@@ -18,8 +18,32 @@ Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to set
 ## Start the Subscriber
 1. Open a command prompt.
 2. Navigate to the folder **Applications/ConsoleReferenceSubscriber**.
-3. To run the Subscriber sample type `dotnet run --project ConsoleReferenceSubscriber.csproj --framework netcoreapp3.1.` 
+3. To run the Subscriber sample type 
+
+`dotnet run --project ConsoleReferenceSubscriber.csproj --framework netcoreapp3.1.` 
+
 The Subscriber will start and listen for network messages sent by the Reference Publisher. 
+
+## Command Line Arguments for *ConsoleReferenceSubscriber*
+ **ConsoleReferenceSubscriber** can be executed using the following command line arguments:
+ 
+
+ -  -h|help - Shows usage information
+ -  -m|mqtt_json - Creates a connection using there MQTT with Json encoding Profile. This is the default option.
+ -  -u|udp_uadp - Creates a connection using there UDP with UADP encoding Profile. 
+
+To run the Subscriber sample using a connection with MQTT with Json encoding execute: 
+
+		dotnet run --project ConsoleReferenceSubscriber.csproj --framework netcoreapp3.1 
+
+		or 
+
+		dotnet run --project ConsoleReferenceSubscriber.csproj --framework netcoreapp3.1 -m
+
+To run the Subscriber sample using a connection with the UDP with UADP encoding execute: 
+
+		dotnet run --project ConsoleReferenceSubscriber.csproj --framework netcoreapp3.1 -u
+
 # Programmer's Guide
 To create a new OPC UA Subscriber application:
 
