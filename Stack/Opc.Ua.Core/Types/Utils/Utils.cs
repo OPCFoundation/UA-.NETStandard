@@ -2635,6 +2635,22 @@ namespace Opc.Ua
 
         #region Security Helper Functions
         /// <summary>
+        /// Returns a XmlReaderSetting with safe defaults with
+        /// DtdProcessing Prohibited and the XmlResolver as null.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        internal static XmlReaderSettings GetXmlReaderSettings()
+        {
+            // create a safe default for XmlReaderSettings
+            // to avoid false negatives for DtdProcessing
+            return new XmlReaderSettings() {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            };
+        }
+
+        /// <summary>
         /// Appends a list of byte arrays.
         /// </summary>
         public static byte[] Append(params byte[][] arrays)

@@ -51,7 +51,8 @@ namespace Opc.Ua
         /// <returns>The set of nodes</returns>
         public static NodeSet Read(Stream istrm)
         {
-            XmlReader reader = XmlReader.Create(istrm);
+            XmlReader reader = XmlReader.Create(istrm,
+                new XmlReaderSettings() { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null });
             
             try
             {

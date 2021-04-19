@@ -333,7 +333,12 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (XmlReader reader = XmlReader.Create(istrm))
+            XmlReaderSettings settings = new XmlReaderSettings() {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            };
+
+            using (XmlReader reader = XmlReader.Create(istrm, settings))
             {
                 XmlQualifiedName root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
                 XmlDecoder decoder = new XmlDecoder(null, reader, messageContext);

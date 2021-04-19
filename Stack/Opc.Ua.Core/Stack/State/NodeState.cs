@@ -1201,8 +1201,11 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.ConformanceLevel = ConformanceLevel.Document;
+            XmlReaderSettings settings = new XmlReaderSettings() {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document
+            };
 
             using (XmlReader reader = XmlReader.Create(input, settings))
             {
@@ -1217,8 +1220,11 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, Stream input)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.ConformanceLevel = ConformanceLevel.Document;
+            XmlReaderSettings settings = new XmlReaderSettings() {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document
+            };
 
             using (XmlReader reader = XmlReader.Create(input, settings))
             {

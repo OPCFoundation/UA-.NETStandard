@@ -510,7 +510,7 @@ namespace Opc.Ua
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
 
                 using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
-                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                    { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }))
                 {
                     document.Load(reader);
                 }
