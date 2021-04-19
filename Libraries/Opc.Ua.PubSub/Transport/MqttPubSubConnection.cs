@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Transport
         private static int m_dataSetSequenceNumber = 0;
 
         private string m_brokerHostName = "localhost";
-        private int m_brokerPort = 1883;
+        private int m_brokerPort = Utils.MqttDefaultPort;
         private int m_reconnectIntervalSeconds = 5;
 
         private IMqttClient m_publisherMqttClient;
@@ -116,7 +116,6 @@ namespace Opc.Ua.PubSub.Transport
             if (transportSettings == null)
             {
                 //Wrong configuration of writer group MessageSettings
-
                 return null;
             }
 
@@ -314,14 +313,14 @@ namespace Opc.Ua.PubSub.Transport
                 nrOfSubscribers = GetAllDataSetReaders().Count;
             }
 
-            MqttClient pubClient = null;
-            MqttClient subClient = null;
+            MqttClient publisherClient = null;
+            MqttClient subscriberClient = null;
             IMqttClientOptions mqttOptions = GetMqttClientOptions();
 
             //publisher initialization
             if (nrOfPublishers > 0)
             {
-                pubClient = Task.Run(async () =>
+                publisherClient = Task.Run(async () =>
                           (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
                                                                                  mqttOptions,
                                                                                  null).ConfigureAwait(false)).Result;
@@ -345,7 +344,7 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
 
-                subClient = Task.Run(async () =>
+                subscriberClient = Task.Run(async () =>
                      (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
                                                                             mqttOptions,
                                                                             ProcessMqttMessage,
@@ -354,8 +353,8 @@ namespace Opc.Ua.PubSub.Transport
 
             lock (m_lock)
             {
-                m_publisherMqttClient = pubClient;
-                m_subscriberMqttClient = subClient;
+                m_publisherMqttClient = publisherClient;
+                m_subscriberMqttClient = subscriberClient;
             }
 
             Utils.Trace("Connection '{0}' started {1} publishers and {2} subscribers.",
@@ -563,9 +562,6 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         private IMqttClientOptions GetMqttClientOptions()
         {
-            const string MqttUrlIdentifier = "mqtt://";
-            const string MqttSUrlIdentifier = "mqtts://";
-
             IMqttClientOptions mqttOptions = null;
             TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
 
@@ -574,21 +570,32 @@ namespace Opc.Ua.PubSub.Transport
             if (networkAddressUrlState == null)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                    this.PubSubConnectionConfiguration.Name);
+                    PubSubConnectionConfiguration.Name);
                 return null;
             }
 
-            string networkAddressUrl = networkAddressUrlState.Url.ToLower();
+            Uri connectionUri = null;
 
-            if (!networkAddressUrl.StartsWith(MqttUrlIdentifier) &&
-                !networkAddressUrl.StartsWith(MqttSUrlIdentifier))
+            if (networkAddressUrlState.Url != null && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
             {
-                Utils.Trace(Utils.TraceMasks.Error,
-                    "The configuration for connection '{0}' has an invalid Url value {1}. The Url should start either with {2} or with {3}",
+                if ((connectionUri.Scheme != Utils.UriSchemeMqtt) && (connectionUri.Scheme != Utils.UriSchemeMqtts))
+                {
+                    Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for connection '{0}' has an invalid Url value {1}. The Uri scheme should be either {2}:// or {3}://",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url,
-                    MqttUrlIdentifier,
-                    MqttSUrlIdentifier);
+                    Utils.UriSchemeMqtt,
+                    Utils.UriSchemeMqtts);
+                    return null;
+                }
+            }
+
+            if (connectionUri == null)
+            {
+                Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for connection '{0}' has an invalid Url value {1}.",
+                    PubSubConnectionConfiguration.Name,
+                    networkAddressUrlState.Url);
                 return null;
             }
 
@@ -605,17 +612,16 @@ namespace Opc.Ua.PubSub.Transport
                                 .Build();
                 return mqttOptions;
             }
-            else if (transportProtocolConfiguration != null)
+            else
             {
                 MqttClientProtocolConfiguration mqttProtocolConfiguration = transportProtocolConfiguration as MqttClientProtocolConfiguration;
                 if (mqttProtocolConfiguration != null)
                 {
-
                     MqttProtocolVersion mqttProtocolVersion = (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration).ProtocolVersion;
                     MqttTlsOptions mqttTlsOptions = ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
-                    if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                        mqttProtocolConfiguration.UseCredentials)
+                    // MQTTS connection with user credentials.
+                    if (connectionUri.Scheme == Utils.UriSchemeMqtts && mqttProtocolConfiguration.UseCredentials)
                     {
                         m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
 
@@ -656,10 +662,9 @@ namespace Opc.Ua.PubSub.Transport
                                 })
                                 .Build();
                         }
-
                     }
-                    else if (!networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                             mqttProtocolConfiguration.UseCredentials)
+                    // MQTT connection with user credentials.
+                    else if (connectionUri.Scheme == Utils.UriSchemeMqtt && mqttProtocolConfiguration.UseCredentials)
                     {
                         mqttOptions = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
@@ -669,8 +674,8 @@ namespace Opc.Ua.PubSub.Transport
                             .WithProtocolVersion(mqttProtocolVersion)
                             .Build();
                     }
-                    else if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                             !mqttProtocolConfiguration.UseCredentials)
+                    // MQTTS connection without user credentials.
+                    else if (connectionUri.Scheme == Utils.UriSchemeMqtts && !mqttProtocolConfiguration.UseCredentials)
                     {
                         m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
                         mqttOptions = new MqttClientOptionsBuilder()
@@ -688,8 +693,7 @@ namespace Opc.Ua.PubSub.Transport
                             })
                             .Build();
                     }
-                    //if (!networkAddressUrl.StartsWith(MqttSUriIdentifier) &&
-                    //        !mqttProtocolConfiguration.TransportProtocolConfiguration).UseCredentials)
+                    // MQTT connection without user credentials.
                     else
                     {
                         mqttOptions = new MqttClientOptionsBuilder()
