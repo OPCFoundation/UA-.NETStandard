@@ -508,9 +508,8 @@ namespace Opc.Ua
                 // If 0 terminated, decrease length by one before converting to string
                 var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
-
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
-                    { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null }))
+                using (StringReader stream = new StringReader(xmlString))
+                using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
                 {
                     document.Load(reader);
                 }

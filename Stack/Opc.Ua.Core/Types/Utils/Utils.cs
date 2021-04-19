@@ -1386,7 +1386,7 @@ namespace Opc.Ua
 
             if (buffer.Length == 0)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             string text = buffer.ToUpperInvariant();
@@ -2482,7 +2482,7 @@ namespace Opc.Ua
                         writer.Dispose();
                     }
 
-                    document.InnerXml = buffer.ToString();
+                    document.LoadInnerXml(buffer.ToString());
                 }
             }
 
@@ -2635,19 +2635,32 @@ namespace Opc.Ua
 
         #region Security Helper Functions
         /// <summary>
-        /// Returns a XmlReaderSetting with safe defaults with
-        /// DtdProcessing Prohibited and the XmlResolver as null.
+        /// Returns a XmlReaderSetting with safe defaults.
+        /// DtdProcessing Prohibited, XmlResolver disabled and
+        /// ConformanceLevel Document. 
         /// </summary>
-        /// <remarks>
-        /// </remarks>
-        internal static XmlReaderSettings GetXmlReaderSettings()
+        internal static XmlReaderSettings DefaultXmlReaderSettings()
         {
-            // create a safe default for XmlReaderSettings
-            // to avoid false negatives for DtdProcessing
             return new XmlReaderSettings() {
                 DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document
             };
+        }
+
+        /// <summary>
+        /// Safe version for assignment of InnerXml.
+        /// </summary>
+        /// <param name="doc">The XmlDocument.</param>
+        /// <param name="xml">The Xml document string.</param>
+        internal static void LoadInnerXml(this XmlDocument doc, string xml)
+        {
+            using (var sreader = new StringReader(xml))
+            using (var reader = XmlReader.Create(sreader, DefaultXmlReaderSettings()))
+            {
+                doc.XmlResolver = null;
+                doc.Load(reader);
+            }
         }
 
         /// <summary>
@@ -2657,7 +2670,7 @@ namespace Opc.Ua
         {
             if (arrays == null)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             int length = 0;

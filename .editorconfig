@@ -259,3 +259,6 @@ dotnet_naming_symbols.all_members.applicable_kinds                            = 
 
 dotnet_naming_style.pascal_case_style.capitalization                          = pascal_case
 
+# CA3075: Insecure DTD processing in XML
+dotnet_diagnostic.CA3075.severity = warning
+

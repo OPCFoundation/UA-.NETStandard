@@ -562,7 +562,8 @@ namespace Opc.Ua
             // return undecoded xml body.
             var xmlString = m_reader.ReadOuterXml();
 
-            using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+            using (StringReader stream = new StringReader(xmlString))
+            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
                 document.Load(reader);
             }
@@ -989,7 +990,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    value = new byte[0];
+                    value = Array.Empty<byte>();
                 }
 
                 // check the length.
@@ -1004,7 +1005,7 @@ namespace Opc.Ua
 
             if (!isNil)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             return null;
