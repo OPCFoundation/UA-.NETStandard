@@ -1961,23 +1961,116 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Verifies that a condition refresh operation is permitted.
+        /// </summary>
+        public void ValidateConditionRefresh2(OperationContext context, uint monitoredItemId)
+        {
+            ValidateConditionRefresh(context);
+
+            lock (m_lock)
+            {
+                if (!m_monitoredItems.ContainsKey(monitoredItemId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid,
+                        "Cannot refresh conditions for a monitored item that does not exist.");
+                }
+            }
+        }
+
+
+        /// <summary>
         /// Refreshes the conditions.
         /// </summary>
         public void ConditionRefresh()
         {
-            ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
             List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
+
+            lock (m_lock)
+            {
+                // build list of items to refresh.
+                foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
+                {
+                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+
+                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                    {
+                        // add to list that gets reported to the NodeManagers.
+                        monitoredItems.Add(eventMonitoredItem);
+                    }
+                }
+
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return;
+                }
+            }
+
+            ConditionRefresh(monitoredItems, 0);
+        }
+
+        /// <summary>
+        /// Refreshes the conditions.
+        /// </summary>
+        public void ConditionRefresh2(uint monitoredItemId)
+        {
+            List<IEventMonitoredItem> monitoredItems = new List<IEventMonitoredItem>();
+
+            lock (m_lock)
+            {
+                // build list of items to refresh.
+                if ( m_monitoredItems.ContainsKey(monitoredItemId) )
+                {
+                    LinkedListNode<IMonitoredItem> monitoredItem = m_monitoredItems[monitoredItemId];
+
+                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+
+                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                    {
+                        // add to list that gets reported to the NodeManagers.
+                        monitoredItems.Add(eventMonitoredItem);
+                    }
+                }
+                else
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid,
+                        "Cannot refresh conditions for a monitored item that does not exist.") ;
+                }
+
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return;
+                }
+            }
+
+            ConditionRefresh(monitoredItems, monitoredItemId);
+        }
+
+        /// <summary>
+        /// Refreshes the conditions.  Works for both ConditionRefresh and ConditionRefresh2
+        /// </summary>
+        private void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId )
+        {
+            ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
+
+            string messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}.", m_id);
+            if ( monitoredItemId > 0 )
+            {
+                messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}, monitored item {1}.", m_id, monitoredItemId);
+            }
 
             lock (m_lock)
             {
                 // generate start event.
                 RefreshStartEventState e = new RefreshStartEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                TranslationInfo message = null;
+
+                message = new TranslationInfo(
                     "RefreshStartEvent",
                     "en-US",
-                    "Condition refresh started for subscription {0}.",
-                    m_id);
+                    String.Format(messageTemplate, "started") );
 
                 e.Initialize(
                     systemContext,
@@ -1990,17 +2083,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTime.UtcNow, false);
 
                 // build list of items to refresh.
-                foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
+                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
-                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+                    MonitoredItem eventMonitoredItem = monitoredItem as MonitoredItem;
 
-                    if (eventMonitoredItem.EventFilter != null)
+                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
                         // queue start refresh event.
                         eventMonitoredItem.QueueEvent(e, true);
-
-                        // add to list that gets reported to the NodeManagers.
-                        monitoredItems.Add(eventMonitoredItem);
                     }
                 }
 
@@ -2029,11 +2119,12 @@ namespace Opc.Ua.Server
                 // generate start event.
                 RefreshEndEventState e = new RefreshEndEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                TranslationInfo message = null;
+
+                message = new TranslationInfo(
                     "RefreshEndEvent",
                     "en-US",
-                    "Condition refresh completed for subscription {0}.",
-                    m_id);
+                    String.Format(messageTemplate, "completed"));
 
                 e.Initialize(
                     systemContext,
