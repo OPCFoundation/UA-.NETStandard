@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     if (HasSingleDataSetMessage)
                     {
-                        // encode single dataset message                        
+                        // encode single dataset message
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
                         {
@@ -456,13 +456,13 @@ namespace Opc.Ua.PubSub.Encoding
             if (jsonDecoder.ReadField(FieldPublisherId, out token))
             {
                 PublisherId = jsonDecoder.ReadString(FieldPublisherId);
-                NetworkMessageContentMask = NetworkMessageContentMask | JsonNetworkMessageContentMask.PublisherId;
+                NetworkMessageContentMask |= JsonNetworkMessageContentMask.PublisherId;
             }
 
             if (jsonDecoder.ReadField(FieldDataSetClassId, out token))
             {
                 DataSetClassId = jsonDecoder.ReadString(FieldDataSetClassId);
-                NetworkMessageContentMask = NetworkMessageContentMask | JsonNetworkMessageContentMask.DataSetClassId;
+                NetworkMessageContentMask |= JsonNetworkMessageContentMask.DataSetClassId;
             }
         }
 

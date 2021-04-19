@@ -296,7 +296,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (networkAddressUrlState == null)
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                              this.PubSubConnectionConfiguration.Name);
+                              PubSubConnectionConfiguration.Name);
                     return;
                 }
 
@@ -318,7 +318,7 @@ namespace Opc.Ua.PubSub.Transport
             MqttClient subClient = null;
             IMqttClientOptions mqttOptions = GetMqttClientOptions();
 
-            //publisher initialization    
+            //publisher initialization
             if (nrOfPublishers > 0)
             {
                 pubClient = Task.Run(async () =>
@@ -338,7 +338,7 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
                             as BrokerDataSetReaderTransportDataType;
-                        if (brokerTransportSettings != null)
+                        if (brokerTransportSettings != null && !topics.Contains(brokerTransportSettings.QueueName))
                         {
                             topics.Add(brokerTransportSettings.QueueName);
                         }
@@ -392,7 +392,7 @@ namespace Opc.Ua.PubSub.Transport
 
         #region Private Methods
         /// <summary>
-        /// Processes a
+        /// Processes a message from the MQTT broker.
         /// </summary>
         /// <param name="eventArgs"></param>
         private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)

@@ -41,7 +41,6 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpClientBroadcast : UdpClient
     {
-
         #region Constructors
         /// <summary>
         /// Instantiates a UDP Broadcast client 
@@ -129,6 +128,5 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
         #endregion
-
     }
 }

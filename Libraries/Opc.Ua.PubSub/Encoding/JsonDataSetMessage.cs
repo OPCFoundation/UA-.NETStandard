@@ -35,8 +35,8 @@ using Opc.Ua.PubSub.PublishedData;
 namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
-    /// The UADPDataSetMessage class handler.
-    /// It handles the UADPDataSetMessage encoding 
+    /// The JsonDataSetMessage class handler.
+    /// It handles the JsonDataSetMessage encoding 
     /// </summary>
     public class JsonDataSetMessage : UaDataSetMessage
     {

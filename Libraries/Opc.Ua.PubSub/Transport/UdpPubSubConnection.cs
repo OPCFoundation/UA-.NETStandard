@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpPubSubConnection : UaPubSubConnection
     {
-        #region Private Fields       
+        #region Private Fields
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
         private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
 
@@ -54,11 +54,9 @@ namespace Opc.Ua.PubSub.Transport
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         internal event EventHandler<UadpDataEventArgs> UadpMessageReceived;
-
         #endregion
 
         #region Constructor
-
         /// <summary>
         ///  Create new instance of <see cref="UdpPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
@@ -69,11 +67,9 @@ namespace Opc.Ua.PubSub.Transport
 
             Utils.Trace("UdpPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }
-
         #endregion
 
         #region Public Properties
-
         /// <summary>
         /// Get the <see cref="IPAddress"/> from configured <see cref="PubSubConnectionDataType"/>.Address.
         /// </summary>
@@ -91,7 +87,6 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region UaPubSubConnection - Overrides
-
         /// <summary>
         /// Initialize UADP connection and return true if success.
         /// </summary>
@@ -184,7 +179,6 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
         }
-
 
         /// <summary>
         /// Create the network message built from the provided writerGroupConfiguration
@@ -439,7 +433,6 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
-
         /// <summary>
         /// Raise DataReceived event
         /// </summary>
@@ -467,7 +460,6 @@ namespace Opc.Ua.PubSub.Transport
             m_sequenceNumber = 0;
             m_dataSetSequenceNumber = 0;
         }
-
         #endregion
     }
 }

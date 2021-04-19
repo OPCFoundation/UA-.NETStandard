@@ -40,7 +40,6 @@ namespace Opc.Ua.PubSub.Transport
 {
     internal class MqttClientCreator
     {
-
         #region Private
         private static readonly Lazy<MqttFactory> mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
         #endregion
@@ -58,7 +57,6 @@ namespace Opc.Ua.PubSub.Transport
                                                                    Action<MqttApplicationMessageReceivedEventArgs> receiveMessageHandler,
                                                                    StringCollection topicFilter = null)
         {
-
             IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
 
             // Hook the receiveMessageHandler in case we deal with a subscriber

@@ -742,7 +742,7 @@ namespace Opc.Ua.PubSub.Encoding
                 && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
                 //skip 2 * dataset count for each dataset payload size 
-                encoder.Position = encoder.Position + 2 * DataSetMessages.Count;
+                encoder.Position += 2 * DataSetMessages.Count;
             }
             //encode dataset message payload
             foreach (UadpDataSetMessage uadpDataSetMessage in DataSetMessages)

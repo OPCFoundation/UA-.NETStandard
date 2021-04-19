@@ -39,7 +39,6 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpClientMulticast : UdpClient
     {
-
         #region Constructor
         /// <summary>
         /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
