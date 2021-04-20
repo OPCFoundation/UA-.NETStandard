@@ -200,7 +200,7 @@ namespace Opc.Ua
             }
 
             // read the message.
-            IEncodeable message = ReadEncodeable("Body", actualType);
+            IEncodeable message = ReadEncodeable("Body", actualType, absoluteId);
 
             // return the message.
             return message;
@@ -1444,7 +1444,7 @@ namespace Opc.Ua
 
                 if (systemType != null)
                 {
-                    var encodeable = ReadEncodeable("Body", systemType);
+                    var encodeable = ReadEncodeable("Body", systemType, typeId);
                     if (encodeable == null)
                     {
                         return extension;

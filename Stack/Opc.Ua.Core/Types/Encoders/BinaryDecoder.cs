@@ -228,7 +228,7 @@ namespace Opc.Ua
             }
 
             // read the message.
-            IEncodeable message = ReadEncodeable(null, actualType);
+            IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
 
             // check that the max message size was not exceeded.
             if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < (int)(m_istrm.Position - start))
@@ -2018,7 +2018,7 @@ namespace Opc.Ua
                     try
                     {
                         xmlDecoder.PushNamespace(element.NamespaceURI);
-                        IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType);
+                        IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType, extension.TypeId);
                         xmlDecoder.PopNamespace();
 
                         // update body.
