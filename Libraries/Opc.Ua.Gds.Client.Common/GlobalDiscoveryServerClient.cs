@@ -235,14 +235,14 @@ namespace Opc.Ua.Gds.Client
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Application.ApplicationConfiguration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-                    await Connect(endpoint);
+                    await Connect(endpoint).ConfigureAwait(false);
                 }
                 catch (ServiceResultException e)
                 {
                     if (e.StatusCode == StatusCodes.BadServerHalted)
                     {
                         serverHalted = true;
-                        await Task.Delay(1000);
+                        await Task.Delay(1000).ConfigureAwait(false);
                     }
                     else
                     {
@@ -287,7 +287,7 @@ namespace Opc.Ua.Gds.Client
                 Application.ApplicationName,
                 60000,
                 AdminCredentials,
-                PreferredLocales);
+                PreferredLocales).ConfigureAwait(false);
 
             m_endpoint = Session.ConfiguredEndpoint;
 

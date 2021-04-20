@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kUniformResourceIdentifier);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_uris[ii]);
             }
 
@@ -166,7 +166,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kDnsName);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_domainNames[ii]);
             }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kIpAddress);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_ipAddresses[ii]);
             }
 

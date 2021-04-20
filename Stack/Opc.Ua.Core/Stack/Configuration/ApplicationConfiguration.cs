@@ -337,7 +337,7 @@ namespace Opc.Ua
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
-                await configuration.Validate(applicationType);
+                await configuration.Validate(applicationType).ConfigureAwait(false);
 
                 configuration.m_sourceFilePath = file.FullName;
             }
@@ -398,7 +398,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider);
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
 
             Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();
@@ -455,7 +455,7 @@ namespace Opc.Ua
                 }
             }
 
-            await m_certificateValidator.Update(this.SecurityConfiguration);
+            await m_certificateValidator.Update(this.SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>

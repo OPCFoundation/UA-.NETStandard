@@ -319,10 +319,10 @@ namespace Opc.Ua
 
                     string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
 
-                    StringBuilder filePath = new StringBuilder();
-                    filePath.Append(m_privateKeySubdir.FullName);
-                    filePath.Append(Path.DirectorySeparatorChar);
-                    filePath.Append(fileRoot);
+                    StringBuilder filePath = new StringBuilder()
+                        .Append(m_privateKeySubdir.FullName)
+                        .Append(Path.DirectorySeparatorChar)
+                        .Append(fileRoot);
 
                     X509KeyStorageFlags[] storageFlags = {
                         X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
@@ -429,7 +429,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether the the store support CRLs.
+        /// Whether the store support CRLs.
         /// </summary>
         public bool SupportsCRLs { get { return true; } }
 

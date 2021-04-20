@@ -390,7 +390,7 @@ namespace Opc.Ua.Bindings
             if (ConnectionWaiting != null)
             {
                 var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
-                await ConnectionWaiting(this, args);
+                await ConnectionWaiting(this, args).ConfigureAwait(false);
                 accepted = args.Accepted;
             }
 

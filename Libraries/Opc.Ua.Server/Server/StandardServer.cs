@@ -2156,7 +2156,7 @@ namespace Opc.Ua.Server
         public async Task<bool> RegisterWithDiscoveryServer()
         {
             ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ?
-                base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false);
+                base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false).ConfigureAwait(false);
             CertificateValidationEventHandler registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
 
@@ -2310,7 +2310,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (await RegisterWithDiscoveryServer())
+                if (await RegisterWithDiscoveryServer().ConfigureAwait(false))
                 {
                     // schedule next registration.                        
                     lock (m_registrationLock)
@@ -2600,7 +2600,7 @@ namespace Opc.Ua.Server
                 ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
                     new FileInfo(args.FilePath),
                     Configuration.ApplicationType,
-                    Configuration.GetType());
+                    Configuration.GetType()).ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);
             }
@@ -2834,7 +2834,7 @@ namespace Opc.Ua.Server
                         {
                             UriBuilder uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
 
-                            if (String.Compare(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) == 0)
+                            if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                             {
                                 uri.Host = computerName;
                             }

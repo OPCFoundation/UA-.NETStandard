@@ -1123,7 +1123,7 @@ namespace Opc.Ua
             try
             {
                 // get the endpoints.
-                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null);
+                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null).ConfigureAwait(false);
 
                 // find list of matching endpoints.
                 var matches = MatchEndpoints(

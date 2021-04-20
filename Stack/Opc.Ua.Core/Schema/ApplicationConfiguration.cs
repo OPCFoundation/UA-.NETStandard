@@ -75,7 +75,7 @@ namespace Opc.Ua
 
         #region Persistent Properties
         /// <summary>
-        /// A descriptive name for the the application (not necessarily unique).
+        /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         /// <value>The name of the application.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]

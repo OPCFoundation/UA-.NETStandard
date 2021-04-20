@@ -208,7 +208,7 @@ namespace Opc.Ua.Gds.Client
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            await Connect(endpoint);
+            await Connect(endpoint).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -246,7 +246,7 @@ namespace Opc.Ua.Gds.Client
                 m_application.ApplicationName,
                 60000,
                 m_adminCredentials,
-                m_preferredLocales);
+                m_preferredLocales).ConfigureAwait(false);
 
             m_endpoint = m_session.ConfiguredEndpoint;
 

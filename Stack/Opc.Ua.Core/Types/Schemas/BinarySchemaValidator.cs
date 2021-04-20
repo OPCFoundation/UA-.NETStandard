@@ -68,7 +68,7 @@ namespace Opc.Ua.Schema.Binary
         {
             // read and parse the file.
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), stream);
-            await Validate();
+            await Validate().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Opc.Ua.Schema.Binary
         {
             // read and parse the file.
             Dictionary = (TypeDictionary)LoadInput(typeof(TypeDictionary), inputPath);
-            await Validate();
+            await Validate().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -143,7 +143,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 foreach (ImportDirective directive in Dictionary.Import)
                 {
-                    await Import(directive);
+                    await Import(directive).ConfigureAwait(false);
                 }
             }
             else
@@ -152,7 +152,7 @@ namespace Opc.Ua.Schema.Binary
                 if (!WellKnownDictionaries.Any(n => String.Equals(n[0], Dictionary.TargetNamespace)))
                 {
                     ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
-                    await Import(directive);
+                    await Import(directive).ConfigureAwait(false);
                 }
             }
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 for (int ii = 0; ii < dictionary.Import.Length; ii++)
                 {
-                    await Import(dictionary.Import[ii]);
+                    await Import(dictionary.Import[ii]).ConfigureAwait(false);
                 }
             }
 
