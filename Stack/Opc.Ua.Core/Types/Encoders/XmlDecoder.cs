@@ -550,7 +550,7 @@ namespace Opc.Ua
             if (systemType != null)
             {
                 PushNamespace(m_reader.NamespaceURI);
-                var encodeable = ReadEncodeable(m_reader.LocalName, systemType);
+                var encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
                 PopNamespace();
 
                 return encodeable;
