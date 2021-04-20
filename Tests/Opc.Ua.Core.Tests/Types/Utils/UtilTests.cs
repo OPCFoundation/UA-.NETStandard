@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.IO;
+using System.Text;
+using System.Xml;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
@@ -39,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [Parallelizable]
     public class UtilsTests
     {
-        #region misc
+        #region Misc
         /// <summary>
         /// Convert to and from little endian hex string.
         /// </summary>
@@ -75,7 +78,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
             // In Little Endian it's written as CE FA
-            Assert.AreEqual("CEFA", Utils.ToHexString(littleEndian, false));        }
+            Assert.AreEqual("CEFA", Utils.ToHexString(littleEndian, false));
+        }
 
         /// <summary>
         /// Convert to big endian hex string.
@@ -87,45 +91,44 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var hexutil = Utils.ToHexString(blob, true);
             Assert.AreEqual(hex, hexutil);
         }
-
         #endregion
 
         #region RelativePath.Parse
         /// <summary>
-        /// parse simple plain path string containing only numeric chars.
+        /// Parse simple plain path string containing only numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseNumericStringNonDeep()
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/11";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
-        /// parse deep path string containing only numeric chars.
+        /// Parse deep path string containing only numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseNumericStringDeepPath()
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123/789";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
-        /// parse deep path string containing alphanumeric chars, staring with numeric chars.
+        /// Parse deep path string containing alphanumeric chars, staring with numeric chars.
         /// </summary>
         [Test]
         public void RelativePathParseAlphanumericStringPath()
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123A/78B9";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
-        /// parse deep path string containing alphanumeric chars (mixed), starting with alphabetical chars.
+        /// Parse deep path string containing alphanumeric chars (mixed), starting with alphabetical chars.
         /// </summary>
         [Test]
         public void RelativePathParseAlphanumericStringPath2()
@@ -136,7 +139,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// parse deep path string containing only alphabetical chars.
+        /// Parse deep path string containing only alphabetical chars.
         /// </summary>
         [Test]
         public void RelativePathParseAlphaStringPath()
@@ -147,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// parse deep path string containing only alphabetical chars with namespace index
+        /// Parse deep path string containing only alphabetical chars with namespace index
         /// </summary>
         [Test]
         public void RelativePathParseAlphanumericWithNamespaceIndexStringPath()
@@ -157,6 +160,64 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
+        /// <summary>
+        /// Validate that XmlDocument DtdProcessing is protected against
+        /// exponential entity expansion in this version of .NET.
+        /// </summary>
+        [Test]
+        public void ExponentialEntityExpansionProcessing()
+        {
+            StringBuilder xmlEEXX = new StringBuilder();
+            xmlEEXX.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
+            xmlEEXX.AppendLine("<!DOCTYPE lolz [<!ENTITY lol \"lol\">");
+            xmlEEXX.AppendLine("<!ENTITY lol1 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol2 \"&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol3 \"&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol4 \"&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol5 \"&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;&lol4;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol6 \"&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;&lol5;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol7 \"&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;&lol6;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol8 \"&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;&lol7;\" >");
+            xmlEEXX.AppendLine("<!ENTITY lol9 \"&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;&lol8;\" >]>");
+            xmlEEXX.AppendLine("<lolz>&lol9;</lolz>");
+
+            // Validate the default reader (expansion limited at 10000000 bytes)
+            TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
+            var ex = Assert.Throws<XmlException>(() => {
+                XmlDocument document = new XmlDocument();
+                document.LoadXml(xmlEEXX.ToString());
+            });
+            TestContext.Out.WriteLine(ex.Message);
+
+            // Validate the InnerXml default (expansion limited at 10000000 bytes)
+            TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
+            ex = Assert.Throws<XmlException>(() => {
+                XmlDocument document = new XmlDocument();
+                document.InnerXml = xmlEEXX.ToString();
+            });
+            TestContext.Out.WriteLine(ex.Message);
+
+            // Validate the default Xml Reader settings prohibit Dtd (recommended)
+            TestContext.Out.WriteLine("Testing XmlDocument.Load with default xml reader.");
+            using (StringReader stream = new StringReader(xmlEEXX.ToString()))
+            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            {
+                ex = Assert.Throws<XmlException>(() => {
+                    XmlDocument document = new XmlDocument();
+                    document.Load(reader);
+                });
+                TestContext.Out.WriteLine(ex.Message);
+            }
+
+            // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
+            TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
+            ex = Assert.Throws<XmlException>(() => {
+                XmlDocument document = new XmlDocument();
+                document.LoadInnerXml(xmlEEXX.ToString());
+            });
+            TestContext.Out.WriteLine(ex.Message);
+
+        }
         #endregion
     }
 

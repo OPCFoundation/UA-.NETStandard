@@ -24,19 +24,19 @@ namespace Opc.Ua
     public abstract class EncodeableObject : IEncodeable
     {
         #region IEncodeable Methods
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public abstract ExpandedNodeId TypeId { get; }
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public abstract ExpandedNodeId BinaryEncodingId { get; }
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public abstract ExpandedNodeId XmlEncodingId { get; }
 
-        /// <summary cref="IEncodeable.Encode" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder) { }
 
-        /// <summary cref="IEncodeable.Decode" />
+        /// <inheritdoc/>
 		public virtual void Decode(IDecoder decoder) { }
 
         /// <summary>
@@ -182,7 +182,7 @@ namespace Opc.Ua
 
             // create document from encoder.
             XmlDocument document = new XmlDocument();
-            document.InnerXml = encoder.Close();
+            document.LoadInnerXml(encoder.Close());
 
             // return root element.
             return document.DocumentElement;

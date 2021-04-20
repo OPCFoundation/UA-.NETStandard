@@ -750,7 +750,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
+                document.LoadInnerXml(encoder.Close());
 
                 // return root element.
                 return document.DocumentElement;
