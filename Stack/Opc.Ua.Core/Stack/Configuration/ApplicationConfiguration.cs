@@ -48,7 +48,7 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
+            XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
 
             try
             {
