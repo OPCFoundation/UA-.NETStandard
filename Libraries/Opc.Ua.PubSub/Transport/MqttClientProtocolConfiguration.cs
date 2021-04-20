@@ -188,7 +188,6 @@ namespace Opc.Ua.PubSub.Transport
 
             QualifiedName qClientCertificatePassword = EnumMqttClientConfigurationParameters.TlsCertificateClientCertificatePassword.GetQualifiedName();
             m_keyValuePairs.Add(new KeyValuePair { Key = qClientCertificatePassword, Value = m_clientCertificatePassword });
-
         }
 
         /// <summary>
@@ -340,7 +339,6 @@ namespace Opc.Ua.PubSub.Transport
             m_keyValuePairs = kvpMqttOptions;
         }
 
-
         /// <summary>
         /// Constructor
         /// </summary>
@@ -422,7 +420,6 @@ namespace Opc.Ua.PubSub.Transport
             kvpRejectedCertificateStoreStorePath.Key = EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath.GetQualifiedName();
             kvpRejectedCertificateStoreStorePath.Value = m_rejectedCertificateStore?.StorePath;
             m_keyValuePairs.Add(kvpRejectedCertificateStoreStorePath);
-
         }
         #endregion
 
@@ -585,8 +582,6 @@ namespace Opc.Ua.PubSub.Transport
         internal EnumMqttProtocolVersion ProtocolVersion { get => m_protocolVersion; set => m_protocolVersion = value; }
 
         internal MqttTlsOptions MqttTlsOptions { get => m_mqttTlsOptions; set => m_mqttTlsOptions = value; }
-
-
         #endregion Internal Properties
 
         #region Public Properties

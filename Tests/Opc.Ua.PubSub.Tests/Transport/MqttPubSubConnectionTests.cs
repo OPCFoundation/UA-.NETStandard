@@ -93,7 +93,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(publisherConfiguration, publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
-            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttPublisherConnection.ConnectionProperties, "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
             Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(publisherConfiguration, publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
-            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttPublisherConnection.ConnectionProperties, "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
@@ -238,7 +238,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
             Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
@@ -264,7 +264,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             subscriberConnection.Stop();
             publisherConnection.Stop();
-
         }
 
         #region Private methods
@@ -315,10 +314,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 Assert.Fail("The mosquitto could not be restarted!");
             }
-
         }
-
-
         #endregion
     }
 }
