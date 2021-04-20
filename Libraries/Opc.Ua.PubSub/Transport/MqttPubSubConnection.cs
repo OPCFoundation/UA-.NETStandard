@@ -271,11 +271,6 @@ namespace Opc.Ua.PubSub.Transport
         #endregion Public Methods
 
         #region Protected Methods
-        protected override bool InternalInitialize()
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -733,7 +728,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Stack certifficate validation handler
+        /// Handler validation errors of MQTT broker certificate.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

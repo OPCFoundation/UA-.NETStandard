@@ -264,13 +264,6 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Protected Methods
-
-        /// <summary>
-        /// Initialize the connection object. Must be implemented by derived classes
-        /// </summary>
-        /// <returns></returns>
-        protected abstract bool InternalInitialize();
-
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -341,10 +334,9 @@ namespace Opc.Ua.PubSub
             }
             return maxKeepAlive;
         }
-        #endregion        
+        #endregion 
 
         #region Private Methods
-
         /// <summary>
         /// Handler for <see cref="UaPubSubConfigurator.WriterGroupAdded"/> event. 
         /// </summary>

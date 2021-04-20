@@ -88,15 +88,6 @@ namespace Opc.Ua.PubSub.Transport
 
         #region UaPubSubConnection - Overrides
         /// <summary>
-        /// Initialize UADP connection and return true if success.
-        /// </summary>
-        /// <returns></returns>
-        protected override bool InternalInitialize()
-        {
-            return true;
-        }
-
-        /// <summary>
         /// Perform specific Start tasks
         /// </summary>
         protected override void InternalStart()
