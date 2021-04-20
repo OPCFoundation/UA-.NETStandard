@@ -1294,7 +1294,6 @@ namespace Opc.Ua.Client
         public IEnumerable<Subscription> Load(string filePath)
         {
             XmlReaderSettings settings = new XmlReaderSettings();
-
             settings.ConformanceLevel = ConformanceLevel.Document;
             settings.CloseInput = true;
 
