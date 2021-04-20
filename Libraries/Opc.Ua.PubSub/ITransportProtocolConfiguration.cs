@@ -38,6 +38,6 @@ namespace Opc.Ua.PubSub
         /// Retrieve the configuration in KeyValuePairCollection format
         /// </summary>
         /// <returns></returns>
-        KeyValuePairCollection KeyValuePairs { get; set; }
+        KeyValuePairCollection ConnectionProperties { get; set; }
     }
 }

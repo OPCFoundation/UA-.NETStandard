@@ -28,14 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Transport;
 using Opc.Ua.PubSub.PublishedData;
-using System.Collections.Generic;
-using Mono.Options;
+using Opc.Ua.PubSub.Transport;
 
 namespace Quickstarts.ConsoleReferenceSubscriber
 {
@@ -104,7 +104,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     // Create configuration using MQTT protocol and JSON Encoding
                     pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
                     Console.WriteLine("The Pubsub Connection was initialized using MQTT & JSON Profile.");
-                }                
+                }
 
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
@@ -333,7 +333,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
             //pubSubConnection1.TransportSettings = new ExtensionObject(mqttConfiguration);
-            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
 
             //  Define "Simple" MetaData
             DataSetMetaDataType simpleMetaData = CreateDataSetMetaDataSimple();

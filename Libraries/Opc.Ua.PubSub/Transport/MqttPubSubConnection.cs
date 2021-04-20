@@ -496,7 +496,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Validates the client certificate
+        /// Validates the broker certificate.
         /// </summary>
         /// <param name="context">The context of the validation</param>
         private bool ValidateCertificate(MqttClientCertificateValidationCallbackContext context)

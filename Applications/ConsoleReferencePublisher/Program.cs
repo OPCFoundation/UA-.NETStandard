@@ -39,7 +39,6 @@ namespace Quickstarts.ConsoleReferencePublisher
 {
     public static class Program
     {
-
         public static void Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Publisher");
@@ -139,7 +138,6 @@ namespace Quickstarts.ConsoleReferencePublisher
         }
 
         #region Private Methods
-
         /// <summary>
         /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
@@ -265,7 +263,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             // Configure the mqtt specific configuration with the MQTTbroker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
-            pubSubConnection1.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
 
             #region Define WriterGroup1 - Json
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();

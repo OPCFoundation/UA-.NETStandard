@@ -451,7 +451,7 @@ namespace Opc.Ua.PubSub.Transport
         bool m_cleanSession;
         EnumMqttProtocolVersion m_protocolVersion;
         MqttTlsOptions m_mqttTlsOptions;
-        KeyValuePairCollection m_keyValuePairs;
+        KeyValuePairCollection m_connectionProperties;
         #endregion
 
         #region Constructor
@@ -466,7 +466,7 @@ namespace Opc.Ua.PubSub.Transport
             m_cleanSession = true;
             m_protocolVersion = EnumMqttProtocolVersion.V310;
             m_mqttTlsOptions = null;
-            m_keyValuePairs = null;
+            m_connectionProperties = null;
         }
 
         /// <summary>
@@ -492,45 +492,44 @@ namespace Opc.Ua.PubSub.Transport
             m_protocolVersion = version;
             m_mqttTlsOptions = mqttTlsOptions;
 
-            m_keyValuePairs = new KeyValuePairCollection();
+            m_connectionProperties = new KeyValuePairCollection();
 
             KeyValuePair kvpUserName = new KeyValuePair();
             kvpUserName.Key = EnumMqttClientConfigurationParameters.UserName.GetQualifiedName();
             kvpUserName.Value = new System.Net.NetworkCredential(string.Empty, m_userName).Password;
-            m_keyValuePairs.Add(kvpUserName);
+            m_connectionProperties.Add(kvpUserName);
             KeyValuePair kvpPassword = new KeyValuePair();
             kvpPassword.Key = EnumMqttClientConfigurationParameters.Password.GetQualifiedName();
             kvpPassword.Value = new System.Net.NetworkCredential(string.Empty, m_password).Password;
-            m_keyValuePairs.Add(kvpPassword);
+            m_connectionProperties.Add(kvpPassword);
             KeyValuePair kvpAzureClientId = new KeyValuePair();
             kvpAzureClientId.Key = EnumMqttClientConfigurationParameters.AzureClientId.GetQualifiedName();
             kvpAzureClientId.Value = m_azureClientId;
-            m_keyValuePairs.Add(kvpAzureClientId);
+            m_connectionProperties.Add(kvpAzureClientId);
             KeyValuePair kvpCleanSession = new KeyValuePair();
             kvpCleanSession.Key = EnumMqttClientConfigurationParameters.CleanSession.GetQualifiedName();
             kvpCleanSession.Value = m_cleanSession;
-            m_keyValuePairs.Add(kvpCleanSession);
+            m_connectionProperties.Add(kvpCleanSession);
             KeyValuePair kvpProtocolVersion = new KeyValuePair();
             kvpProtocolVersion.Key = EnumMqttClientConfigurationParameters.ProtocolVersion.GetQualifiedName();
             kvpProtocolVersion.Value = (int)m_protocolVersion;
-            m_keyValuePairs.Add(kvpProtocolVersion);
+            m_connectionProperties.Add(kvpProtocolVersion);
 
             if (m_mqttTlsOptions != null)
             {
-                m_keyValuePairs.AddRange(m_mqttTlsOptions.KeyValuePairs);
+                m_connectionProperties.AddRange(m_mqttTlsOptions.KeyValuePairs);
             }
-
         }
 
         /// <summary>
         /// Constructs a MqttClientProtocolConfiguration from given keyValuePairs
         /// </summary>
-        /// <param name="keyValuePairs"></param>
-        public MqttClientProtocolConfiguration(KeyValuePairCollection keyValuePairs)
+        /// <param name="connectionProperties"></param>
+        public MqttClientProtocolConfiguration(KeyValuePairCollection connectionProperties)
         {
             m_userName = new SecureString();
             QualifiedName qUserName = EnumMqttClientConfigurationParameters.UserName.GetQualifiedName();
-            string sUserName = keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qUserName.Name))?.Value.Value as string;
+            string sUserName = connectionProperties.Find(kvp => kvp.Key.Name.Equals(qUserName.Name))?.Value.Value as string;
             if (sUserName != null)
             {
                 foreach (char c in sUserName?.ToCharArray())
@@ -541,7 +540,7 @@ namespace Opc.Ua.PubSub.Transport
 
             m_password = new SecureString();
             QualifiedName qPassword = EnumMqttClientConfigurationParameters.Password.GetQualifiedName();
-            string sPassword = keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qPassword.Name))?.Value.Value as string;
+            string sPassword = connectionProperties.Find(kvp => kvp.Key.Name.Equals(qPassword.Name))?.Value.Value as string;
             if (sPassword != null)
             {
                 foreach (char c in sPassword?.ToCharArray())
@@ -551,23 +550,22 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             QualifiedName qAzureClientId = EnumMqttClientConfigurationParameters.AzureClientId.GetQualifiedName();
-            m_azureClientId = Convert.ToString(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qAzureClientId.Name))?.Value.Value);
+            m_azureClientId = Convert.ToString(connectionProperties.Find(kvp => kvp.Key.Name.Equals(qAzureClientId.Name))?.Value.Value);
 
             QualifiedName qCleanSession = EnumMqttClientConfigurationParameters.CleanSession.GetQualifiedName();
-            m_cleanSession = Convert.ToBoolean(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qCleanSession.Name))?.Value.Value);
+            m_cleanSession = Convert.ToBoolean(connectionProperties.Find(kvp => kvp.Key.Name.Equals(qCleanSession.Name))?.Value.Value);
 
             QualifiedName qProtocolVersion = EnumMqttClientConfigurationParameters.ProtocolVersion.GetQualifiedName();
-            m_protocolVersion = (EnumMqttProtocolVersion)Convert.ToInt32(keyValuePairs.Find(kvp => kvp.Key.Name.Equals(qProtocolVersion.Name))?.Value.Value);
+            m_protocolVersion = (EnumMqttProtocolVersion)Convert.ToInt32(connectionProperties.Find(kvp => kvp.Key.Name.Equals(qProtocolVersion.Name))?.Value.Value);
             if (m_protocolVersion == EnumMqttProtocolVersion.Unknown)
             {
                 Utils.Trace(Utils.TraceMasks.Information, "Mqtt protocol version is Unknown and it will default to V310");
                 m_protocolVersion = EnumMqttProtocolVersion.V310;
             }
 
-            m_mqttTlsOptions = new MqttTlsOptions(keyValuePairs);
+            m_mqttTlsOptions = new MqttTlsOptions(connectionProperties);
 
-            m_keyValuePairs = keyValuePairs;
-
+            m_connectionProperties = connectionProperties;
         }
         #endregion
 
@@ -593,9 +591,9 @@ namespace Opc.Ua.PubSub.Transport
 
         #region Public Properties
         /// <summary>
-        /// The key value pairs representing the values of a MqttClientProtocolConfiguration
+        /// The key value pairs representing the parameters of a MqttClientProtocolConfiguration
         /// </summary>
-        public KeyValuePairCollection KeyValuePairs { get => m_keyValuePairs; set => m_keyValuePairs = value; }
+        public KeyValuePairCollection ConnectionProperties { get => m_connectionProperties; set => m_connectionProperties = value; }
         #endregion Public Propertis
     }
 }
