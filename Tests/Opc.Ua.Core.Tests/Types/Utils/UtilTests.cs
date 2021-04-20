@@ -78,7 +78,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
             // In Little Endian it's written as CE FA
-            Assert.AreEqual("CEFA", Utils.ToHexString(littleEndian, false));        }
+            Assert.AreEqual("CEFA", Utils.ToHexString(littleEndian, false));
+        }
 
         /// <summary>
         /// Convert to big endian hex string.
@@ -101,7 +102,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/11";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -112,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123/789";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -123,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             TypeTable typeTable = new TypeTable(new NamespaceTable());
             string str = "/123A/78B9";
-            Assert.AreEqual(str,RelativePath.Parse(str, typeTable).Format(typeTable));
+            Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -198,12 +199,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the default Xml Reader settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing XmlDocument.Load with default xml reader.");
-            XmlReader reader = XmlReader.Create(new StringReader(xmlEEXX.ToString()), Utils.DefaultXmlReaderSettings());
-            ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
-                document.Load(reader);
-            });
-            TestContext.Out.WriteLine(ex.Message);
+            using (StringReader stream = new StringReader(xmlEEXX.ToString()))
+            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            {
+                ex = Assert.Throws<XmlException>(() => {
+                    XmlDocument document = new XmlDocument();
+                    document.Load(reader);
+                });
+                TestContext.Out.WriteLine(ex.Message);
+            }
 
             // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
