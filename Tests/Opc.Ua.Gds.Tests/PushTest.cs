@@ -291,7 +291,7 @@ namespace Opc.Ua.Gds.Tests
         public void CreateSigningRequestAllParms()
         {
             ConnectPushClient(true);
-            byte[] nonce = new byte[0];
+            byte[] nonce = Array.Empty<byte>();
             byte[] csr = _pushClient.PushClient.CreateSigningRequest(
                 _pushClient.PushClient.DefaultApplicationGroup,
                 _pushClient.PushClient.ApplicationCertificateType,

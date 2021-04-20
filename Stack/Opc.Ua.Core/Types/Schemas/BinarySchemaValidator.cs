@@ -424,7 +424,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 if (structure.Field == null || structure.Field.Length == 0)
                 {
-                    structure.Field = new FieldType[0];
+                    structure.Field = Array.Empty<FieldType>();
                 }
 
                 int bitCount = 0;

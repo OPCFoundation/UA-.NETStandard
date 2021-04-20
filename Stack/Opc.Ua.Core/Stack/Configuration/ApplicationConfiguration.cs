@@ -48,17 +48,11 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
-
-            try
+            using (XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(ConfigurationLocation));
                 ConfigurationLocation configuration = serializer.ReadObject(reader) as ConfigurationLocation;
                 return configuration;
-            }
-            finally
-            {
-                reader.Dispose();
             }
         }
         #endregion
@@ -410,7 +404,7 @@ namespace Opc.Ua
                 var sb = new StringBuilder();
                 sb.Append("urn:");
                 sb.Append(Utils.GetHostName());
-                sb.Append(":");
+                sb.Append(':');
                 sb.Append(ApplicationName);
                 return sb.ToString();
             };

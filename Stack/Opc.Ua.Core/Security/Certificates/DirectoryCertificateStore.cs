@@ -522,7 +522,7 @@ namespace Opc.Ua
             StringBuilder builder = new StringBuilder();
             builder.Append(m_directory.FullName);
 
-            builder.Append(Path.DirectorySeparatorChar + "crl" + Path.DirectorySeparatorChar);
+            builder.Append(Path.DirectorySeparatorChar).Append("crl").Append(Path.DirectorySeparatorChar);
             builder.Append(GetFileName(issuer));
             builder.Append(".crl");
 
@@ -748,7 +748,7 @@ namespace Opc.Ua
 
             fileName.Append(" [");
             fileName.Append(certificate.Thumbprint);
-            fileName.Append("]");
+            fileName.Append(']');
 
             return fileName.ToString();
         }

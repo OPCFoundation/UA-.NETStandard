@@ -1429,7 +1429,7 @@ namespace Opc.Ua
             m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
             m_shutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
-            m_supportedPrivateKeyFormats = new string[] { };
+            m_supportedPrivateKeyFormats = Array.Empty<string>();
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
         }
