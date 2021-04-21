@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
                     // Subscribe to provided topics, messages are also filtered on the receiveMessageHandler
-                    await mqttClient.SubscribeAsync(topics.ToArray());
+                    await mqttClient.SubscribeAsync(topics.ToArray()).ConfigureAwait(false);
 
                     Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
                 });
@@ -96,12 +96,12 @@ namespace Opc.Ua.PubSub.Transport
             while (mqttClient.IsConnected == false)
             {
                 Connect(reconnectInterval, mqttClientOptions, mqttClient);
-                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
+                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
             }
 
             // Setup reconnect handler
             mqttClient.UseDisconnectedHandler(async e => {
-                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
+                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
                 try
                 {
                     Utils.Trace("Disconnect Handler called on client {0}, reason: {1} wasconnected: {2}",
@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             try
             {
-                var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+                var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None).ConfigureAwait(false);
                 if (MqttClientConnectResultCode.Success == result.ResultCode)
                 {
                     Utils.Trace("MQTT client {0} successfully connected", mqttClient?.Options?.ClientId);
