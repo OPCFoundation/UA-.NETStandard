@@ -51,10 +51,10 @@ namespace Opc.Ua.Security
             buffer.Append("SECURE CHANNEL CREATED");
             buffer.Append(" [");
             buffer.Append(implementationInfo);
-            buffer.Append("]");
+            buffer.Append(']');
             buffer.Append(" [ID=");
             buffer.Append(secureChannelId);
-            buffer.Append("]");
+            buffer.Append(']');
             buffer.Append(" Connected To: ");
             buffer.Append(endpointUrl);
 
@@ -62,9 +62,9 @@ namespace Opc.Ua.Security
             {
                 buffer.Append(" [");
                 buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", endpoint.SecurityMode);
-                buffer.Append("/");
+                buffer.Append('/');
                 buffer.Append(SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri));
-                buffer.Append("/");
+                buffer.Append('/');
 
                 if (encodingSupport == BinaryEncodingSupport.Required)
                 {
@@ -79,7 +79,7 @@ namespace Opc.Ua.Security
                     buffer.Append("BinaryOrXml");
                 }
 
-                buffer.Append("]");
+                buffer.Append(']');
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
@@ -89,7 +89,7 @@ namespace Opc.Ua.Security
                         buffer.Append(clientCertificate.Subject);
                         buffer.Append("] [");
                         buffer.Append(clientCertificate.Thumbprint);
-                        buffer.Append("]");
+                        buffer.Append(']');
                     }
 
                     if (serverCertificate != null)
@@ -98,7 +98,7 @@ namespace Opc.Ua.Security
                         buffer.Append(serverCertificate.Subject);
                         buffer.Append("] [");
                         buffer.Append(serverCertificate.Thumbprint);
-                        buffer.Append("]");
+                        buffer.Append(']');
                     }
                 }
             }
@@ -127,10 +127,10 @@ namespace Opc.Ua.Security
             buffer.Append("SECURE CHANNEL RENEWED");
             buffer.Append(" [");
             buffer.Append(implementationInfo);
-            buffer.Append("]");
+            buffer.Append(']');
             buffer.Append(" [ID=");
             buffer.Append(secureChannelId);
-            buffer.Append("]");
+            buffer.Append(']');
 
             Utils.Trace(Utils.TraceMasks.Security, buffer.ToString());
         }

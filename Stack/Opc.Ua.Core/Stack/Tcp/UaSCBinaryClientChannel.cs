@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings
                     task = Task.Run(async () =>
                         await (Socket?.BeginConnect(
                             m_via, m_ConnectCallback, operation,
-                            new CancellationTokenSource(timeout).Token) ?? Task.FromResult(false)));
+                            new CancellationTokenSource(timeout).Token) ?? Task.FromResult(false)).ConfigureAwait(false));
                 }
             }
 
@@ -867,7 +867,7 @@ namespace Opc.Ua.Bindings
                         task = Task.Run(async () =>
                             await (Socket?.BeginConnect(
                                 m_via, m_ConnectCallback, m_handshakeOperation,
-                                CancellationToken.None) ?? Task.FromResult(false)));
+                                CancellationToken.None) ?? Task.FromResult(false)).ConfigureAwait(false));
                     }
                 }
             }

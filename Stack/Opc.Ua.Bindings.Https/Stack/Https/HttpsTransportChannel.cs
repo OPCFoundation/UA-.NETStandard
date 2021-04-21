@@ -201,7 +201,7 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         var ct = new CancellationTokenSource(m_operationTimeout).Token;
-                        response = await m_client.PostAsync(m_url, content, ct);
+                        response = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
                     }
                     catch (Exception ex)
@@ -322,9 +322,9 @@ namespace Opc.Ua.Bindings
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = m_mediaTypeHeaderValue;
-                var result = await m_client.PostAsync(m_url, content, ct);
+                var result = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                 result.EnsureSuccessStatusCode();
-                Stream responseContent = await result.Content.ReadAsStreamAsync();
+                Stream responseContent = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
             }
             catch (Exception ex)
