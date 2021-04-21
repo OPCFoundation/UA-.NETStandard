@@ -32,37 +32,9 @@ using System.Collections.Generic;
 using System.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using MQTTnet.Formatter;
 
 namespace Opc.Ua.PubSub.Transport
 {
-    /// <summary>
-    /// The identifiers of the MqttClientConfigurationParameters
-    /// </summary>
-    internal enum EnumMqttClientConfigurationParameters
-    {
-        UserName,
-        Password,
-        AzureClientId,
-        CleanSession,
-        ProtocolVersion,
-
-        TlsCertificateCaCertificatePath,
-        TlsCertificateClientCertificatePath,
-        TlsCertificateClientCertificatePassword,
-        TlsProtocolVersion,
-        TlsAllowUntrustedCertificates,
-        TlsIgnoreCertificateChainErrors,
-        TlsIgnoreRevocationListErrors,
-
-        TrustedIssuerCertificatesStoreType,
-        TrustedIssuerCertificatesStorePath,
-        TrustedPeerCertificatesStoreType,
-        TrustedPeerCertificatesStorePath,
-        RejectedCertificateStoreStoreType,
-        RejectedCertificateStoreStorePath
-    }
-
     /// <summary>
     /// Extension for providing string values corresponding to EnumMqttClientConfigurationParameters
     /// </summary>
@@ -112,29 +84,6 @@ namespace Opc.Ua.PubSub.Transport
                     return "";
             }
         }
-    }
-
-    /// <summary>
-    /// The Mqtt Protocol Version
-    /// </summary>
-    public enum EnumMqttProtocolVersion
-    {
-        /// <summary>
-        /// Unknown version
-        /// </summary>
-        Unknown = MqttProtocolVersion.Unknown,
-        /// <summary>
-        /// Mqtt V310
-        /// </summary>
-        V310 = MqttProtocolVersion.V310,
-        /// <summary>
-        /// Mqtt V311
-        /// </summary>
-        V311 = MqttProtocolVersion.V311,
-        /// <summary>
-        /// Mqtt V500
-        /// </summary>
-        V500 = MqttProtocolVersion.V500
     }
 
     /// <summary>

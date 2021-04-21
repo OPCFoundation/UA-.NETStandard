@@ -38,21 +38,6 @@ using System.Text;
 namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
-    /// Where is a method call used in 
-    /// </summary>
-    public enum UsedInContext
-    {
-        /// <summary>
-        /// Publisher context call
-        /// </summary>
-        Publisher,
-        /// <summary>
-        /// Subscriber context call
-        /// </summary>
-        Subscriber
-    };
-
-    /// <summary>
     /// Specialized in creating the necessary <see cref="UdpClient"/> instances from an URL
     /// </summary>
     internal class UdpClientCreator

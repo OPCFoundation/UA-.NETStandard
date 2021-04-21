@@ -64,7 +64,6 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Public Properties
-
         /// <summary>
         /// Gets the host name or IP address of the broker.
         /// </summary>
