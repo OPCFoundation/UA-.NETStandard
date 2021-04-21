@@ -660,7 +660,7 @@ namespace Opc.Ua.PubSub.Transport
             securityConfiguration.TrustedPeerCertificates = (CertificateTrustList)mqttTlsOptions.TrustedPeerCertificates;
             securityConfiguration.RejectedCertificateStore = mqttTlsOptions.RejectedCertificateStore;
 
-            securityConfiguration.RejectSHA1SignedCertificates = false;
+            securityConfiguration.RejectSHA1SignedCertificates = true;
             securityConfiguration.AutoAcceptUntrustedCertificates = mqttTlsOptions.AllowUntrustedCertificates;
             securityConfiguration.RejectUnknownRevocationStatus = !m_mqttClientTlsOptions.IgnoreCertificateRevocationErrors;
 
