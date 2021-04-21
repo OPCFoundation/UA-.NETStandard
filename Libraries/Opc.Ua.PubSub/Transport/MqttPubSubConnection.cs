@@ -662,7 +662,7 @@ namespace Opc.Ua.PubSub.Transport
 
             securityConfiguration.RejectSHA1SignedCertificates = false;
             securityConfiguration.AutoAcceptUntrustedCertificates = mqttTlsOptions.AllowUntrustedCertificates;
-            securityConfiguration.RejectUnknownRevocationStatus = false;
+            securityConfiguration.RejectUnknownRevocationStatus = !m_mqttClientTlsOptions.IgnoreCertificateRevocationErrors;
 
             certificateValidator.Update(securityConfiguration).Wait();
 

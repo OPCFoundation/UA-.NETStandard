@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "newProfile1": {
-      "commandName": "Project",
-      "commandLineArgs": "-u"
-    }
-  }
-}
