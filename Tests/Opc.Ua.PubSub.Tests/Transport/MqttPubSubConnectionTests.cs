@@ -103,8 +103,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
-            WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
-
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = publisherConnection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
@@ -209,8 +207,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
-
-            WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");

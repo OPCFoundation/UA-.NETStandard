@@ -285,17 +285,15 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
                 UaNetworkMessage message = publisherConnection.CreateNetworkMessage(writerGroup0);
 
-                byte[] bytes = message.Encode();               
+                byte[] bytes = message.Encode();
 
                 return bytes;
             }
-            catch (Exception)
+            catch
             {
             }
 
             return Array.Empty<byte>();
         }
-
-        
     }
 }
