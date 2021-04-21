@@ -38,7 +38,7 @@ The **OPC UA .NET Standard PubSub Library** supports both: UDP and MQTT.
 
 **Note:** *Even though the PubSub functionality has been tested against the popular MQTT broker MOSQUITTO running both: as a custom setup, and as the online available https://test.mosquitto.org/ instance, it should be compatible with any MQTT broker that supports the MQTT versions V310, V311 and V500 that exposes anonymous or user and password authentication with or without TLS encryption based on CA or client certificates issued by a CA.*
 
-*The MQTT implementation from PubSub Library was successfully tested also against the MQTT broker running on the Azure IOT cloud platform.*
+*The MQTT implementation from PubSub Library was successfully tested also against the MQTT broker running on the Azure IOT Hub platform.*
 
 
 **PubSub Concepts**
