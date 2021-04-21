@@ -39,8 +39,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpDataSeMessage objects")]
     public class UadpDataSetMessageTests
     {
-        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
+        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_publisherApplication;

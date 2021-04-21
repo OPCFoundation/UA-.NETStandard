@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
@@ -37,7 +38,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
     {
-        private const string ConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+
         private PubSubConfigurationDataType m_pubSubConfiguration;
 
         [OneTimeSetUp()]

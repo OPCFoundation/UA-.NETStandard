@@ -30,13 +30,15 @@
 using NUnit.Framework;
 using System.Linq;
 using Opc.Ua.PubSub.Configuration;
+using System.IO;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
     partial class PubSubStateMachineTests
     {
-        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
+        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
+
         private string publisherConfigurationFile = null;
         private string subscriberConfigurationFile = null;
 

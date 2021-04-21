@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -39,7 +40,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 {
     public partial class UdpClientCreatorTests
     {
-        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
 
         private const string UrlScheme = "opc.udp://";
         // generic well known address

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
@@ -38,7 +39,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
     {
-        private const string ConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
+        private string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+
         public const int NamespaceIndex = 2;
 
         [Test(Description = "Validate AddPublishedDataSet with null parameter.")]

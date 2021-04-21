@@ -27,17 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using Opc.Ua;
-using Opc.Ua.PubSub;
-using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Transport;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using System.Threading;
+using NUnit.Framework;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -46,8 +44,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
     {
         private const int EstimatedPublishingTime = 6000;
 
-        private const string PublisherConfigurationFileName = @"Configuration\PublisherConfiguration.xml";
-        private const string SubscriberConfigurationFileName = @"Configuration\SubscriberConfiguration.xml";
+        private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
