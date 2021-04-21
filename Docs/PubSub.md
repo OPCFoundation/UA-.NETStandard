@@ -1,10 +1,5 @@
 
-
-
-
-
-
-## PubSub 
+# PubSub 
 ## Overview
 
 In software architecture, Publish/Subscribe is a messaging pattern where senders do not communicate directly with specific receivers. Instead senders, called Publishers, categorize messages into classes without knowing which receivers, if any, there may be. Similarly receivers, called Subscribers, express interest in one or more classes and only receive messages that are of interest, without knowing which senders, if any, there are.
@@ -17,12 +12,13 @@ OPC UA PubSub is designed to be flexible and is not bound to a particular messag
 
 In OPC UA PubSub the participating OPC UA applications can assume the roles of Publishers and Subscribers. Publishers are the sources of data, while Subscribers consume that data. Communication in OPC UA PubSub is message-based. Publishers send messages to a Message-Oriented Middleware, without knowledge of what, if any, Subscribers there may be. Similarly, Subscribers express interest in specific types of data, and process messages that contain this data, without knowledge of what Publishers there are.
 
-![Decoupling by use of middleware](Images/MessageOrientedMiddleware.png)
-
 Message-Oriented Middleware is a software or hardware infrastructure that supports sending and receiving messages between distributed systems. The implementation of the message distribution depends on the Message-Oriented Middleware.
 
 The image bellow illustrates that for communication Publishers and Subscribers only interact with the Message-Oriented Middleware which provides the means to receive data from one or more senders and forward data to one or more receivers:
 PubSub Overview
+
+![Decoupling by use of middleware](Images/MessageOrientedMiddleware.png)
+
 
 To cover a large number of use cases, OPC UA PubSub supports two largely different Message-Oriented Middleware variants. These are:
 
@@ -37,6 +33,13 @@ OPC UA PubSub and OPC UA Client/Server are both based on the OPC UA Information 
 The PubSub implementation is part of OPC UA .NET Standard Stack from OPC Foundation. It is totally decoupled from the Client/Server implementation but any Publisher or Subscriber component can easily be integrated into OPC UA Servers and OPC UA Clients.
 
 Quite typically, a Publisher will be an OPC UA Server (the owner of information) and a Subscriber is often an OPC UA Client, but it is also possible that OPC UA Clients can be Publishers and OPC UA Servers can be Subscribers.
+
+The **OPC UA .NET Standard PubSub Library** supports both: UDP and MQTT.
+
+**Note:** *Even though the PubSub functionality has been tested against the popular MQTT broker MOSQUITTO running both: as a custom setup, and as the online available https://test.mosquitto.org/ instance, it should be compatible with any MQTT broker that supports the MQTT versions V310, V311 and V500 that exposes anonymous or user and password authentication with or without TLS encryption based on CA or client certificates issued by a CA.*
+
+*The MQTT implementation from PubSub Library was successfully tested also against the MQTT broker running on the Azure IOT cloud platform.*
+
 
 **PubSub Concepts**
 
@@ -71,7 +74,7 @@ Note: *UAPubSubApplication* configuration can be altered using the *UaPubSubConf
 The *UaPubSubApplication* class has the following read-only properties:
 
  - **SupportedTransportProfiles**  
-Get the list of currently supported TransportProfileUri in OPC UA .NET Standard Stack from OPC Foundation. (See [PubSubConnection Parameters](pubsubconnection_parameters.htm) for more details).
+Get the list of currently supported TransportProfileUri in OPC UA .NET Standard Stack from OPC Foundation. (See [PubSubConnection Parameters](#pubsubconnection-parameters) for more details).
  - **UaPubSubConfigurator**  
 Gets a read-only copy of PubSubConfigurationDataType configuration object associated with this instance of UAPubSubApplication.
  - **DataStore**  
@@ -142,30 +145,6 @@ The following diagram highlights the *DataSet* class within the PubSub Liberary 
 
 ![DataSet](Images/DataSet.png)
 
-## UADP and MQTT NetworkMessages
-
-The PubSub Library can handle **UADP** and **MQTT** network messages.
-
-The *TransportProfileUri* property of the *PubSubConnectionDataType* configuration object dictates the type of messages that are sent and also the network protocol that is used.
-
-When the *TransportProfileUri* is:
-
- 1. "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp"
-
-The PubSub Library will create UadpNetworkMessage and  UadpDataSetMessage objects that will be transported over UDP.
-
- 2. "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp"
-
-The PubSub Library will create UadpNetworkMessage and  UadpDataSetMessage objects that will be transported over MQTT.
-
- 3. "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json"
-
-The PubSub Library will create JsonNetworkMessage and  JsonDataSetMessage objects that will be transported over MQTT.
-
-The following diagram shows the classes involved in creating the NetworkMessage that is published over the selected protocol:
-
-![UadpAndMqttNetworkMessages](Images/UadpAndMqttNetworkMessages.png)
-
 # Configuration API
 ## PubSub Configuration
 
@@ -178,6 +157,154 @@ The following diagram shows a simplified class diagram for the Opc.Ua classes in
 ![PubSub Configuration](Images/PubSubConfigClasses.png)
 
 OPC UA .NET Standard Stack from OPC Foundation provides the API for creating and managing PubSub configuration, all in one class called: **UaPubSubConfigurator**.
+
+## PubSubConnection Parameters
+
+The PubSubConnection parameters are configured using instances of *PubSubConnectionDataType* defined in  OPC UA .NET Standard Stack from OPC Foundation.
+
+
+The following image shows the *PubSubConnectionDataType* within the PubSub configuration classes diagram:
+
+![PubSubConnection](Images/PubSubConnection.png)
+
+*PubSubConnectionDataType* has rhe following properties:
+
+**PublisherId**
+
+The PublisherId is a unique identifier for a Publisher within a Message Oriented Middleware. It can be included in sent NetworkMessage for identification or filtering. The value of the PublisherId is typically shared between PubSubConnections but the assignment of the PublisherId is vendor specific. Valid data types are Byte, UInt16, UInt32, UInt64 and String.
+Note: The PublisherId parameter is only relevant for the Publisher functionality inside a PubSubConnection. The filter setting on the Subscriber side is contained in the DataSetReader parameters.
+
+**TransportProfileUri**
+
+The PubSub Library can handle **UDP** and **MQTT** network messages.
+
+The TransportProfileUri parameter with DataType String indicates the transport protocol mapping and the message mapping used.
+There are three supported PubSub transport profiles:
+
+ 1. "PubSub UDP UADP" Profile: This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping. This Facet is used for **broker-less** messaging.
+
+	URI = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp"
+	The PubSub Library will create UadpNetworkMessage and  UadpDataSetMessage objects that will be transported over UDP.
+
+ 2. "PubSub MQTT UADP" Profile: This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with UADP message mapping. This Facet is used for **broker-based** messaging.
+
+	URI = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp"
+	The PubSub Library will create UadpNetworkMessage and  UadpDataSetMessage objects that will be transported over MQTT.
+
+ 3. "PubSub MQTT JSON" Profile: This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with JSON message mapping. This Facet is used for **broker-based** messaging.
+
+	URI = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json"
+	The PubSub Library will create JsonNetworkMessage and  JsonDataSetMessage objects that will be transported over MQTT. 
+
+The following diagram shows the classes involved in creating the NetworkMessage that is published over the selected protocol:
+
+![UadpAndMqttNetworkMessages](Images/UadpAndMqttNetworkMessages.png)
+
+
+**Address**
+
+The Address parameter contains the network address information for the communication middleware. 
+The Address is configured as an instance of NetworkAddressUrlDataType and contains two properties of type string: NetworkInterface and Url.
+Each TransportProfileUri  has its own specific way of configuring the Address:
+ - [PubSub UDP Address](#pubsub-udp-address)
+ - [PubSub MQTT  Address](#pubsub-mqtt-address)
+
+## PubSub UDP Address
+The *Address* is configured as an instance of *NetworkAddressUrlDataType* and contains two properties of type string:
+
+1. **NetworkInterface** - The name of the network interface from local machine used for the communication relation.  
+
+Note: If no network interface with specified name is found, the Publisher/Subscriber application will initiate communication on all available network interfaces on current machine.
+
+The network interface name can be obtained by running ipconfig command in cmd. From the picture below the only available network interface name is 'Ethernet'.
+
+2. **Url** - The address string for the communication relation in the form on an URL String.  
+
+For OPC UADP the syntax of the UDP transporting protocol URL used in the Address parameter has the following form: 
+	
+	opc.udp://<host>[:<port>]
+
+Any Url that has a different scheme than "opc.udp" will be considered bad configuration and will be ignored, and a log entry will be created for invalid Address configuration.
+
+The host is either an IPV4 address or a registered name like a hostname or domain name. IP addresses can be unicast, multicast or broadcast addresses. It is the destination of the UDP datagram.
+
+The IANA registered OPC UA port for UDP communication is 4840. This is the default and recommended port for broadcast, multicast and unicast communication but alternative ports may be used.
+
+## PubSub MQTT Address
+Currently the PubSub implementation from OPC UA .NET Standard Stack from OPC Foundation supports the following profiles based on MQTT:
+
+1. "PubSub MQTT UADP" Profile 
+2. "PubSub MQTT JSON" Profile 
+
+As stated in [PubSubConnection Parameters](#pubsubconnection-parameters) section, the PubSub applications require configuration of the **Address** where NetworkMessages are sent by the Publisher and from where the Subscriber will receive them.
+
+The Address parameter contains the network address information for the communication middleware. It is configured as an instance of *NetworkAddressUrlDataType* and contains two properties of type string:
+1. **NetworkInterface** - property will be ignored for MQTT protocols.  
+
+2. **Url**  - The address string for the communication relation in the form on an URL String.  
+
+For MQTT the syntax of the URL used in the Address parameter has the following form: 
+
+    mqtt://<domain name>[:<port>][/<path>]. The default port is 1883.
+
+For MQTTS the syntax of the URL used in the Address parameter has the following form: 
+	
+	mqtts://<domain name>[:<port>][/<path>]. The default port is 8883.
+
+Any Url that has a different scheme than "mqtt" or "mqtts" will be considered bad configuration and will be ignored, and a log entry will be created for invalid Address configuration.
+
+The host is either an IPV4 address or a registered name like a hostname or domain name. 
+
+The **ConnectionProperties** parameter holds the MQTT configuration including the TLS encryption configuration.
+The MQTT protocol specific parameters are stored in the ConnectionProperties parameter as a KeyValuePairCollection.
+
+The individual parameters can be set or retrieved using an instance of the class **MqttClientProtocolConfiguration** which has the following parameters:
+
+1.  **UserName**: Represents the user name in case the MQTT broker requires authentication with user credentials. It is stored as a SecureString. 
+
+2.  *Password**: Represents the password in case the MQTT broker requires authentication with user credentials. It is stored as a SecureString. 
+
+3.  **AzureClientId**: The client identifier used in an Azure connection. 
+
+4.  **CleanSession**: Specifies if the MQTT session to the broker should be clean and is known otherwise as a non persistent connection. 
+With a non persistent connection the broker doesn't store any subscription information or undelivered messages for the client. 
+
+5.  **Version**: Specifies the MQTT version to be used. If left unspecified the V310 version is used. 
+
+6.  **MqttTlsOptions**: an instance of MqttTlsOptions which specifies the settings necessary to establish a TLS encrypted connection. 
+ 
+
+If an encrypted TLS connection is to be configured between the publisher or subscriber and the MQTT broker then the specific settings are being passed in through an instance of 
+
+**MqttTlsOptions**:
+
+1.  **Certificates**: An instance of MqttTlsCertificates class which represents the certificates used for encrypted communication. 
+
+2.  **SslProtocolVersion**: The preffered version of SSL protocol 
+
+3.  **AllowUntrustedCertificates**: Specifies if untrusted certificates should be accepted in the process of certificate validation. 
+
+4.  **IgnoreCertificateChainErrors**: Specifies if Certificate Chain errors should be validated in the process of certificate validation. 
+
+5.  **IgnoreRevocationListErrors**: Specifies if Certificate Revocation List errors should be validated in the process of certificate validation. 
+
+6.  **TrustedIssuerCertificates**: The trusted issuer certifficates store identifier. 
+
+7.  **TrustedPeerCertificates**: The trusted peer certifficates store identifier. 
+
+8.  **RejectedCertificateStore**: The rejected certifficates store identifier. 
+
+ 
+
+The **MqttTlsCertificates** class enables to specify the certificates used for encrypted communication using the following properties:
+
+1.  **CaCertificatePath**: The path pointing to the CA certificate belonging to the CA that emitted the server and client certificates which authenticate the
+broker together with and publisher or subscriber instances. 
+
+2.  **ClientCertificatePath**: The path pointing to the client certificate used by the publisher or subscriber instances to authenticate with. 
+
+3.  **ClientCertificatePassword**: The password with which the the clientCertificate is encrypted, in case it has. 
+
 
 ## UaPubSubConfigurator class
 The *UaPubSubConfigurator* class It is instantiated by default for any new instance of [UaPubSubApplication Class](#uapubsubapplication-class). This instance shall be used to change the PubSub configuration at runtime by calling its specific methods. The changes are reflected in the behaviour of the PubSub application.

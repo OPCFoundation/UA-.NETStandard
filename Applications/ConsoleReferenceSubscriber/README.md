@@ -51,6 +51,7 @@ To create a new OPC UA Subscriber application:
  - Create a new project and give it a name,
  - Add a reference to the [OPCFoundation.NetStandard.Opc.Ua.PubSub NuGet package](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.PubSub/),
  - Initialize Subscriber application (see [Subscriber Initialization](#subscriber-initialization)).
+
 ## Subscriber Initialization
 
 The following four steps are required to implement a functional Subscriber:
