@@ -233,7 +233,6 @@ namespace Opc.Ua.PubSub.Transport
         {
             get
             {
-
                 List<X509Certificate> values = new List<X509Certificate>();
                 if (m_caCertificate != null)
                 {

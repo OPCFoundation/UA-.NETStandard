@@ -318,7 +318,6 @@ namespace Opc.Ua.PubSub
         AMQP
     }
 
-
     /// <summary>
     /// Enum that specifies the message mapping for a UaPubSub connection
     /// </summary>
