@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Combinatorial]
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
-            [Values(20, 30)]double maxDeviation,
+            [Values(30, 40)]double maxDeviation,
             [Values(10)] int  publishTimeInSecods)
         {
             //Arrange
