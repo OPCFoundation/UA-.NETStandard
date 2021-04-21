@@ -771,7 +771,7 @@ namespace Opc.Ua
                         buffer.AppendFormat("'{0}'", operands[ii].ToString());
                     }
                             
-                    buffer.Append("}");
+                    buffer.Append('}');
                     break;
                 }
                     

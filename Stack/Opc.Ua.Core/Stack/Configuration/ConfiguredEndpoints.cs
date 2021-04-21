@@ -1123,7 +1123,7 @@ namespace Opc.Ua
             try
             {
                 // get the endpoints.
-                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null);
+                EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null).ConfigureAwait(false);
 
                 // find list of matching endpoints.
                 var matches = MatchEndpoints(
@@ -1414,7 +1414,7 @@ namespace Opc.Ua
             if (discoveryUrl != null)
             {
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
-                if (matchUrl == null || String.Compare(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase) != 0)
+                if (matchUrl == null || !String.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
                     UriBuilder uri = new UriBuilder(matchUrl);
                     uri.Host = discoveryUrl.DnsSafeHost;

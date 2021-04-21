@@ -1992,7 +1992,7 @@ namespace Quickstarts.ReferenceServer
 
             double number = Convert.ToDouble(value);
 
-            if (number >= variable.EnumStrings.Value.Length | number < 0)
+            if (number >= variable.EnumStrings.Value.Length || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }

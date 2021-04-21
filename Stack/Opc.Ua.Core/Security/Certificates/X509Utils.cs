@@ -72,7 +72,7 @@ namespace Opc.Ua
 
                     for (int jj = 0; jj < dnsNames.Count; jj++)
                     {
-                        if (String.Compare(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase) == 0)
+                        if (String.Equals(dnsNames[jj], hostname, StringComparison.OrdinalIgnoreCase))
                         {
                             found = true;
                             break;
@@ -174,7 +174,7 @@ namespace Opc.Ua
 
             for (int jj = 0; jj < domainNames.Count; jj++)
             {
-                if (String.Compare(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase) == 0)
+                if (String.Equals(domainNames[jj], endpointUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -230,7 +230,7 @@ namespace Opc.Ua
         public static bool CompareDistinguishedName(string name1, string name2)
         {
             // check for simple equality.
-            if (String.Compare(name1, name2, StringComparison.OrdinalIgnoreCase) == 0)
+            if (String.Equals(name1, name2, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -252,7 +252,7 @@ namespace Opc.Ua
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
             {
-                if (String.Compare(fields1[ii], fields2[ii], StringComparison.OrdinalIgnoreCase) != 0)
+                if (!String.Equals(fields1[ii], fields2[ii], StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
@@ -288,7 +288,7 @@ namespace Opc.Ua
             // compare each entry
             for (int ii = 0; ii < parsedName.Count; ii++)
             {
-                if (String.Compare(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase) != 0)
+                if (!String.Equals(parsedName[ii], certificateName[ii], StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }

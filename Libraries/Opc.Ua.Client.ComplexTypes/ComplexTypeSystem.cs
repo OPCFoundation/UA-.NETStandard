@@ -595,7 +595,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 }
                                 catch (DataTypeNotFoundException dtnfex)
                                 {
-                                    var typeMatch = structTypesWorkList.Where(n => n.NodeId == dtnfex.nodeId).FirstOrDefault();
+                                    var typeMatch = structTypesWorkList.FirstOrDefault(n => n.NodeId == dtnfex.nodeId);
                                     if (typeMatch == null)
                                     {
                                         throw;
@@ -795,9 +795,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 false,
                 false
                 );
-            binaryEncodingId = references.Where(r => r.BrowseName.Name == BrowseNames.DefaultBinary).FirstOrDefault()?.NodeId;
+            binaryEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultBinary)?.NodeId;
             binaryEncodingId = NormalizeExpandedNodeId(binaryEncodingId);
-            xmlEncodingId = references.Where(r => r.BrowseName.Name == BrowseNames.DefaultXml).FirstOrDefault()?.NodeId;
+            xmlEncodingId = references.FirstOrDefault(r => r.BrowseName.Name == BrowseNames.DefaultXml)?.NodeId;
             xmlEncodingId = NormalizeExpandedNodeId(xmlEncodingId);
             return references.Where(r => supportedEncodings.Contains(r.BrowseName.Name))
                 .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)).ToList();
@@ -972,10 +972,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else
                 {
-                    enumDescription = allEnumerationTypes.Where(node =>
+                    enumDescription = allEnumerationTypes.FirstOrDefault(node =>
                         node.BrowseName.Name == item.Name &&
                         (node.BrowseName.NamespaceIndex == complexTypeBuilder.TargetNamespaceIndex ||
-                        complexTypeBuilder.TargetNamespaceIndex == -1)).FirstOrDefault()
+                        complexTypeBuilder.TargetNamespaceIndex == -1))
                         as DataTypeNode;
                 }
                 if (enumDescription != null)

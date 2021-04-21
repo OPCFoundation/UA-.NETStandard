@@ -119,7 +119,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do the reconnect.
-                if (await DoReconnect())
+                if (await DoReconnect().ConfigureAwait(false))
                 {
                     lock (m_lock)
                     {
@@ -163,7 +163,7 @@ namespace Opc.Ua.Client
                         var connection = await m_reverseConnectManager.WaitForConnection(
                                 new Uri(m_session.Endpoint.EndpointUrl),
                                 m_session.Endpoint.Server.ApplicationUri
-                            );
+                            ).ConfigureAwait(false);
 
                         m_session.Reconnect(connection);
                     }
@@ -208,7 +208,7 @@ namespace Opc.Ua.Client
                     var connection = await m_reverseConnectManager.WaitForConnection(
                             new Uri(m_session.Endpoint.EndpointUrl),
                             m_session.Endpoint.Server.ApplicationUri
-                        );
+                        ).ConfigureAwait(false);
 
                     session = Session.Recreate(m_session, connection);
                 }

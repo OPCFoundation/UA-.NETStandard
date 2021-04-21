@@ -429,7 +429,7 @@ namespace Opc.Ua.Security
         public async Task<X509Certificate2> Find()
         {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.Find(false);
+            return await output.Find(false).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -438,7 +438,7 @@ namespace Opc.Ua.Security
         public async Task<X509Certificate2> Find(bool needPrivateKey)
         {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.Find(needPrivateKey);
+            return await output.Find(needPrivateKey).ConfigureAwait(false);
         }
 
         /// <summary>
