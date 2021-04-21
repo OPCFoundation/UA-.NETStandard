@@ -118,6 +118,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate GetUdpClients value")]
+        //[Ignore("This test shall not be executed")]
         public void ValidateUdpClientCreatorGetUdpClients()
         {
             // Create a publisher application
