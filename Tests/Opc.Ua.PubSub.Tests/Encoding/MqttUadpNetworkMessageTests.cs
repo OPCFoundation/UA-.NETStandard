@@ -999,14 +999,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 UadpDataSetMessage uadpDataSetMessage = uadpNetworkMessageEncode.DataSetMessages[i] as UadpDataSetMessage;
                 Assert.IsNotNull(uadpDataSetMessage, "DataSet [{0}] is missing from publisher datasets!", i);
 
-                //UadpDataSetMessage uadpDataSetMessageDecoded = uadpNetworkMessageDecoded.DataSetMessages[i] as UadpDataSetMessage;
-
-                //Assert.IsNotNull(uadpDataSetMessageDecoded, "Decoded message did not found uadpDataSetMessage.DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
-                //// check payload data size in bytes
-                //Assert.AreEqual(uadpDataSetMessage.PayloadSizeInStream, uadpDataSetMessageDecoded.PayloadSizeInStream,
-                //    "PayloadSizeInStream was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
                 // check payload data fields count 
                 // get related dataset from subscriber DataSets
                 DataSet decodedDataSet = receivedDataSetMessages[i].DataSet;

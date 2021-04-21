@@ -291,9 +291,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch
             {
+                return Array.Empty<byte>();
             }
-
-            return Array.Empty<byte>();
         }
     }
 }
