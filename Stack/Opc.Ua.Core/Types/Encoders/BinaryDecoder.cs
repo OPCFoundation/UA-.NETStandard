@@ -228,7 +228,7 @@ namespace Opc.Ua
             }
 
             // read the message.
-            IEncodeable message = ReadEncodeable(null, actualType);
+            IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
 
             // check that the max message size was not exceeded.
             if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < (int)(m_istrm.Position - start))
@@ -508,9 +508,8 @@ namespace Opc.Ua
                 // If 0 terminated, decrease length by one before converting to string
                 var utf8StringLength = bytes[bytes.Length - 1] == 0 ? bytes.Length - 1 : bytes.Length;
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
-
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings()
-                    { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                using (StringReader stream = new StringReader(xmlString))
+                using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
                 {
                     document.Load(reader);
                 }
@@ -2018,7 +2017,7 @@ namespace Opc.Ua
                     try
                     {
                         xmlDecoder.PushNamespace(element.NamespaceURI);
-                        IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType);
+                        IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType, extension.TypeId);
                         xmlDecoder.PopNamespace();
 
                         // update body.

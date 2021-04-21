@@ -282,7 +282,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
                     CertificateBuilder.Create(Subject)
-                    .SetSerialNumber(new byte[0])
+                    .SetSerialNumber(Array.Empty<byte>())
                     .CreateForRSA();
                 }
             );

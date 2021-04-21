@@ -2324,7 +2324,7 @@ namespace Opc.Ua
 
                     if (text.Length == 0)
                     {
-                        return new byte[0];
+                        return Array.Empty<byte>();
                     }
 
                     using (System.IO.MemoryStream ostrm = new System.IO.MemoryStream())
@@ -2402,7 +2402,7 @@ namespace Opc.Ua
                 case BuiltInType.String:
                 {
                     XmlDocument document = new XmlDocument();
-                    document.InnerXml = (string)value;
+                    document.LoadInnerXml((string)value);
                     return document.DocumentElement;
                 }
             }
@@ -3014,14 +3014,14 @@ namespace Opc.Ua
 
                 if (m_valueRank >= 0)
                 {
-                    buffer.Append("[");
+                    buffer.Append('[');
 
                     for (int ii = 1; ii < m_valueRank; ii++)
                     {
-                        buffer.Append(",");
+                        buffer.Append(',');
                     }
 
-                    buffer.Append("]");
+                    buffer.Append(']');
                 }
 
                 return buffer.ToString();

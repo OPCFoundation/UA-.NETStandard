@@ -200,7 +200,7 @@ namespace Opc.Ua
             }
 
             // read the message.
-            IEncodeable message = ReadEncodeable("Body", actualType);
+            IEncodeable message = ReadEncodeable("Body", actualType, absoluteId);
 
             // return the message.
             return message;
@@ -621,15 +621,15 @@ namespace Opc.Ua
                 {
                     if (text != null)
                     {
-                        if (String.Compare(text, "Infinity", StringComparison.OrdinalIgnoreCase) == 0)
+                        if (String.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.PositiveInfinity;
                         }
-                        else if (String.Compare(text, "-Infinity", StringComparison.OrdinalIgnoreCase) == 0)
+                        else if (String.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.NegativeInfinity;
                         }
-                        else if (String.Compare(text, "NaN", StringComparison.OrdinalIgnoreCase) == 0)
+                        else if (String.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
                             return Single.NaN;
                         }
@@ -679,15 +679,15 @@ namespace Opc.Ua
                 {
                     if (text != null)
                     {
-                        if (String.Compare(text, "Infinity", StringComparison.OrdinalIgnoreCase) == 0)
+                        if (String.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.PositiveInfinity;
                         }
-                        else if (String.Compare(text, "-Infinity", StringComparison.OrdinalIgnoreCase) == 0)
+                        else if (String.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.NegativeInfinity;
                         }
-                        else if (String.Compare(text, "NaN", StringComparison.OrdinalIgnoreCase) == 0)
+                        else if (String.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase))
                         {
                             return Double.NaN;
                         }
@@ -806,7 +806,7 @@ namespace Opc.Ua
             var value = token as string;
             if (value == null)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             var bytes = Convert.FromBase64String(value);
@@ -845,8 +845,7 @@ namespace Opc.Ua
                 XmlDocument document = new XmlDocument();
                 string xmlString = new UTF8Encoding().GetString(bytes, 0, bytes.Length);
 
-                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString),
-                    new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+                using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), Utils.DefaultXmlReaderSettings()))
                 {
                     document.Load(reader);
                 }
@@ -1417,7 +1416,7 @@ namespace Opc.Ua
                 if (encoding == (byte)ExtensionObjectEncoding.Binary)
                 {
                     var bytes = ReadByteString("Body");
-                    return new ExtensionObject(typeId, bytes ?? new byte[0]);
+                    return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
                 }
 
                 if (encoding == (byte)ExtensionObjectEncoding.Xml)
@@ -1444,7 +1443,7 @@ namespace Opc.Ua
 
                 if (systemType != null)
                 {
-                    var encodeable = ReadEncodeable("Body", systemType);
+                    var encodeable = ReadEncodeable("Body", systemType, typeId);
                     if (encodeable == null)
                     {
                         return extension;
@@ -2870,7 +2869,7 @@ namespace Opc.Ua
 
                 case IdType.Opaque:
                 {
-                    return new NodeId(new byte[0], namespaceIndex);
+                    return new NodeId(Array.Empty<byte>(), namespaceIndex);
                 }
 
                 case IdType.String:

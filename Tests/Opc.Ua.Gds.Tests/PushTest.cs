@@ -60,10 +60,10 @@ namespace Opc.Ua.Gds.Tests
         {
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
-            _server = await TestUtils.StartGDS(true);
+            _server = await TestUtils.StartGDS(true).ConfigureAwait(false);
             _server.StopServer();
-            await Task.Delay(1000);
-            _server = await TestUtils.StartGDS(false);
+            await Task.Delay(1000).ConfigureAwait(false);
+            _server = await TestUtils.StartGDS(false).ConfigureAwait(false);
 
             _serverCapabilities = new ServerCapabilities();
             _randomSource = new RandomSource(randomStart);
@@ -71,13 +71,13 @@ namespace Opc.Ua.Gds.Tests
 
             // load clients
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            await _gdsClient.LoadClientConfiguration(_server.BasePort);
+            await _gdsClient.LoadClientConfiguration(_server.BasePort).ConfigureAwait(false);
             _pushClient = new ServerConfigurationPushTestClient(true);
-            await _pushClient.LoadClientConfiguration(_server.BasePort);
+            await _pushClient.LoadClientConfiguration(_server.BasePort).ConfigureAwait(false);
 
             // connect once
-            await _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl);
-            await _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl);
+            await _gdsClient.GDSClient.Connect(_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
+            await _pushClient.PushClient.Connect(_pushClient.PushClient.EndpointUrl).ConfigureAwait(false);
 
             ConnectGDSClient(true);
             RegisterPushServerApplication(_pushClient.PushClient.EndpointUrl);
@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds.Tests
             _selfSignedServerCert = new X509Certificate2(_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             _domainNames = X509Utils.GetDomainsFromCertficate(_selfSignedServerCert).ToArray();
 
-            await CreateCATestCerts(_pushClient.TempStorePath);
+            await CreateCATestCerts(_pushClient.TempStorePath).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -280,7 +280,7 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(402)]
         public void CreateSigningRequestRsaMinNullParms()
         {
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NET5_0
             Assert.Ignore("SHA1 not supported on .NET Standard 2.1.");
 #endif
             ConnectPushClient(true);
@@ -291,7 +291,7 @@ namespace Opc.Ua.Gds.Tests
         public void CreateSigningRequestAllParms()
         {
             ConnectPushClient(true);
-            byte[] nonce = new byte[0];
+            byte[] nonce = Array.Empty<byte>();
             byte[] csr = _pushClient.PushClient.CreateSigningRequest(
                 _pushClient.PushClient.DefaultApplicationGroup,
                 _pushClient.PushClient.ApplicationCertificateType,
@@ -861,7 +861,7 @@ namespace Opc.Ua.Gds.Tests
             _caCert = newCACert;
 
             // initialize cert revocation list (CRL)
-            X509CRL newCACrl = await CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert);
+            X509CRL newCACrl = await CertificateGroup.RevokeCertificateAsync(tempStorePath, newCACert).ConfigureAwait(false);
 
             _caCrl = newCACrl;
         }

@@ -31,7 +31,7 @@ namespace Opc.Ua
 
             if (m_list == null)
             {
-                m_list = new T[0];
+                m_list = Array.Empty<T>();
             }
         }
 
@@ -56,7 +56,7 @@ namespace Opc.Ua
 
             if (m_list == null)
             {
-                m_list = new T[0];
+                m_list = Array.Empty<T>();
             }
         }
         #endregion

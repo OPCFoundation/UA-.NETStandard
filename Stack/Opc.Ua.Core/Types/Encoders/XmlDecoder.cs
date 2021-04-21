@@ -550,7 +550,7 @@ namespace Opc.Ua
             if (systemType != null)
             {
                 PushNamespace(m_reader.NamespaceURI);
-                var encodeable = ReadEncodeable(m_reader.LocalName, systemType);
+                var encodeable = ReadEncodeable(m_reader.LocalName, systemType, typeId);
                 PopNamespace();
 
                 return encodeable;
@@ -562,7 +562,8 @@ namespace Opc.Ua
             // return undecoded xml body.
             var xmlString = m_reader.ReadOuterXml();
 
-            using (XmlReader reader = XmlReader.Create(new StringReader(xmlString), new XmlReaderSettings() { DtdProcessing = System.Xml.DtdProcessing.Prohibit }))
+            using (StringReader stream = new StringReader(xmlString))
+            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
                 document.Load(reader);
             }
@@ -989,7 +990,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    value = new byte[0];
+                    value = Array.Empty<byte>();
                 }
 
                 // check the length.
@@ -1004,7 +1005,7 @@ namespace Opc.Ua
 
             if (!isNil)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             return null;
@@ -1015,9 +1016,9 @@ namespace Opc.Ua
         /// </summary>
         private void ExtractXml(StringBuilder builder)
         {
-            builder.Append("<");
+            builder.Append('<');
             builder.Append(m_reader.Prefix);
-            builder.Append(":");
+            builder.Append(':');
             builder.Append(m_reader.LocalName);
 
             if (m_reader.HasAttributes)
@@ -1026,11 +1027,11 @@ namespace Opc.Ua
                 {
                     m_reader.MoveToAttribute(ii);
 
-                    builder.Append(" ");
+                    builder.Append(' ');
                     builder.Append(m_reader.Name);
                     builder.Append("='");
                     builder.Append(m_reader.Value);
-                    builder.Append("'");
+                    builder.Append('\'');
                 }
 
                 m_reader.MoveToElement(); // Moves the reader back to the element node.

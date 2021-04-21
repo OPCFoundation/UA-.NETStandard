@@ -579,7 +579,6 @@ namespace Opc.Ua.Client
         /// Returns the data type for the specified encoding.
         /// </summary>
         /// <param name="encodingId">The encoding id.</param>
-        /// <returns></returns>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
             ILocalNode encoding = Find(encodingId) as ILocalNode;

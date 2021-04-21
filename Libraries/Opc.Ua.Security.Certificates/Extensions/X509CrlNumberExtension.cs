@@ -99,7 +99,7 @@ namespace Opc.Ua.Security.Certificates
         {
             StringBuilder buffer = new StringBuilder();
             buffer.Append(kFriendlyName);
-            buffer.Append("=");
+            buffer.Append('=');
             buffer.Append(CrlNumber);
 
             return buffer.ToString();

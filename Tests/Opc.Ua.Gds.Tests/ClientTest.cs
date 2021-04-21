@@ -72,11 +72,11 @@ namespace Opc.Ua.Gds.Tests
         protected async Task OneTimeSetUp()
         {
             // start GDS
-            _server = await TestUtils.StartGDS(true);
+            _server = await TestUtils.StartGDS(true).ConfigureAwait(false);
 
             // load client
             _gdsClient = new GlobalDiscoveryTestClient(true);
-            await _gdsClient.LoadClientConfiguration(_server.BasePort);
+            await _gdsClient.LoadClientConfiguration(_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
             _appTestDataGenerator = new ApplicationTestDataGenerator(1);
