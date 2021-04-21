@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
             m_channelContext    = SecureChannelContext.Current;
             m_session           = null;
             m_identity          = identity;
-            m_preferredLocales  = new string[0];
+            m_preferredLocales  = Array.Empty<string>();
             m_diagnosticsMask   = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             m_stringTable       = new StringTable();
             m_auditLogEntryId   = requestHeader.AuditEntryId;

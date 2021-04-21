@@ -77,7 +77,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (buffer.Length == 0)
             {
-                return new byte[0];
+                return Array.Empty<byte>();
             }
 
             const string digits = "0123456789ABCDEF";

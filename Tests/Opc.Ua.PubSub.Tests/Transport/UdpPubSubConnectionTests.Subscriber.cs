@@ -293,7 +293,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
             }
 
-            return new byte[0];
+            return Array.Empty<byte>();
         }
 
         

@@ -272,7 +272,7 @@ namespace Opc.Ua
             return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
         }
 
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NET5_0
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -567,7 +567,7 @@ namespace Opc.Ua
 
                 builder.Append("urn:");
                 builder.Append(domainNames[0]);
-                builder.Append(":");
+                builder.Append(':');
                 builder.Append(applicationName);
 
                 applicationUri = builder.ToString();

@@ -274,14 +274,14 @@ namespace Opc.Ua.Gds.Tests
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     Console.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r'));
+                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
                 }
                 catch
                 {
                     // intentionally fall through
                 }
             }
-            return await Task.FromResult(true);
+            return await Task.FromResult(true).ConfigureAwait(false);
         }
     }
 
@@ -359,7 +359,7 @@ namespace Opc.Ua.Gds.Tests
                     // work around travis issue by selecting different ports on every run
                     testPort = random.Next(50000, 60000);
                     server = new GlobalDiscoveryTestServer(true);
-                    await server.StartServer(clean, testPort);
+                    await server.StartServer(clean, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {
@@ -371,7 +371,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     retryStartServer = true;
                 }
-                await Task.Delay(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
             } while (retryStartServer);
 
             return server;

@@ -542,7 +542,7 @@ namespace Opc.Ua
                             {
                                 if (body.Length == 0)
                                 {
-                                    body.Append("{");
+                                    body.Append('{');
                                 }
                                 else
                                 {
@@ -556,7 +556,7 @@ namespace Opc.Ua
 
                     if (body.Length > 0)
                     {
-                        body.Append("}");
+                        body.Append('}');
                     }
 
                     return String.Format(formatProvider, "{0}", body);
@@ -750,7 +750,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
+                document.LoadInnerXml(encoder.Close());
 
                 // return root element.
                 return document.DocumentElement;

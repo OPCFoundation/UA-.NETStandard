@@ -138,7 +138,7 @@ namespace Opc.Ua.Client
                 Array.Resize(ref schema, zeroTerminator);
             }
 
-            await Validate(schema);
+            await Validate(schema).ConfigureAwait(false);
 
             ReadDataTypes(dictionaryId);
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await validator.Validate(istrm);
+                    await validator.Validate(istrm).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {

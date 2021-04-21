@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Tests
             };
 
             BasePort = basePort;
-            Config = await Load(Application, basePort);
+            Config = await Load(Application, basePort).ConfigureAwait(false);
 
             if (clean)
             {
@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using (var store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     {
-                        await store.Delete(thumbprint);
+                        await store.Delete(thumbprint).ConfigureAwait(false);
                     }
                 }
 
@@ -80,11 +80,11 @@ namespace Opc.Ua.Gds.Tests
                 TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
                 TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
 
-                Config = await Load(Application, basePort);
+                Config = await Load(Application, basePort).ConfigureAwait(false);
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(true, 0);
+            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -123,7 +123,7 @@ namespace Opc.Ua.Gds.Tests
                 database,
                 database,
                 new CertificateGroup());
-            await Application.Start(m_server);
+            await Application.Start(m_server).ConfigureAwait(false);
 
             ServerState serverState = Server.GetStatus().State;
             if (serverState != ServerState.Running)
@@ -189,7 +189,7 @@ namespace Opc.Ua.Gds.Tests
         private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true);
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
             TestUtils.PatchBaseAddressesPorts(config, basePort);
             return config;
         }
