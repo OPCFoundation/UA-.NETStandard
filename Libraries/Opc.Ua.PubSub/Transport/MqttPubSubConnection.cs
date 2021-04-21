@@ -390,7 +390,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_publisherMqttClient.IsConnected)
                     {
-                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync());
+                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync().ConfigureAwait(false));
                     }
                     m_publisherMqttClient.Dispose();
                 }
@@ -399,7 +399,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_subscriberMqttClient.IsConnected)
                     {
-                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync());
+                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync().ConfigureAwait(false));
                     }
                     m_subscriberMqttClient.Dispose();
                 }
