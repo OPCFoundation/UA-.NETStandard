@@ -90,13 +90,23 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Uses inverse references on the server to find the super type(s).
         /// If the new structure contains a type dependency to a yet
         /// unknown type, it loads also the dependent type(s).
-        /// For servers without DataTypeDefinition support all
+        /// For servers without DataTypeDefinition support, all
         /// custom types are loaded.
         /// </remarks>
         public async Task<Type> LoadType(ExpandedNodeId nodeId, bool subTypes = false, bool throwOnError = false)
         {
             try
             {
+                // add fast path, if no subTypes are requested
+                if (!subTypes)
+                {
+                    var systemType = GetSystemType(nodeId);
+                    if (systemType != null)
+                    {
+                        return systemType;
+                    }
+                }
+
                 var subTypeNodes = LoadDataTypes(nodeId, subTypes, true);
                 var subTypeNodesWithoutKnownTypes = RemoveKnownTypes(subTypeNodes);
 
@@ -120,9 +130,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return GetSystemType(nodeId);
             }
-            catch (ServiceResultException sre)
+            catch (Exception ex)
             {
-                Utils.Trace(sre, "Failed to load the custom type {0}.", nodeId);
+                Utils.Trace(ex, "Failed to load the custom type {0}.", nodeId);
                 if (throwOnError)
                 {
                     throw;
@@ -166,9 +176,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return true;
             }
-            catch (ServiceResultException sre)
+            catch (Exception ex)
             {
-                Utils.Trace(sre, $"Failed to load the custom type dictionary.");
+                Utils.Trace(ex, $"Failed to load the custom type dictionary.");
                 if (throwOnError)
                 {
                     throw;
@@ -210,9 +220,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 return true;
             }
-            catch (ServiceResultException sre)
+            catch (Exception ex)
             {
-                Utils.Trace(sre, $"Failed to load the custom type dictionary.");
+                Utils.Trace(ex, "Failed to load the custom type dictionary.");
                 if (throwOnError)
                 {
                     throw;

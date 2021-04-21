@@ -329,15 +329,15 @@ namespace Opc.Ua.Client.ComplexTypes
             StringBuilder body,
             object value)
         {
-            if (value is byte[])
+            if (value is byte[] x)
             {
-                body.AppendFormat(formatProvider, "Byte[{0}]", ((byte[])value).Length);
+                body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
                 return;
             }
 
-            if (value is XmlElement)
+            if (value is XmlElement xmlElements)
             {
-                body.AppendFormat(formatProvider, "<{0}>", ((XmlElement)value).Name);
+                body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
                 return;
             }
 
