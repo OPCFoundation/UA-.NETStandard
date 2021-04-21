@@ -492,7 +492,7 @@ namespace Opc.Ua.Client
                 throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for the reverse connection timed out.");
             }
 
-            return await tcs.Task;
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         /// <summary>

@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             newObj = doc.CreateElement("name");
                             break;
                         case BuiltInType.ByteString:
-                            newObj = new byte[0];
+                            newObj = Array.Empty<byte>();
                             break;
                         case BuiltInType.String:
                             newObj = "This is a test";

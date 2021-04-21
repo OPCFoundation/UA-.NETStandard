@@ -636,7 +636,7 @@ namespace Opc.Ua
             {
                 StringBuilder buffer = new StringBuilder();
                 buffer.Append(directory.FullName);
-                buffer.Append(Path.DirectorySeparatorChar + "Bin" + Path.DirectorySeparatorChar);
+                buffer.Append(Path.DirectorySeparatorChar).Append("Bin").Append(Path.DirectorySeparatorChar);
                 buffer.Append(fileName);
 
                 path = Utils.GetAbsoluteFilePath(buffer.ToString(), false, false, false);
@@ -1060,9 +1060,11 @@ namespace Opc.Ua
             }
         }
 
+
         /// <summary>
         /// Replaces the localhost domain with the current host name.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "RCS1197:Optimize StringBuilder.Append/AppendLine call.")]
         public static string ReplaceLocalhost(string uri, string hostname = null)
         {
             // ignore nulls.
@@ -1078,7 +1080,8 @@ namespace Opc.Ua
             }
 
             // check if the string localhost is specified.
-            int index = uri.IndexOf("localhost", StringComparison.OrdinalIgnoreCase);
+            var localhost = "localhost";
+            int index = uri.IndexOf(localhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
             {
@@ -1087,10 +1090,9 @@ namespace Opc.Ua
 
             // construct new uri.
             StringBuilder buffer = new StringBuilder();
-
-            buffer.Append(uri.Substring(0, index));
-            buffer.Append((hostname == null) ? GetHostName() : hostname);
-            buffer.Append(uri.Substring(index + "localhost".Length));
+            buffer.Append(uri.Substring(0, index))
+                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(uri.Substring(index + localhost.Length));
 
             return buffer.ToString();
         }
@@ -1098,6 +1100,7 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces the cert subject name DC=localhost with the current host name.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "RCS1197:Optimize StringBuilder.Append/AppendLine call.")]
         public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
         {
             // ignore nulls.
@@ -1113,7 +1116,8 @@ namespace Opc.Ua
             }
 
             // check if the string DC=localhost is specified.
-            int index = subjectName.IndexOf("DC=localhost", StringComparison.OrdinalIgnoreCase);
+            var dclocalhost = "DC=localhost";
+            int index = subjectName.IndexOf(dclocalhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
             {
@@ -1123,9 +1127,9 @@ namespace Opc.Ua
             // construct new uri.
             StringBuilder buffer = new StringBuilder();
 
-            buffer.Append(subjectName.Substring(0, index + 3));
-            buffer.Append((hostname == null) ? GetHostName() : hostname);
-            buffer.Append(subjectName.Substring(index + "DC=localhost".Length));
+            buffer.Append(subjectName.Substring(0, index + 3))
+                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(subjectName.Substring(index + dclocalhost.Length));
 
             return buffer.ToString();
         }
@@ -1205,7 +1209,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (String.Compare(domain1, domain2, StringComparison.OrdinalIgnoreCase) == 0)
+            if (String.Equals(domain1, domain2, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -1448,9 +1452,11 @@ namespace Opc.Ua
             return String.Format(CultureInfo.InvariantCulture, text, args);
         }
 
+
         /// <summary>
         /// Checks if a string is a valid locale identifier.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "RCS1075:Avoid empty catch clause that catches System.Exception.")]
         public static bool IsValidLocaleId(string localeId)
         {
             if (String.IsNullOrEmpty(localeId))
@@ -1522,7 +1528,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (String.Compare(names[jj].Locale, localeIds[ii], StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(names[jj].Locale, localeIds[ii], StringComparison.OrdinalIgnoreCase))
                     {
                         return names[jj];
                     }
@@ -1543,7 +1549,7 @@ namespace Opc.Ua
 
                     string actualLanguageId = GetLanguageId(names[jj].Locale);
 
-                    if (String.Compare(languageId, actualLanguageId, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(languageId, actualLanguageId, StringComparison.OrdinalIgnoreCase))
                     {
                         return names[jj];
                     }
@@ -2960,7 +2966,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < strings.Count; ii++)
             {
-                if (String.Compare(strings[ii], target, StringComparison.OrdinalIgnoreCase) == 0)
+                if (String.Equals(strings[ii], target, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }

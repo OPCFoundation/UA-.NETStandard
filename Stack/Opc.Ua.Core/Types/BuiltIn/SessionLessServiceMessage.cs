@@ -50,7 +50,7 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteStringArray("NamespaceUris", new string[0]);
+                encoder.WriteStringArray("NamespaceUris", Array.Empty<string>());
             }
 
             if (ServerUris != null && ServerUris.Count > 1)
@@ -66,7 +66,7 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteStringArray("ServerUris", new string[0]);
+                encoder.WriteStringArray("ServerUris", Array.Empty<string>());
             }
 
             if (Message != null)

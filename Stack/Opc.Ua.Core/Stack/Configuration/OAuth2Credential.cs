@@ -191,7 +191,7 @@ namespace Opc.Ua
                         uri += "/";
                     }
 
-                    if (String.Compare(uri, authorityUrl, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
                         var credential = new OAuth2Credential() {
                             AuthorityUrl = authorityUrl,

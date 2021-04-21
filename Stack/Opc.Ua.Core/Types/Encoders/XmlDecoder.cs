@@ -1016,9 +1016,9 @@ namespace Opc.Ua
         /// </summary>
         private void ExtractXml(StringBuilder builder)
         {
-            builder.Append("<");
+            builder.Append('<');
             builder.Append(m_reader.Prefix);
-            builder.Append(":");
+            builder.Append(':');
             builder.Append(m_reader.LocalName);
 
             if (m_reader.HasAttributes)
@@ -1027,11 +1027,11 @@ namespace Opc.Ua
                 {
                     m_reader.MoveToAttribute(ii);
 
-                    builder.Append(" ");
+                    builder.Append(' ');
                     builder.Append(m_reader.Name);
                     builder.Append("='");
                     builder.Append(m_reader.Value);
-                    builder.Append("'");
+                    builder.Append('\'');
                 }
 
                 m_reader.MoveToElement(); // Moves the reader back to the element node.

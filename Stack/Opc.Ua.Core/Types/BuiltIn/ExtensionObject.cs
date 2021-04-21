@@ -542,7 +542,7 @@ namespace Opc.Ua
                             {
                                 if (body.Length == 0)
                                 {
-                                    body.Append("{");
+                                    body.Append('{');
                                 }
                                 else
                                 {
@@ -556,7 +556,7 @@ namespace Opc.Ua
 
                     if (body.Length > 0)
                     {
-                        body.Append("}");
+                        body.Append('}');
                     }
 
                     return String.Format(formatProvider, "{0}", body);

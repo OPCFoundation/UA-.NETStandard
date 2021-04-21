@@ -567,7 +567,7 @@ namespace Opc.Ua
 
                 builder.Append("urn:");
                 builder.Append(domainNames[0]);
-                builder.Append(":");
+                builder.Append(':');
                 builder.Append(applicationName);
 
                 applicationUri = builder.ToString();
