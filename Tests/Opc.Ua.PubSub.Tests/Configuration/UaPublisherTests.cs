@@ -42,9 +42,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
         [Test(Description ="Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
+        [Ignore("This test is temporary disabled")]
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
-            [Values(30, 40)]double maxDeviation,
+            [Values(20, 30)]double maxDeviation,
             [Values(10)] int  publishTimeInSecods)
         {
             //Arrange
