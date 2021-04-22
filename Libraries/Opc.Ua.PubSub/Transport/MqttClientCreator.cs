@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,11 +36,10 @@ using MQTTnet.Client;
 using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Options;
 
-namespace Opc.Ua.PubSub.Mqtt
+namespace Opc.Ua.PubSub.Transport
 {
     internal class MqttClientCreator
     {
-
         #region Private
         private static readonly Lazy<MqttFactory> mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
         #endregion
@@ -58,7 +57,6 @@ namespace Opc.Ua.PubSub.Mqtt
                                                                    Action<MqttApplicationMessageReceivedEventArgs> receiveMessageHandler,
                                                                    StringCollection topicFilter = null)
         {
-
             IMqttClient mqttClient = mqttClientFactory.Value.CreateMqttClient();
 
             // Hook the receiveMessageHandler in case we deal with a subscriber
@@ -78,7 +76,7 @@ namespace Opc.Ua.PubSub.Mqtt
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
                     // Subscribe to provided topics, messages are also filtered on the receiveMessageHandler
-                    await mqttClient.SubscribeAsync(topics.ToArray());
+                    await mqttClient.SubscribeAsync(topics.ToArray()).ConfigureAwait(false);
 
                     Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
                 });
@@ -97,13 +95,13 @@ namespace Opc.Ua.PubSub.Mqtt
 
             while (mqttClient.IsConnected == false)
             {
-               Connect(reconnectInterval, mqttClientOptions, mqttClient);
-               await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
+                Connect(reconnectInterval, mqttClientOptions, mqttClient);
+                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
             }
 
             // Setup reconnect handler
             mqttClient.UseDisconnectedHandler(async e => {
-                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval));
+                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
                 try
                 {
                     Utils.Trace("Disconnect Handler called on client {0}, reason: {1} wasconnected: {2}",
@@ -131,7 +129,7 @@ namespace Opc.Ua.PubSub.Mqtt
         {
             try
             {
-                var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+                var result = await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None).ConfigureAwait(false);
                 if (MqttClientConnectResultCode.Success == result.ResultCode)
                 {
                     Utils.Trace("MQTT client {0} successfully connected", mqttClient?.Options?.ClientId);
@@ -141,7 +139,7 @@ namespace Opc.Ua.PubSub.Mqtt
                     Utils.Trace("MQTT client {0} connect atempt returned {0}", mqttClient?.Options?.ClientId, result?.ResultCode);
                 }
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
                 Utils.Trace("MQTT client {0} connect atempt returned {1} will try to reconnect in {2} seconds",
                     mqttClient?.Options?.ClientId,

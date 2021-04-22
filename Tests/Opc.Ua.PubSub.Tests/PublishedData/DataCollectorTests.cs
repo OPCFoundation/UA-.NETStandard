@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,16 +28,19 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.PublishedData
 {
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
     {
-        private const string ConfigurationFileName = "PublisherConfiguration.xml";
+        private string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+
         public const int NamespaceIndex = 2;
 
         [Test(Description = "Validate AddPublishedDataSet with null parameter.")]
@@ -59,8 +62,8 @@ namespace Opc.Ua.PubSub.Tests
 
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act  
-            dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets[0]);
-            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets[0].Name);
+            dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets.First());
+            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets.First().Name);
             //Assert
             Assert.IsNotNull(collectedDataSet, 
                 "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.", pubSubConfiguration.PublishedDataSets[0].Name);

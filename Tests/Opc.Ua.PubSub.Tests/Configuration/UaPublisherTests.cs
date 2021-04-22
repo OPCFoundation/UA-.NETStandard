@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -33,7 +33,7 @@ using System.Threading;
 using Moq;
 using NUnit.Framework;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description ="Tests for UAPublisher class")]
     public class UaPublisherTests
@@ -42,6 +42,7 @@ namespace Opc.Ua.PubSub.Tests
 
         [Test(Description ="Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
+        [Ignore("This test is temporary disabled")]
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
             [Values(20, 30)]double maxDeviation,

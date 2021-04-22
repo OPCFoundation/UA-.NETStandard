@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -40,8 +40,7 @@ namespace Opc.Ua.PubSub.Transport
     /// interface (the one to which the endpoint belongs to).
     /// </summary>
     internal class UdpClientBroadcast : UdpClient
-    {      
-
+    {
         #region Constructors
         /// <summary>
         /// Instantiates a UDP Broadcast client 
@@ -58,7 +57,7 @@ namespace Opc.Ua.PubSub.Transport
             CustomizeSocketToBroadcastThroughIf();
 
             IPEndPoint boundEndpoint = null;
-            if( !RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || pubSubContext == UsedInContext.Publisher)
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || pubSubContext == UsedInContext.Publisher)
             {
                 //Running on Windows or Publisher on Windows/Linux
                 boundEndpoint = new IPEndPoint(address, port);
@@ -101,8 +100,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void CustomizeSocketToBroadcastThroughIf()
         {
-            Action<SocketOptionLevel, SocketOptionName, bool> setSocketOption = (SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value) =>
-            {
+            Action<SocketOptionLevel, SocketOptionName, bool> setSocketOption = (SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value) => {
                 try
                 {
                     Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
@@ -130,6 +128,5 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
         #endregion
-
     }
 }

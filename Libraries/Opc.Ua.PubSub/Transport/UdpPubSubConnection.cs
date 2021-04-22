@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
-using Opc.Ua.PubSub.Encoding;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpPubSubConnection : UaPubSubConnection
     {
-        #region Private Fields       
+        #region Private Fields
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
         private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
 
@@ -54,11 +54,9 @@ namespace Opc.Ua.PubSub.Transport
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         internal event EventHandler<UadpDataEventArgs> UadpMessageReceived;
-
         #endregion
 
         #region Constructor
-
         /// <summary>
         ///  Create new instance of <see cref="UdpPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
@@ -69,11 +67,9 @@ namespace Opc.Ua.PubSub.Transport
 
             Utils.Trace("UdpPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }
-
         #endregion
 
         #region Public Properties
-
         /// <summary>
         /// Get the <see cref="IPAddress"/> from configured <see cref="PubSubConnectionDataType"/>.Address.
         /// </summary>
@@ -91,16 +87,6 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region UaPubSubConnection - Overrides
-
-        /// <summary>
-        /// Initialize UADP connection and return true if success.
-        /// </summary>
-        /// <returns></returns>
-        protected override bool InternalInitialize()
-        {
-            return true;
-        }
-
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -185,7 +171,6 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
-
         /// <summary>
         /// Create the network message built from the provided writerGroupConfiguration
         /// </summary>
@@ -232,8 +217,8 @@ namespace Opc.Ua.PubSub.Transport
                             uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
                             uadpDataSetMessage.ConfiguredSize = dataSetMessageSettings.ConfiguredSize;
                             uadpDataSetMessage.DataSetOffset = dataSetMessageSettings.DataSetOffset;
-                            uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-                            uadpDataSetMessage.Status = (ushort)StatusCodes.Good;
+                            uadpDataSetMessage.Timestamp = DateTime.UtcNow;
+                            uadpDataSetMessage.Status = StatusCodes.Good;
                             dataSetMessages.Add(uadpDataSetMessage);
                         }
                     }
@@ -279,7 +264,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
                     {
                         // Get encoded bytes
-                        byte[] bytes = networkMessage.Encode();                        
+                        byte[] bytes = networkMessage.Encode();
 
                         foreach (var udpClient in m_publisherUdpClients)
                         {
@@ -439,7 +424,6 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
-
         /// <summary>
         /// Raise DataReceived event
         /// </summary>
@@ -467,7 +451,6 @@ namespace Opc.Ua.PubSub.Transport
             m_sequenceNumber = 0;
             m_dataSetSequenceNumber = 0;
         }
-
         #endregion
     }
 }

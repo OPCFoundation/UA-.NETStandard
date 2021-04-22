@@ -30,12 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Encoding
 {
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpNetworkMessage objects using mqtt")]
     public class MqttUadpNetworkMessageTests
@@ -441,6 +440,7 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.GroupVersion = 1;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -511,6 +511,7 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.NetworkMessageNumber = 1;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -581,6 +582,7 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.SequenceNumber = 1;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -718,6 +720,7 @@ namespace Opc.Ua.PubSub.Tests
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
 
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -787,7 +790,8 @@ namespace Opc.Ua.PubSub.Tests
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
             UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
                 UadpNetworkMessage;
-            
+
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.PicoSeconds = 10;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
@@ -855,6 +859,7 @@ namespace Opc.Ua.PubSub.Tests
                 UadpNetworkMessage;
 
             // set DataSetClassId
+            Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.DataSetClassId = Guid.NewGuid();
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
@@ -890,8 +895,7 @@ namespace Opc.Ua.PubSub.Tests
             uaNetworkMessageDecoded.Decode(bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
-            // TODO Fix: this might be broken after refactor
-            Compare(uadpNetworkMessage, uaNetworkMessageDecoded, uaNetworkMessageDecoded.ReceivedDataSets);
+            Compare(uadpNetworkMessage, uaNetworkMessageDecoded);
         }
 
         /// <summary>
@@ -900,7 +904,7 @@ namespace Opc.Ua.PubSub.Tests
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
         /// <returns></returns>
-        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded, List<DataSet> subscribedDataSets)
+        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
         {
             UadpNetworkMessageContentMask networkMessageContentMask = uadpNetworkMessageEncode.NetworkMessageContentMask;
 
@@ -962,9 +966,7 @@ namespace Opc.Ua.PubSub.Tests
             {
                 // check the number of UadpDataSetMessage counts
                 Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
-                    uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");
-
-                Assert.IsNotNull(subscribedDataSets, "SubscribedDataSets is null");                
+                    uadpNetworkMessageDecoded.DataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly");          
             }
             #endregion
 
@@ -982,32 +984,25 @@ namespace Opc.Ua.PubSub.Tests
             #endregion
 
             #region Payload data - check received datasets to match the encoded datasets
-            List<DataSet> receivedDataSets = uadpNetworkMessageDecoded.ReceivedDataSets;
-            Assert.IsNotNull(receivedDataSets, "ReceivedDataSets is null");
+            List<UaDataSetMessage> receivedDataSetMessages = uadpNetworkMessageDecoded.DataSetMessages.ToList();
+
+            Assert.IsNotNull(receivedDataSetMessages, "Received DataSetMessages is null");
 
             // check the number of UadpDataSetMessages counts
             Assert.AreEqual(uadpNetworkMessageEncode.DataSetMessages.Count,
-                     receivedDataSets.Count, "UadpDataSetMessages.Count was not decoded correctly (Count = {0})", receivedDataSets.Count);
+                     receivedDataSetMessages.Count, "UadpDataSetMessages.Count was not decoded correctly (Count = {0})", receivedDataSetMessages.Count);
 
 
             // check if the encoded match the received decoded DataSets
-            for (int i = 0; i < receivedDataSets.Count; i++)
+            for (int i = 0; i < receivedDataSetMessages.Count; i++)
             {
                 UadpDataSetMessage uadpDataSetMessage = uadpNetworkMessageEncode.DataSetMessages[i] as UadpDataSetMessage;
                 Assert.IsNotNull(uadpDataSetMessage, "DataSet [{0}] is missing from publisher datasets!", i);
 
-                //UadpDataSetMessage uadpDataSetMessageDecoded = uadpNetworkMessageDecoded.DataSetMessages[i] as UadpDataSetMessage;
-
-                //Assert.IsNotNull(uadpDataSetMessageDecoded, "Decoded message did not found uadpDataSetMessage.DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
-                //// check payload data size in bytes
-                //Assert.AreEqual(uadpDataSetMessage.PayloadSizeInStream, uadpDataSetMessageDecoded.PayloadSizeInStream,
-                //    "PayloadSizeInStream was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);
-
                 // check payload data fields count 
                 // get related dataset from subscriber DataSets
-                DataSet decodedDataSet = receivedDataSets[i];
-                Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage.DataSet.Name);
+                DataSet decodedDataSet = receivedDataSetMessages[i].DataSet;
+                Assert.IsNotNull(decodedDataSet, "DataSet '{0}' is missing from subscriber datasets!", uadpDataSetMessage?.DataSet.Name);
 
                 Assert.AreEqual(uadpDataSetMessage.DataSet.Fields.Length, decodedDataSet.Fields.Length,
                     "DataSet.Fields.Length was not decoded correctly, DataSetWriterId = {0}", uadpDataSetMessage.DataSetWriterId);

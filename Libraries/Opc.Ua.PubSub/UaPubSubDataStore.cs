@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub
         {
             m_store = new Dictionary<NodeId, Dictionary<uint, DataValue>>();
         }
-        #endregion  
+        #endregion
 
         #region Read/Write Public Methods
         /// <summary>
@@ -91,7 +91,7 @@ namespace Opc.Ua.PubSub
                     dictionary.Add(attributeId, dataValue);
                     m_store.Add(nodeId, dictionary);
                 }
-            }            
+            }
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Opc.Ua.PubSub
                     {
                         return m_store[nodeId][attributeId];
                     }
-                }                
+                }
             }
             return null;
         }

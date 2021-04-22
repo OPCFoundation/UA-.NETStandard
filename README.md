@@ -26,6 +26,7 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 7. [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
 8. Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
 9. Sessions and Subscriptions.
+10. [PubSub](Docs/PubSub.md) Library.
 
 ##### Samples and Nuget packages
 
@@ -33,7 +34,8 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 12. OPC UA [Console Reference Server](Applications/ConsoleReferenceServer) for .NET Core.
 13. The OPC UA [Reference Server](Applications/ReferenceServer/README.md) has been certified for compliance through an OPC Foundation Certification Test Lab. Fixes and enhancements since the certification process have been tested and verified for compliance using the Compliance Test Tool (CTT) Version [1.03.340.380](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/). 
     All releases are verified for compliance with the latest official Compliance Test Tool by the maintainers.
-14. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .NET projects.
+14. OPC UA [Console Reference Publisher](Applications/ConsoleReferencePublisher/README.md) and [Console Reference Subscriber](Applications/ConsoleReferenceSubscriber/README.md) for .NET Core and .NET Framework.
+15. An official OPC UA [Nuget](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) package of the core, client, server and configuration libraries is available for integration in .NET projects.
 
 ## Project Information
 

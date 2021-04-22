@@ -10,6 +10,10 @@
     <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
     <RootNamespace>Quickstarts.ConsoleReferenceSubscriber</RootNamespace>
   </PropertyGroup>
+ 
+  <ItemGroup>
+    <PackageReference Include="Mono.Options" Version="6.6.0.161" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />

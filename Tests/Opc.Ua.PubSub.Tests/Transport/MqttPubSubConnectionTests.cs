@@ -31,20 +31,16 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Security;
-using System.Security.Cryptography.X509Certificates;
-using System.ServiceProcess;
 using System.Threading;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
-using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.PubSub.Transport;
+using Opc.Ua.PubSub.Tests.Encoding;
 
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.PubSub.Tests.Transport
 {
     [TestFixture(Description = "Tests for Mqtt connections")]
-    public class MqttPubSubConnectionTests
+    public partial class MqttPubSubConnectionTests
     {
         private const UInt16 NamespaceIndexAllTypes = 3;
 
@@ -97,7 +93,7 @@ namespace Opc.Ua.PubSub.Tests
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(publisherConfiguration, publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
-            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttPublisherConnection.ConnectionProperties, "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
@@ -106,10 +102,6 @@ namespace Opc.Ua.PubSub.Tests
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
-
-            WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
-            UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
-                as UadpWriterGroupMessageDataType;
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
@@ -136,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
             Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
@@ -206,7 +198,7 @@ namespace Opc.Ua.PubSub.Tests
             // Configure the mqtt publisher configuration with the MQTTbroker
             PubSubConnectionDataType mqttPublisherConnection = MessagesHelper.GetConnection(publisherConfiguration, publisherId);
             Assert.IsNotNull(mqttPublisherConnection, "The MQTT publisher connection is invalid.");
-            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttPublisherConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttPublisherConnection.ConnectionProperties, "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
@@ -215,10 +207,6 @@ namespace Opc.Ua.PubSub.Tests
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
-
-            WriterGroupDataType writerGroup = MessagesHelper.GetWriterGroup(mqttPublisherConnection, writerGroupId);
-            JsonWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroup.MessageSettings)
-                as JsonWriterGroupMessageDataType;
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
@@ -246,7 +234,7 @@ namespace Opc.Ua.PubSub.Tests
             // Configure the mqtt subscriber configuration with the MQTTbroker
             PubSubConnectionDataType mqttSubcriberConnection = MessagesHelper.GetConnection(subscriberConfiguration, publisherId);
             Assert.IsNotNull(mqttSubcriberConnection, "The MQTT subscriber connection is invalid.");
-            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.KeyValuePairs;
+            mqttSubcriberConnection.ConnectionProperties = mqttConfiguration.ConnectionProperties;
             Assert.IsNotNull(mqttSubcriberConnection.ConnectionProperties, "The MQTT subscriber connection properties are not valid.");
 
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
@@ -272,8 +260,9 @@ namespace Opc.Ua.PubSub.Tests
 
             subscriberConnection.Stop();
             publisherConnection.Stop();
-
         }
+
+        #region Private methods
 
         /// <summary>
         /// Data received handler
@@ -283,45 +272,6 @@ namespace Opc.Ua.PubSub.Tests
         private void UaPubSubApplication_DataReceived(object sender, SubscribedDataEventArgs e)
         {
             m_shutdownEvent.Set();
-        }
-        
-        /// <summary>
-        /// Get first active nic on local computer
-        /// </summary>
-        /// <returns></returns>
-        private static IPAddress GetFirstActiveNic()
-        {
-            IPAddress firstActiveIPAddr = null;
-            string localComputerName = Dns.GetHostName();
-            try
-            { // get host IP addresses
-                IPAddress[] hostIPs = Dns.GetHostAddresses(localComputerName);
-                // get local IP addresses
-                IPAddress[] localIPs = Dns.GetHostAddresses(Dns.GetHostName());
-
-                // test if any host IP equals to any local IP or to localhost
-                foreach (IPAddress hostIP in hostIPs)
-                {
-                    // is loopback type?
-                    if (IPAddress.IsLoopback(hostIP))
-                    {
-                        continue;
-                    }
-                    // ip address available
-                    foreach (IPAddress localIP in localIPs)
-                    {
-                        if (hostIP.Equals(localIP))
-                        {
-                            firstActiveIPAddr = localIP;
-                        }
-                    }
-                }
-            }
-            catch
-            {
-            }
-
-            return firstActiveIPAddr;
         }
 
         /// <summary>
@@ -340,82 +290,27 @@ namespace Opc.Ua.PubSub.Tests
                     mosquittoProcess.Kill();
                 }
 
-                Process process = new Process();
-                ProcessStartInfo startInfo =
+                using (Process process = new Process())
+                {
+                    ProcessStartInfo startInfo =
                    new ProcessStartInfo(
                         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
                         Path.Combine(processName, $"{processName}.exe")));
-                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                //startInfo.CreateNoWindow = true;
-                //startInfo.RedirectStandardOutput = true;
-                //startInfo.UseShellExecute = true;
-                //startInfo.Verb = "runas";
-                startInfo.Arguments = arguments;
-                process.StartInfo = startInfo;
-                process.Start();
-                //proc.WaitForExit();
-                processes = Process.GetProcessesByName(processName);
+                    startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    //startInfo.CreateNoWindow = true;
+                    //startInfo.RedirectStandardOutput = true;
+                    //startInfo.UseShellExecute = true;
+                    //startInfo.Verb = "runas";
+                    startInfo.Arguments = arguments;
+                    process.StartInfo = startInfo;
+                    process.Start();
+                }
             }
-            catch(Exception)
+            catch (Exception)
             {
                 Assert.Fail("The mosquitto could not be restarted!");
             }
-
         }
-
-        /// <summary>
-        /// Copy to the test store where the certificates that will be loaded
-        /// </summary>
-        private void CopyResourceToStore(string storeLocation, string folderStoreName, string certificateFile)
-        {
-            string certificateSourcePath = Path.Combine(Directory.GetCurrentDirectory(), certificateFile);
-            if (Directory.Exists(storeLocation))
-            {
-                try
-                {
-                    string opcFoundationStorePath = Path.Combine(storeLocation, folderStoreName);
-                    if (!Directory.Exists(opcFoundationStorePath))
-                    {
-                        Directory.CreateDirectory(opcFoundationStorePath);
-                    }
-                    string pkiStorePath = Path.Combine(opcFoundationStorePath, "pki");
-                    if (!Directory.Exists(pkiStorePath))
-                    {
-                        Directory.CreateDirectory(pkiStorePath);
-                    }
-                    string pkiTrustedStorePath = Path.Combine(pkiStorePath, "trusted");
-                    if (!Directory.Exists(pkiTrustedStorePath))
-                    {
-                        Directory.CreateDirectory(pkiTrustedStorePath);
-                    }
-                    string pkiTrustedCertsStorePath = Path.Combine(pkiTrustedStorePath, "certs");
-                    if (!Directory.Exists(pkiTrustedCertsStorePath))
-                    {
-                        Directory.CreateDirectory(pkiTrustedCertsStorePath);
-                    }
-                    string pkiRejectedStorePath = Path.Combine(pkiStorePath, "rejected");
-                    if (!Directory.Exists(pkiRejectedStorePath))
-                    {
-                        Directory.CreateDirectory(pkiRejectedStorePath);
-                    }
-                    string pkiRejectedCertsStorePath = Path.Combine(pkiRejectedStorePath, "certs");
-                    if (!Directory.Exists(pkiRejectedCertsStorePath))
-                    {
-                        Directory.CreateDirectory(pkiRejectedCertsStorePath);
-                    }
-
-                    string certificateStoreFile = Path.Combine(pkiTrustedCertsStorePath, Path.GetFileName(certificateSourcePath));
-                    File.Copy(certificateSourcePath, certificateStoreFile, true);
-                }
-                catch (Exception ex)
-                {
-                    Assert.IsNotNull(storeLocation, "Certificate could not be loaded to store: {0}!", storeLocation);
-                }
-            }
-            else
-            {
-                Assert.IsNotNull(storeLocation, "Directory store location does not exists!");
-            }
-        }
+        #endregion
     }
 }

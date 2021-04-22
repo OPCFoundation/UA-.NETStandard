@@ -90,6 +90,11 @@ namespace Opc.Ua
         public const int UaWebSocketsDefaultPort = 4843;
 
         /// <summary>
+        /// The default port for the MQTT protocol.
+        /// </summary>
+        public const int MqttDefaultPort = 1883;
+
+        /// <summary>
         /// The urls of the discovery servers on a node.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2105:ArrayFieldsShouldNotBeReadOnly")]

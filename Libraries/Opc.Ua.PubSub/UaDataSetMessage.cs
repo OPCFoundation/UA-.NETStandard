@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using Opc.Ua.PubSub.PublishedData;
+
 namespace Opc.Ua.PubSub
 {
     /// <summary>
@@ -34,5 +37,91 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public abstract class UaDataSetMessage
     {
+        #region Fields
+        // Configuration Major and Major current version (VersionTime)
+        /// <summary>
+        /// Default value for Configured MetaDataVersion.MajorVersion
+        /// </summary>
+        protected const UInt32 ConfigMajorVersion = 1;
+        /// <summary>
+        /// Default value for Configured MetaDataVersion.MinorVersion
+        /// </summary>
+        protected const UInt32 ConfigMinorVersion = 1;
+
+        private DataSet m_dataSet;
+        #endregion
+
+        #region Constructor
+        /// <summary>
+        /// Create new instance of <see cref="UaDataSetMessage"/>
+        /// </summary>
+        public UaDataSetMessage()
+        {
+            Timestamp = DateTime.UtcNow;
+            MetaDataVersion = new ConfigurationVersionDataType() {
+                MajorVersion = ConfigMajorVersion,
+                MinorVersion = ConfigMinorVersion
+            };
+        }
+        #endregion
+
+        #region Properties
+        /// <summary>
+        /// Get DataSet
+        /// </summary>
+        public DataSet DataSet
+        {
+            get
+            {
+                return m_dataSet;
+            }
+            internal set
+            {
+                m_dataSet = value;
+            }
+        }
+
+        /// <summary>
+        /// Get and Set corresponding DataSetWriterId
+        /// </summary>
+        public ushort DataSetWriterId { get; set; }
+
+        /// <summary>
+        /// Get DataSetFieldContentMask
+        /// This DataType defines flags to include DataSet field related information like status and 
+        /// timestamp in addition to the value in the DataSetMessage.
+        /// </summary>
+        public DataSetFieldContentMask FieldContentMask { get; protected set; }
+
+        /// <summary>
+        /// The version of the DataSetMetaData which describes the contents of the Payload.
+        /// </summary>
+        public ConfigurationVersionDataType MetaDataVersion { get; set; }
+
+        /// <summary>
+        /// Get and Set SequenceNumber
+        /// A strictly monotonically increasing sequence number assigned by the publisher to each DataSetMessage sent.
+        /// </summary>
+        public uint SequenceNumber { get; set; }
+
+        /// <summary>
+        /// Get and Set Timestamp
+        /// </summary>
+        public DateTime Timestamp { get; set; }
+
+        /// <summary>
+        /// Get and Set Status
+        /// </summary>
+        public StatusCode Status { get; set; }
+
+        #endregion
+
+        #region Methods
+        /// <summary>
+        /// Set DataSetFieldContentMask 
+        /// </summary>
+        /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
+        public abstract void SetFieldContentMask(DataSetFieldContentMask fieldContentMask);
+        #endregion
     }
 }

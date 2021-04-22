@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -37,21 +37,6 @@ using System.Text;
 
 namespace Opc.Ua.PubSub.Transport
 {
-    /// <summary>
-    /// Where is a method call used in 
-    /// </summary>
-    public enum UsedInContext
-    {
-        /// <summary>
-        /// Publisher context call
-        /// </summary>
-        Publisher,
-        /// <summary>
-        /// Subscriber context call
-        /// </summary>
-        Subscriber
-    };
-
     /// <summary>
     /// Specialized in creating the necessary <see cref="UdpClient"/> instances from an URL
     /// </summary>
@@ -96,7 +81,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     //you might get more than one IP for a hostname since 
                     //DNS supports more than one record
-                    foreach(IPAddress address in hostEntry.AddressList)
+                    foreach (IPAddress address in hostEntry.AddressList)
                     {
                         if (address.AddressFamily == AddressFamily.InterNetwork)
                         {
@@ -104,7 +89,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Utils.Trace(ex, "Could not resolve host name: {0}", hostName);
                 }
@@ -123,7 +108,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             StringBuilder buffer = new StringBuilder();
             buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkAddressUrl != null ? networkAddressUrl.NetworkInterface : "null");
-            buffer.AppendFormat("networkAddressUrl.Url = {0} \n", networkAddressUrl.Url != null ? networkAddressUrl.Url : "null");
+            buffer.AppendFormat("networkAddressUrl.Url = {0} \n", networkAddressUrl?.Url != null ? networkAddressUrl?.Url : "null");
             buffer.AppendFormat("configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
@@ -243,7 +228,7 @@ namespace Opc.Ua.PubSub.Transport
                     udpClient.Dispose();
                     udpClient = null;
                 }
-            }       
+            }
 
             return udpClient;
         }

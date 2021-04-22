@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,20 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
 using MQTTnet.Client.Options;
+using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using MQTTnet.Server;
-using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.Mqtt;
-using MQTTnet.Formatter;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -50,11 +48,11 @@ namespace Opc.Ua.PubSub.Transport
     internal class MqttPubSubConnection : UaPubSubConnection
     {
         #region Private Fields
-        private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
         private string m_brokerHostName = "localhost";
-        private int m_brokerPort = 1883;
+        private string m_urlScheme;
+        private int m_brokerPort = Utils.MqttDefaultPort;
         private int m_reconnectIntervalSeconds = 5;
 
         private IMqttClient m_publisherMqttClient;
@@ -62,12 +60,33 @@ namespace Opc.Ua.PubSub.Transport
         private MessageMapping m_messageMapping;
 
         private CertificateValidator m_certificateValidator;
+        private MqttClientTlsOptions m_mqttClientTlsOptions;
         #endregion
 
         #region Public Properties
-        string BrokerHostName { get { return m_brokerHostName; } }
-        int BrokerPort { get { return m_brokerPort; } }
-        CertificateValidator CertificateValidator { get { return m_certificateValidator; } }
+        /// <summary>
+        /// Gets the host name or IP address of the broker.
+        /// </summary>
+        public string BrokerHostName { get => m_brokerHostName; }
+
+        /// <summary>
+        /// Gets the port of the connection.
+        /// </summary>
+        public int BrokerPort { get { return m_brokerPort; } }
+
+        /// <summary>
+        /// Gets the scheme of the Url.
+        /// </summary>
+        public string UrlScheme { get => m_urlScheme; }
+
+        /// <summary>
+        /// Gets or sets the certificate validator for MQTT broker certificates.
+        /// </summary>
+        public CertificateValidator CertificateValidator
+        {
+            get => m_certificateValidator;
+            set => m_certificateValidator = value;
+        }
         #endregion Public Properties
 
         #region Constants
@@ -119,7 +138,6 @@ namespace Opc.Ua.PubSub.Transport
             if (transportSettings == null)
             {
                 //Wrong configuration of writer group MessageSettings
-
                 return null;
             }
 
@@ -135,6 +153,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     if (publishedDataSet != null && dataSet != null)
                     {
+                        UaDataSetMessage uaDataSetMessage = null;
                         if (m_messageMapping == MessageMapping.Uadp && uadpMessageSettings != null)
                         {
                             // try to create Uadp message
@@ -144,15 +163,11 @@ namespace Opc.Ua.PubSub.Transport
                             if (uadpDataSetMessageSettings != null)
                             {
                                 UadpDataSetMessage uadpDataSetMessage = new UadpDataSetMessage(dataSet);
-                                uadpDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                                 uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)uadpDataSetMessageSettings.DataSetMessageContentMask);
                                 uadpDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                                uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
                                 uadpDataSetMessage.ConfiguredSize = uadpDataSetMessageSettings.ConfiguredSize;
                                 uadpDataSetMessage.DataSetOffset = uadpDataSetMessageSettings.DataSetOffset;
-                                uadpDataSetMessage.TimeStamp = DateTime.UtcNow;
-                                uadpDataSetMessage.Status = (ushort)StatusCodes.Good;
-                                dataSetMessages.Add(uadpDataSetMessage);
+                                uaDataSetMessage = uadpDataSetMessage;
                             }
                         }
                         else if (m_messageMapping == MessageMapping.Json && jsonMessageSettings != null)
@@ -162,20 +177,24 @@ namespace Opc.Ua.PubSub.Transport
                             if (jsonDataSetMessageSettings != null)
                             {
                                 JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage(dataSet);
-                                jsonDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                                 jsonDataSetMessage.SetMessageContentMask((JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask);
                                 jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
-                                jsonDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
-
-                                if (publishedDataSet.DataSetMetaData != null)
-                                {
-                                    jsonDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
-                                }
-
-                                jsonDataSetMessage.Timestamp = DateTime.UtcNow;
-                                jsonDataSetMessage.Status = StatusCodes.BadUnexpectedError;
-                                dataSetMessages.Add(jsonDataSetMessage);
+                                uaDataSetMessage = jsonDataSetMessage;
                             }
+                        }
+
+                        if (uaDataSetMessage != null)
+                        {
+                            // set common properties of dataset message
+                            uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
+                            uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
+                            if (publishedDataSet.DataSetMetaData != null)
+                            {
+                                uaDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
+                            }
+                            uaDataSetMessage.Timestamp = DateTime.UtcNow;
+                            uaDataSetMessage.Status = StatusCodes.Good;
+                            dataSetMessages.Add(uaDataSetMessage);
                         }
                     }
                 }
@@ -192,7 +211,7 @@ namespace Opc.Ua.PubSub.Transport
             if (m_messageMapping == MessageMapping.Uadp)
             {
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings.NetworkMessageContentMask);
+                uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
                 // Network message header
                 uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
 
@@ -205,13 +224,10 @@ namespace Opc.Ua.PubSub.Transport
             else if (m_messageMapping == MessageMapping.Json)
             {
                 JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings.NetworkMessageContentMask);
+                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
                 jsonNetworkMessage.MessageId = Guid.NewGuid().ToString();
                 // Network message header
                 jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
-
-                // Writer group header
-                //jsonNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
                 networkMessage = jsonNetworkMessage;
             }
@@ -219,7 +235,6 @@ namespace Opc.Ua.PubSub.Transport
             if (networkMessage != null)
             {
                 networkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
-                networkMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_sequenceNumber) % UInt16.MaxValue);
             }
             return networkMessage;
         }
@@ -246,7 +261,6 @@ namespace Opc.Ua.PubSub.Transport
                                 as BrokerWriterGroupTransportDataType;
                             if (transportSettings == null)
                             {
-                                //TODO Wrong configuration of writer group MessageSettings, log error
                                 return false;
                             }
 
@@ -279,11 +293,6 @@ namespace Opc.Ua.PubSub.Transport
         #endregion Public Methods
 
         #region Protected Methods
-        protected override bool InternalInitialize()
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -294,7 +303,7 @@ namespace Opc.Ua.PubSub.Transport
 
             lock (m_lock)
             {
-                //cleanup all existing UdpClient previously open
+                //cleanup all existing MQTT connections previously open
                 InternalStop();
 
                 NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
@@ -302,7 +311,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (networkAddressUrlState == null)
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                              this.PubSubConnectionConfiguration.Name);
+                              PubSubConnectionConfiguration.Name);
                     return;
                 }
 
@@ -313,6 +322,7 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         m_brokerHostName = connectionUri.Host;
                         m_brokerPort = connectionUri.Port;
+                        m_urlScheme = connectionUri.Scheme;
                     }
                 }
 
@@ -320,20 +330,20 @@ namespace Opc.Ua.PubSub.Transport
                 nrOfSubscribers = GetAllDataSetReaders().Count;
             }
 
-            MqttClient pubClient = null;
-            MqttClient subClient = null;
+            MqttClient publisherClient = null;
+            MqttClient subscriberClient = null;
             IMqttClientOptions mqttOptions = GetMqttClientOptions();
 
-            //publisher initialization    
+            //publisher initialization
             if (nrOfPublishers > 0)
             {
-                pubClient = Task.Run(async () =>
+                publisherClient = Task.Run(async () =>
                           (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
                                                                                  mqttOptions,
                                                                                  null).ConfigureAwait(false)).Result;
             }
 
-            //subscriber initialization   
+            //subscriber initialization
             if (nrOfSubscribers > 0)
             {
                 // collect all topics from all ReaderGroups
@@ -344,14 +354,14 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
                             as BrokerDataSetReaderTransportDataType;
-                        if (brokerTransportSettings != null)
+                        if (brokerTransportSettings != null && !topics.Contains(brokerTransportSettings.QueueName))
                         {
                             topics.Add(brokerTransportSettings.QueueName);
                         }
                     }
                 }
 
-                subClient = Task.Run(async () =>
+                subscriberClient = Task.Run(async () =>
                      (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
                                                                             mqttOptions,
                                                                             ProcessMqttMessage,
@@ -360,8 +370,8 @@ namespace Opc.Ua.PubSub.Transport
 
             lock (m_lock)
             {
-                m_publisherMqttClient = pubClient;
-                m_subscriberMqttClient = subClient;
+                m_publisherMqttClient = publisherClient;
+                m_subscriberMqttClient = subscriberClient;
             }
 
             Utils.Trace("Connection '{0}' started {1} publishers and {2} subscribers.",
@@ -379,7 +389,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_publisherMqttClient.IsConnected)
                     {
-                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync());
+                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync().ConfigureAwait(false));
                     }
                     m_publisherMqttClient.Dispose();
                 }
@@ -388,23 +398,31 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_subscriberMqttClient.IsConnected)
                     {
-                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync());
+                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync().ConfigureAwait(false));
                     }
                     m_subscriberMqttClient.Dispose();
                 }
+
+                if (m_certificateValidator != null)
+                {
+                    m_certificateValidator.CertificateValidation -= CertificateValidator_CertificateValidation;
+                    m_certificateValidator = null;
+                }
+
+                m_mqttClientTlsOptions = null;
             }
         }
         #endregion Protected Methods
 
         #region Private Methods
         /// <summary>
-        /// Processes a
+        /// Processes a message from the MQTT broker.
         /// </summary>
         /// <param name="eventArgs"></param>
         private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             string topic = eventArgs.ApplicationMessage.Topic;
-            Utils.Trace("Connection '{0}' - ProcessMqttMessage() from topic={0}", topic);
+            Utils.Trace("Connection '{0}' - ProcessMqttMessage() received from topic={0}", topic);
 
             // get the datasetreaders for received message topic
             List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
@@ -413,15 +431,46 @@ namespace Opc.Ua.PubSub.Transport
                 if (dsReader == null) continue;
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
                     ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
+
                 string queueName = brokerDataSetReaderTransportDataType.QueueName;
-                if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length-1)
+                if (queueName != "#")
                 {
-                    queueName = queueName.Substring(0, queueName.Length - 1);
+                    // The following block of code checks if the received topic is the expected one
+                    // In case the message is received from Azure the topic is received with an appended GUID which needs to be filtered out
+                    // The match is done using the following logic
+                    if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
+                    {
+                        // Keep the queueName without #
+                        queueName = queueName.Substring(0, queueName.Length - 1);
+                    }
+                    if (brokerDataSetReaderTransportDataType == null || !topic.StartsWith(queueName))
+                    {
+                        // Ignore message
+                        continue;
+                    }
+                    if (topic.Length > queueName.Length)
+                    {
+                        // Keep the portion of the topic having the length of the queueName
+                        string filterTopic = topic.Substring(0, queueName.Length);
+                        if (filterTopic != queueName)
+                        {
+                            // Ignore message
+                            continue;
+                        }
+                    }
+                    else if ((topic.Length == queueName.Length) && (topic != queueName))
+                    {
+                        // Ignore message
+                        continue;
+                    }
+                    else if (topic.Length < queueName.Length)
+                    {
+                        // Ignore message
+                        continue;
+                    }
                 }
-                if (brokerDataSetReaderTransportDataType == null || !topic.StartsWith(queueName))
-                {
-                    continue;
-                }
+                // At this point the message is accepted 
+                // if ((topic.Length == queueName.Length) && (topic == queueName)) || (queueName == #)
                 dataSetReaders.Add(dsReader);
             }
 
@@ -473,74 +522,11 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Validates the client certificate
-        /// </summary>
-        /// <param name="context">The context of the validation</param>
-        private bool ValidateCertificate(MqttClientCertificateValidationCallbackContext context)
-        {
-            X509Certificate2 cert = new X509Certificate2(context.Certificate.GetRawCertData());
-            try
-            {
-                m_certificateValidator?.Validate(cert);
-            }
-            catch (ServiceResultException sre) when
-             (
-              ((sre.Result.StatusCode == StatusCodes.BadCertificateRevocationUnknown) ||
-              (sre.Result.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown) ||
-              (sre.Result.StatusCode == StatusCodes.BadCertificateRevoked) ||
-              (sre.Result.StatusCode == StatusCodes.BadCertificateIssuerRevoked)) &&
-              (context.ClientOptions?.TlsOptions?.IgnoreCertificateRevocationErrors ?? false)
-             )
-            {
-                Utils.Trace(Utils.TraceMasks.Security,
-                    "Connection '{0}' - Certificate '{1}' has status code {2} and is accepted.",
-                    PubSubConnectionConfiguration.Name, cert.Thumbprint, sre.Result.StatusCode);
-                return true;
-            }
-            catch (ServiceResultException sre) when
-             (
-              (sre.Result.StatusCode == StatusCodes.BadCertificateChainIncomplete) &&
-              (context.ClientOptions?.TlsOptions?.IgnoreCertificateChainErrors ?? false)
-             )
-            {
-                Utils.Trace(Utils.TraceMasks.Security,
-                    "Connection '{0}' - Certificate '{1}' has status code {2} and is accepted.",
-                    PubSubConnectionConfiguration.Name, cert.Thumbprint, sre.Result.StatusCode);
-                return true;
-            }
-            catch (ServiceResultException sre) when
-             (
-              (sre.Result.StatusCode == StatusCodes.BadCertificateUntrusted) &&
-              (context.ClientOptions?.TlsOptions?.AllowUntrustedCertificates ?? false)
-             )
-            {
-                Utils.Trace(Utils.TraceMasks.Security,
-                    "Connection '{0}' - Certificate '{1}' has status code {2} and is accepted.",
-                    PubSubConnectionConfiguration.Name, cert.Thumbprint, sre.Result.StatusCode);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Utils.Trace(Utils.TraceMasks.Error,
-                    "Connection '{0}' - The validation of the certificate {1} has failed with {2}.",
-                    PubSubConnectionConfiguration.Name, cert.Thumbprint, ex.Message);
-                return false;
-            }
-
-            Utils.Trace("Connection '{0}' - Certificate '{1}' is accepted.",
-                PubSubConnectionConfiguration.Name, cert.Thumbprint);
-            return true;
-        }
-
-        /// <summary>
         /// Get apropriate IMqttClientOptions with which to connect to the MQTTBroker
         /// </summary>
         /// <returns></returns>
         private IMqttClientOptions GetMqttClientOptions()
         {
-            const string MqttUrlIdentifier = "mqtt://";
-            const string MqttSUrlIdentifier = "mqtts://";
-
             IMqttClientOptions mqttOptions = null;
             TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
 
@@ -549,21 +535,32 @@ namespace Opc.Ua.PubSub.Transport
             if (networkAddressUrlState == null)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                    this.PubSubConnectionConfiguration.Name);
+                    PubSubConnectionConfiguration.Name);
                 return null;
             }
 
-            string networkAddressUrl = networkAddressUrlState.Url.ToLower();
+            Uri connectionUri = null;
 
-            if (!networkAddressUrl.StartsWith(MqttUrlIdentifier) &&
-                !networkAddressUrl.StartsWith(MqttSUrlIdentifier))
+            if (networkAddressUrlState.Url != null && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
             {
-                Utils.Trace(Utils.TraceMasks.Error,
-                    "The configuration for connection '{0}' has an invalid Url value {1}. The Url should start either with {2} or with {3}",
+                if ((connectionUri.Scheme != Utils.UriSchemeMqtt) && (connectionUri.Scheme != Utils.UriSchemeMqtts))
+                {
+                    Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for connection '{0}' has an invalid Url value {1}. The Uri scheme should be either {2}:// or {3}://",
                     PubSubConnectionConfiguration.Name,
                     networkAddressUrlState.Url,
-                    MqttUrlIdentifier,
-                    MqttSUrlIdentifier);
+                    Utils.UriSchemeMqtt,
+                    Utils.UriSchemeMqtts);
+                    return null;
+                }
+            }
+
+            if (connectionUri == null)
+            {
+                Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for connection '{0}' has an invalid Url value {1}.",
+                    PubSubConnectionConfiguration.Name,
+                    networkAddressUrlState.Url);
                 return null;
             }
 
@@ -580,75 +577,19 @@ namespace Opc.Ua.PubSub.Transport
                                 .Build();
                 return mqttOptions;
             }
-            else if (transportProtocolConfiguration != null)
+            else
             {
                 MqttClientProtocolConfiguration mqttProtocolConfiguration = transportProtocolConfiguration as MqttClientProtocolConfiguration;
                 if (mqttProtocolConfiguration != null)
                 {
-
                     MqttProtocolVersion mqttProtocolVersion = (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration).ProtocolVersion;
-                    MqttTlsOptions mqttTlsOptions = ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
-                    if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                        mqttProtocolConfiguration.UseCredentials)
+                    // MQTTS connection.
+                    if (connectionUri.Scheme == Utils.UriSchemeMqtts)
                     {
-                        m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
+                        MqttTlsOptions mqttTlsOptions = ((MqttClientProtocolConfiguration)transportProtocolConfiguration).MqttTlsOptions;
 
-                        if (mqttProtocolConfiguration.UseAzureClientId)
-                        {
-                            mqttOptions = new MqttClientOptionsBuilder()
-                                .WithTcpServer(m_brokerHostName, m_brokerPort)
-                                .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
-                                                 new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
-                                .WithKeepAlivePeriod(mqttKeepAlive)
-                                .WithProtocolVersion(mqttProtocolVersion)
-                                .WithClientId(mqttProtocolConfiguration.AzureClientId)
-                                .WithTls(new MqttClientOptionsBuilderTlsParameters {
-                                    UseTls = true,
-                                    SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
-                                    AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
-                                    IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
-                                    IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                                    CertificateValidationHandler = ValidateCertificate
-                                })
-                                .Build();
-                        }
-                        else
-                        {
-                            mqttOptions = new MqttClientOptionsBuilder()
-                                .WithTcpServer(m_brokerHostName, m_brokerPort)
-                                .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
-                                                 new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
-                                .WithKeepAlivePeriod(mqttKeepAlive)
-                                .WithProtocolVersion(mqttProtocolVersion)
-                                .WithTls(new MqttClientOptionsBuilderTlsParameters {
-                                    UseTls = true,
-                                    SslProtocol = mqttTlsOptions?.SslProtocolVersion ?? System.Security.Authentication.SslProtocols.Tls12,
-                                    AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
-                                    IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
-                                    IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                                    CertificateValidationHandler = ValidateCertificate
-                                })
-                                .Build();
-                        }
-
-                    }
-                    else if (!networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                             mqttProtocolConfiguration.UseCredentials)
-                    {
-                        mqttOptions = new MqttClientOptionsBuilder()
-                            .WithTcpServer(m_brokerHostName, m_brokerPort)
-                            .WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
-                                             new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password)
-                            .WithKeepAlivePeriod(mqttKeepAlive)
-                            .WithProtocolVersion(mqttProtocolVersion)
-                            .Build();
-                    }
-                    else if (networkAddressUrl.StartsWith(MqttSUrlIdentifier) &&
-                             !mqttProtocolConfiguration.UseCredentials)
-                    {
-                        m_certificateValidator = SetupCertificateValidator(mqttTlsOptions);
-                        mqttOptions = new MqttClientOptionsBuilder()
+                        MqttClientOptionsBuilder mqttClientOptionsBuilder = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
@@ -660,20 +601,45 @@ namespace Opc.Ua.PubSub.Transport
                                 IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
                                 IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
                                 CertificateValidationHandler = ValidateCertificate
-                            })
-                            .Build();
+                                    });
+
+                        // Set user credentials.
+                        if (mqttProtocolConfiguration.UseCredentials)
+                        {
+                            mqttClientOptionsBuilder.WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
+                                new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password);
+
+                            // Set ClientId for Azure.
+                            if (mqttProtocolConfiguration.UseAzureClientId)
+                            {
+                                mqttClientOptionsBuilder.WithClientId(mqttProtocolConfiguration.AzureClientId);
+                            }
+                        }
+
+                        mqttOptions = mqttClientOptionsBuilder.Build();
+
+                        // Create the certificate validator for broker certificates.
+                        m_certificateValidator = CreateCertificateValidator(mqttTlsOptions);
+                        m_certificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
+                        m_mqttClientTlsOptions = mqttOptions?.ChannelOptions?.TlsOptions;
                     }
-                    //if (!networkAddressUrl.StartsWith(MqttSUriIdentifier) &&
-                    //        !mqttProtocolConfiguration.TransportProtocolConfiguration).UseCredentials)
-                    else
+                    // MQTT connection
+                    else if (connectionUri.Scheme == Utils.UriSchemeMqtt)
                     {
-                        mqttOptions = new MqttClientOptionsBuilder()
+                        MqttClientOptionsBuilder mqttClientOptionsBuilder = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
-                            .WithProtocolVersion(mqttProtocolVersion)
-                            .Build();
-                    }
+                            .WithProtocolVersion(mqttProtocolVersion);
 
+                        // Set user credentials.
+                        if (mqttProtocolConfiguration.UseCredentials)
+                        {
+                            mqttClientOptionsBuilder.WithCredentials(new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.UserName).Password,
+                                new System.Net.NetworkCredential(string.Empty, mqttProtocolConfiguration.Password).Password);
+                        }
+
+                        mqttOptions = mqttClientOptionsBuilder.Build();
+                    }
                 }
             }
 
@@ -685,47 +651,84 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"/></param>
         /// <returns>A new instance of stack validator <see cref="CertificateValidator"/></returns>
-        private CertificateValidator SetupCertificateValidator(MqttTlsOptions mqttTlsOptions)
+        private CertificateValidator CreateCertificateValidator(MqttTlsOptions mqttTlsOptions)
         {
-            CertificateValidator crtValidator = new CertificateValidator();
+            CertificateValidator certificateValidator = new CertificateValidator();
 
             SecurityConfiguration securityConfiguration = new SecurityConfiguration();
             securityConfiguration.TrustedIssuerCertificates = (CertificateTrustList)mqttTlsOptions.TrustedIssuerCertificates;
             securityConfiguration.TrustedPeerCertificates = (CertificateTrustList)mqttTlsOptions.TrustedPeerCertificates;
             securityConfiguration.RejectedCertificateStore = mqttTlsOptions.RejectedCertificateStore;
 
-            securityConfiguration.RejectSHA1SignedCertificates = false;
+            securityConfiguration.RejectSHA1SignedCertificates = true;
             securityConfiguration.AutoAcceptUntrustedCertificates = mqttTlsOptions.AllowUntrustedCertificates;
-            securityConfiguration.RejectUnknownRevocationStatus = false;
+            securityConfiguration.RejectUnknownRevocationStatus = !m_mqttClientTlsOptions.IgnoreCertificateRevocationErrors;
 
-            crtValidator.CertificateValidation += CrtValidator_CertificateValidation;
+            certificateValidator.Update(securityConfiguration).Wait();
 
-            crtValidator.Update(securityConfiguration).Wait();
-
-            return crtValidator;
+            return certificateValidator;
         }
 
         /// <summary>
-        /// Stack certifficate validation handler
+        /// Validates the broker certificate.
+        /// </summary>
+        /// <param name="context">The context of the validation</param>
+        private bool ValidateCertificate(MqttClientCertificateValidationCallbackContext context)
+        {
+            X509Certificate2 certificate = new X509Certificate2(context.Certificate.GetRawCertData());
+
+            try
+            {
+                m_certificateValidator?.Validate(certificate);
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex,"Connection '{0}' - Broker certificate '{1}' rejected.",
+                    PubSubConnectionConfiguration.Name, certificate.Subject);
+                return false;
+            }
+
+            Utils.Trace(Utils.TraceMasks.Security, "Connection '{0}' - Broker certificate '{1}'  accepted.",
+                PubSubConnectionConfiguration.Name, certificate.Subject);
+            return true;
+        }
+
+        /// <summary>
+        /// Handler for validation errors of MQTT broker certificate.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void CrtValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
+        private void CertificateValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            // Accept certificates in this case
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+            try
             {
-                Utils.Trace(Utils.TraceMasks.Security, "Connection '{0}' - Accepted Certificate: {1}",
-                    PubSubConnectionConfiguration.Name, e.Certificate.Subject);
-                e.Accept = true;
-                return;
+                if (((e.Error.StatusCode == StatusCodes.BadCertificateRevocationUnknown) ||
+                     (e.Error.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown) ||
+                     (e.Error.StatusCode == StatusCodes.BadCertificateRevoked) ||
+                     (e.Error.StatusCode == StatusCodes.BadCertificateIssuerRevoked)) &&
+                    (m_mqttClientTlsOptions?.IgnoreCertificateRevocationErrors ?? false))
+                {
+                    // Accept broker certificate with revocation errors.
+                    e.Accept = true;
+                }
+                else if ((e.Error.StatusCode == StatusCodes.BadCertificateChainIncomplete) &&
+                         (m_mqttClientTlsOptions?.IgnoreCertificateChainErrors ?? false))
+                {
+                    // Accept broker certificate with chain errors.
+                    e.Accept = true;
+                }
+                else if ((e.Error.StatusCode == StatusCodes.BadCertificateUntrusted) &&
+                         (m_mqttClientTlsOptions?.AllowUntrustedCertificates ?? false))
+                {
+                    // Accept untrusted broker certificate.
+                    e.Accept = true;
+                }
             }
-            Utils.Trace(Utils.TraceMasks.Security,
-                "Connection '{0}' -Rejected Certificate: {1} {2}",
-                PubSubConnectionConfiguration.Name, e.Error, e.Certificate.Subject);
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "MqttPubSubConnection.CertificateValidation error.");
+            }
         }
-
         #endregion Private methods
-
     }
 }

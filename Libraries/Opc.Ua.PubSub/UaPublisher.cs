@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -127,8 +127,7 @@ namespace Opc.Ua.PubSub
             {
                 m_shutdownEvent.Reset();
 
-                Task.Run(() =>
-                {
+                Task.Run(() => {
                     PublishData();
                 });
             }
@@ -192,8 +191,7 @@ namespace Opc.Ua.PubSub
                         if (m_pubSubConnection.CanPublish(m_writerGroupConfiguration))
                         {
                             // call on a new thread
-                            Task.Run(() =>
-                            {
+                            Task.Run(() => {
                                 PublishMessage();
                             });
                         }
@@ -229,6 +227,6 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(e, "UaPublisher.PublishMessage");
             }
         }
-        #endregion        
+        #endregion
     }
 }
