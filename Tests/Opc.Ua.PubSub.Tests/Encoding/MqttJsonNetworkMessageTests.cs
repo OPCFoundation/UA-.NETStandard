@@ -444,8 +444,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Assert
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
-        
-        //[Ignore("This test shall not be executed")]
+
         [Test(Description = "Validate DataSetMessageHeader only with all JsonDataSetMessageContentMask combination")]
         public void ValidateDataSetMessageHeaderWithParameters(
             [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
