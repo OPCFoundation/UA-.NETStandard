@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.ComplexTypes
             MaxStringLength = 0;
             IsOptional = false;
         }
-        #endregion
+        #endregion Constructors
 
         #region  Public Properties
         /// <summary>
@@ -66,6 +66,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// If the field is optional.
         /// </summary>
         public bool IsOptional { get; set; }
-        #endregion
+        #endregion Public Properties
     }
 }//namespace

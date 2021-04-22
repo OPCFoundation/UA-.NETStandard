@@ -205,17 +205,14 @@ namespace Opc.Ua.Client.ComplexTypes
                         }
                         dataTypeFieldPosition++;
                     }
-                    else
+                    else if (field.SwitchField != null)
                     {
-                        if (field.SwitchField != null)
+                        dataTypeField.IsOptional = true;
+                        byte value;
+                        if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
                         {
-                            dataTypeField.IsOptional = true;
-                            byte value;
-                            if (!switchFieldBits.TryGetValue(field.SwitchField, out value))
-                            {
-                                throw new DataTypeNotSupportedException(
-                                    $"The switch field for {field.SwitchField} does not exist.");
-                            }
+                            throw new DataTypeNotSupportedException(
+                                $"The switch field for {field.SwitchField} does not exist.");
                         }
                     }
                     structureDefinition.Fields.Add(dataTypeField);
@@ -277,6 +274,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 return referenceId;
             }
         }
-        #endregion
+        #endregion Public Extensions
     }
 }//namespace

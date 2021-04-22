@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_switchField = 0;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
         /// <summary>
@@ -150,8 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return true;
             }
 
-            var valueBaseType = equalValue as UnionComplexType;
-            if (valueBaseType == null)
+            if (!(equalValue is UnionComplexType valueBaseType))
             {
                 return false;
             }
@@ -184,7 +183,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return true;
         }
-        #endregion
+        #endregion Public Properties
 
         #region IFormattable Members
         /// <summary>
@@ -231,7 +230,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
+        #endregion IFormattable Members
 
         #region IComplexTypeProperties Members
         /// <summary>
@@ -333,14 +332,14 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Simple accessor for Union to access current Value.
         /// </summary>
         public object Value => (m_switchField == 0) ? null : m_propertyList.ElementAt((int)m_switchField - 1).GetValue(this);
-        #endregion
+        #endregion IComplexTypeProperties Members
 
         #region Private Fields
         /// <summary>
         /// The selector for the value of the Union.
         /// </summary>
         protected UInt32 m_switchField;
-        #endregion
+        #endregion Private Fields
     }
 
 

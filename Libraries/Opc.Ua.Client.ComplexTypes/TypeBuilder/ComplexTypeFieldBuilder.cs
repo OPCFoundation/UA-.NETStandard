@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_structureBuilder = structureBuilder;
             m_structureType = structureType;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
         /// <summary>
@@ -126,11 +126,11 @@ namespace Opc.Ua.Client.ComplexTypes
             m_structureBuilder = null;
             return complexType;
         }
-        #endregion
+        #endregion Public Properties
 
         #region Private Member
         private TypeBuilder m_structureBuilder;
         private StructureType m_structureType;
-        #endregion
+        #endregion Private Member
     }
 }//namespace

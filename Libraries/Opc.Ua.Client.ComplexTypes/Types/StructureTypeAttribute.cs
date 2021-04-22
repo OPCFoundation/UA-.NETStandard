@@ -54,6 +54,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The xml encoding id attribute.
         /// </summary>
         public string XmlEncodingId { get; set; }
-        #endregion
+        #endregion Public Properties
     }
 }//namespace
