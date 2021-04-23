@@ -78,15 +78,6 @@ namespace Opc.Ua.PubSub.Transport
         /// Gets the scheme of the Url.
         /// </summary>
         public string UrlScheme { get => m_urlScheme; }
-
-        /// <summary>
-        /// Gets or sets the certificate validator for MQTT broker certificates.
-        /// </summary>
-        public CertificateValidator CertificateValidator
-        {
-            get => m_certificateValidator;
-            set => m_certificateValidator = value;
-        }
         #endregion Public Properties
 
         #region Constants
@@ -97,7 +88,6 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Constructor
-
         /// <summary>
         ///  Create new instance of <see cref="MqttPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
@@ -112,7 +102,6 @@ namespace Opc.Ua.PubSub.Transport
 
             Utils.Trace("MqttPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }
-
         #endregion
 
         #region Public Methods
@@ -600,7 +589,7 @@ namespace Opc.Ua.PubSub.Transport
                                 AllowUntrustedCertificates = mqttTlsOptions?.AllowUntrustedCertificates ?? false,
                                 IgnoreCertificateChainErrors = mqttTlsOptions?.IgnoreCertificateChainErrors ?? false,
                                 IgnoreCertificateRevocationErrors = mqttTlsOptions?.IgnoreRevocationListErrors ?? false,
-                                CertificateValidationHandler = ValidateCertificate
+                                CertificateValidationHandler = ValidateBrokerCertificate
                                     });
 
                         // Set user credentials.
@@ -662,7 +651,7 @@ namespace Opc.Ua.PubSub.Transport
 
             securityConfiguration.RejectSHA1SignedCertificates = true;
             securityConfiguration.AutoAcceptUntrustedCertificates = mqttTlsOptions.AllowUntrustedCertificates;
-            securityConfiguration.RejectUnknownRevocationStatus = !m_mqttClientTlsOptions.IgnoreCertificateRevocationErrors;
+            securityConfiguration.RejectUnknownRevocationStatus = !mqttTlsOptions.IgnoreRevocationListErrors;
 
             certificateValidator.Update(securityConfiguration).Wait();
 
@@ -673,23 +662,31 @@ namespace Opc.Ua.PubSub.Transport
         /// Validates the broker certificate.
         /// </summary>
         /// <param name="context">The context of the validation</param>
-        private bool ValidateCertificate(MqttClientCertificateValidationCallbackContext context)
+        private bool ValidateBrokerCertificate(MqttClientCertificateValidationCallbackContext context)
         {
-            X509Certificate2 certificate = new X509Certificate2(context.Certificate.GetRawCertData());
+            X509Certificate2 brokerCertificate = new X509Certificate2(context.Certificate.GetRawCertData());
 
             try
             {
-                m_certificateValidator?.Validate(certificate);
+                // check if the broker certificate validation has been overridden.
+                if (m_uaPubSubApplication?.OnValidateBrokerCertificate != null)
+                {
+                    return m_uaPubSubApplication.OnValidateBrokerCertificate(brokerCertificate);
+                }
+                else
+                {
+                    m_certificateValidator?.Validate(brokerCertificate);
+                }
             }
             catch (Exception ex)
             {
                 Utils.Trace(ex,"Connection '{0}' - Broker certificate '{1}' rejected.",
-                    PubSubConnectionConfiguration.Name, certificate.Subject);
+                    PubSubConnectionConfiguration.Name, brokerCertificate.Subject);
                 return false;
             }
 
             Utils.Trace(Utils.TraceMasks.Security, "Connection '{0}' - Broker certificate '{1}'  accepted.",
-                PubSubConnectionConfiguration.Name, certificate.Subject);
+                PubSubConnectionConfiguration.Name, brokerCertificate.Subject);
             return true;
         }
 

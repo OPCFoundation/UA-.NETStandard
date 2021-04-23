@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -52,6 +53,16 @@ namespace Opc.Ua.PubSub
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> DataReceived;
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the MQTT broker certificate is validated.
+        /// </summary>
+        /// <returns> 
+        /// Returns whether the broker certificate is valid and trusted.
+        /// </returns>
+        public ValidateBrokerCertificateHandler OnValidateBrokerCertificate;
         #endregion
 
         #region Constructors
@@ -322,4 +333,11 @@ namespace Opc.Ua.PubSub
         }
         #endregion
     }
+
+    /// <summary>
+    /// A delegate which validates the MQTT broker certificate.
+    /// </summary>
+    /// <param name="brokerCertificate">The broker certificate.</param>
+    /// <returns>Returns whether the broker certificate is valid and trusted.</returns>
+    public delegate bool ValidateBrokerCertificateHandler(X509Certificate2 brokerCertificate);
 }
