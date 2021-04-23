@@ -41,15 +41,8 @@ namespace Opc.Ua.PubSub.Encoding
     public class JsonDataSetMessage : UaDataSetMessage
     {
         #region Fields
-        private const string FieldDataSetWriterId = "DataSetWriterId";
-        private const string FieldSequenceNumber = "SequenceNumber";
-        private const string FieldMetaDataVersion = "MetaDataVersion";
-        private const string FieldTimestamp = "Timestamp";
-        private const string FieldStatus = "Status";
-        private const string FieldPayload = "Payload";
-
+        private const string kFieldPayload = "Payload";
         private FieldTypeEncodingMask m_fieldTypeEncoding;
-
         #endregion
 
         #region Constructors
@@ -165,7 +158,7 @@ namespace Opc.Ua.PubSub.Encoding
                     DecodeDataSetMessageHeader(jsonDecoder);
 
                     // push into PayloadStructure if there was a dataset header
-                    jsonDecoder.PushStructure(FieldPayload);
+                    jsonDecoder.PushStructure(kFieldPayload);
                 }
 
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
@@ -211,7 +204,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             object token = null;
-            if (jsonDecoder.ReadField(FieldPayload, out token))
+            if (jsonDecoder.ReadField(kFieldPayload, out token))
             {
                 Dictionary<string, object> payload = token as Dictionary<string, object>;
 
@@ -236,7 +229,7 @@ namespace Opc.Ua.PubSub.Encoding
                 try
                 {
                     // try decoding Payload Structure
-                    bool wasPush = jsonDecoder.PushStructure(FieldPayload);
+                    bool wasPush = jsonDecoder.PushStructure(kFieldPayload);
                     if (wasPush)
                     {
                         DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
@@ -408,22 +401,22 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
             {
-                encoder.WriteUInt32(FieldSequenceNumber, SequenceNumber);
+                encoder.WriteUInt32(nameof(SequenceNumber), SequenceNumber);
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
             {
-                encoder.WriteEncodeable(FieldMetaDataVersion, MetaDataVersion, typeof(ConfigurationVersionDataType));
+                encoder.WriteEncodeable(nameof(MetaDataVersion), MetaDataVersion, typeof(ConfigurationVersionDataType));
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
             {
-                encoder.WriteDateTime(FieldTimestamp, Timestamp);
+                encoder.WriteDateTime(nameof(Timestamp), Timestamp);
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
             {
-                encoder.WriteStatusCode(FieldStatus, Status);
+                encoder.WriteStatusCode(nameof(Status), Status);
             }
         }
 
@@ -436,7 +429,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (pushStructure)
             {
-                jsonEncoder.PushStructure(FieldPayload);
+                jsonEncoder.PushStructure(kFieldPayload);
             }
             foreach (var field in DataSet.Fields)
             {
@@ -564,41 +557,41 @@ namespace Opc.Ua.PubSub.Encoding
             object token = null;
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
             {
-                if (jsonDecoder.ReadField(FieldDataSetWriterId, out token))
+                if (jsonDecoder.ReadField(nameof(DataSetWriterId), out token))
                 {
-                    DataSetWriterId = Convert.ToUInt16(jsonDecoder.ReadString(FieldDataSetWriterId));
+                    DataSetWriterId = Convert.ToUInt16(jsonDecoder.ReadString(nameof(DataSetWriterId)));
                 }
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
             {
-                if (jsonDecoder.ReadField(FieldSequenceNumber, out token))
+                if (jsonDecoder.ReadField(nameof(SequenceNumber), out token))
                 {
-                    SequenceNumber = jsonDecoder.ReadUInt32(FieldSequenceNumber);
+                    SequenceNumber = jsonDecoder.ReadUInt32(nameof(SequenceNumber));
                 }
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
             {
-                if (jsonDecoder.ReadField(FieldMetaDataVersion, out token))
+                if (jsonDecoder.ReadField(nameof(MetaDataVersion), out token))
                 {
-                    MetaDataVersion = jsonDecoder.ReadEncodeable(FieldMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
+                    MetaDataVersion = jsonDecoder.ReadEncodeable(nameof(MetaDataVersion), typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
                 }
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
             {
-                if (jsonDecoder.ReadField(FieldTimestamp, out token))
+                if (jsonDecoder.ReadField(nameof(Timestamp), out token))
                 {
-                    Timestamp = jsonDecoder.ReadDateTime(FieldTimestamp);
+                    Timestamp = jsonDecoder.ReadDateTime(nameof(Timestamp));
                 }
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
             {
-                if (jsonDecoder.ReadField(FieldMetaDataVersion, out token))
+                if (jsonDecoder.ReadField(nameof(Status), out token))
                 {
-                    Status = jsonDecoder.ReadStatusCode(FieldStatus);
+                    Status = jsonDecoder.ReadStatusCode(nameof(Status));
                 }
             }
         }
