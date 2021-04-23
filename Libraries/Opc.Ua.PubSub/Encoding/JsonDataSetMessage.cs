@@ -125,9 +125,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encodes the dataset message
         /// </summary>
         /// <param name="jsonEncoder">The <see cref="JsonEncoder"/> used to encode this object.</param>
-        public void Encode(JsonEncoder jsonEncoder)
+        /// <param name="fieldName">The field name to be used to encode this object, by default it is null.</param>
+        public void Encode(JsonEncoder jsonEncoder, string fieldName = null)
         {
-            jsonEncoder.PushStructure(null);
+            jsonEncoder.PushStructure(fieldName);
             if (HasDataSetMessageHeader)
             {
                 EncodeDataSetMessageHeader(jsonEncoder);
@@ -135,7 +136,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (DataSet != null)
             {
-                EncodePayload(jsonEncoder);
+                EncodePayload(jsonEncoder, HasDataSetMessageHeader);
             }
 
             jsonEncoder.PopStructure();
@@ -145,7 +146,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode dataset from the provided json decoder using the provided <see cref="DataSetReaderDataType"/>.
         /// </summary>
         /// <param name="jsonDecoder">The json decoder trhat contains the json stream.</param>
-        /// <param name="messagesCount">Number of Messages found in current jsonDecoder.</param>
+        /// <param name="messagesCount">Number of Messages found in current jsonDecoder. If 0 then there is SingleDataSetMessage</param>
         /// <param name="messagesListName">The name of the Messages list</param>
         /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>        
         public void DecodePossibleDataSetReader(JsonDecoder jsonDecoder, int messagesCount, string messagesListName, DataSetReaderDataType dataSetReader)
@@ -204,42 +205,48 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             object token = null;
-            if (jsonDecoder.ReadField(kFieldPayload, out token))
+            string payloadStructureName = kFieldPayload;
+            // try to read "Payload" structure 
+            if (!jsonDecoder.ReadField(kFieldPayload, out token))
             {
-                Dictionary<string, object> payload = token as Dictionary<string, object>;
+                // Decode the Messages element in case there is no "Payload" structure
+                jsonDecoder.ReadField(null, out token);
+                payloadStructureName = null;
+            }
 
-                if (payload != null)
+            Dictionary<string, object> payload = token as Dictionary<string, object>;
+
+            if (payload != null)
+            {
+                if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
                 {
-                    if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
+                    // filter out payload that has more fields than the searched datasetMetadata
+                    return;
+                }
+                // check also the field names from reader, if any extra field names then the payload is not matching 
+                foreach (string key in payload.Keys)
+                {
+                    var field = dataSetReader.DataSetMetaData.Fields.FirstOrDefault(f => f.Name == key);
+                    if (field == null)
                     {
-                        // filter out payload that has more fields than the searched datasetMetadata
+                        // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
                         return;
                     }
-                    // check also the field names from reader, if any extra field names then the payload is not matching 
-                    foreach (string key in payload.Keys)
-                    {
-                        var field = dataSetReader.DataSetMetaData.Fields.FirstOrDefault(f => f.Name == key);
-                        if (field == null)
-                        {
-                            // the field from payload was not found in dataSetReader therefore the payload is not suitable to be decoded
-                            return;
-                        }
-                    }
                 }
-                try
+            }
+            try
+            {
+                // try decoding Payload Structure
+                bool wasPush = jsonDecoder.PushStructure(payloadStructureName);
+                if (wasPush)
                 {
-                    // try decoding Payload Structure
-                    bool wasPush = jsonDecoder.PushStructure(kFieldPayload);
-                    if (wasPush)
-                    {
-                        DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
-                    }
+                    DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
                 }
-                finally
-                {
-                    // redo decode stack
-                    jsonDecoder.Pop();
-                }
+            }
+            finally
+            {
+                // redo decode stack
+                jsonDecoder.Pop();
             }
         }
 

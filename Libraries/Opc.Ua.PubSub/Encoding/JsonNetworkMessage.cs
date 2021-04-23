@@ -40,10 +40,6 @@ namespace Opc.Ua.PubSub.Encoding
     {
         #region Fields
         private const string kDefaultMessageType = "ua-data";
-        private const string kFieldMessageId = "MessageId";
-        private const string kFieldMessageType = "MessageType";
-        private const string kFieldPublisherId = "PublisherId";
-        private const string kFieldDataSetClassId = "DataSetClassId";
         private const string kFieldMessages = "Messages";
 
         private JSONNetworkMessageType m_jsonNetworkMessageType = JSONNetworkMessageType.DataSetMessage;
@@ -294,7 +290,16 @@ namespace Opc.Ua.PubSub.Encoding
                 if (jsonDecoder.ReadField(kFieldMessages, out messagesToken))
                 {
                     messagesList = messagesToken as List<object>;
-                    messagesListName = kFieldMessages;
+                    if (messagesList == null)
+                    {
+                        // this is a SingleDataSetMessage encoded as the conteten of Messages 
+                        jsonDecoder.PushStructure(kFieldMessages);
+                        messagesList = new List<object>();
+                    }
+                    else
+                    {
+                        messagesListName = kFieldMessages;
+                    }
                 }
                 else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
                 {
@@ -303,6 +308,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
+                    // this is a SingleDataSetMessage encoded as the conteten of json 
                     messagesList = new List<object>();
                 }
                 if (messagesList != null)
@@ -372,17 +378,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private void EncodeNetworkMessageHeader(JsonEncoder jsonEncoder)
         {
-            jsonEncoder.WriteString(kFieldMessageId, MessageId);
-            jsonEncoder.WriteString(kFieldMessageType, MessageType);
+            jsonEncoder.WriteString(nameof(MessageId), MessageId);
+            jsonEncoder.WriteString(nameof(MessageType), MessageType);
 
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
             {
-                jsonEncoder.WriteString(kFieldPublisherId, PublisherId);
+                jsonEncoder.WriteString(nameof(PublisherId), PublisherId);
             }
 
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
             {
-                jsonEncoder.WriteString(kFieldDataSetClassId, DataSetClassId);
+                jsonEncoder.WriteString(nameof(DataSetClassId), DataSetClassId);
             }
         }
 
@@ -399,9 +405,7 @@ namespace Opc.Ua.PubSub.Encoding
                     JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                     if (jsonDataSetMessage != null)
                     {
-                        encoder.PushArray(kFieldMessages);
-                        jsonDataSetMessage.Encode(encoder);
-                        encoder.PopArray();
+                        jsonDataSetMessage.Encode(encoder, kFieldMessages);
                     }
                 }
                 else
@@ -442,26 +446,26 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
             object token = null;
-            if (jsonDecoder.ReadField(kFieldMessageId, out token))
+            if (jsonDecoder.ReadField(nameof(MessageId), out token))
             {
-                MessageId = jsonDecoder.ReadString(kFieldMessageId);
+                MessageId = jsonDecoder.ReadString(nameof(MessageId));
                 NetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader;
             }
 
-            if (jsonDecoder.ReadField(kFieldMessageType, out token))
+            if (jsonDecoder.ReadField(nameof(MessageType), out token))
             {
-                MessageType = jsonDecoder.ReadString(kFieldMessageType);
+                MessageType = jsonDecoder.ReadString(nameof(MessageType));
             }
 
-            if (jsonDecoder.ReadField(kFieldPublisherId, out token))
+            if (jsonDecoder.ReadField(nameof(PublisherId), out token))
             {
-                PublisherId = jsonDecoder.ReadString(kFieldPublisherId);
+                PublisherId = jsonDecoder.ReadString(nameof(PublisherId));
                 NetworkMessageContentMask |= JsonNetworkMessageContentMask.PublisherId;
             }
 
-            if (jsonDecoder.ReadField(kFieldDataSetClassId, out token))
+            if (jsonDecoder.ReadField(nameof(DataSetClassId), out token))
             {
-                DataSetClassId = jsonDecoder.ReadString(kFieldDataSetClassId);
+                DataSetClassId = jsonDecoder.ReadString(nameof(DataSetClassId));
                 NetworkMessageContentMask |= JsonNetworkMessageContentMask.DataSetClassId;
             }
         }
