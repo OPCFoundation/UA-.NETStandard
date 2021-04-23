@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub
     internal class UaPublisher : IUaPublisher, IDisposable
     {
         #region Fields
-        private const int MinPublishingInterval = 10;
+        private const int kMinPublishingInterval = 10;
         private object m_lock = new object();
         // event used to trigger publish 
         private ManualResetEvent m_shutdownEvent;
@@ -175,9 +175,9 @@ namespace Opc.Ua.PubSub
                         }
                     }
 
-                    if (sleepCycle < MinPublishingInterval)
+                    if (sleepCycle < kMinPublishingInterval)
                     {
-                        sleepCycle = MinPublishingInterval;
+                        sleepCycle = kMinPublishingInterval;
                     }
 
                     if (m_shutdownEvent.WaitOne(sleepCycle))

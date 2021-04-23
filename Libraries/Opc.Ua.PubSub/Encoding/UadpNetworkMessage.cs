@@ -39,11 +39,11 @@ namespace Opc.Ua.PubSub.Encoding
     {
         #region Fields
         // The UADPVersion for this specification version is 1.
-        private const byte UadpVersion = 1;
-        private const byte PublishedIdTypeUsedBits = 0x07;
-        private const byte UADPVersionBitMask = 0x0F;
-        private const byte PublishedIdResetMask = 0xFC;
-        private const byte UADPMessageTypeMask = 0x1C;
+        private const byte kUadpVersion = 1;
+        private const byte kPublishedIdTypeUsedBits = 0x07;
+        private const byte kUADPVersionBitMask = 0x0F;
+        private const byte kPublishedIdResetMask = 0xFC;
+        private const byte kUADPMessageTypeMask = 0x1C;
 
         private byte m_uadpVersion;
         private object m_publisherId;
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="uadpDataSetMessages">UadpDataSetMessage list as input</param>
         public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> uadpDataSetMessages) : base(writerGroupConfiguration, uadpDataSetMessages)
         {
-            UADPVersion = UadpVersion;
+            UADPVersion = kUadpVersion;
             DataSetClassId = Guid.Empty;
             Timestamp = DateTime.UtcNow;
         }
@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Encoding
         public byte UADPVersion
         {
             get { return m_uadpVersion; }
-            set { m_uadpVersion = Convert.ToByte(value & UADPVersionBitMask); }
+            set { m_uadpVersion = Convert.ToByte(value & kUADPVersionBitMask); }
         }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Encoding
                 m_publisherId = value;
 
                 // Remove previous PublisherId data type
-                ExtendedFlags1 &= (ExtendedFlags1EncodingMask)PublishedIdResetMask;
+                ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
 
                 // ExtendedFlags1: Bit range 0-2: PublisherId Type
                 PublisherIdTypeEncodingMask publishedIdTypeType = PublisherIdTypeEncodingMask.Reserved;
@@ -320,7 +320,7 @@ namespace Opc.Ua.PubSub.Encoding
         private void SetFlags()
         {
             UADPFlags = 0;
-            ExtendedFlags1 &= (ExtendedFlags1EncodingMask)PublishedIdTypeUsedBits;
+            ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdTypeUsedBits;
             ExtendedFlags2 = 0;
             GroupFlags = 0;
 
@@ -592,7 +592,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
             {
-                PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & PublishedIdTypeUsedBits);
+                PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
                 switch (publisherIdType)
                 {
                     case PublisherIdTypeEncodingMask.Byte:
@@ -796,7 +796,7 @@ namespace Opc.Ua.PubSub.Encoding
             // byte[0..3] UADPVersion value 1 (for now)
             // byte[4..7] UADPFlags
             byte versionFlags = decoder.ReadByte("VersionFlags");
-            UADPVersion = (byte)(versionFlags & UADPVersionBitMask);
+            UADPVersion = (byte)(versionFlags & kUADPVersionBitMask);
             // Decode UADPFlags
             UADPFlags = (UADPFlagsEncodingMask)(versionFlags & 0xF0);
 
@@ -828,7 +828,7 @@ namespace Opc.Ua.PubSub.Encoding
             // Decode PublisherId
             if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
             {
-                PublisherIdTypeEncodingMask publishedIdTypeType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & PublishedIdTypeUsedBits);
+                PublisherIdTypeEncodingMask publishedIdTypeType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
 
                 switch (publishedIdTypeType)
                 {

@@ -41,11 +41,10 @@ namespace Opc.Ua.PubSub.Encoding
     public class UadpDataSetMessage : UaDataSetMessage
     {
         #region Fields
-
         // Validation masks
-        private const byte FieldTypeUsedBits = 0x06;
-        private const DataSetFlags1EncodingMask PreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0x07;
-        private const DataSetFlags1EncodingMask DataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0xF9;
+        private const byte kFieldTypeUsedBits = 0x06;
+        private const DataSetFlags1EncodingMask kPreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0x07;
+        private const DataSetFlags1EncodingMask kDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0xF9;
         #endregion
 
         #region Constructors
@@ -127,7 +126,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             #region DataSetFlags1: Bit range 1-2: Field Encoding
 
-            DataSetFlags1 &= DataSetFlags1UsedBits;
+            DataSetFlags1 &= kDataSetFlags1UsedBits;
 
             FieldTypeEncodingMask fieldType = FieldTypeEncodingMask.Reserved;
             if (FieldContentMask == DataSetFieldContentMask.None)
@@ -163,7 +162,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             DataSetMessageContentMask = messageContentMask;
 
-            DataSetFlags1 &= PreservedDataSetFlags1UsedBits;
+            DataSetFlags1 &= kPreservedDataSetFlags1UsedBits;
             DataSetFlags2 = 0;
 
             #region DataSetFlags1: Bit range 3-7: Enabled flags options
@@ -334,7 +333,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryEncoder"></param>
         private void EncodePayload(BinaryEncoder binaryEncoder)
         {
-            FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & FieldTypeUsedBits) >> 1);
+            FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
             switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
@@ -439,7 +438,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 ushort fieldCount = 0;
-                FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & FieldTypeUsedBits) >> 1);
+                FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
                 if (fieldType == FieldTypeEncodingMask.RawData)
                 {
                     if (metaDataType != null)
