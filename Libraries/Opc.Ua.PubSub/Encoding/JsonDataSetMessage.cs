@@ -403,7 +403,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
             {
-                encoder.WriteString(FieldDataSetWriterId, DataSetWriterId.ToString());
+                encoder.WriteString(nameof(DataSetWriterId), DataSetWriterId.ToString());
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
@@ -432,6 +432,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         internal void EncodePayload(JsonEncoder jsonEncoder, bool pushStructure = true)
         {
+            bool forceNamespaceUri = jsonEncoder.ForceNamespaceUri;
+
             if (pushStructure)
             {
                 jsonEncoder.PushStructure(FieldPayload);
@@ -444,6 +446,8 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 jsonEncoder.PopStructure();
             }
+
+            jsonEncoder.ForceNamespaceUri = forceNamespaceUri;
         }
 
         /// <summary>

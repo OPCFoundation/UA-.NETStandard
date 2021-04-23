@@ -669,9 +669,9 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 // check if the broker certificate validation has been overridden.
-                if (m_uaPubSubApplication?.OnValidateBrokerCertificate != null)
+                if (Application?.OnValidateBrokerCertificate != null)
                 {
-                    return m_uaPubSubApplication.OnValidateBrokerCertificate(brokerCertificate);
+                    return Application.OnValidateBrokerCertificate(brokerCertificate);
                 }
                 else
                 {

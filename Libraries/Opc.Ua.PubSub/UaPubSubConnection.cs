@@ -43,7 +43,7 @@ namespace Opc.Ua.PubSub
         private bool m_isRunning;
         private List<IUaPublisher> m_publishers;
         private PubSubConnectionDataType m_pubSubConnectionDataType;
-        protected UaPubSubApplication m_uaPubSubApplication;
+        private UaPubSubApplication m_uaPubSubApplication;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
         #endregion
 
