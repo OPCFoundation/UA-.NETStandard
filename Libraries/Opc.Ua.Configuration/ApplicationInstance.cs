@@ -185,11 +185,6 @@ namespace Opc.Ua.Configuration
                 await LoadApplicationConfiguration(false).ConfigureAwait(false);
             }
 
-            if (m_applicationConfiguration.CertificateValidator != null)
-            {
-                m_applicationConfiguration.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
-            }
-
             server.Start(m_applicationConfiguration);
         }
 
@@ -438,27 +433,6 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Private Methods
-        /// <summary>
-        /// Handles a certificate validation error.
-        /// </summary>
-        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
-        {
-            try
-            {
-                if (m_applicationConfiguration.SecurityConfiguration != null
-                    && m_applicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates
-                    && e.Error != null && e.Error.Code == StatusCodes.BadCertificateUntrusted)
-                {
-                    e.Accept = true;
-                    Utils.Trace(Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", e.Certificate.Subject);
-                }
-            }
-            catch (Exception exception)
-            {
-                Utils.Trace(exception, "Error accepting certificate.");
-            }
-        }
-
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>

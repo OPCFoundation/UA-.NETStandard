@@ -33,6 +33,7 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
+            m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
             m_rejectUnknownRevocationStatus = false;
             m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
@@ -172,6 +173,7 @@ namespace Opc.Ua
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
+                m_autoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
                 m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
                 m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
                 m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
@@ -781,22 +783,25 @@ namespace Opc.Ua
                 }
             }
 
-            // check if certificate issuer is trusted.
-            if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
+            if (!m_autoAcceptUntrustedCertificates)
             {
-                var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
-                sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
-                    null, null, message, null, sresult);
-            }
-
-            // check if certificate is trusted.
-            if (trustedCertificate == null && !isIssuerTrusted)
-            {
-                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                // check if certificate issuer is trusted.
+                if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
                 {
-                    var message = CertificateMessage("Certificate is not trusted.", certificate);
+                    var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
-                    null, null, message, null, sresult);
+                        null, null, message, null, sresult);
+                }
+
+                // check if certificate is trusted.
+                if (trustedCertificate == null && !isIssuerTrusted)
+                {
+                    if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                    {
+                        var message = CertificateMessage("Certificate is not trusted.", certificate);
+                        sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
+                        null, null, message, null, sresult);
+                    }
                 }
             }
 
@@ -1146,6 +1151,7 @@ namespace Opc.Ua
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
+        private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
