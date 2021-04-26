@@ -52,8 +52,8 @@ namespace Quickstarts.ConsoleReferencePublisher
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                     { "h|help", "Show usage information", v => showHelp = v != null },
                     { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
-                    { "u|udp_uadp", "Use UDP with UADP encoding Profile.", v => useUdpUadp = v != null },
-                    { "url=", "Publisher Url Address", v => publisherUrl = v},
+                    { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
+                    { "url|publisher_url=", "Publisher Url Address", v => publisherUrl = v},
                 };
 
             IList<string> extraArgs = null;

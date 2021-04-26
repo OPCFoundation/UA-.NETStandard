@@ -60,7 +60,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     { "h|help", "Show usage information", v => showHelp = v != null },
                     { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
                     { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
-                    { "url=", "Publisher Url Address", v => subscriberUrl = v},
+                    { "url|subscriber_url=", "Subscriber Url Address", v => subscriberUrl = v},
                 };
 
             IList<string> extraArgs = null;
