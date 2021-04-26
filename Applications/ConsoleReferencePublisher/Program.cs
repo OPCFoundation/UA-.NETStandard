@@ -47,10 +47,13 @@ namespace Quickstarts.ConsoleReferencePublisher
             bool showHelp = false;
             bool useMqttJson = true;
             bool useUdpUadp = false;
+            string publisherUrl = null;
+
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                     { "h|help", "Show usage information", v => showHelp = v != null },
                     { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
-                    { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
+                    { "u|udp_uadp", "Use UDP with UADP encoding Profile.", v => useUdpUadp = v != null },
+                    { "url=", "Publisher Url Address", v => publisherUrl = v},
                 };
 
             IList<string> extraArgs = null;
@@ -74,7 +77,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             if (showHelp)
             {
-                Console.WriteLine("Usage: dotnet ConsoleReferencePublisher.dll [OPTIONS]");
+                Console.WriteLine("Usage: dotnet ConsoleReferencePublisher.dll/exe [OPTIONS]");
                 Console.WriteLine();
 
                 Console.WriteLine("Options:");
@@ -88,14 +91,26 @@ namespace Quickstarts.ConsoleReferencePublisher
                 PubSubConfigurationDataType pubSubConfiguration = null;
                 if (useUdpUadp)
                 {
+                    // set default UDP Publisher Url to local multicast if not sent in args.
+                    if (string.IsNullOrEmpty(publisherUrl))
+                    {
+                        publisherUrl = "opc.udp://239.0.0.1:4840";
+                    }
+
                     // Create configuration using UDP protocol and UADP Encoding
-                    pubSubConfiguration = CreatePublisherConfiguration_UdpUadp();
+                    pubSubConfiguration = CreatePublisherConfiguration_UdpUadp(publisherUrl);
                     Console.WriteLine("The Pubsub Connection was initialized using UDP & UADP Profile.");
                 }
                 else
                 {
+                    // set default MQTT Broker Url to localhost if not sent in args.
+                    if (string.IsNullOrEmpty(publisherUrl))
+                    {
+                        publisherUrl = "mqtt://localhost:1883";
+                    }
+
                     // Create configuration using MQTT protocol and JSON Encoding
-                    pubSubConfiguration = CreatePublisherConfiguration_MqttJson();
+                    pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl);
                     Console.WriteLine("The Pubsub Connection was initialized using MQTT & JSON Profile.");
                 }
 
@@ -142,7 +157,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Creates a PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
         /// <returns></returns>
-        private static PubSubConfigurationDataType CreatePublisherConfiguration_UdpUadp()
+        private static PubSubConfigurationDataType CreatePublisherConfiguration_UdpUadp(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 1
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -155,7 +170,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to publish on all available local interfaces.
             address.NetworkInterface = String.Empty;
-            address.Url = "opc.udp://239.0.0.1:4840";
+            address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
             #region Define WriterGroup1
@@ -245,7 +260,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Creates a PubSubConfiguration object for MQTT & Json programmatically.
         /// </summary>
         /// <returns></returns>
-        private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson()
+        private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -258,7 +273,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to publish on all available local interfaces.
             address.NetworkInterface = String.Empty;
-            address.Url = "mqtt://localhost:1883";
+            address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
             // Configure the mqtt specific configuration with the MQTTbroker

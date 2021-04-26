@@ -241,7 +241,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     if (m_publisherMqttClient != null && m_publisherMqttClient.IsConnected)
                     {
-                        // get rthe encoded bytes
+                        // get the encoded bytes
                         byte[] bytes = networkMessage.Encode();
 
                         try

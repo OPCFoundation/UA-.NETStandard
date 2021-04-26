@@ -54,10 +54,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             bool showHelp = false;
             bool useMqttJson = true;
             bool useUdpUadp = false;
+            string subscriberUrl = null;
+
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                     { "h|help", "Show usage information", v => showHelp = v != null },
                     { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
                     { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
+                    { "url=", "Publisher Url Address", v => subscriberUrl = v},
                 };
 
             IList<string> extraArgs = null;
@@ -95,14 +98,26 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 PubSubConfigurationDataType pubSubConfiguration = null;
                 if (useUdpUadp)
                 {
+                    // set default UDP Subscriber Url to local multicast if not sent in args.
+                    if (string.IsNullOrEmpty(subscriberUrl))
+                    {
+                        subscriberUrl = "opc.udp://239.0.0.1:4840";
+                    }
+
                     // Create configuration using UDP protocol and UADP Encoding
-                    pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp();
+                    pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp(subscriberUrl);
                     Console.WriteLine("The Pubsub Connection was initialized using UDP & UADP Profile.");
                 }
                 else
                 {
+                    // set default MQTT Broker Url to localhost if not sent in args.
+                    if (string.IsNullOrEmpty(subscriberUrl))
+                    {
+                        subscriberUrl = "mqtt://localhost:1883";
+                    }
+
                     // Create configuration using MQTT protocol and JSON Encoding
-                    pubSubConfiguration = CreateSubscriberConfiguration_MqttJson();
+                    pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
                     Console.WriteLine("The Pubsub Connection was initialized using MQTT & JSON Profile.");
                 }
 
@@ -183,7 +198,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// Creates a Subscriber PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
         /// <returns></returns>
-        private static PubSubConfigurationDataType CreateSubscriberConfiguration_UdpUadp()
+        private static PubSubConfigurationDataType CreateSubscriberConfiguration_UdpUadp(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 1
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -196,7 +211,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to subscribe on all available local interfaces.
             address.NetworkInterface = String.Empty;
-            address.Url = "opc.udp://239.0.0.1:4840";
+            address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
             //  Define "Simple" MetaData
@@ -314,7 +329,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// Creates a Subscriber PubSubConfiguration object for MQTT & Json programmatically.
         /// </summary>
         /// <returns></returns>
-        private static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson()
+        private static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 2
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
@@ -327,7 +342,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             // e.g. address.NetworkInterface = "Ethernet";
             // Leave empty to subscribe on all available local interfaces.
             address.NetworkInterface = String.Empty;
-            address.Url = "mqtt://localhost:1883";
+            address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
             // Configure the mqtt specific configuration with the MQTTbroker
