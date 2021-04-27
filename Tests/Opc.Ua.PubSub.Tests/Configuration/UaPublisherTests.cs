@@ -33,6 +33,7 @@ using System.Threading;
 using Moq;
 using NUnit.Framework;
 using System.Linq;
+using System.Text;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -72,10 +73,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PublishTimes =  (from t in PublishTimes
                              orderby t
                             select t).ToList();
-
+            StringBuilder sb = new StringBuilder();
             //Assert
             for (int i = 1; i < PublishTimes.Count; i++)
-            {
+            {              
 
                 double interval = PublishTimes[i].Subtract(PublishTimes[i - 1]).TotalMilliseconds;
 
@@ -86,10 +87,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     faultIndex = i;
                     faultDeviation = deviation;
 
-                    Console.WriteLine("exceeded_deviation ={0} at index [{1}] ", deviation, i);
+                    sb.AppendLine(string.Format("exceeded_deviation ={0} at index [{1}] ", deviation, i));
                 }
             }
-            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation);
+            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation\n\n\n{5}", 
+                publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation, sb);
         }
     }
 }
