@@ -43,11 +43,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
         [Test(Description ="Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
-        [Ignore("This test is temporary disabled")]
+        //[Ignore("This test is temporary disabled")]
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
-            [Values(20, 30)]double maxDeviation,
-            [Values(10)] int  publishTimeInSecods)
+            [Values(20, 30)] double maxDeviation,
+            [Values(10)] int publishTimeInSecods)
         {
             //Arrange
             PublishTimes.Clear();
@@ -76,12 +76,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Assert
             for (int i = 1; i < PublishTimes.Count; i++)
             {
+
                 double interval = PublishTimes[i].Subtract(PublishTimes[i - 1]).TotalMilliseconds;
+
                 double deviation = Math.Abs(publishingInterval - interval);
+
                 if (deviation >= maxDeviation && deviation > faultDeviation)
                 {
                     faultIndex = i;
                     faultDeviation = deviation;
+
+                    Console.WriteLine("exceeded_deviation ={0} at index [{1}] ", deviation, i);
                 }
             }
             Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation);
