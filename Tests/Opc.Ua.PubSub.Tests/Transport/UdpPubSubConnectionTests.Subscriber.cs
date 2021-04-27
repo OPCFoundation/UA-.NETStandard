@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -278,12 +279,19 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// </summary>
         /// <param name="publisherConnection"></param>
         /// <returns></returns>
-        private byte[] PrepareData(UdpPubSubConnection publisherConnection)
+        private byte[] PrepareData(UdpPubSubConnection publisherConnection, int networkMessageIndex = 0)
         {
             try
             {
                 WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-                UaNetworkMessage message = publisherConnection.CreateNetworkMessage(writerGroup0);
+
+                IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+
+                Assert.IsNotNull(networkMessages, "CreateNetworkMessages returned null");
+
+                Assert.IsTrue(networkMessages.Count > networkMessageIndex, "networkMessageIndex is outside of bounds");
+
+                UaNetworkMessage message = networkMessages[networkMessageIndex];
 
                 byte[] bytes = message.Encode();
 

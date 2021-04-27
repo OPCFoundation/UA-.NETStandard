@@ -105,7 +105,10 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Public Methods
-        public override UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration)
+        /// <summary>
+        /// Create the list of network messages built from the provided writerGroupConfiguration
+        /// </summary>
+        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration)
         {
             UadpWriterGroupMessageDataType uadpMessageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
                 as UadpWriterGroupMessageDataType;
@@ -195,39 +198,62 @@ namespace Opc.Ua.PubSub.Transport
                 return null;
             }
 
-            UaNetworkMessage networkMessage = null;
-
             if (m_messageMapping == MessageMapping.Uadp)
             {
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, dataSetMessages);
                 uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
                 // Network message header
                 uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
+                uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                 // Writer group header
                 uadpNetworkMessage.GroupVersion = uadpMessageSettings.GroupVersion;
                 uadpNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
-                networkMessage = uadpNetworkMessage;
+
+                return new List<UaNetworkMessage>() { uadpNetworkMessage };
             }
             else if (m_messageMapping == MessageMapping.Json)
             {
-                JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessages);
-                jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
-                jsonNetworkMessage.MessageId = Guid.NewGuid().ToString();
-                // Network message header
-                jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
+                // each entry of this loist will generate a network message
+                List<List<UaDataSetMessage>> dataSetMessagesList = new List<List<UaDataSetMessage>>();
+                if ((((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask) & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+                {
+                    // create a new network message for each dataset
+                    foreach (UaDataSetMessage dataSetMessage in dataSetMessages)
+                    {
+                        dataSetMessagesList.Add(new List<UaDataSetMessage>() { dataSetMessage });
+                    }
+                }
+                else
+                {
+                    dataSetMessagesList.Add(dataSetMessages);
+                }
 
-                networkMessage = jsonNetworkMessage;
+                List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
+
+                foreach (List<UaDataSetMessage> dataSetMessagesToUse in dataSetMessagesList)
+                {
+                    JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessagesToUse);
+                    jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
+                    jsonNetworkMessage.MessageId = Guid.NewGuid().ToString();
+                    // Network message header
+                    jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
+                    jsonNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
+
+                    networkMessages.Add(jsonNetworkMessage);
+                }
+
+                return networkMessages;
             }
 
-            if (networkMessage != null)
-            {
-                networkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
-            }
-            return networkMessage;
+            // no other encoding is implemented
+            return null;
         }
 
+        /// <summary>
+        /// Publish the network message
+        /// </summary>
         public override bool PublishNetworkMessage(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null || m_publisherMqttClient == null)

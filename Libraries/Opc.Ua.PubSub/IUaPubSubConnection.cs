@@ -73,9 +73,9 @@ namespace Opc.Ua.PubSub
         bool CanPublish(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
-        /// Create the network message built from the provided writerGroupConfiguration
+        /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
-        UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration);
+        IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
         /// Publish the network message

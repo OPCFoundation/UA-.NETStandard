@@ -529,9 +529,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // The Variant can contain a StatusCode instead of the expected DataType if the status of the field is Bad.
                 // The Variant can contain a DataValue with the value and the statusCode if the status of the field is Uncertain.
                 dataSetWriter.DataSetFieldContentMask = (uint)dataSetFieldContentMask;
-            }
+            }            
 
-            UadpNetworkMessage uaNetworkMessage = (UadpNetworkMessage)m_firstPublisherConnection.CreateNetworkMessage(m_firstWriterGroup);
+            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
+
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             return uaNetworkMessage;

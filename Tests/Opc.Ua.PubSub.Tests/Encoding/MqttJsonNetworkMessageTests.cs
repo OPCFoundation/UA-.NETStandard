@@ -120,8 +120,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
             // set PublisherId
             uaNetworkMessage.PublisherId = publisherId.ToString();
 
@@ -219,8 +223,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
             // set DataSetClassId
             uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
 
@@ -318,8 +325,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                 && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
@@ -419,8 +429,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
@@ -515,8 +528,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                 && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
@@ -622,9 +638,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            JsonNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                JsonNetworkMessage;
 
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(networkMessages.Count, dataSetMetaDataArray.Length, "connection.CreateNetworkMessages did not create one network message for each DataSet");
+                 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                 && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
 
@@ -634,7 +652,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: new DataSetMetaDataType[] { dataSetMetaDataArray[0] }, nameSpaceIndexForData: NamespaceIndexAllTypes);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
             Assert.IsNotNull(subscriberConfiguration, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
@@ -643,9 +661,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
             var dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
-
-            // Assert
-            CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+            int i = 0;
+            foreach (var uaNetworkMessage in networkMessages)
+            {
+                // Assert
+                CompareEncodeDecode(uaNetworkMessage as JsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[i++]});
+            }
         }
 
         #region Private methods

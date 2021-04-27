@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -192,7 +193,7 @@ namespace Opc.Ua.PubSub
                         {
                             // call on a new thread
                             Task.Run(() => {
-                                PublishMessage();
+                                PublishMessages();
                             });
                         }
                     }
@@ -207,19 +208,25 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Generate and publish a message
+        /// Generate and publish a messages
         /// </summary>
-        private void PublishMessage()
+        private void PublishMessages()
         {
             try
             {
-                UaNetworkMessage uaNetworkMessage = m_pubSubConnection.CreateNetworkMessage(m_writerGroupConfiguration);
-                if (uaNetworkMessage != null)
+                IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration);
+                if (networkMessages != null)
                 {
-                    bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                    Utils.Trace(Utils.TraceMasks.Information,
-                        "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
-                }
+                    foreach(UaNetworkMessage uaNetworkMessage in networkMessages)
+                    {
+                        if (uaNetworkMessage != null)
+                        {
+                            bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
+                            Utils.Trace(Utils.TraceMasks.Information,
+                                "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
+                        }
+                    }
+                }                
             }
             catch (Exception e)
             {

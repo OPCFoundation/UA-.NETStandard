@@ -172,11 +172,9 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Create the network message built from the provided writerGroupConfiguration
+        /// Create the list of network messages built from the provided writerGroupConfiguration
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
-        public override UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration)
+        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration)
         {
             UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
                 as UadpWriterGroupMessageDataType;
@@ -242,14 +240,12 @@ namespace Opc.Ua.PubSub.Transport
             uadpNetworkMessage.GroupVersion = messageSettings.GroupVersion;
             uadpNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
-            return uadpNetworkMessage;
+            return new List<UaNetworkMessage>() { uadpNetworkMessage };
         }
 
         /// <summary>
         /// Publish the network message
         /// </summary>
-        /// <param name="networkMessage"></param>
-        /// <returns></returns>
         public override bool PublishNetworkMessage(UaNetworkMessage networkMessage)
         {
             if (networkMessage == null || m_publisherUdpClients == null || m_publisherUdpClients.Count == 0)

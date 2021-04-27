@@ -364,7 +364,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.DataSetFieldContentMask = (uint)fieldContentMask;
             }
 
-            UadpNetworkMessage uaNetworkMessage = (UadpNetworkMessage)m_firstPublisherConnection.CreateNetworkMessage(m_firstWriterGroup);
+            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
+
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             // read first dataset message

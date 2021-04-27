@@ -93,8 +93,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
@@ -172,8 +176,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
@@ -303,8 +311,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             PubSubConfigurationDataType subscriberConfiguration = MessagesHelper.CreateSubscriberConfiguration(
                 Profiles.PubSubMqttUadpTransport,
@@ -369,8 +381,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
@@ -437,8 +453,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.GroupVersion = 1;
@@ -508,8 +528,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.NetworkMessageNumber = 1;
@@ -579,7 +603,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
+            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First())[0] as
                 UadpNetworkMessage;
 
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
@@ -649,8 +673,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             bool hasDataSetWriterId = (uadpNetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0;
 
@@ -717,8 +745,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.Timestamp = DateTime.UtcNow;
@@ -788,8 +820,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");
             uaNetworkMessage.PicoSeconds = 10;
@@ -855,8 +891,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            UadpNetworkMessage uaNetworkMessage = connection.CreateNetworkMessage(publisherConfiguration.Connections.First().WriterGroups.First()) as
-                UadpNetworkMessage;
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+
+            UadpNetworkMessage uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
             // set DataSetClassId
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage should not be null");

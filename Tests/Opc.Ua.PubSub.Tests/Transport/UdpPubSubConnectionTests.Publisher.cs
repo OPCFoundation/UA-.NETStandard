@@ -33,6 +33,7 @@ using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -82,11 +83,23 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            UaNetworkMessage networkMessage = publisherConnection.CreateNetworkMessage(writerGroup0);
+
+            System.Collections.Generic.IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
             publisherConnection.Start();
-            publisherConnection.PublishNetworkMessage(networkMessage);
+
+            if (networkMessages != null)
+            {
+                foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
+                {
+                    if (uaNetworkMessage != null)
+                    {
+                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                    }
+                }
+            }
 
             //Assert
             if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
@@ -136,11 +149,22 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            UaNetworkMessage networkMessage = publisherConnection.CreateNetworkMessage(writerGroup0);
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
             publisherConnection.Start();
-            publisherConnection.PublishNetworkMessage(networkMessage);
+
+            if (networkMessages != null)
+            {
+                foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
+                {
+                    if (uaNetworkMessage != null)
+                    {
+                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                    }
+                }
+            }
 
             //Assert
             if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
@@ -190,11 +214,22 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            UaNetworkMessage networkMessage = publisherConnection.CreateNetworkMessage(writerGroup0);
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
             publisherConnection.Start();
-            publisherConnection.PublishNetworkMessage(networkMessage);
+
+            if (networkMessages != null)
+            {
+                foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
+                {
+                    if (uaNetworkMessage != null)
+                    {
+                        publisherConnection.PublishNetworkMessage(uaNetworkMessage);
+                    }
+                }
+            }
 
             //Assert
             if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))

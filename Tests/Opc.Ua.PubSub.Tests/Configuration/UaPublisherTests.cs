@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Moq;
 using NUnit.Framework;
+using System.Linq;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
@@ -42,7 +43,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
         [Test(Description ="Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
-        [Ignore("This test is temporary disabled")]
+        //[Ignore("This test is temporary disabled")]
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
             [Values(20, 30)]double maxDeviation,
@@ -52,7 +53,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PublishTimes.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
             mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
-            mockConnection.Setup(x => x.CreateNetworkMessage(It.IsAny<WriterGroupDataType>()))
+            mockConnection.Setup(x => x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>()))
                 .Callback(()=>PublishTimes.Add(DateTime.Now));
 
             WriterGroupDataType writerGroupDataType = new WriterGroupDataType();
@@ -67,6 +68,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             publisher.Stop();
             int faultIndex = -1;
             double faultDeviation = 0;
+
+            PublishTimes =  (from t in PublishTimes
+                             orderby t
+                            select t).ToList();
 
             //Assert
             for (int i = 1; i < PublishTimes.Count; i++)
