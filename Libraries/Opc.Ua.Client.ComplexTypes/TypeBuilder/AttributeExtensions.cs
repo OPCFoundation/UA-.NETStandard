@@ -77,14 +77,14 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Build the StructureDefiniton attribute for a complex type.
+        /// Build the StructureDefinition attribute for a complex type.
         /// </summary>
-        public static void StructureDefinitonAttribute(
+        public static void StructureDefinitionAttribute(
             this TypeBuilder typeBuilder,
             StructureDefinition structureDefinition)
         {
             var attributeType = typeof(StructureDefinitionAttribute);
-            var baseDataType = StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
+            var baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             CustomAttributeBuilder builder = new CustomAttributeBuilder(
                 ctorInfo,
