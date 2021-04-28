@@ -370,11 +370,11 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(510)]
         public void UpdateCertificateCASigned()
         {
-#if NETCOREAPP3_1
+#if NETCOREAPP3_1_OR_GREATER
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Update CA signed certifcate fails on mac OS.");
+                Assert.Ignore("Update CA signed certificate fails on mac OS.");
             }
 #endif
             ConnectPushClient(true);

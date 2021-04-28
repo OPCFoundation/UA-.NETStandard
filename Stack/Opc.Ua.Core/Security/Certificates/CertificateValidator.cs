@@ -33,10 +33,10 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
-            m_autoAcceptUntrustedCertificates = false;
-            m_rejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
-            m_rejectUnknownRevocationStatus = false;
-            m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+            AutoAcceptUntrustedCertificates = false;
+            RejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
+            RejectUnknownRevocationStatus = false;
+            MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
         }
         #endregion
 
@@ -173,10 +173,10 @@ namespace Opc.Ua
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
-                m_autoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
-                m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
-                m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
-                m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
+                AutoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
+                RejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
+                RejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
+                MinimumCertificateKeySize = configuration.MinimumCertificateKeySize;
             }
 
             if (configuration.ApplicationCertificate != null)
@@ -209,6 +209,25 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// If untrusted certificates should be accepted.
+        /// </summary>
+        public bool AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// If certificates using a SHA1 signature should be trusted.
+        /// </summary>
+        public bool RejectSHA1SignedCertificates { get; set; }
+
+        /// <summary>
+        /// if certificates with unknown revocation status should be rejected.
+        /// </summary>
+        public bool RejectUnknownRevocationStatus { get; set; }
+
+        /// <summary>
+        /// The minimum size of a certificate key to be trusted.
+        /// </summary>
+        public ushort MinimumCertificateKeySize { get; set; }
 
         /// <summary>
         /// Validates the specified certificate against the trust list.
@@ -298,7 +317,7 @@ namespace Opc.Ua
                             }
                             accept = args.Accept;
                         }
-                        else if (m_autoAcceptUntrustedCertificates &&
+                        else if (AutoAcceptUntrustedCertificates &&
                             serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                         {
                             accept = true;
@@ -652,7 +671,7 @@ namespace Opc.Ua
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
 
-                                            if (m_rejectUnknownRevocationStatus)
+                                            if (RejectUnknownRevocationStatus)
                                             {
                                                 throw new ServiceResultException(status);
                                             }
@@ -829,14 +848,14 @@ namespace Opc.Ua
             }
 
             // check if minimum requirements are met
-            if (m_rejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
+            if (RejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
                     null, null, "SHA1 signed certificates are not trusted.", null, sresult);
             }
 
             int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-            if (keySize < m_minimumCertificateKeySize)
+            if (keySize < MinimumCertificateKeySize)
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
                     null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
@@ -1155,10 +1174,6 @@ namespace Opc.Ua
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
-        private bool m_autoAcceptUntrustedCertificates;
-        private bool m_rejectSHA1SignedCertificates;
-        private bool m_rejectUnknownRevocationStatus;
-        private ushort m_minimumCertificateKeySize;
         #endregion
     }
 

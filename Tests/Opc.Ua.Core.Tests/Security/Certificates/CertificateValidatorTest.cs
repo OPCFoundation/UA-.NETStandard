@@ -752,13 +752,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 var pemDataBlob = PEMWriter.ExportCertificateAsPEM(appCert);
                 var pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-#if NETCOREAPP3_1
+#if NETCOREAPP3_1_OR_GREATER
                 var exception = Assert.Throws<ArgumentException>(() => { CertificateFactory.CreateCertificateWithPEMPrivateKey(new X509Certificate2(appCert), pemDataBlob); });
 #endif
             }
         }
 
-#if NETCOREAPP3_1
+#if NETCOREAPP3_1_OR_GREATER
         /// <summary>
         /// Verify the PEM Writer, no password.
         /// </summary>
@@ -950,9 +950,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Validate Sha1 signed certificates cause a policy check failed.
         /// </summary>
         [Theory]
-        public async Task TestSHA1Rejected(bool trusted)
+        public async Task TestSHA1Rejected(bool trusted, bool rejectSHA1)
         {
-#if NETCOREAPP3_1
+#if NETCOREAPP3_1_OR_GREATER
             Assert.Ignore("SHA1 is unsupported on .NET Core 3.1");
 #endif
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)
@@ -964,20 +964,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.Add(cert).ConfigureAwait(false);
             }
             var certValidator = validator.Update();
-            var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
-            Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
-            Assert.NotNull(serviceResultException.InnerResult);
-            ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
-            if (!trusted)
+            certValidator.RejectSHA1SignedCertificates = rejectSHA1;
+            if (rejectSHA1)
             {
-                Assert.NotNull(innerResult);
-                Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
-                    innerResult.StatusCode.Code,
-                    innerResult.LocalizedText.Text);
+                var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+                Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.NotNull(serviceResultException.InnerResult);
+                ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
+                if (!trusted)
+                {
+                    Assert.NotNull(innerResult);
+                    Assert.AreEqual(StatusCodes.BadCertificateUntrusted,
+                        innerResult.StatusCode.Code,
+                        innerResult.LocalizedText.Text);
+                }
+                else
+                {
+                    Assert.Null(innerResult);
+                }
             }
             else
             {
-                Assert.Null(innerResult);
+                if (trusted)
+                {
+                    certValidator.Validate(cert);
+                }
+                else
+                {
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => { certValidator.Validate(cert); });
+                    Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                    Assert.NotNull(serviceResultException.InnerResult);
+                }
             }
         }
 
