@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +41,7 @@ namespace Opc.Ua.Client.ComplexTypes
     {
         #region Public Extensions
         /// <summary>
-        /// Convert a binary schema type definition to a 
+        /// Convert a binary schema type definition to a
         /// StructureDefinition.
         /// </summary>
         /// <remarks>
@@ -51,7 +50,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Nested types and typed arrays with length field.
         /// The converter has the following known restrictions:
         /// - Support only for V1.03 structured types which can be mapped to the V1.04
-        /// structured type definition. 
+        /// structured type definition.
         /// The following dictionary tags cause bail out for a structure:
         /// - use of a terminator of length in bytes
         /// - an array length field is not a direct predecessor of the array

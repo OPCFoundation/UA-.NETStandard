@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Linq;
 using System.Reflection;
@@ -36,7 +35,7 @@ using System.Reflection.Emit;
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
-    /// Build an assembly with custom enum types and 
+    /// Build an assembly with custom enum types and
     /// complex types based on the BaseComplexType class
     /// using System.Reflection.Emit.
     /// </summary>
@@ -240,5 +239,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly int m_targetNamespaceIndex;
         #endregion Private Fields
     }
-
 }//namespace

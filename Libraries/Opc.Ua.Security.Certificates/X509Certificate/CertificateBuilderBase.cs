@@ -134,7 +134,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (length > X509Defaults.SerialNumberLengthMax || length == 0)
             {
-                throw new ArgumentOutOfRangeException("SerialNumber length out of Range", nameof(length));
+                throw new ArgumentOutOfRangeException(nameof(length), "SerialNumber length out of Range");
             }
             m_serialNumberLength = length;
             m_presetSerial = false;
@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates
             if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
                 serialNumber.Length == 0)
             {
-                throw new ArgumentOutOfRangeException("SerialNumber array exceeds supported length.", nameof(serialNumber));
+                throw new ArgumentOutOfRangeException(nameof(serialNumber), "SerialNumber array exceeds supported length.");
             }
             m_serialNumberLength = serialNumber.Length;
             m_serialNumber = new byte[serialNumber.Length];

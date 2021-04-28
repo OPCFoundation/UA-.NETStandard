@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -209,8 +208,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
-                    return body.ToString();
+                    return body.Append('}').ToString();
                 }
 
                 if (!NodeId.IsNull(this.TypeId))
@@ -263,7 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Ordered enumerator for properties.      
+        /// Ordered enumerator for properties.
         /// </summary>
         public virtual IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator()
         {
@@ -622,7 +620,6 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
-
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
@@ -942,7 +939,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
         #region Protected Fields
         /// <summary>
-        /// The list of properties of this complex type. 
+        /// The list of properties of this complex type.
         /// </summary>
         protected IList<ComplexTypePropertyAttribute> m_propertyList;
         /// <summary>
@@ -956,6 +953,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private StructureBaseDataType m_structureBaseType;
         #endregion Private Fields
     }
-
-
 }//namespace

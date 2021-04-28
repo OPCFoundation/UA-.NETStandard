@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Linq;
 using System.Reflection;
@@ -238,10 +237,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <remarks>
         /// The value of a Union is determined by the union selector.
-        /// Calling get on an unselected property returns null, 
+        /// Calling get on an unselected property returns null,
         ///     otherwise the selected object.
         /// Calling get with an invalid index (e.g.-1) returns the selected object.
-        /// Calling set with a valid object on a selected property sets the value and the 
+        /// Calling set with a valid object on a selected property sets the value and the
         /// union selector.
         /// Calling set with a null object or an invalid index unselects the union.
         /// </remarks>
@@ -282,11 +281,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <remarks>
         /// The value of a Union is determined by the union selector.
-        /// Calling get on an unselected property returns null, 
+        /// Calling get on an unselected property returns null,
         /// otherwise the selected object.
         /// Calling get with an invalid name returns the selected object.
-        /// Calling set with a valid object on a selected property sets the value and the 
-        /// union selector. 
+        /// Calling set with a valid object on a selected property sets the value and the
+        /// union selector.
         /// Calling set with a null object or an invalid name unselects the union.
         /// </remarks>
         public override object this[string name]
@@ -341,6 +340,4 @@ namespace Opc.Ua.Client.ComplexTypes
         protected UInt32 m_switchField;
         #endregion Private Fields
     }
-
-
 }//namespace

@@ -390,7 +390,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             oText = "\"00000000-0000-0000-0000-000000000000\"";
                             continue;
                         }
-                        else if (property.Name == "UInt64" || property.Name == "Int64") oText = "\"" + oText + "\"";
+                        else if (property.Name == "UInt64" || property.Name == "Int64")
+                        {
+                            oText = "\"" + oText + "\"";
+                        }
+
                         if (oText != null)
                         {
                             if (commaNeeded) body += ",";
@@ -418,5 +422,4 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
         #endregion Private Methods
     }
-
 }

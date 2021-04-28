@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,11 +47,10 @@ namespace Opc.Ua.Client.ComplexTypes
     /// with the following known restrictions:
     /// - Support only for V1.03 structured types which can be mapped to the V1.04
     /// structured type definition. Unsupported V1.03 types are ignored.
-    /// - V1.04 OptionSet does not create the enumeration flags. 
+    /// - V1.04 OptionSet does not create the enumeration flags.
     /// </remarks>
     public class ComplexTypeSystem
     {
-
         #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
@@ -696,7 +694,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 return structureDefinition;
             }
             return null;
-
         }
 
         /// <summary>
@@ -719,9 +716,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// and data type dictionary.
         /// To find the typeId and encodingId for a dictionary type definition:
         /// i) inverse browse the description to get the encodingid
-        /// ii) from the description inverse browse for encoding 
-        /// to get the subtype typeid 
-        /// iii) load the DataType node 
+        /// ii) from the description inverse browse for encoding
+        /// to get the subtype typeid
+        /// iii) load the DataType node
         /// </remarks>
         /// <param name="nodeId"></param>
         /// <param name="typeId"></param>
@@ -875,7 +872,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private void AddEnumerationOrStructureType(INode dataTypeNode, IList<INode> serverEnumTypes, IList<INode> serverStructTypes)
         {
             NodeId superType = ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_session.NamespaceUris);
-            do
+            while (true)
             {
                 superType = m_session.NodeCache.FindSuperType(superType);
                 if (superType.IsNullNodeId)
@@ -896,7 +893,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     break;
                 }
-            } while (true);
+            }
         }
 
         /// <summary>
@@ -944,21 +941,19 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     enumDescription = enumType;
                     // try dictionary enum definition
-                    var enumeratedObject = item as Schema.Binary.EnumeratedType;
-                    if (enumeratedObject != null)
+                    if (item is Schema.Binary.EnumeratedType enumeratedObject)
                     {
                         // 1. use Dictionary entry
                         newType = complexTypeBuilder.AddEnumType(enumeratedObject);
                     }
                     if (newType == null)
                     {
-                        var dataType = m_session.NodeCache.Find(enumType.NodeId) as DataTypeNode;
-                        if (dataType != null)
+                        if (m_session.NodeCache.Find(enumType.NodeId) is DataTypeNode dataTypeNode)
                         {
-                            if (dataType.DataTypeDefinition != null)
+                            if (dataTypeNode.DataTypeDefinition != null)
                             {
                                 // 2. use DataTypeDefinition 
-                                newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, dataType.DataTypeDefinition);
+                                newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, dataTypeNode.DataTypeDefinition);
                             }
                             else
                             {
@@ -966,15 +961,15 @@ namespace Opc.Ua.Client.ComplexTypes
                                 var property = BrowseForSingleProperty(enumType.NodeId);
                                 var enumArray = m_session.ReadValue(
                                     ExpandedNodeId.ToNodeId(property.NodeId, m_session.NamespaceUris));
-                                if (enumArray.Value is ExtensionObject[])
+                                if (enumArray.Value is ExtensionObject[] extensionObject)
                                 {
                                     // 3. use EnumValues
-                                    newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, (ExtensionObject[])enumArray.Value);
+                                    newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, extensionObject);
                                 }
-                                else if (enumArray.Value is LocalizedText[])
+                                else if (enumArray.Value is LocalizedText[] localizedText)
                                 {
                                     // 4. use EnumStrings
-                                    newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, (LocalizedText[])enumArray.Value);
+                                    newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, localizedText);
                                 }
                             }
                         }
@@ -1011,7 +1006,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return;
             }
             var internalNodeId = NormalizeExpandedNodeId(nodeId);
-            Utils.TraceDebug($"Adding Type {type.FullName} as: {internalNodeId.ToString()}");
+            Utils.TraceDebug($"Adding Type {type.FullName} as: {internalNodeId}");
             m_session.Factory.AddEncodeableType(internalNodeId, type);
         }
 
@@ -1041,15 +1036,15 @@ namespace Opc.Ua.Client.ComplexTypes
                         var enumArray = m_session.ReadValue(
                             ExpandedNodeId.ToNodeId(property.NodeId,
                             m_session.NamespaceUris));
-                        if (enumArray.Value is ExtensionObject[])
+                        if (enumArray.Value is ExtensionObject[] extensionObject)
                         {
                             // 2. use EnumValues
-                            newType = complexTypeBuilder.AddEnumType(name, (ExtensionObject[])enumArray.Value);
+                            newType = complexTypeBuilder.AddEnumType(name, extensionObject);
                         }
-                        else if (enumArray.Value is LocalizedText[])
+                        else if (enumArray.Value is LocalizedText[] localizedText)
                         {
                             // 3. use EnumStrings
-                            newType = complexTypeBuilder.AddEnumType(name, (LocalizedText[])enumArray.Value);
+                            newType = complexTypeBuilder.AddEnumType(name, localizedText);
                         }
                     }
                 }
@@ -1119,8 +1114,7 @@ namespace Opc.Ua.Client.ComplexTypes
             if (fieldType == null)
             {
                 var superType = GetBuiltInSuperType(field.DataType);
-                if (superType != null &&
-                    !superType.IsNullNodeId)
+                if (superType?.IsNullNodeId == false)
                 {
                     field.DataType = superType;
                     return GetFieldType(field);
@@ -1172,11 +1166,10 @@ namespace Opc.Ua.Client.ComplexTypes
         private NodeId GetBuiltInSuperType(NodeId dataType)
         {
             var superType = dataType;
-            do
+            while (true)
             {
                 superType = m_session.NodeCache.FindSuperType(superType);
-                if (superType == null ||
-                    superType.IsNullNodeId)
+                if (superType?.IsNullNodeId != false)
                 {
                     return null;
                 }
@@ -1189,7 +1182,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     break;
                 }
-            } while (true);
+            }
             return superType;
         }
 
@@ -1237,7 +1230,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Private Fields
         private Session m_session;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
-        private string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
+        private readonly string[] m_supportedEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultXml, BrowseNames.DefaultJson };
         #endregion
     }
 }//namespace

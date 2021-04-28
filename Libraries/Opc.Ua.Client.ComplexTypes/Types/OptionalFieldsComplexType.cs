@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -319,6 +318,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private UInt32 m_encodingMask;
         #endregion Private Fields
     }
-
-
 }//namespace
