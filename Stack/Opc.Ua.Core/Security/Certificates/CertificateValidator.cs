@@ -284,9 +284,9 @@ namespace Opc.Ua
                 ServiceResult serviceResult = se.Result;
                 lock (m_callbackLock)
                 {
-                    if (m_CertificateValidation != null)
+                    do
                     {
-                        do
+                        if (m_CertificateValidation != null)
                         {
                             CertificateValidationEventArgs args = new CertificateValidationEventArgs(serviceResult, certificate);
                             m_CertificateValidation(this, args);
@@ -297,17 +297,24 @@ namespace Opc.Ua
                                 break;
                             }
                             accept = args.Accept;
-                            if (accept)
-                            {
-                                serviceResult = serviceResult.InnerResult;
-                            }
-                            else
-                            {
-                                // report the rejected service result
-                                se = new ServiceResultException(serviceResult);
-                            }
-                        } while (accept && serviceResult != null);
-                    }
+                        }
+                        else if (m_autoAcceptUntrustedCertificates &&
+                            serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
+                        {
+                            accept = true;
+                            Utils.Trace(Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", certificate.Subject);
+                        }
+
+                        if (accept)
+                        {
+                            serviceResult = serviceResult.InnerResult;
+                        }
+                        else
+                        {
+                            // report the rejected service result
+                            se = new ServiceResultException(serviceResult);
+                        }
+                    } while (accept && serviceResult != null);
                 }
 
                 // throw if rejected.
@@ -315,7 +322,7 @@ namespace Opc.Ua
                 {
                     // write the invalid certificate to rejected store if specified.
                     Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
-                        certificate.Subject, serviceResult != null ? serviceResult.ToString() : "Unknown Error" );
+                        certificate.Subject, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
                     SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -783,25 +790,22 @@ namespace Opc.Ua
                 }
             }
 
-            if (!m_autoAcceptUntrustedCertificates)
+            // check if certificate issuer is trusted.
+            if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
-                // check if certificate issuer is trusted.
-                if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
-                {
-                    var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
-                    sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
-                        null, null, message, null, sresult);
-                }
+                var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
+                sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
+                    null, null, message, null, sresult);
+            }
 
-                // check if certificate is trusted.
-                if (trustedCertificate == null && !isIssuerTrusted)
+            // check if certificate is trusted.
+            if (trustedCertificate == null && !isIssuerTrusted)
+            {
+                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
-                    if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
-                    {
-                        var message = CertificateMessage("Certificate is not trusted.", certificate);
-                        sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
-                        null, null, message, null, sresult);
-                    }
+                    var message = CertificateMessage("Certificate is not trusted.", certificate);
+                    sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
+                    null, null, message, null, sresult);
                 }
             }
 
