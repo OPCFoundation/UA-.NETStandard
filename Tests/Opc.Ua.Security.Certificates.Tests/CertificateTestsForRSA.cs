@@ -343,7 +343,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
-                        WriteCertificate(cert, $"Default signed RSA cert");
+                        WriteCertificate(cert, "Default signed RSA cert");
                     }
                 }
 
@@ -359,7 +359,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
-                        WriteCertificate(cert, $"Default signed RSA cert with Public Key");
+                        WriteCertificate(cert, "Default signed RSA cert with Public Key");
                     }
                 }
 
@@ -374,7 +374,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
-                        WriteCertificate(cert, $"Default signed RSA cert");
+                        WriteCertificate(cert, "Default signed RSA cert");
                     }
                 }
 

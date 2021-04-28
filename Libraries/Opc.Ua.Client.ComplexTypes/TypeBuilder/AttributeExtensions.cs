@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -182,7 +181,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 });
             typeBuilder.SetCustomAttribute(builder);
         }
-        #endregion
+        #endregion Extensions
 
         #region Private Static Members
         /// <summary>
@@ -230,7 +229,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 });
             return builder;
         }
-        #endregion
+        #endregion Private Static Members
 
     }
 }//namespace
