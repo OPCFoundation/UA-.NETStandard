@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,10 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
-using System.Collections.Generic;
-using System.Net;
 
 namespace Opc.Ua.PubSub
 {
@@ -40,18 +37,13 @@ namespace Opc.Ua.PubSub
     public class SubscribedDataEventArgs : EventArgs
     {
         /// <summary>
-        /// Get the SequenceNumber of the NetworkMessage.
+        /// Get the received NetworkMessage.
         /// </summary>
-        public UInt16 NetworkMessageSequenceNumber { get; internal set; }
+        public UaNetworkMessage NetworkMessage { get; internal set; }  
 
         /// <summary>
-        /// Get the DataSet collection received
+        /// Get the source information
         /// </summary>
-        public List<DataSet> DataSets { get; internal set; }
-
-        /// <summary>
-        /// Get the Source EndPoint
-        /// </summary>
-        public IPEndPoint SourceEndPoint { get; internal set; }
+        public string Source { get; internal set; }
     }
 }

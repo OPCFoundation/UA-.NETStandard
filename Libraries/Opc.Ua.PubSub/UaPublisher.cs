@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,7 +40,7 @@ namespace Opc.Ua.PubSub
     internal class UaPublisher : IUaPublisher, IDisposable
     {
         #region Fields
-        private const int MinPublishingInterval = 10;
+        private const int kMinPublishingInterval = 10;
         private object m_lock = new object();
         // event used to trigger publish 
         private ManualResetEvent m_shutdownEvent;
@@ -55,8 +56,17 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPublisher(IUaPubSubConnection pubSubConnection, WriterGroupDataType writerGroupConfiguration)
         {
+            if (pubSubConnection == null)
+            {
+                throw new ArgumentNullException(nameof(pubSubConnection));
+            }
+            if (writerGroupConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(writerGroupConfiguration));
+            }
+
             m_pubSubConnection = pubSubConnection;
-            m_writerGroupConfiguration = writerGroupConfiguration;            
+            m_writerGroupConfiguration = writerGroupConfiguration;
 
             Initialize();
         }
@@ -80,7 +90,33 @@ namespace Opc.Ua.PubSub
             get { return m_writerGroupConfiguration; }
         }
         #endregion
-        
+
+        #region IDisposable Implementation
+        /// <summary>
+        /// Releases all resources used by the current instance of the <see cref="UaPublisher"/> class.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  and optionally releases the managed resources.
+        /// </summary>
+        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Stop();
+                // free managed resources
+                m_shutdownEvent.Dispose();
+            }
+        }
+        #endregion
+
         #region Public Methods
 
         /// <summary>
@@ -92,11 +128,11 @@ namespace Opc.Ua.PubSub
             {
                 m_shutdownEvent.Reset();
 
-                Task.Run(() =>
-                {
+                Task.Run(() => {
                     PublishData();
                 });
             }
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
         }
 
         /// <summary>
@@ -108,6 +144,7 @@ namespace Opc.Ua.PubSub
             {
                 m_shutdownEvent.Set();
             }
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", m_writerGroupConfiguration.Name);
         }
         #endregion
 
@@ -139,9 +176,9 @@ namespace Opc.Ua.PubSub
                         }
                     }
 
-                    if (sleepCycle < MinPublishingInterval)
+                    if (sleepCycle < kMinPublishingInterval)
                     {
-                        sleepCycle = MinPublishingInterval;
+                        sleepCycle = kMinPublishingInterval;
                     }
 
                     if (m_shutdownEvent.WaitOne(sleepCycle))
@@ -155,12 +192,11 @@ namespace Opc.Ua.PubSub
                         if (m_pubSubConnection.CanPublish(m_writerGroupConfiguration))
                         {
                             // call on a new thread
-                            Task.Run(() =>
-                            {
-                                PublishMessage();
+                            Task.Run(() => {
+                                PublishMessages();
                             });
                         }
-                    }                    
+                    }
                 }
                 while (true);
             }
@@ -172,50 +208,30 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Generate and publish a message
+        /// Generate and publish a messages
         /// </summary>
-        private void PublishMessage()
+        private void PublishMessages()
         {
             try
             {
-                UaNetworkMessage uaNetworkMessage = m_pubSubConnection.CreateNetworkMessage(m_writerGroupConfiguration);
-                if (uaNetworkMessage != null)
+                IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration);
+                if (networkMessages != null)
                 {
-                    bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                    Utils.Trace(Utils.TraceMasks.Information, 
-                        "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
-                }
+                    foreach(UaNetworkMessage uaNetworkMessage in networkMessages)
+                    {
+                        if (uaNetworkMessage != null)
+                        {
+                            bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
+                            Utils.Trace(Utils.TraceMasks.Information,
+                                "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
+                        }
+                    }
+                }                
             }
             catch (Exception e)
             {
                 // Unexpected exception in PublishMessage
                 Utils.Trace(e, "UaPublisher.PublishMessage");
-            }
-        }
-        #endregion
-
-        #region IDisposable Implementation
-        /// <summary>
-        /// Releases all resources used by the current instance of the <see cref="UaPublisher"/> class.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
-        ///  and optionally releases the managed resources.
-        /// </summary>
-        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Stop();
-                // free managed resources
-                m_shutdownEvent.Dispose();
             }
         }
         #endregion

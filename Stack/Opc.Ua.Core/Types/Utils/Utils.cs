@@ -61,6 +61,16 @@ namespace Opc.Ua
         public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
+        /// The URI scheme for the MQTT protocol. 
+        /// </summary>
+        public const string UriSchemeMqtt = "mqtt";
+
+        /// <summary>
+        /// The URI scheme for the MQTTS protocol. 
+        /// </summary>
+        public const string UriSchemeMqtts = "mqtts";
+
+        /// <summary>
         /// The URI schemes which are supported in the core server. 
         /// </summary>
         public static readonly string[] DefaultUriSchemes = new string[]
@@ -78,6 +88,11 @@ namespace Opc.Ua
         /// The default port for the UA TCP protocol over WebSockets.
         /// </summary>
         public const int UaWebSocketsDefaultPort = 4843;
+
+        /// <summary>
+        /// The default port for the MQTT protocol.
+        /// </summary>
+        public const int MqttDefaultPort = 1883;
 
         /// <summary>
         /// The urls of the discovery servers on a node.

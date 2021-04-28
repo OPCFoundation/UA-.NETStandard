@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -43,8 +43,8 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Save a <see cref="PubSubConfigurationDataType"/> instance as XML
         /// </summary>
-        /// <param name="pubSubConfiguration"></param>
-        /// <param name="filePath"></param>
+        /// <param name="pubSubConfiguration">The configuratiomn object that shall be saved in the file.</param>
+        /// <param name="filePath">The file path from where the configuration shall be saved.</param>
         public static void SaveConfiguration(PubSubConfigurationDataType pubSubConfiguration, string filePath)
         {
 
@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Configuration
 
             XmlWriterSettings settings = new XmlWriterSettings();
 
-            settings.Encoding = Encoding.UTF8;
+            settings.Encoding = System.Text.Encoding.UTF8;
             settings.Indent = true;
             settings.CloseOutput = true;
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Load a <see cref="PubSubConfigurationDataType"/> instance from and XML File
         /// </summary>
-        /// <param name="filePath"></param>
+        /// <param name="filePath">The file path from where the configuration shall be loaded.</param>
         public static PubSubConfigurationDataType LoadConfiguration(string filePath)
         {
             try
