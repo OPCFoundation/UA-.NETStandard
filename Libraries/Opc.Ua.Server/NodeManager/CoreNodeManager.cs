@@ -462,7 +462,10 @@ namespace Opc.Ua.Server
         public NodeMetadata GetNodeMetadata(
             OperationContext context,
             object           targetHandle,
-            BrowseResultMask resultMask)
+            BrowseResultMask resultMask,
+            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes = null,
+            bool readOnlyValidationAttributes = false
+            )
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             

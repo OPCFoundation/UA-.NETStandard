@@ -106,7 +106,10 @@ namespace Opc.Ua.Server
         NodeMetadata GetNodeMetadata(
             OperationContext context,
             object           targetHandle,
-            BrowseResultMask resultMask);
+            BrowseResultMask resultMask,
+            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributesCache = null,
+            bool readOnlyValidationAttributes = false
+            );
         
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
