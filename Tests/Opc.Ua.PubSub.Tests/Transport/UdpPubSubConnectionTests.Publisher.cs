@@ -46,7 +46,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
     public partial class UdpPubSubConnectionTests
     {
         [Test(Description = "Validate unicast PublishNetworkMessage")]
+#if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
+#endif
         public void ValidateUdpPubSubConnectionNetworkMessagePublishUnicast()
         {
             //Arrange 
@@ -113,7 +115,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate broadcast PublishNetworkMessage")]
+#if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
+#endif
         public void ValidateUdpPubSubConnectionNetworkMessagePublishBroadcast() 
         {
             //Arrange 
@@ -178,7 +182,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate multicast PublishNetworkMessage")]
+#if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
+#endif
         public void ValidateUdpPubSubConnectionNetworkMessagePublishMulticast()
         {
             //Arrange 

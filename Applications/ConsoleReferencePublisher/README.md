@@ -1,9 +1,9 @@
 
 
-# OPC Foundation UA .Net Standard Library - Console Reference Publisher
+# OPC Foundation UA .NET Standard Library - Console Reference Publisher
 
 ## Introduction
-This OPC application was created to provide the sample code for creating Publisher applications using the OPC Foundation UA .Net Standard PubSub Library. There is a .Net Core 3.1 (2.1) console version of the Publisher which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
+This OPC application was created to provide the sample code for creating Publisher applications using the OPC Foundation UA .NET Standard PubSub Library. There is a .NET Core 3.1 (2.1) console version of the Publisher which runs on any OS supporting [.NET Standard](https://docs.microsoft.com/en-us/dotnet/articles/standard).
 The Reference Publisher is configured to run in parallel with the [Console Reference Subscriber](../ConsoleReferenceSubscriber/README.md)
 
 ## How to build and run the console OPC UA Reference Publisher from Visual Studio

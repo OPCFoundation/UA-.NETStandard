@@ -60,21 +60,10 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Properties
-
         /// <summary>
         /// Get and Set WriterGroupId
         /// </summary>
         public UInt16 WriterGroupId { get; set; }
-
-        ///// <summary>
-        ///// Get the received <see cref="DataSet"/> collection 
-        ///// </summary>
-        //public List<DataSet> ReceivedDataSets { get; internal set; }
-
-        /// <summary>
-        /// Get the writer group configuration for this network message
-        /// </summary>
-        internal WriterGroupDataType WriterGroupConfiguration { get; set; }
 
         /// <summary>
         /// DataSet messages
@@ -86,6 +75,11 @@ namespace Opc.Ua.PubSub
                 return new ReadOnlyCollection<UaDataSetMessage>(m_uaDataSetMessages);
             }
         }
+
+        /// <summary>
+        /// Get the writer group configuration for this network message
+        /// </summary>
+        internal WriterGroupDataType WriterGroupConfiguration { get; set; }
         #endregion
 
         #region Public Methods

@@ -54,7 +54,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate mqtt local pub/sub connection with uadp data.")]
+#if !CUSTOM_TESTS
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
+#endif
         public void ValidateMqttLocalPubSubConnectionWithUadp(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
@@ -162,7 +164,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate mqtt local pub/sub connection with json data.")]
+#if !CUSTOM_TESTS
         [Ignore("A mosquitto tool should be installed local in order to run correctly.")]
+#endif
         public void ValidateMqttLocalPubSubConnectionWithJson(
             [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
         {
@@ -221,7 +225,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
-            
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                 && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;

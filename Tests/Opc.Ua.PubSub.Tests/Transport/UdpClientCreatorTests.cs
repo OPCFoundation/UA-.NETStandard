@@ -51,7 +51,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private string m_defaultUrl;
 
         [OneTimeSetUp()]
+#if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
+#endif
         public void MyTestInitialize()
         {
             var localhost = UdpPubSubConnectionTests.GetFirstNic();
@@ -126,7 +128,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate GetUdpClients value")]
-        [Ignore("This test shall not be executed")]
+#if !CUSTOM_TESTS
+        [Ignore("This test should be executed locally")]
+#endif
         public void ValidateUdpClientCreatorGetUdpClients()
         {
             // Create a publisher application

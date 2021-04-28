@@ -33,29 +33,30 @@ using System.Threading;
 using Moq;
 using NUnit.Framework;
 using System.Linq;
-using System.Text;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
     [TestFixture(Description ="Tests for UAPublisher class")]
     public class UaPublisherTests
     {
-        static IList<DateTime> PublishTimes = new List<DateTime>();
+        static IList<DateTime> s_publishTimes = new List<DateTime>();
 
         [Test(Description ="Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
-        //[Ignore("This test is temporary disabled")]
+#if !CUSTOM_TESTS
+        [Ignore("This test should be executed locally")]
+#endif
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
-            [Values(20, 30, 100)] double maxDeviation,
+            [Values(20, 30)]double maxDeviation,
             [Values(10)] int publishTimeInSecods)
         {
             //Arrange
-            PublishTimes.Clear();
+            s_publishTimes.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
             mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
             mockConnection.Setup(x => x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>()))
-                .Callback(()=>PublishTimes.Add(DateTime.Now));
+                .Callback(()=>s_publishTimes.Add(DateTime.Now));
 
             WriterGroupDataType writerGroupDataType = new WriterGroupDataType();
             writerGroupDataType.PublishingInterval = publishingInterval;
@@ -70,24 +71,22 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            PublishTimes =  (from t in PublishTimes
+            s_publishTimes =  (from t in s_publishTimes
                              orderby t
                             select t).ToList();
-            StringBuilder sb = new StringBuilder();
-            //Assert
-            for (int i = 1; i < PublishTimes.Count; i++)
-            {
-                double interval = PublishTimes[i].Subtract(PublishTimes[i - 1]).TotalMilliseconds;
-                double deviation = Math.Abs(publishingInterval - interval);
 
-                sb.AppendLine(string.Format("deviation[{0}] ={1} ", i, deviation));
+            //Assert
+            for (int i = 1; i < s_publishTimes.Count; i++)
+            {
+                double interval = s_publishTimes[i].Subtract(s_publishTimes[i - 1]).TotalMilliseconds;
+                double deviation = Math.Abs(publishingInterval - interval);
                 if (deviation >= maxDeviation && deviation > faultDeviation)
                 {
                     faultIndex = i;
                     faultDeviation = deviation;
                 }
             }
-            Assert.Fail(sb.ToString());
+            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation);
         }
     }
 }
