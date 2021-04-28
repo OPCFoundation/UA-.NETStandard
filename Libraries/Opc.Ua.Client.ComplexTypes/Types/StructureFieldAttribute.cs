@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -35,7 +34,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Attribute for a base complex type field definition.
     /// </summary>
-
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public class StructureFieldAttribute : Attribute
     {
@@ -49,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
             MaxStringLength = 0;
             IsOptional = false;
         }
-        #endregion
+        #endregion Constructors
 
         #region  Public Properties
         /// <summary>
@@ -66,6 +64,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// If the field is optional.
         /// </summary>
         public bool IsOptional { get; set; }
-        #endregion
+        #endregion Public Properties
     }
 }//namespace

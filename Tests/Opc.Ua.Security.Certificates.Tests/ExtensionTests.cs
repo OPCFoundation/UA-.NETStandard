@@ -57,12 +57,12 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (var x509Cert = new X509Certificate2(certAsset.Cert))
             {
                 Assert.NotNull(x509Cert);
-                TestContext.Out.WriteLine($"CertificateAsset:");
+                TestContext.Out.WriteLine("CertificateAsset:");
                 TestContext.Out.WriteLine(x509Cert);
                 var altName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(x509Cert);
                 if (altName != null)
                 {
-                    TestContext.Out.WriteLine($"X509SubjectAltNameExtension:");
+                    TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
                     TestContext.Out.WriteLine(altName?.Format(true));
                     var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
                     TestContext.Out.WriteLine(ext.Format(true));
@@ -70,12 +70,12 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(x509Cert);
                 if (authority != null)
                 {
-                    TestContext.Out.WriteLine($"X509AuthorityKeyIdentifierExtension:");
+                    TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
                     TestContext.Out.WriteLine(authority?.Format(true));
                     var ext = new X509Extension(authority.Oid, authority.RawData, authority.Critical);
                     TestContext.Out.WriteLine(ext.Format(true));
                 }
-                TestContext.Out.WriteLine($"All extensions:");
+                TestContext.Out.WriteLine("All extensions:");
                 foreach (var extension in x509Cert.Extensions)
                 {
                     TestContext.Out.WriteLine(extension.Format(true));
