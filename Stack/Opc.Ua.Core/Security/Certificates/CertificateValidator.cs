@@ -109,7 +109,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                m_validatedCertificates.Clear();
+                ResetValidatedCertificates();
 
                 m_trustedCertificateStore = null;
                 m_trustedCertificateList = null;
@@ -128,7 +128,6 @@ namespace Opc.Ua
                         m_trustedCertificateList.AddRange(trustedStore.TrustedCertificates);
                     }
                 }
-
 
                 m_issuerCertificateStore = null;
                 m_issuerCertificateList = null;
@@ -210,24 +209,102 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reset the list of validated certificates.
+        /// </summary>
+        public void ResetValidatedCertificates()
+        {
+            Dictionary<string, X509Certificate2> oldValidatedCertificates;
+            lock (m_lock)
+            {
+                oldValidatedCertificates = m_validatedCertificates;
+                m_validatedCertificates = new Dictionary<string, X509Certificate2>();
+            }
+            // dispose outdated list
+            foreach (var cert in oldValidatedCertificates.Values)
+            {
+                try
+                {
+                    cert.Dispose();
+                }
+                catch { }
+            }
+        }
+
+        /// <summary>
         /// If untrusted certificates should be accepted.
         /// </summary>
-        public bool AutoAcceptUntrustedCertificates { get; set; }
+        public bool AutoAcceptUntrustedCertificates
+        {
+            get { return m_autoAcceptUntrustedCertificates; }
+            set
+            {
+                lock (m_lock)
+                {
+                    if (m_autoAcceptUntrustedCertificates != value)
+                    {
+                        m_autoAcceptUntrustedCertificates = value;
+                        ResetValidatedCertificates();
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// If certificates using a SHA1 signature should be trusted.
         /// </summary>
-        public bool RejectSHA1SignedCertificates { get; set; }
+        public bool RejectSHA1SignedCertificates
+        {
+            get { return m_rejectSHA1SignedCertificates; }
+            set
+            {
+                lock (m_lock)
+                {
+                    if (m_rejectSHA1SignedCertificates != value)
+                    {
+                        m_rejectSHA1SignedCertificates = value;
+                        ResetValidatedCertificates();
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// if certificates with unknown revocation status should be rejected.
         /// </summary>
-        public bool RejectUnknownRevocationStatus { get; set; }
+        public bool RejectUnknownRevocationStatus
+        {
+            get { return m_rejectUnknownRevocationStatus; }
+            set
+            {
+                lock (m_lock)
+                {
+                    if (m_rejectUnknownRevocationStatus != value)
+                    {
+                        m_rejectUnknownRevocationStatus = value;
+                        ResetValidatedCertificates();
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// The minimum size of a certificate key to be trusted.
         /// </summary>
-        public ushort MinimumCertificateKeySize { get; set; }
+        public ushort MinimumCertificateKeySize
+        {
+            get { return m_minimumCertificateKeySize; }
+            set
+            {
+                lock (m_lock)
+                {
+                    if (m_minimumCertificateKeySize != value)
+                    {
+                        m_minimumCertificateKeySize = value;
+                        ResetValidatedCertificates();
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Validates the specified certificate against the trust list.
@@ -1174,6 +1251,10 @@ namespace Opc.Ua
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
+        private bool m_autoAcceptUntrustedCertificates;
+        private bool m_rejectSHA1SignedCertificates;
+        private bool m_rejectUnknownRevocationStatus;
+        private ushort m_minimumCertificateKeySize;
         #endregion
     }
 
