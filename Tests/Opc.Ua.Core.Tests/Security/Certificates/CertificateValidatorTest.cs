@@ -963,7 +963,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.RejectSHA1SignedCertificates = rejectSHA1;
             if (rejectSHA1)
             {
-                var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert); );
+                var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
                 Assert.AreEqual(StatusCodes.BadCertificatePolicyCheckFailed, serviceResultException.StatusCode, serviceResultException.Message);
                 Assert.NotNull(serviceResultException.InnerResult);
                 ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
@@ -987,7 +987,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 else
                 {
-                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert); );
+                    var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
                     Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
                     Assert.NotNull(serviceResultException.InnerResult);
                 }
