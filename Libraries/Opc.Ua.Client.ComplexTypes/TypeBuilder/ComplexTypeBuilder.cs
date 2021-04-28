@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable,
                 baseType);
             structureBuilder.DataContractAttribute(m_targetNamespace);
-            structureBuilder.StructureDefinitonAttribute(structureDefinition);
+            structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
         }
         #endregion
