@@ -131,7 +131,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // pki directory root for app cert
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             var storePath = pkiRoot + "own";
-            var storeType = CertificateStoreType.Directory;
+            const string storeType = CertificateStoreType.Directory;
             appCertificate.AddToStore(
                 storeType, storePath, password
                 );
@@ -207,8 +207,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private static string[] GetCertStores()
         {
-            var result = new List<string>();
-            result.Add("CurrentUser\\My");
+            var result = new List<string> {
+                "CurrentUser\\My"
+            };
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 result.Add("CurrentUser\\UA_MachineDefault");
@@ -218,8 +219,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         #endregion
 
         #region Private Fields
-        X509Certificate2 m_testCertificate;
+        private X509Certificate2 m_testCertificate;
         #endregion
     }
-
 }

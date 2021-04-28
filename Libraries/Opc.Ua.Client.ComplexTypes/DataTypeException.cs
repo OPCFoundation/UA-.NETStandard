@@ -31,7 +31,6 @@ using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
     /// <summary>
     /// Exception is thrown if the data type is not found.
     /// </summary>
@@ -68,7 +67,6 @@ namespace Opc.Ua.Client.ComplexTypes
             this.nodeId = NodeId.Null;
             this.typeName = typeName;
         }
-
 
         /// <summary>
         /// Create the exception.
@@ -154,5 +152,4 @@ namespace Opc.Ua.Client.ComplexTypes
             this.nodeId = nodeId;
         }
     }
-
 }//namespace

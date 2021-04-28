@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -52,7 +51,7 @@ namespace Opc.Ua.Client.ComplexTypes
     }
 
     /// <summary>
-    /// Interface to dynamically build custom 
+    /// Interface to dynamically build custom
     /// enum types and structured types.
     /// </summary>
     public interface IComplexTypeBuilder

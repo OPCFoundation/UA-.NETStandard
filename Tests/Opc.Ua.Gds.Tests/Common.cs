@@ -287,6 +287,8 @@ namespace Opc.Ua.Gds.Tests
 
     public static class TestUtils
     {
+        private static Random m_random = new Random();
+
         public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
             var certs = store.Enumerate().Result;
@@ -348,7 +350,6 @@ namespace Opc.Ua.Gds.Tests
         public static async Task<GlobalDiscoveryTestServer> StartGDS(bool clean)
         {
             GlobalDiscoveryTestServer server = null;
-            Random random = new Random();
             int testPort;
             bool retryStartServer = false;
             int serverStartRetries = 10;
@@ -357,7 +358,7 @@ namespace Opc.Ua.Gds.Tests
                 try
                 {
                     // work around travis issue by selecting different ports on every run
-                    testPort = random.Next(50000, 60000);
+                    testPort = m_random.Next(50000, MaxPort);
                     server = new GlobalDiscoveryTestServer(true);
                     await server.StartServer(clean, testPort).ConfigureAwait(false);
                 }
@@ -371,7 +372,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     retryStartServer = true;
                 }
-                await Task.Delay(1000).ConfigureAwait(false);
+                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
             return server;

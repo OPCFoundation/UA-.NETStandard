@@ -85,7 +85,9 @@ namespace Opc.Ua.Client
         NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// An implementation of a client side nodecache.
+    /// </summary>
     public class NodeCache : INodeCache
     {
         #region Constructors
@@ -103,22 +105,23 @@ namespace Opc.Ua.Client
         #endregion
 
         #region INodeTable Members
-        /// <summary cref="INodeTable.NamespaceUris" />
+        /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
-        /// <summary cref="INodeTable.ServerUris" />
+        /// <inheritdoc/>
+
         public StringTable ServerUris => m_session.ServerUris;
 
-        /// <summary cref="INodeTable.TypeTree" />
+        /// <inheritdoc/>
         public ITypeTable TypeTree => this;
 
-        /// <summary cref="INodeTable.Exists(ExpandedNodeId)" />
+        /// <inheritdoc/>
         public bool Exists(ExpandedNodeId nodeId)
         {
             return Find(nodeId) != null;
         }
 
-        /// <summary cref="INodeTable.Find(ExpandedNodeId)" />
+        /// <inheritdoc/>
         public INode Find(ExpandedNodeId nodeId)
         {
             // check for null.
@@ -152,7 +155,7 @@ namespace Opc.Ua.Client
             }
         }
 
-        /// <summary cref="INodeTable.Find(ExpandedNodeId,NodeId,bool,bool,QualifiedName)" />
+        /// <inheritdoc/>
         public INode Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
@@ -190,7 +193,7 @@ namespace Opc.Ua.Client
             return null;
         }
 
-        /// <summary cref="INodeTable.Find(ExpandedNodeId,NodeId,bool,bool)" />
+        /// <inheritdoc/>
         public IList<INode> Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
@@ -227,13 +230,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region ITypeTable Methods
-        /// <summary>
-        /// Determines whether a node id is a known type id.
-        /// </summary>
-        /// <param name="typeId">The type extended identifier.</param>
-        /// <returns>
-        /// 	<c>true</c> if the specified type id is known; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsKnown(ExpandedNodeId typeId)
         {
             INode type = Find(typeId);
@@ -246,13 +243,7 @@ namespace Opc.Ua.Client
             return m_typeTree.IsKnown(typeId);
         }
 
-        /// <summary>
-        /// Determines whether a node id is a known type id.
-        /// </summary>
-        /// <param name="typeId">The type identifier.</param>
-        /// <returns>
-        /// 	<c>true</c> if the specified type id is known; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsKnown(NodeId typeId)
         {
             INode type = Find(typeId);
@@ -265,13 +256,7 @@ namespace Opc.Ua.Client
             return m_typeTree.IsKnown(typeId);
         }
 
-        /// <summary>
-        /// Returns the immediate supertype for the type.
-        /// </summary>
-        /// <param name="typeId">The extended type identifier.</param>
-        /// <returns>
-        /// A type identifier of the <paramref name="typeId "/>
-        /// </returns>
+        /// <inheritdoc/>
         public NodeId FindSuperType(ExpandedNodeId typeId)
         {
             INode type = Find(typeId);
@@ -284,13 +269,7 @@ namespace Opc.Ua.Client
             return m_typeTree.FindSuperType(typeId);
         }
 
-        /// <summary>
-        /// Returns the immediate supertype for the type.
-        /// </summary>
-        /// <param name="typeId">The type identifier.</param>
-        /// <returns>
-        /// The immediate supertype idnetyfier for <paramref name="typeId"/>
-        /// </returns>
+        /// <inheritdoc/>
         public NodeId FindSuperType(NodeId typeId)
         {
             INode type = Find(typeId);
@@ -303,13 +282,7 @@ namespace Opc.Ua.Client
             return m_typeTree.FindSuperType(typeId);
         }
 
-        /// <summary>
-        /// Returns the immediate subtypes for the type.
-        /// </summary>
-        /// <param name="typeId">The extended type identifier.</param>
-        /// <returns>
-        /// List of type identifiers for <paramref name="typeId"/>
-        /// </returns>
+        /// <inheritdoc/>
         public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
             ILocalNode type = Find(typeId) as ILocalNode;
@@ -332,14 +305,7 @@ namespace Opc.Ua.Client
             return subtypes;
         }
 
-        /// <summary>
-        /// Determines whether a type is a subtype of another type.
-        /// </summary>
-        /// <param name="subTypeId">The subtype identifier.</param>
-        /// <param name="superTypeId">The supertype identifier.</param>
-        /// <returns>
-        /// 	<c>true</c> if <paramref name="superTypeId"/> is supertype of <paramref name="subTypeId"/>; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsTypeOf(ExpandedNodeId subTypeId, ExpandedNodeId superTypeId)
         {
             if (subTypeId == superTypeId)
@@ -371,14 +337,7 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        /// <summary>
-        /// Determines whether a type is a subtype of another type.
-        /// </summary>
-        /// <param name="subTypeId">The subtype identifier.</param>
-        /// <param name="superTypeId">The supertype identyfier.</param>
-        /// <returns>
-        /// 	<c>true</c> if <paramref name="superTypeId"/> is supertype of <paramref name="subTypeId"/>; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
             if (subTypeId == superTypeId)
@@ -410,39 +369,19 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        /// <summary>
-        /// Returns the qualified name for the reference type id.
-        /// </summary>
-        /// <param name="referenceTypeId">The reference type</param>
-        /// <returns>
-        /// A name qualified with a namespace for the reference <paramref name="referenceTypeId"/>.
-        /// </returns>
+        /// <inheritdoc/>
         public QualifiedName FindReferenceTypeName(NodeId referenceTypeId)
         {
             return m_typeTree.FindReferenceTypeName(referenceTypeId);
         }
 
-        /// <summary>
-        /// Returns the node identifier for the reference type with the specified browse name.
-        /// </summary>
-        /// <param name="browseName">Browse name of the reference.</param>
-        /// <returns>
-        /// The identifier for the <paramref name="browseName"/>
-        /// </returns>
+        /// <inheritdoc/>
         public NodeId FindReferenceType(QualifiedName browseName)
         {
             return m_typeTree.FindReferenceType(browseName);
         }
 
-        /// <summary>
-        /// Checks if the identifier <paramref name="encodingId"/> represents a that provides encodings
-        /// for the <paramref name="datatypeId "/>.
-        /// </summary>
-        /// <param name="encodingId">The id the encoding node .</param>
-        /// <param name="datatypeId">The id of the DataType node.</param>
-        /// <returns>
-        /// 	<c>true</c> if <paramref name="encodingId"/> is encoding of the <paramref name="datatypeId"/>; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
             ILocalNode encoding = Find(encodingId) as ILocalNode;
@@ -464,15 +403,7 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        /// <summary>
-        /// Determines if the value contained in an extension object <paramref name="value"/> matches the expected data type.
-        /// </summary>
-        /// <param name="expectedTypeId">The identifier of the expected type .</param>
-        /// <param name="value">The value.</param>
-        /// <returns>
-        /// 	<c>true</c> if the value contained in an extension object <paramref name="value"/> matches the
-        /// expected data type; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsEncodingFor(NodeId expectedTypeId, ExtensionObject value)
         {
             // no match on null values.
@@ -508,14 +439,7 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        /// <summary>
-        /// Determines if the value is an encoding of the <paramref name="value"/>
-        /// </summary>
-        /// <param name="expectedTypeId">The expected type id.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>
-        /// 	<c>true</c> the value is an encoding of the <paramref name="value"/>; otherwise, <c>false</c>.
-        /// </returns>
+        /// <inheritdoc/>
         public bool IsEncodingFor(NodeId expectedTypeId, object value)
         {
             // null actual datatype matches nothing.
@@ -575,10 +499,7 @@ namespace Opc.Ua.Client
             return false;
         }
 
-        /// <summary>
-        /// Returns the data type for the specified encoding.
-        /// </summary>
-        /// <param name="encodingId">The encoding id.</param>
+        /// <inheritdoc/>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
             ILocalNode encoding = Find(encodingId) as ILocalNode;
@@ -598,13 +519,7 @@ namespace Opc.Ua.Client
             return NodeId.Null;
         }
 
-        /// <summary>
-        /// Returns the data type for the specified encoding.
-        /// </summary>
-        /// <param name="encodingId">The encoding id.</param>
-        /// <returns>
-        /// The data type for the <paramref name="encodingId"/>
-        /// </returns>
+        /// <inheritdoc/>
         public NodeId FindDataTypeId(NodeId encodingId)
         {
             ILocalNode encoding = Find(encodingId) as ILocalNode;

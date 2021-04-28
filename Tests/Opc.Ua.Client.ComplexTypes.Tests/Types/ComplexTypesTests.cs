@@ -132,9 +132,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
             }
         }
-        #endregion
+        #endregion Tests
 
         #region Private Methods
-        #endregion
+        #endregion Private Methods
     }
 }

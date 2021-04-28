@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -40,17 +39,17 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The type is a structure.
         /// </summary>
-        Structure,
+        Structure = 0,
 
         /// <summary>
         /// The type is an OptionSet.
         /// </summary>
-        OptionSet,
+        OptionSet = 1,
 
         /// <summary>
         /// The type is a Union.
         /// </summary>
-        Union
+        Union = 2
     }
 
     /// <summary>
@@ -67,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             StructureType = StructureType.Structure;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Methods
         /// <summary>
@@ -86,7 +85,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return StructureBaseDataType.Structure;
         }
-        #endregion
+        #endregion Public Methods
 
         #region  Public Properties
         /// <summary>
@@ -101,6 +100,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The structure type.
         /// </summary>
         public StructureType StructureType { get; set; }
-        #endregion
+        #endregion Public Properties
     }
 }//namespace
