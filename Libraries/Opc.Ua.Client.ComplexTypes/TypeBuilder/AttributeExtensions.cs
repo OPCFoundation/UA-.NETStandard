@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 });
             typeBuilder.SetCustomAttribute(builder);
         }
-        #endregion
+        #endregion Extensions
 
         #region Private Static Members
         /// <summary>
@@ -230,7 +230,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 });
             return builder;
         }
-        #endregion
+        #endregion Private Static Members
 
     }
 }//namespace

@@ -134,7 +134,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (length > X509Defaults.SerialNumberLengthMax || length == 0)
             {
-                throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
+                throw new ArgumentOutOfRangeException("SerialNumber length out of Range", nameof(length));
             }
             m_serialNumberLength = length;
             m_presetSerial = false;
@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates
             if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
                 serialNumber.Length == 0)
             {
-                throw new ArgumentOutOfRangeException("SerialNumber array exceeds supported length.");
+                throw new ArgumentOutOfRangeException("SerialNumber array exceeds supported length.", nameof(serialNumber));
             }
             m_serialNumberLength = serialNumber.Length;
             m_serialNumber = new byte[serialNumber.Length];
@@ -220,7 +220,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (keySize % 1024 != 0 || keySize < X509Defaults.RSAKeySizeMin || keySize > X509Defaults.RSAKeySizeMax)
             {
-                throw new ArgumentException(nameof(keySize), "KeySize must be a multiple of 1024 or is not in the allowed range.");
+                throw new ArgumentException("KeySize must be a multiple of 1024 or is not in the allowed range.", nameof(keySize));
             }
 
             m_keySize = keySize;

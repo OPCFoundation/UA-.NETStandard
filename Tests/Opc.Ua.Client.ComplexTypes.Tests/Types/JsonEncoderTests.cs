@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion
+        #endregion Test Setup
 
         #region DataSource
         /// <summary>
@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             //{   BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
             {   BuiltInType.Double, (double)7.77, "7.77", "7.77" }
         }.ToArray();
-        #endregion
+        #endregion DataSource
 
         #region Test Methods
         /// <summary>
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonValidationData.ExpectedNonReversible ?? jsonValidationData.ExpectedReversible,
                 false);
         }
-        #endregion
+        #endregion Test Methods
 
         #region Private Methods
         protected void EncodeJsonComplexTypeVerifyResult(
@@ -406,7 +406,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         json += typeId;
                     }
-                    json += $"\"Body\":{{" + body + "}}}";
+                    json += "\"Body\":{" + body + "}}}";
                     expected = json;
                 }
                 else
@@ -416,7 +416,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             return expected;
         }
-        #endregion
+        #endregion Private Methods
     }
 
 }

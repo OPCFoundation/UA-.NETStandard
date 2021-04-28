@@ -310,7 +310,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(new X509Certificate2(signingCert.RawData))
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed ECDsa cert");
+                WriteCertificate(cert, "Default signed ECDsa cert");
             }
 
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
@@ -323,7 +323,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed ECDsa cert with Public Key");
+                WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
             }
 
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
@@ -335,7 +335,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed RSA cert");
+                WriteCertificate(cert, "Default signed RSA cert");
             }
 
             // ensure invalid path throws argument exception

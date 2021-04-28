@@ -536,7 +536,7 @@ namespace Opc.Ua.Server
 
             if (!String.IsNullOrEmpty(subjectName))
             {
-                throw new ArgumentException(nameof(subjectName));
+                throw new ArgumentNullException(nameof(subjectName));
             }
 
             // TODO: implement regeneratePrivateKey

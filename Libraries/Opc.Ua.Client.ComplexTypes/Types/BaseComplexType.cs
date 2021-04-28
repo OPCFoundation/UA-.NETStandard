@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = ExpandedNodeId.Null;
             m_context = MessageContextExtension.CurrentContext;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
         /// <summary cref="IEncodeable.TypeId" />
@@ -184,7 +184,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return ToString(null, null);
         }
-        #endregion
+        #endregion Public Properties
 
         #region IFormattable Members
         /// <summary>
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
+        #endregion IFormattable Members
 
         #region IComplexTypeProperties
         /// <summary cref="IComplexTypeProperties.GetPropertyCount()" />
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return m_propertyList;
         }
-        #endregion
+        #endregion IComplexTypeProperties
 
         #region Private Members
         /// <summary>
@@ -329,15 +329,15 @@ namespace Opc.Ua.Client.ComplexTypes
             StringBuilder body,
             object value)
         {
-            if (value is byte[])
+            if (value is byte[] x)
             {
-                body.AppendFormat(formatProvider, "Byte[{0}]", ((byte[])value).Length);
+                body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
                 return;
             }
 
-            if (value is XmlElement)
+            if (value is XmlElement xmlElements)
             {
-                body.AppendFormat(formatProvider, "<{0}>", ((XmlElement)value).Name);
+                body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
                 return;
             }
 
@@ -501,11 +501,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void EncodePropertyArray(IEncoder encoder, string name, PropertyInfo property)
         {
-            var elementType = property.PropertyType.GetElementType();
-            if (elementType == null)
-            {
-                elementType = property.PropertyType.GetItemType();
-            }
+            var elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             if (elementType == typeof(Boolean))
             {
                 encoder.WriteBooleanArray(name, (BooleanCollection)property.GetValue(this));
@@ -783,11 +779,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void DecodePropertyArray(IDecoder decoder, string name, PropertyInfo property)
         {
-            var elementType = property.PropertyType.GetElementType();
-            if (elementType == null)
-            {
-                elementType = property.PropertyType.GetItemType();
-            }
+            var elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             if (elementType == typeof(Boolean))
             {
                 property.SetValue(this, decoder.ReadBooleanArray(name));
@@ -946,7 +938,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_propertyList = m_propertyList.OrderBy(p => p.Order).ToList();
             m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
         }
-        #endregion
+        #endregion Private Members
 
         #region Protected Fields
         /// <summary>
@@ -957,12 +949,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The list of properties as dictionary.
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyAttribute> m_propertyDict;
-        #endregion
+        #endregion Protected Fields
 
         #region Private Fields
         private ServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
-        #endregion
+        #endregion Private Fields
     }
 
 

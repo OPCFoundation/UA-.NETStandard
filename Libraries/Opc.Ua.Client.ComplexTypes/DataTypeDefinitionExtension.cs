@@ -277,6 +277,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 return referenceId;
             }
         }
-        #endregion
+        #endregion Public Extensions
     }
 }//namespace
