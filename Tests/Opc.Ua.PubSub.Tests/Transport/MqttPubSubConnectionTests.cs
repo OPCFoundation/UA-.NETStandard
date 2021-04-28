@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
                 MessagesHelper.CreateDataSetMetaData3("DataSet3"),
-                // MessagesHelper.CreateDataSetMetaDataAllTypes("DataSet4")
+                MessagesHelper.CreateDataSetMetaDataAllTypes("DataSet4")
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(

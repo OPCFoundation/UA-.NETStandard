@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         //[Ignore("This test is temporary disabled")]
         public void ValidateUaPublisherPublishIntevalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
-            [Values(20, 30)] double maxDeviation,
+            [Values(20, 30, 100)] double maxDeviation,
             [Values(10)] int publishTimeInSecods)
         {
             //Arrange
@@ -76,22 +76,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             StringBuilder sb = new StringBuilder();
             //Assert
             for (int i = 1; i < PublishTimes.Count; i++)
-            {              
-
+            {
                 double interval = PublishTimes[i].Subtract(PublishTimes[i - 1]).TotalMilliseconds;
-
                 double deviation = Math.Abs(publishingInterval - interval);
 
+                sb.AppendLine(string.Format("deviation[{0}] ={1} ", i, deviation));
                 if (deviation >= maxDeviation && deviation > faultDeviation)
                 {
                     faultIndex = i;
                     faultDeviation = deviation;
-
-                    sb.AppendLine(string.Format("exceeded_deviation ={0} at index [{1}] ", deviation, i));
                 }
             }
-            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation\n\n\n{5}", 
-                publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation, sb);
+            Assert.Fail(sb.ToString());
         }
     }
 }
