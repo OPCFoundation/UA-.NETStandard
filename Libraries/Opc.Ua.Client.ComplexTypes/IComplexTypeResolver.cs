@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Returns the immediate supertype for the type.
         /// </summary>
         /// <param name="typeId">The type identifier.</param>
-        /// <returns>The immediate supertype idnetyfier for <paramref name="typeId"/></returns>
+        /// <returns>The immediate supertype identifier for <paramref name="typeId"/></returns>
         NodeId FindSuperType(NodeId typeId);
 
     }
