@@ -1138,6 +1138,62 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Test auto accept.
+        /// </summary>
+        [Theory]
+        public async Task TestAutoAccept(bool trusted, bool autoAccept)
+        {
+            var cert = CertificateFactory.CreateCertificate(null, null, "CN=Test", null)
+                .CreateForRSA();
+            var validator = TemporaryCertValidator.Create();
+            if (trusted)
+            {
+                await validator.TrustedStore.Add(cert).ConfigureAwait(false);
+            }
+            var certValidator = validator.Update();
+            certValidator.AutoAcceptUntrustedCertificates = autoAccept;
+            if (autoAccept || trusted)
+            {
+                certValidator.Validate(cert);
+            }
+            else
+            {
+                var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+                Assert.NotNull(serviceResultException.InnerResult);
+                ServiceResult innerResult = serviceResultException.InnerResult.InnerResult;
+                Assert.Null(innerResult);
+            }
+
+            // override the autoaccept flag, always approve
+            certValidator = validator.Update();
+            certValidator.AutoAcceptUntrustedCertificates = autoAccept;
+            CertValidationApprover approver;
+            approver = new CertValidationApprover(new StatusCode[] {
+                StatusCodes.BadCertificateUntrusted
+            });
+            certValidator.CertificateValidation += approver.OnCertificateValidation;
+            certValidator.Validate(cert);
+            certValidator.CertificateValidation -= approver.OnCertificateValidation;
+
+            // override the autoaccept flag, but do not approve
+            certValidator = validator.Update();
+            certValidator.AutoAcceptUntrustedCertificates = autoAccept;
+            approver = new CertValidationApprover(new StatusCode[] { });
+            certValidator.CertificateValidation += approver.OnCertificateValidation;
+            if (trusted)
+            {
+                certValidator.Validate(cert);
+            }
+            else
+            {
+                ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(cert));
+                Assert.AreEqual(StatusCodes.BadCertificateUntrusted, serviceResultException.StatusCode, serviceResultException.Message);
+            }
+            certValidator.CertificateValidation -= approver.OnCertificateValidation;
+        }
+
+        /// <summary>
         /// Verify the certificate validator can be assigned.
         /// </summary>
         [Test]
