@@ -33,10 +33,10 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
-            AutoAcceptUntrustedCertificates = false;
-            RejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
-            RejectUnknownRevocationStatus = false;
-            MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+            m_autoAcceptUntrustedCertificates = false;
+            m_rejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
+            m_rejectUnknownRevocationStatus = false;
+            m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
         }
         #endregion
 
@@ -172,10 +172,10 @@ namespace Opc.Ua
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
-                AutoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
-                RejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
-                RejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
-                MinimumCertificateKeySize = configuration.MinimumCertificateKeySize;
+                m_autoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
+                m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
+                m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
+                m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
             }
 
             if (configuration.ApplicationCertificate != null)
@@ -394,7 +394,7 @@ namespace Opc.Ua
                             }
                             accept = args.Accept;
                         }
-                        else if (AutoAcceptUntrustedCertificates &&
+                        else if (m_autoAcceptUntrustedCertificates &&
                             serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                         {
                             accept = true;
@@ -748,7 +748,7 @@ namespace Opc.Ua
                                                 status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
                                             }
 
-                                            if (RejectUnknownRevocationStatus)
+                                            if (m_rejectUnknownRevocationStatus)
                                             {
                                                 throw new ServiceResultException(status);
                                             }
@@ -925,14 +925,14 @@ namespace Opc.Ua
             }
 
             // check if minimum requirements are met
-            if (RejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
+            if (m_rejectSHA1SignedCertificates && IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
                     null, null, "SHA1 signed certificates are not trusted.", null, sresult);
             }
 
             int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-            if (keySize < MinimumCertificateKeySize)
+            if (keySize < m_minimumCertificateKeySize)
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
                     null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
