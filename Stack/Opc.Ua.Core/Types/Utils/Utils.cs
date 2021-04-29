@@ -61,6 +61,16 @@ namespace Opc.Ua
         public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
+        /// The URI scheme for the MQTT protocol. 
+        /// </summary>
+        public const string UriSchemeMqtt = "mqtt";
+
+        /// <summary>
+        /// The URI scheme for the MQTTS protocol. 
+        /// </summary>
+        public const string UriSchemeMqtts = "mqtts";
+
+        /// <summary>
         /// The URI schemes which are supported in the core server. 
         /// </summary>
         public static readonly string[] DefaultUriSchemes = new string[]
@@ -78,6 +88,11 @@ namespace Opc.Ua
         /// The default port for the UA TCP protocol over WebSockets.
         /// </summary>
         public const int UaWebSocketsDefaultPort = 4843;
+
+        /// <summary>
+        /// The default port for the MQTT protocol.
+        /// </summary>
+        public const int MqttDefaultPort = 1883;
 
         /// <summary>
         /// The urls of the discovery servers on a node.
@@ -2856,6 +2871,9 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 is needed for deprecated security profiles.")]
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
             if (secret == null) throw new ArgumentNullException(nameof(secret));

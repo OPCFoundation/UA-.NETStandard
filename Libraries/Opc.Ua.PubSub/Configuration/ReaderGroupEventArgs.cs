@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -50,5 +50,5 @@ namespace Opc.Ua.PubSub.Configuration
         /// Reference to <see cref="ReaderGroupDataType"/> object
         /// </summary>
         public ReaderGroupDataType ReaderGroupDataType { get; set; }
-    }    
+    }
 }

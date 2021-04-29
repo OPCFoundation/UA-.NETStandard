@@ -62,7 +62,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificate
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates.Tests", "Tests\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj", "{A727180B-4AA8-4182-B35F-5B6D6CB79593}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests.Disabled", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.Disabled.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

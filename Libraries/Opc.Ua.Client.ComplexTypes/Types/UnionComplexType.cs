@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Linq;
 using System.Reflection;
@@ -57,7 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_switchField = 0;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
         /// <summary>
@@ -150,8 +149,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return true;
             }
 
-            var valueBaseType = equalValue as UnionComplexType;
-            if (valueBaseType == null)
+            if (!(equalValue is UnionComplexType valueBaseType))
             {
                 return false;
             }
@@ -184,7 +182,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return true;
         }
-        #endregion
+        #endregion Public Properties
 
         #region IFormattable Members
         /// <summary>
@@ -231,7 +229,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
+        #endregion IFormattable Members
 
         #region IComplexTypeProperties Members
         /// <summary>
@@ -239,10 +237,10 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <remarks>
         /// The value of a Union is determined by the union selector.
-        /// Calling get on an unselected property returns null, 
+        /// Calling get on an unselected property returns null,
         ///     otherwise the selected object.
         /// Calling get with an invalid index (e.g.-1) returns the selected object.
-        /// Calling set with a valid object on a selected property sets the value and the 
+        /// Calling set with a valid object on a selected property sets the value and the
         /// union selector.
         /// Calling set with a null object or an invalid index unselects the union.
         /// </remarks>
@@ -283,11 +281,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <remarks>
         /// The value of a Union is determined by the union selector.
-        /// Calling get on an unselected property returns null, 
+        /// Calling get on an unselected property returns null,
         /// otherwise the selected object.
         /// Calling get with an invalid name returns the selected object.
-        /// Calling set with a valid object on a selected property sets the value and the 
-        /// union selector. 
+        /// Calling set with a valid object on a selected property sets the value and the
+        /// union selector.
         /// Calling set with a null object or an invalid name unselects the union.
         /// </remarks>
         public override object this[string name]
@@ -333,15 +331,13 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Simple accessor for Union to access current Value.
         /// </summary>
         public object Value => (m_switchField == 0) ? null : m_propertyList.ElementAt((int)m_switchField - 1).GetValue(this);
-        #endregion
+        #endregion IComplexTypeProperties Members
 
         #region Private Fields
         /// <summary>
         /// The selector for the value of the Union.
         /// </summary>
         protected UInt32 m_switchField;
-        #endregion
+        #endregion Private Fields
     }
-
-
 }//namespace

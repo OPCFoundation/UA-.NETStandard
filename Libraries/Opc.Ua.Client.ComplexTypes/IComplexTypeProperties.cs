@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -140,8 +139,5 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Ordered enumerator for properties.
         /// </summary>
         IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator();
-
     }
-
-
 }//namespace
