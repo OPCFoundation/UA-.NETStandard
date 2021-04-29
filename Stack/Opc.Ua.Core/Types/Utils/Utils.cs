@@ -947,12 +947,14 @@ namespace Opc.Ua
             {
                 disposable?.Dispose();
             }
+#if DEBUG
             catch (Exception e)
             {
-#if DEBUG
                 Utils.Trace(e, "Error disposing object: {0}", disposable.GetType().Name);
-#endif
             }
+#else
+            catch (Exception) {;}
+#endif
         }
 
         /// <summary>
