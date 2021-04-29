@@ -1050,9 +1050,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes = null,
-            bool readOnlyValidationAttributes = false
-            )
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
+            bool permitionsOnly = false)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
 
@@ -1086,7 +1085,7 @@ namespace Opc.Ua.Server
                 // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
                 if (uniqueNodesServiceAttributes != null)
                 {
-                    Tuple<INodeManager, NodeId> key = Tuple.Create((INodeManager)this, handle.NodeId);
+                    NodeId key = handle.NodeId;
                     if (uniqueNodesServiceAttributes.ContainsKey(key))
                     {
                         if (uniqueNodesServiceAttributes[key].Count == 0)
@@ -1106,7 +1105,7 @@ namespace Opc.Ua.Server
 
                     SetAccessAndRolePermissions(values, metadata);
                 }// All other calls that do not use the cache
-                else if (readOnlyValidationAttributes == true)
+                else if (permitionsOnly == true)
                 {
                     values = ReadValidationAttributes(systemContext, target);
                     SetAccessAndRolePermissions(values, metadata);
@@ -1254,9 +1253,9 @@ namespace Opc.Ua.Server
         /// <param name="uniqueNodesServiceAttributes">The cache used to save the attributes</param>
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
-        /// <param name="key">The key representing the NodeManager and NodeId for which the cache is kept</param>
+        /// <param name="key">The key representing the NodeId for which the cache is kept</param>
         /// <returns>The values of the attributes</returns>
-        private static List<object> ReadAndCacheValidationAttributes(Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes, ServerSystemContext systemContext, NodeState target, Tuple<INodeManager, NodeId> key)
+        private static List<object> ReadAndCacheValidationAttributes(Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes, ServerSystemContext systemContext, NodeState target, NodeId key)
         {
             List<object> values = ReadValidationAttributes(systemContext, target);
             uniqueNodesServiceAttributes[key] = values;

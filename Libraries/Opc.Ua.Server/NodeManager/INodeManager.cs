@@ -107,9 +107,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             object           targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributesCache = null,
-            bool readOnlyValidationAttributes = false
-            );
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache = null,
+            bool permitionsOnly = false);
         
         /// <summary>
         /// Returns the set of references that meet the filter criteria.

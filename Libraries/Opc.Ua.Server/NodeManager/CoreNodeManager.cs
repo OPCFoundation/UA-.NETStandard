@@ -463,8 +463,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             object           targetHandle,
             BrowseResultMask resultMask,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes = null,
-            bool readOnlyValidationAttributes = false
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
+            bool permitionsOnly = false
             )
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

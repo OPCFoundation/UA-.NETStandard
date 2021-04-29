@@ -990,7 +990,7 @@ namespace Opc.Ua.Server
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (nodesToBrowse == null) throw new ArgumentNullException(nameof(nodesToBrowse));
 
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesBrowseAttributes;
+            Dictionary<NodeId, List<object>> uniqueNodesBrowseAttributes;
             PrepareValidationCache(nodesToBrowse, out uniqueNodesBrowseAttributes);
 
             if (view != null && !NodeId.IsNull(view.ViewId))
@@ -1107,7 +1107,7 @@ namespace Opc.Ua.Server
         /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermitions attributes needed for Browse and Read service</param>
         private void PrepareValidationCache<T>(List<T> nodesCollection,
-            out Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes) 
+            out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes) 
         {
             List<NodeId> uniqueNodes = new List<NodeId>();
             for (int i = 0; i < nodesCollection.Count; i++)
@@ -1123,10 +1123,6 @@ namespace Opc.Ua.Server
                 {
                     nodeId = (nodesCollection[i] as ReadValueId)?.NodeId;
                 }
-                else if (listType == typeof(CallMethodRequest))
-                {
-                    nodeId = (nodesCollection[i] as CallMethodRequest)?.MethodId;
-                }
 
                 if (nodeId == null)
                 {
@@ -1139,13 +1135,10 @@ namespace Opc.Ua.Server
                 }
             }
             // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
-            uniqueNodesServiceAttributes = new Dictionary<Tuple<INodeManager, NodeId>, List<object>>();
+            uniqueNodesServiceAttributes = new Dictionary<NodeId, List<object>>();
             foreach (var uniqueNode in uniqueNodes)
             {
-                for (int i = 0; i < m_nodeManagers.Count; i++)
-                {
-                    uniqueNodesServiceAttributes.Add(Tuple.Create(m_nodeManagers[i], uniqueNode), new List<object>());
-                }
+                uniqueNodesServiceAttributes.Add(uniqueNode, new List<object>());
             }
         }
 
@@ -1298,7 +1291,7 @@ namespace Opc.Ua.Server
             bool              assignContinuationPoint,
             BrowseDescription nodeToBrowse,
             BrowseResult      result,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesBrowseAttributes)
+            Dictionary<NodeId, List<object>> uniqueNodesBrowseAttributes)
         {
             Debug.Assert(context != null);
             Debug.Assert(nodeToBrowse != null);
@@ -1542,7 +1535,7 @@ namespace Opc.Ua.Server
                 nodesToRead.Count);
 
            
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesReadAttributes;
+            Dictionary<NodeId, List<object>> uniqueNodesReadAttributes;
             PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -2871,12 +2864,12 @@ namespace Opc.Ua.Server
         /// <param name="operationContext"></param>
         /// <param name="readValueId"></param>
         /// <param name="uniqueNodesReadAttributes"></param>
-        /// <param name="readOnlyValidationAttributes"></param>
+        /// <param name="permitionsOnly"></param>
         /// <returns></returns>
         protected ServiceResult ValidateReadRequest(OperationContext operationContext,
             ReadValueId readValueId,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesReadAttributes = null,
-            bool readOnlyValidationAttributes = false
+            Dictionary<NodeId, List<object>> uniqueNodesReadAttributes = null,
+            bool permitionsOnly = false
             )
         {
             ServiceResult serviceResult = ReadValueId.Validate(readValueId);
@@ -2899,7 +2892,7 @@ namespace Opc.Ua.Server
                     readValueId.NodeId,
                     requestedPermission,
                     uniqueNodesReadAttributes,
-                    readOnlyValidationAttributes);
+                    permitionsOnly);
             }
             return serviceResult;
         }
@@ -2983,15 +2976,15 @@ namespace Opc.Ua.Server
         /// <param name="nodeId">The node whose attributes are validated</param>
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
-        /// <param name="readOnlyValidationAttributes">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
+        /// <param name="permitionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
             NodeId nodeId,
             PermissionType requestedPermision,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes = null,
-            bool readOnlyValidationAttributes = false
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
+            bool permitionsOnly = false
            )
         {
             if (context.Session != null)
@@ -2999,7 +2992,7 @@ namespace Opc.Ua.Server
                 INodeManager nodeManager = null;
                 object nodeHandle = GetManagerHandle(nodeId, out nodeManager);
 
-                return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision, uniqueNodesServiceAttributes, readOnlyValidationAttributes);
+                return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision, uniqueNodesServiceAttributes, permitionsOnly);
             }
             return StatusCodes.Good;
         }
@@ -3013,7 +3006,7 @@ namespace Opc.Ua.Server
         /// <param name="nodeHandle">The node handle of the node whose attributes are validated</param>
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
-        /// <param name="readOnlyValidationAttributes">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
+        /// <param name="permitionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
@@ -3021,8 +3014,8 @@ namespace Opc.Ua.Server
             INodeManager nodeManager,
             object nodeHandle,
             PermissionType requestedPermision,
-            Dictionary<Tuple<INodeManager, NodeId>, List<object>> uniqueNodesServiceAttributes = null,
-            bool readOnlyValidationAttributes = false
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
+            bool permitionsOnly = false
             )
         {
             ServiceResult serviceResult = StatusCodes.Good;
@@ -3030,7 +3023,7 @@ namespace Opc.Ua.Server
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, readOnlyValidationAttributes);
+                NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permitionsOnly);
                 if (nodeMetadata != null)
                 {
                     // check RolePermissions 
