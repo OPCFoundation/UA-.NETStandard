@@ -33,6 +33,7 @@ namespace Opc.Ua
         public CertificateValidator()
         {
             m_validatedCertificates = new Dictionary<string, X509Certificate2>();
+            m_protectFlags = 0;
             m_autoAcceptUntrustedCertificates = false;
             m_rejectSHA1SignedCertificates = CertificateFactory.DefaultHashSize >= 256;
             m_rejectUnknownRevocationStatus = false;
@@ -172,10 +173,23 @@ namespace Opc.Ua
                     configuration.TrustedIssuerCertificates,
                     configuration.TrustedPeerCertificates,
                     configuration.RejectedCertificateStore);
-                m_autoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
-                m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
-                m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
-                m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
+                // protect the flags if application called to set property
+                if ((m_protectFlags & ProtectFlags.AutoAcceptUntrustedCertificates) == 0)
+                {
+                    m_autoAcceptUntrustedCertificates = configuration.AutoAcceptUntrustedCertificates;
+                }
+                if ((m_protectFlags & ProtectFlags.RejectSHA1SignedCertificates) == 0)
+                {
+                    m_rejectSHA1SignedCertificates = configuration.RejectSHA1SignedCertificates;
+                }
+                if ((m_protectFlags & ProtectFlags.RejectUnknownRevocationStatus) == 0)
+                {
+                    m_rejectUnknownRevocationStatus = configuration.RejectUnknownRevocationStatus;
+                }
+                if ((m_protectFlags & ProtectFlags.MinimumCertificateKeySize) == 0)
+                {
+                    m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
+                }
             }
 
             if (configuration.ApplicationCertificate != null)
@@ -213,20 +227,14 @@ namespace Opc.Ua
         /// </summary>
         public void ResetValidatedCertificates()
         {
-            Dictionary<string, X509Certificate2> oldValidatedCertificates;
             lock (m_lock)
             {
-                oldValidatedCertificates = m_validatedCertificates;
-                m_validatedCertificates = new Dictionary<string, X509Certificate2>();
-            }
-            // dispose outdated list
-            foreach (var cert in oldValidatedCertificates.Values)
-            {
-                try
+                // dispose outdated list
+                foreach (var cert in m_validatedCertificates.Values)
                 {
-                    cert.Dispose();
+                    Utils.SilentDispose(cert);
                 }
-                catch { }
+                m_validatedCertificates.Clear();
             }
         }
 
@@ -240,6 +248,7 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
+                    m_protectFlags |= ProtectFlags.AutoAcceptUntrustedCertificates;
                     if (m_autoAcceptUntrustedCertificates != value)
                     {
                         m_autoAcceptUntrustedCertificates = value;
@@ -259,6 +268,7 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
+                    m_protectFlags |= ProtectFlags.RejectSHA1SignedCertificates;
                     if (m_rejectSHA1SignedCertificates != value)
                     {
                         m_rejectSHA1SignedCertificates = value;
@@ -278,6 +288,7 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
+                    m_protectFlags |= ProtectFlags.RejectUnknownRevocationStatus;
                     if (m_rejectUnknownRevocationStatus != value)
                     {
                         m_rejectUnknownRevocationStatus = value;
@@ -297,6 +308,7 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
+                    m_protectFlags |= ProtectFlags.MinimumCertificateKeySize;
                     if (m_minimumCertificateKeySize != value)
                     {
                         m_minimumCertificateKeySize = value;
@@ -1239,6 +1251,21 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region Private Enum
+        /// <summary>
+        /// Flag to protect setting by application
+        /// from a modification by a SecurityConfiguration.
+        /// </summary>
+        [Flags]
+        private enum ProtectFlags
+        {
+            AutoAcceptUntrustedCertificates = 1,
+            RejectSHA1SignedCertificates = 2,
+            RejectUnknownRevocationStatus = 4,
+            MinimumCertificateKeySize = 8
+        };
+        #endregion
+
         #region Private Fields
         private object m_lock = new object();
         private object m_callbackLock = new object();
@@ -1251,6 +1278,7 @@ namespace Opc.Ua
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
         private X509Certificate2 m_applicationCertificate;
+        private ProtectFlags m_protectFlags;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;

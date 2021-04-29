@@ -338,7 +338,6 @@ namespace Opc.Ua
 
                             writer.WriteLine(output);
                             writer.Flush();
-                            writer.Dispose();
                         }
                     }
                     catch (Exception e)
@@ -924,10 +923,6 @@ namespace Opc.Ua
         #endregion
 
         #region String, Object and Data Convienence Functions
-        private const int MAX_MESSAGE_LENGTH = 1024;
-        private const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
-        private const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
-
         /// <summary>
         /// Supresses any exceptions while disposing the object.
         /// </summary>
@@ -937,22 +932,25 @@ namespace Opc.Ua
         public static void SilentDispose(object objectToDispose)
         {
             IDisposable disposable = objectToDispose as IDisposable;
+            SilentDispose(disposable);
+        }
 
-            if (disposable != null)
+        /// <summary>
+        /// Supresses any exceptions while disposing the object.
+        /// </summary>
+        /// <remarks>
+        /// Writes errors to trace output in DEBUG builds.
+        /// </remarks>
+        public static void SilentDispose(IDisposable disposable)
+        {
+            try
             {
-                try
-                {
-                    disposable.Dispose();
-                }
+                disposable?.Dispose();
+            }
+            catch (Exception e)
+            {
 #if DEBUG
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Error disposing object: {0}", disposable.GetType().Name);
-                }
-#else
-                catch (Exception)
-                {
-                }
+                Utils.Trace(e, "Error disposing object: {0}", disposable.GetType().Name);
 #endif
             }
         }
