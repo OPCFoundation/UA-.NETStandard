@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
+            encoder.PushNamespace(XmlNamespace);
 
             string fieldName = null;
             if (encoder.UseReversibleEncoding)
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public override void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             m_switchField = decoder.ReadUInt32("SwitchField");
 
