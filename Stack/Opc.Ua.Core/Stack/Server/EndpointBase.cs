@@ -285,25 +285,6 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         protected static IServiceHostBase GetHostForContext()
         {
-#if mist
-            // fetch the current operation context.
-            OperationContext context = OperationContext.Current;
-
-            if (context == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "The current thread does not have a valid WCF operation context.");
-            }
-
-            IServiceHostBase host = context.Host as IServiceHostBase;
-
-            if (host == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a host that supports IServerHostBase.");
-            }
-
-            return host;
-#endif
-
             throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a host that supports IServerHostBase.");
         }
 
