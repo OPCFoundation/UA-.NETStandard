@@ -1361,9 +1361,6 @@ namespace Opc.Ua
             /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
             public RequestQueue(ServerBase server, int minThreadCount, int maxThreadCount, int maxRequestCount)
             {
-                ThreadPool.SetMaxThreads(maxThreadCount, maxThreadCount);
-                ThreadPool.SetMinThreads(minThreadCount, minThreadCount);
-
                 m_server = server;
                 m_stopped = false;
                 m_minThreadCount = minThreadCount;
@@ -1371,7 +1368,12 @@ namespace Opc.Ua
                 m_maxRequestCount = maxRequestCount;
                 m_activeThreadCount = 0;
 
-                // adjust ThreadPool, only increase values
+#if THREAD_SCHEDULER
+                m_queue = new Queue<IEndpointIncomingRequest>();
+                m_totalThreadCount = 0;
+#endif
+
+                // adjust ThreadPool, only increase values if necessary
                 int minCompletionPortThreads;
                 ThreadPool.GetMinThreads(out minThreadCount, out minCompletionPortThreads);
                 ThreadPool.SetMinThreads(
@@ -1382,11 +1384,6 @@ namespace Opc.Ua
                 ThreadPool.SetMaxThreads(
                     Math.Max(maxThreadCount, m_maxThreadCount),
                     Math.Max(maxCompletionPortThreads, m_maxThreadCount));
-
-#if THREAD_SCHEDULER
-                m_queue = new Queue<IEndpointIncomingRequest>();
-                m_totalThreadCount = 0;
-#endif
             }
             #endregion
 
