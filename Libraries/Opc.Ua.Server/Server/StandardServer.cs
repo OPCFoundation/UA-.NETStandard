@@ -2665,20 +2665,22 @@ namespace Opc.Ua.Server
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="bindingFactory">The transport listener binding factory.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="endpoints">The endpoints.</param>
         /// <returns>
         /// Returns IList of a host for a UA service.
         /// </returns>
-        protected override IList<Task> InitializeServiceHosts(
+        protected override IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
+            TransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
             serverDescription = null;
             endpoints = null;
 
-            Dictionary<string, Task> hosts = new Dictionary<string, Task>();
+            var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
             if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
@@ -2711,7 +2713,7 @@ namespace Opc.Ua.Server
 
             foreach (var scheme in Utils.DefaultUriSchemes)
             {
-                var binding = TransportBindings.Listeners.GetBinding(scheme);
+                var binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
                 {
                     endpointsForHost = binding.CreateServiceHost(
@@ -2728,7 +2730,15 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return new List<Task>(hosts.Values);
+            return new List<ServiceHost>(hosts.Values);
+        }
+
+        /// <summary>
+        /// Creates an instance of the service host.
+        /// </summary>
+        public override ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        {
+            return new ServiceHost(this, typeof(SessionEndpoint), addresses);
         }
 
         /// <summary>

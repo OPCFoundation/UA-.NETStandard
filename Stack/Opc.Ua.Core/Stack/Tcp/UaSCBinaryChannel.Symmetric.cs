@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua.Bindings
 {
@@ -162,9 +163,12 @@ namespace Opc.Ua.Bindings
             }
         }
 
+
         /// <summary>
         /// Computes the keys for a token.
         /// </summary>
+        [SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 required for deprecated profiles")]
         protected void ComputeKeys(ChannelToken token)
         {
             if (SecurityMode == MessageSecurityMode.None)
