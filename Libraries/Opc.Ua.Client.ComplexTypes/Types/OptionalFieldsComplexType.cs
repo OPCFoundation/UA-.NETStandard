@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
+            encoder.PushNamespace(XmlNamespace);
 
             if (encoder.UseReversibleEncoding)
             {
@@ -109,7 +109,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public override void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             m_encodingMask = decoder.ReadUInt32("EncodingMask");
 
