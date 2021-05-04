@@ -460,7 +460,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the errr of the server.
+        /// Returns the error of the server.
         /// </summary>
         /// <value>The server error.</value>
         protected ServiceResult ServerError
