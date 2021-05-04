@@ -146,7 +146,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             publishedDataSet.DataSetMetaData.DataSetClassId = Uuid.Empty;
             publishedDataSet.DataSetMetaData.Name = publishedDataSet.Name;
             publishedDataSet.DataSetMetaData.Fields = fieldMetaDatas;
-            publishedDataSet.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            publishedDataSet.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -157,7 +158,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (var field in publishedDataSet.DataSetMetaData.Fields)
             {
                 publishedDataSetSimpleSource.PublishedData.Add(
-                    new PublishedVariableDataType() {
+                    new PublishedVariableDataType()
+                    {
                         PublishedVariable = new NodeId(field.Name, namespaceIndex),
                         AttributeId = Attributes.Value,
                     });
@@ -242,15 +244,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             metaData.DataSetClassId = new Uuid(Guid.Empty);
             metaData.Name = dataSetName;
             metaData.Fields = fieldMetaDatas;
-            metaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            metaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
 
             return metaData;
         }
-
-
+        
         #endregion
 
         /// <summary>
@@ -262,7 +264,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             if (pubSubConfiguration != null)
             {
-                return pubSubConfiguration.Connections.Find(x => x.PublisherId.Value == publisherId);
+                return pubSubConfiguration.Connections.Find(x => x.PublisherId.Value.Equals(publisherId));
             }
             return null;
         }
@@ -276,7 +278,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             if (connection != null)
             {
-                return connection.WriterGroups.Find(x=>x.WriterGroupId == writerGroupId);
+                return connection.WriterGroups.Find(x => x.WriterGroupId.Equals(writerGroupId));
             }
             return null;
         }
@@ -290,7 +292,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             if (connection != null)
             {
-                return connection.ReaderGroups.Find(x=>x.Name == $"ReaderGroup { writerGroupId}");
+                return connection.ReaderGroups.Find(x => x.Name == $"ReaderGroup { writerGroupId}");
             }
             return null;
         }
@@ -319,7 +321,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Define a PubSub connection with PublisherId 100
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Connection1 Publisher PubId:" + publisherId;
+            pubSubConnection1.Name = "Connection Publisher PubId:" + publisherId;
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = new Variant(publisherId);
             pubSubConnection1.TransportProfileUri = transportProfileUri;
@@ -342,29 +344,45 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             writerGroup1.MaxNetworkMessageSize = 1500;
 
             WriterGroupMessageDataType messageSettings = null;
+            WriterGroupTransportDataType transportSettings = null;
             switch (transportProfileUri)
             {
-                case Profiles.PubSubMqttJsonTransport:
-                    messageSettings = new JsonWriterGroupMessageDataType() {
-                        NetworkMessageContentMask = (uint)networkMessageContentMask
-                    };
-                    break;
-                case Profiles.PubSubMqttUadpTransport:
-                    messageSettings = new UadpWriterGroupMessageDataType() {
+                case Profiles.PubSubUdpUadpTransport:
+                    messageSettings = new UadpWriterGroupMessageDataType()
+                    {
                         DataSetOrdering = DataSetOrderingType.AscendingWriterId,
                         GroupVersion = 0,
                         NetworkMessageContentMask = (uint)networkMessageContentMask
                     };
+                    transportSettings = new DatagramWriterGroupTransportDataType();
+                    break;
+                case Profiles.PubSubMqttUadpTransport:
+                    messageSettings = new UadpWriterGroupMessageDataType()
+                    {
+                        DataSetOrdering = DataSetOrderingType.AscendingWriterId,
+                        GroupVersion = 0,
+                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                    };
+                    transportSettings = new BrokerWriterGroupTransportDataType()
+                    {
+                        QueueName = writerGroup1.Name,
+                    };
+                    break;
+                case Profiles.PubSubMqttJsonTransport:
+                    messageSettings = new JsonWriterGroupMessageDataType()
+                    {
+                        NetworkMessageContentMask = (uint)networkMessageContentMask
+                    };
+                    transportSettings = new BrokerWriterGroupTransportDataType()
+                    {
+                        QueueName = writerGroup1.Name,
+                    };
                     break;
             }
-            
 
             writerGroup1.MessageSettings = new ExtensionObject(messageSettings);
-            writerGroup1.TransportSettings = new ExtensionObject(
-                new BrokerWriterGroupTransportDataType() {
-                    QueueName = writerGroup1.Name,
-                }
-            );
+            writerGroup1.TransportSettings = new ExtensionObject(transportSettings);
+
             // create all dataset writers
             for (ushort dataSetWriterId = 1; dataSetWriterId <= dataSetMetaDataArray.Length; dataSetWriterId++)
             {
@@ -381,16 +399,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetWriterMessageDataType dataSetWriterMessage = null;
                 switch (transportProfileUri)
                 {
-                    case Profiles.PubSubMqttJsonTransport:
-                        dataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
+                    case Profiles.PubSubUdpUadpTransport:
+                        dataSetWriterMessage = new UadpDataSetWriterMessageDataType()
+                        {
                             DataSetMessageContentMask = dataSetMessageContentMask
                         };
                         break;
                     case Profiles.PubSubMqttUadpTransport:
-                        dataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
+                        dataSetWriterMessage = new UadpDataSetWriterMessageDataType()
+                        {
                             DataSetMessageContentMask = dataSetMessageContentMask
                         };
                         break;
+                    case Profiles.PubSubMqttJsonTransport:
+                        dataSetWriterMessage = new JsonDataSetWriterMessageDataType()
+                        {
+                            DataSetMessageContentMask = dataSetMessageContentMask
+                        };
+                        break;
+
                 }
 
                 dataSetWriter.MessageSettings = new ExtensionObject(dataSetWriterMessage);
@@ -423,7 +450,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 foreach (var field in dataSetMetaData.Fields)
                 {
                     publishedDataSetSource.PublishedData.Add(
-                        new PublishedVariableDataType() {
+                        new PublishedVariableDataType()
+                        {
                             PublishedVariable = new NodeId(field.Name, nameSpaceIndexForData),
                             AttributeId = Attributes.Value,
                         });
@@ -465,6 +493,57 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
                 dataSetMetaDataArray, nameSpaceIndexForData);
+        }
+
+        /// <summary>
+        /// Create a Publisher with the specified parameters for mqtt + udp together
+        /// </summary>
+        /// <param name="udpTransportProfileUri"></param>
+        /// <param name="udpAddressUrl"></param>
+        /// <param name="udpPublisherId"></param>
+        /// <param name="udpWriterGroupId"></param>
+        /// <param name="mqttTransportProfileUri"></param>
+        /// <param name="mqttAddressUrl"></param>
+        /// <param name="mqttPublisherId"></param>
+        /// <param name="mqttWriterGroupId"></param>
+        /// <param name="uadpNetworkMessageContentMask"></param>
+        /// <param name="uadpDataSetMessageContentMask"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="dataSetMetaDataArray"></param>
+        /// <param name="nameSpaceIndexForData"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateUdpPlusMqttPublisherConfiguration(
+            string udpTransportProfileUri, string udpAddressUrl, object udpPublisherId, ushort udpWriterGroupId,
+            string mqttTransportProfileUri, string mqttAddressUrl, object mqttPublisherId, ushort mqttWriterGroupId,
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+        {
+            PubSubConfigurationDataType udpPublisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                udpTransportProfileUri,
+                udpAddressUrl, publisherId: udpPublisherId, writerGroupId: udpWriterGroupId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: nameSpaceIndexForData);
+
+            PubSubConfigurationDataType mqttPublisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                mqttTransportProfileUri,
+                mqttAddressUrl, publisherId: mqttPublisherId, writerGroupId: mqttWriterGroupId,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: nameSpaceIndexForData);
+
+            // add the udp connection too
+            if (udpPublisherConfiguration.Connections != null &&
+                udpPublisherConfiguration.Connections.Count > 0)
+            {
+                mqttPublisherConfiguration.Connections.Add(udpPublisherConfiguration.Connections[0]);
+            }
+
+            return mqttPublisherConfiguration;
         }
 
         /// <summary>
@@ -511,7 +590,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             return pubSubConfiguration;
         }
-    
+
         /// <summary>
         /// Create a Publisher with the specified parameters for uadp
         /// </summary>
@@ -543,7 +622,39 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create a Publisher with the specified parameters
+        /// Create a Subscriber with the specified parameters for json
+        /// </summary>
+        /// <param name="transportProfileUri"></param>
+        /// <param name="addressUrl"></param>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <param name="setDataSetWriterId"></param>
+        /// <param name="jsonNetworkMessageContentMask"></param>
+        /// <param name="jsonDataSetMessageContentMask"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="dataSetMetaDataArray"></param>
+        /// <param name="nameSpaceIndexForData"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration(
+            string transportProfileUri, string addressUrl,
+            object publisherId, ushort writerGroupId, bool setDataSetWriterId,
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+        {
+            return CreateSubscriberConfiguration(
+                transportProfileUri, addressUrl,
+                publisherId, writerGroupId, setDataSetWriterId,
+                (UInt32)jsonNetworkMessageContentMask,
+                (UInt32)jsonDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray, nameSpaceIndexForData);
+        }
+
+
+        /// <summary>
+        /// Create a Subscriber with the specified parameters
         /// </summary>
         /// <param name="transportProfileUri"></param>
         /// <param name="addressUrl"></param>
@@ -612,36 +723,51 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetReader.KeyFrameCount = 1;
                 dataSetReader.DataSetMetaData = dataSetMetaData;
 
-                BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                    QueueName = "WriterGroup id:" + writerGroupId,
-                };
-
-                dataSetReader.TransportSettings = new ExtensionObject(brokerTransportSettings);
-
-                DataSetReaderMessageDataType dataSetReaderMessage = null;
+                DataSetReaderMessageDataType dataSetReaderMessageSettings = null;
+                DataSetReaderTransportDataType dataSetReaderTransportSettings = null;
                 switch (transportProfileUri)
                 {
-                    case Profiles.PubSubMqttJsonTransport:
-                        dataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
+                    case Profiles.PubSubUdpUadpTransport:
+                        dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType()
+                        {
                             NetworkMessageContentMask = (uint)networkMessageContentMask,
                             DataSetMessageContentMask = (uint)dataSetMessageContentMask,
                         };
+                        dataSetReaderTransportSettings = new DataSetReaderTransportDataType();
                         break;
                     case Profiles.PubSubMqttUadpTransport:
-                        dataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
+                        dataSetReaderMessageSettings = new UadpDataSetReaderMessageDataType()
+                        {
                             NetworkMessageContentMask = (uint)networkMessageContentMask,
                             DataSetMessageContentMask = (uint)dataSetMessageContentMask,
+                        };
+                        dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType()
+                        {
+                            QueueName = "WriterGroup id:" + writerGroupId,
+                        };
+                        break;
+                    case Profiles.PubSubMqttJsonTransport:
+                        dataSetReaderMessageSettings = new JsonDataSetReaderMessageDataType()
+                        {
+                            NetworkMessageContentMask = (uint)networkMessageContentMask,
+                            DataSetMessageContentMask = (uint)dataSetMessageContentMask,
+                        };
+                        dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType()
+                        {
+                            QueueName = "WriterGroup id:" + writerGroupId,
                         };
                         break;
                 }
 
-                dataSetReader.MessageSettings = new ExtensionObject(dataSetReaderMessage);
+                dataSetReader.MessageSettings = new ExtensionObject(dataSetReaderMessageSettings);
+                dataSetReader.TransportSettings = new ExtensionObject(dataSetReaderTransportSettings);
 
                 TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
                 subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
                 foreach (var fieldMetaData in dataSetMetaData.Fields)
                 {
-                    subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
+                    subscribedDataSet.TargetVariables.Add(new FieldTargetDataType()
+                    {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
                         TargetNodeId = new NodeId(fieldMetaData.Name, nameSpaceIndexForData),
                         AttributeId = Attributes.Value,
@@ -669,7 +795,91 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create a Publisher with the specified parameters for json
+        /// Create a Subscriber with the specified parameters for uadp
+        /// </summary>
+        /// <param name="transportProfileUri"></param>
+        /// <param name="addressUrl"></param>
+        /// <param name="publisherId"></param>
+        /// <param name="writerGroupId"></param>
+        /// <param name="setDataSetWriterId"></param>
+        /// <param name="uadpNetworkMessageContentMask"></param>
+        /// <param name="uadpDataSetMessageContentMask"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="dataSetMetaDataArray"></param>
+        /// <param name="nameSpaceIndexForData"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateSubscriberConfiguration(
+            string transportProfileUri, string addressUrl,
+            object publisherId, ushort writerGroupId, bool setDataSetWriterId,
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+        {
+            return CreateSubscriberConfiguration(
+                transportProfileUri, addressUrl,
+                publisherId, writerGroupId, setDataSetWriterId,
+                (UInt32)uadpNetworkMessageContentMask,
+                (UInt32)uadpDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray, nameSpaceIndexForData);
+        }
+
+        /// <summary>
+        /// Create a subscriber configuration for mqtt + udp together
+        /// </summary>
+        /// <param name="udpTransportProfileUri"></param>
+        /// <param name="udpAddressUrl"></param>
+        /// <param name="udpPublisherId"></param>
+        /// <param name="udpWriterGroupId"></param>
+        /// <param name="mqttTransportProfileUri"></param>
+        /// <param name="mqttAddressUrl"></param>
+        /// <param name="mqttPublisherId"></param>
+        /// <param name="mqttWriterGroupId"></param>
+        /// <param name="setDataSetWriterId"></param>
+        /// <param name="uadpNetworkMessageContentMask"></param>
+        /// <param name="uadpDataSetMessageContentMask"></param>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="dataSetMetaDataArray"></param>
+        /// <param name="nameSpaceIndexForData"></param>
+        /// <returns></returns>
+        public static PubSubConfigurationDataType CreateUdpPlusMqttSubscriberConfiguration(
+            string udpTransportProfileUri, string udpAddressUrl, object udpPublisherId, ushort udpWriterGroupId,
+            string mqttTransportProfileUri, string mqttAddressUrl, object mqttPublisherId, ushort mqttWriterGroupId,
+            bool setDataSetWriterId,
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
+            DataSetFieldContentMask dataSetFieldContentMask,
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+        {
+            PubSubConfigurationDataType udpSubscriberConfiguration = CreateSubscriberConfiguration(
+                udpTransportProfileUri, udpAddressUrl,
+                udpPublisherId, udpWriterGroupId, setDataSetWriterId,
+                uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray, nameSpaceIndexForData);
+
+            PubSubConfigurationDataType mqttSubscriberConfiguration = CreateSubscriberConfiguration(
+                mqttTransportProfileUri, mqttAddressUrl,
+                mqttPublisherId, mqttWriterGroupId, setDataSetWriterId,
+                uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray, nameSpaceIndexForData);
+
+            // add the udp connection too
+            if (udpSubscriberConfiguration.Connections != null &&
+                udpSubscriberConfiguration.Connections.Count > 0)
+            {
+                mqttSubscriberConfiguration.Connections.Add(udpSubscriberConfiguration.Connections[0]);
+            }
+
+            return mqttSubscriberConfiguration;
+        }
+
+        /// <summary>
+        /// Create Azure subscriber configuration
         /// </summary>
         /// <param name="transportProfileUri"></param>
         /// <param name="addressUrl"></param>
@@ -681,24 +891,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetFieldContentMask"></param>
         /// <param name="dataSetMetaDataArray"></param>
         /// <param name="nameSpaceIndexForData"></param>
+        /// <param name="topic"></param>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateSubscriberConfiguration(
-            string transportProfileUri, string addressUrl,
-            object publisherId, ushort writerGroupId, bool setDataSetWriterId,
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
-            DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
-        {
-            return CreateSubscriberConfiguration(
-                transportProfileUri,addressUrl,
-                publisherId, writerGroupId, setDataSetWriterId,
-                (UInt32)jsonNetworkMessageContentMask,
-                (UInt32)jsonDataSetMessageContentMask,
-                dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData);
-        }
-
         public static PubSubConfigurationDataType CreateAzureSubscriberConfiguration(
             string transportProfileUri, string addressUrl,
             object publisherId, ushort writerGroupId, bool setDataSetWriterId,
@@ -735,38 +929,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create a Publisher with the specified parameters for uadp
-        /// </summary>
-        /// <param name="transportProfileUri"></param>
-        /// <param name="addressUrl"></param>
-        /// <param name="publisherId"></param>
-        /// <param name="writerGroupId"></param>
-        /// <param name="setDataSetWriterId"></param>
-        /// <param name="uadpNetworkMessageContentMask"></param>
-        /// <param name="uadpDataSetMessageContentMask"></param>
-        /// <param name="dataSetFieldContentMask"></param>
-        /// <param name="dataSetMetaDataArray"></param>
-        /// <param name="nameSpaceIndexForData"></param>
-        /// <returns></returns>
-        public static PubSubConfigurationDataType CreateSubscriberConfiguration(
-            string transportProfileUri, string addressUrl,
-            object publisherId, ushort writerGroupId, bool setDataSetWriterId,
-            UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
-            UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
-            DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
-        {
-            return CreateSubscriberConfiguration(
-                transportProfileUri, addressUrl,
-                publisherId, writerGroupId, setDataSetWriterId,
-                (UInt32)uadpNetworkMessageContentMask,
-                (UInt32)uadpDataSetMessageContentMask,
-                dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData);
-        }
-
-        /// <summary>
-        /// Create versuon 1 of datasetmetadata
+        /// Create version of datasetmetadata matrixes
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -955,7 +1118,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         ValueRank = ValueRanks.TwoDimensions
                     },
                 };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -964,7 +1128,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create versuon 1 of datasetmetadata
+        /// Create version of datasetmetadata arrays
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1161,7 +1325,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         ValueRank = ValueRanks.OneDimension
                     },
                 };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1170,7 +1335,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create versuon 1 of datasetmetadata
+        /// Create version 1 of datasetmetadata
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1207,7 +1372,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         ValueRank = ValueRanks.Scalar
                     },
                 };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1253,7 +1419,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         ValueRank = ValueRanks.Scalar
                     }
                 };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -1299,13 +1466,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         ValueRank = ValueRanks.Scalar
                     }
                 };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
 
             return dataSetMetaData;
         }
+
         /// <summary>
         /// Create Metadata for all types
         /// </summary>
@@ -1980,7 +2149,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
 
             };
-            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
+            dataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = 1,
                 MajorVersion = 1
             };
@@ -2131,7 +2301,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue boolToggleMatrix = new DataValue(new Variant(new Matrix(new bool[] { true, false, true, false, true, false, true, false,
                                                                                                 true, false, true, false, true, false, true, false,
                                                                                                 true, false, true, false, true, false, true, false},
-                BuiltInType.Boolean, 2, 3, 4 )));
+                BuiltInType.Boolean, 2, 3, 4)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggleMatrix", namespaceIndexAllTypes), Attributes.Value, boolToggleMatrix);
             DataValue byteValueMatrix = new DataValue(new Variant(new Matrix(new byte[] { 127, 128, 101, 102 }, BuiltInType.Byte, 2, 2, 1)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteMatrix", namespaceIndexAllTypes), Attributes.Value, byteValueMatrix);
@@ -2162,7 +2332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataValue guidValueMatrix = new DataValue(new Variant(new Matrix(new Uuid[]
                 { new Uuid(new Guid()), new Uuid(new Guid()) , new Uuid(new Guid()), new Uuid(new Guid()) }, BuiltInType.Guid, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("GuidMatrix", namespaceIndexAllTypes), Attributes.Value, guidValueMatrix);
-            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[][] { new byte[]{ 1, 2 }, new byte[] { 11, 12 }, new byte[] { 21, 22 }, new byte[] { 31, 32 } }, BuiltInType.ByteString, 2, 2)));
+            DataValue byteStringValueMatrix = new DataValue(new Variant(new Matrix(new byte[][] { new byte[] { 1, 2 }, new byte[] { 11, 12 }, new byte[] { 21, 22 }, new byte[] { 31, 32 } }, BuiltInType.ByteString, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("ByteStringMatrix", namespaceIndexAllTypes), Attributes.Value, byteStringValueMatrix);
 
             XmlElement xmlElement1m = document.CreateElement("test1m");
@@ -2177,7 +2347,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             XmlElement xmlElement4m = document.CreateElement("test4m");
             xmlElement4m.InnerText = "Text_4m";
 
-            DataValue xmlElementValueMatrix = new DataValue(new Variant(new Matrix(new XmlElement[]{ xmlElement1m, xmlElement2m , xmlElement3m, xmlElement4m }, BuiltInType.XmlElement, 2, 2)));
+            DataValue xmlElementValueMatrix = new DataValue(new Variant(new Matrix(new XmlElement[] { xmlElement1m, xmlElement2m, xmlElement3m, xmlElement4m }, BuiltInType.XmlElement, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("XmlElementMatrix", namespaceIndexAllTypes), Attributes.Value, xmlElementValueMatrix);
             DataValue nodeIdValueMatrix = new DataValue(new Variant(new Matrix(new NodeId[] { new NodeId(30, 1), new NodeId(20, 3), new NodeId(10, 3), new NodeId(50, 7) }, BuiltInType.NodeId, 2, 2)));
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("NodeIdMatrix", namespaceIndexAllTypes), Attributes.Value, nodeIdValueMatrix);

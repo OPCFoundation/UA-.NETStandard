@@ -150,7 +150,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             subscriberConnection.Start();
 
             publisherConnection.Start();
-            publisherConnection.PublishNetworkMessage(uaNetworkMessage);
 
             //Assert
             if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
@@ -262,7 +261,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             subscriberConnection.Start();
 
             publisherConnection.Start();
-            publisherConnection.PublishNetworkMessage(uaNetworkMessage);
 
             //Assert
             if (!m_shutdownEvent.WaitOne(EstimatedPublishingTime))
