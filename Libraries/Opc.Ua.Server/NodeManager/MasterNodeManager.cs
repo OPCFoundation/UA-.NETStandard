@@ -990,9 +990,6 @@ namespace Opc.Ua.Server
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (nodesToBrowse == null) throw new ArgumentNullException(nameof(nodesToBrowse));
 
-            Dictionary<NodeId, List<object>> uniqueNodesBrowseAttributes;
-            PrepareValidationCache(nodesToBrowse, out uniqueNodesBrowseAttributes);
-
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
                 INodeManager viewManager = null;
@@ -1011,7 +1008,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate access rights and role permissions
-                ServiceResult validationResult = ValidatePermissions(context, viewManager, viewHandle, PermissionType.Browse, uniqueNodesBrowseAttributes);
+                ServiceResult validationResult = ValidatePermissions(context, viewManager, viewHandle, PermissionType.Browse, null, true);
                 if (ServiceResult.IsBad(validationResult))
                 {
                     throw new ServiceResultException(validationResult);
@@ -1061,8 +1058,7 @@ namespace Opc.Ua.Server
                         maxReferencesPerNode,
                         continuationPointsAssigned < m_maxContinuationPointsPerBrowse,
                         nodeToBrowse,
-                        result,
-                        uniqueNodesBrowseAttributes);
+                        result);
                 }
                 catch (Exception e)
                 {
@@ -1099,10 +1095,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepare a cache per NodeManager and unique NodeId that holds the attributes needed to validate the AccessRestrictions and RolePermitions.
         /// This cache is then used in subsequenct calls to avoid triggering unnecessary time consuming callbacks.
-        /// The current services that benefit from this are the Read and Browse services.
+        /// The current services that benefit from this are the Read service
         /// </summary>
         /// <typeparam name="T">One of the followng types used in the service calls:
-        ///     BrowseDescription used in Browse service
         ///     ReadValueId used in the Read service</typeparam>
         /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermitions attributes needed for Browse and Read service</param>
@@ -1115,11 +1110,7 @@ namespace Opc.Ua.Server
                 Type listType = typeof(T);
                 NodeId nodeId = null;
 
-                if (listType == typeof(BrowseDescription))
-                {
-                    nodeId = (nodesCollection[i] as BrowseDescription)?.NodeId;
-                }
-                else if (listType == typeof(ReadValueId))
+                if (listType == typeof(ReadValueId))
                 {
                     nodeId = (nodesCollection[i] as ReadValueId)?.NodeId;
                 }
@@ -1290,8 +1281,7 @@ namespace Opc.Ua.Server
             uint              maxReferencesPerNode,
             bool              assignContinuationPoint,
             BrowseDescription nodeToBrowse,
-            BrowseResult      result,
-            Dictionary<NodeId, List<object>> uniqueNodesBrowseAttributes)
+            BrowseResult      result)
         {
             Debug.Assert(context != null);
             Debug.Assert(nodeToBrowse != null);
@@ -1317,7 +1307,7 @@ namespace Opc.Ua.Server
             }
 
             // validate access rights and role permissions
-            ServiceResult validationResult = ValidatePermissions(context, nodeManager, handle, PermissionType.Browse, uniqueNodesBrowseAttributes);
+            ServiceResult validationResult = ValidatePermissions(context, nodeManager, handle, PermissionType.Browse, null, true);
             if (ServiceResult.IsBad(validationResult))
             {
                 return validationResult;
