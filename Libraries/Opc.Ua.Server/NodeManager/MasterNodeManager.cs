@@ -2854,12 +2854,12 @@ namespace Opc.Ua.Server
         /// <param name="operationContext"></param>
         /// <param name="readValueId"></param>
         /// <param name="uniqueNodesReadAttributes"></param>
-        /// <param name="permitionsOnly"></param>
+        /// <param name="permissionsOnly"></param>
         /// <returns></returns>
         protected ServiceResult ValidateReadRequest(OperationContext operationContext,
             ReadValueId readValueId,
             Dictionary<NodeId, List<object>> uniqueNodesReadAttributes = null,
-            bool permitionsOnly = false
+            bool permissionsOnly = false
             )
         {
             ServiceResult serviceResult = ReadValueId.Validate(readValueId);
@@ -2882,7 +2882,7 @@ namespace Opc.Ua.Server
                     readValueId.NodeId,
                     requestedPermission,
                     uniqueNodesReadAttributes,
-                    permitionsOnly);
+                    permissionsOnly);
             }
             return serviceResult;
         }
@@ -2966,7 +2966,7 @@ namespace Opc.Ua.Server
         /// <param name="nodeId">The node whose attributes are validated</param>
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
-        /// <param name="permitionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
+        /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
@@ -2974,7 +2974,7 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             PermissionType requestedPermision,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permitionsOnly = false
+            bool permissionsOnly = false
            )
         {
             if (context.Session != null)
@@ -2982,7 +2982,7 @@ namespace Opc.Ua.Server
                 INodeManager nodeManager = null;
                 object nodeHandle = GetManagerHandle(nodeId, out nodeManager);
 
-                return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision, uniqueNodesServiceAttributes, permitionsOnly);
+                return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision, uniqueNodesServiceAttributes, permissionsOnly);
             }
             return StatusCodes.Good;
         }
@@ -2996,7 +2996,7 @@ namespace Opc.Ua.Server
         /// <param name="nodeHandle">The node handle of the node whose attributes are validated</param>
         /// <param name="requestedPermision">The requested permission</param>
         /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
-        /// <param name="permitionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
+        /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
@@ -3005,7 +3005,7 @@ namespace Opc.Ua.Server
             object nodeHandle,
             PermissionType requestedPermision,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permitionsOnly = false
+            bool permissionsOnly = false
             )
         {
             ServiceResult serviceResult = StatusCodes.Good;
@@ -3013,7 +3013,7 @@ namespace Opc.Ua.Server
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permitionsOnly);
+                NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
                 if (nodeMetadata != null)
                 {
                     // check RolePermissions 

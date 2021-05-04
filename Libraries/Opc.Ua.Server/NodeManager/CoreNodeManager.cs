@@ -464,7 +464,7 @@ namespace Opc.Ua.Server
             object           targetHandle,
             BrowseResultMask resultMask,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permitionsOnly = false
+            bool permissionsOnly = false
             )
         {
             if (context == null) throw new ArgumentNullException(nameof(context));

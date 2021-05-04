@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
             object           targetHandle,
             BrowseResultMask resultMask,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache = null,
-            bool permitionsOnly = false);
+            bool permissionsOnly = false);
         
         /// <summary>
         /// Returns the set of references that meet the filter criteria.

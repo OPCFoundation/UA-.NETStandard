@@ -1051,7 +1051,7 @@ namespace Opc.Ua.Server
             object targetHandle,
             BrowseResultMask resultMask,
             Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permitionsOnly = false)
+            bool permissionsOnly = false)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
 
@@ -1105,7 +1105,7 @@ namespace Opc.Ua.Server
 
                     SetAccessAndRolePermissions(values, metadata);
                 }// All other calls that do not use the cache
-                else if (permitionsOnly == true)
+                else if (permissionsOnly == true)
                 {
                     values = ReadValidationAttributes(systemContext, target);
                     SetAccessAndRolePermissions(values, metadata);
