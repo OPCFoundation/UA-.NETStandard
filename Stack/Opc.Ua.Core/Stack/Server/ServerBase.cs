@@ -10,12 +10,17 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+// use a thread scheduler with dedicated worker threads
+#define THREAD_SCHEDULER
+
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -33,7 +38,7 @@ namespace Opc.Ua
         {
             m_messageContext = new ServiceMessageContext();
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
-            m_hosts = new List<Task>();
+            m_hosts = new List<ServiceHost>();
             m_listeners = new List<ITransportListener>();
             m_endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
@@ -195,7 +200,7 @@ namespace Opc.Ua
         /// for a UA application</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
         /// <returns>Returns a host for a UA service.</returns>
-        public Task Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
+        public ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
@@ -204,6 +209,9 @@ namespace Opc.Ua
 
             // intialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
+
+            // create the binding factory.
+            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
@@ -215,8 +223,9 @@ namespace Opc.Ua
             ApplicationDescription serverDescription = null;
             EndpointDescriptionCollection endpoints = null;
 
-            IList<Task> hosts = InitializeServiceHosts(
+            IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
+                bindingFactory,
                 out serverDescription,
                 out endpoints);
 
@@ -240,6 +249,7 @@ namespace Opc.Ua
             {
                 for (int ii = 1; ii < hosts.Count; ii++)
                 {
+                    hosts[ii].Open();
                     m_hosts.Add(hosts[ii]);
                 }
             }
@@ -263,6 +273,9 @@ namespace Opc.Ua
             // intialize the request queue from the configuration.
             InitializeRequestQueue(configuration);
 
+            // create the listener factory.
+            TransportListenerBindings bindingFactory = TransportBindings.Listeners;
+
             // initialize the server capabilities
             ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
 
@@ -273,8 +286,9 @@ namespace Opc.Ua
             ApplicationDescription serverDescription = null;
             EndpointDescriptionCollection endpoints = null;
 
-            IList<Task> hosts = InitializeServiceHosts(
+            IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
+                bindingFactory,
                 out serverDescription,
                 out endpoints);
 
@@ -288,8 +302,9 @@ namespace Opc.Ua
             // open the hosts.
             lock (m_hosts)
             {
-                foreach (Task serviceHost in hosts)
+                foreach (ServiceHost serviceHost in hosts)
                 {
+                    serviceHost.Open();
                     m_hosts.Add(serviceHost);
                 }
             }
@@ -431,6 +446,16 @@ namespace Opc.Ua
             }
 
             // ensure configuration errors don't render the server inoperable.
+            if (minRequestThreadCount < 1)
+            {
+                minRequestThreadCount = 1;
+            }
+
+            if (maxRequestThreadCount < minRequestThreadCount)
+            {
+                maxRequestThreadCount = minRequestThreadCount;
+            }
+
             if (maxRequestThreadCount < 100)
             {
                 maxRequestThreadCount = 100;
@@ -488,7 +513,14 @@ namespace Opc.Ua
             // close the hosts.
             lock (m_hosts)
             {
-                m_hosts.Clear();
+                foreach (ServiceHost host in m_hosts)
+                {
+                    if (host.State == ServiceHostState.Opened)
+                    {
+                        host.Abort();
+                    }
+                    host.Close();
+                }
             }
         }
         #endregion
@@ -634,6 +666,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Gets the list of service hosts used by the server instance.
+        /// </summary>
+        /// <value>The service hosts.</value>
+        protected List<ServiceHost> ServiceHosts
+        {
+            get { return m_hosts; }
+        }
+
+        /// <summary>
         /// Gets or set the capabilities for the server.
         /// </summary>
         protected StringCollection ServerCapabilities { get; set; }
@@ -646,6 +687,14 @@ namespace Opc.Ua
         #endregion
 
         #region Protected Methods
+        /// <summary>
+        /// Creates an instance of the service host.
+        /// </summary>
+        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        {
+            return null;
+        }
+
         /// <summary>
         /// Returns the service contract to use.
         /// </summary>
@@ -666,7 +715,6 @@ namespace Opc.Ua
         /// Specifies if the server requires encryption; if so the server needs to send its certificate to the clients and validate the client certificates
         /// </summary>
         /// <param name="description">The description.</param>
-        /// <returns></returns>
         public static bool RequireEncryption(EndpointDescription description)
         {
             bool requireEncryption = description.SecurityPolicyUri != SecurityPolicies.None;
@@ -737,12 +785,14 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                string message = $"Could not load {endpointUri.Scheme} Stack Listener.";
+                StringBuilder message = new StringBuilder();
+                message.Append("Could not load ").Append(endpointUri.Scheme).Append(" Stack Listener.");
                 if (e.InnerException != null)
                 {
-                    message += (" " + e.InnerException.Message);
+                    message.Append(' ')
+                        .Append(e.InnerException.Message);
                 }
-                Utils.Trace(e, message);
+                Utils.Trace(e, message.ToString());
                 throw;
             }
         }
@@ -809,13 +859,12 @@ namespace Opc.Ua
                 return computerName.ToUpper();
             }
 
-
             // check if client is using an ip address.
             IPAddress address = null;
 
-            if (System.Net.IPAddress.TryParse(hostname, out address))
+            if (IPAddress.TryParse(hostname, out address))
             {
-                if (System.Net.IPAddress.IsLoopback(address))
+                if (IPAddress.IsLoopback(address))
                 {
                     return computerName.ToUpper();
                 }
@@ -833,6 +882,17 @@ namespace Opc.Ua
 
                 // not a localhost IP address.
                 return hostname.ToUpper();
+            }
+
+            // check for aliases.
+            System.Net.IPHostEntry entry = System.Net.Dns.GetHostEntry(computerName);
+
+            for (int ii = 0; ii < entry.Aliases.Length; ii++)
+            {
+                if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                {
+                    return computerName.ToUpper();
+                }
             }
 
             // return normalized hostname.
@@ -920,7 +980,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the best discovery URL for the base address based on the URL used by the client.
         /// </summary>
-        private string GetBestDiscoveryUrl(Uri clientUrl, BaseAddress baseAddress)
+        private static string GetBestDiscoveryUrl(Uri clientUrl, BaseAddress baseAddress)
         {
             string url = baseAddress.Url.ToString();
 
@@ -1170,7 +1230,7 @@ namespace Opc.Ua
             // load the instance certificate.
             if (configuration.SecurityConfiguration.ApplicationCertificate != null)
             {
-                InstanceCertificate = configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
+                InstanceCertificate = configuration.SecurityConfiguration.ApplicationCertificate.Find(true).GetAwaiter().GetResult();
             }
 
             if (InstanceCertificate == null)
@@ -1233,17 +1293,19 @@ namespace Opc.Ua
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
+        /// <param name="bindingFactory">The object of a class that manages a mapping between a URL scheme and a listener.</param>
         /// <param name="serverDescription">The object of the class that contains a description for the ApplicationDescription DataType.</param>
         /// <param name="endpoints">The collection of <see cref="EndpointDescription"/> objects.</param>
         /// <returns>Returns list of hosts for a UA service.</returns>
-        protected virtual IList<Task> InitializeServiceHosts(
+        protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
+            TransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
             serverDescription = null;
             endpoints = null;
-            return new List<Task>();
+            return new List<ServiceHost>();
         }
 
         /// <summary>
@@ -1276,7 +1338,8 @@ namespace Opc.Ua
         /// Processes the request.
         /// </summary>
         /// <param name="request">The request.</param>
-        protected virtual void ProcessRequest(IEndpointIncomingRequest request)
+        /// <param name="calldata">The calldata passed with the request.</param>
+        protected virtual void ProcessRequest(IEndpointIncomingRequest request, object calldata)
         {
             request.CallSynchronously();
         }
@@ -1300,6 +1363,27 @@ namespace Opc.Ua
             {
                 m_server = server;
                 m_stopped = false;
+                m_minThreadCount = minThreadCount;
+                m_maxThreadCount = maxThreadCount;
+                m_maxRequestCount = maxRequestCount;
+                m_activeThreadCount = 0;
+
+#if THREAD_SCHEDULER
+                m_queue = new Queue<IEndpointIncomingRequest>();
+                m_totalThreadCount = 0;
+#endif
+
+                // adjust ThreadPool, only increase values if necessary
+                int minCompletionPortThreads;
+                ThreadPool.GetMinThreads(out minThreadCount, out minCompletionPortThreads);
+                ThreadPool.SetMinThreads(
+                    Math.Max(minThreadCount, m_minThreadCount),
+                    Math.Max(minCompletionPortThreads, m_minThreadCount));
+                int maxCompletionPortThreads;
+                ThreadPool.GetMaxThreads(out maxThreadCount, out maxCompletionPortThreads);
+                ThreadPool.SetMaxThreads(
+                    Math.Max(maxThreadCount, m_maxThreadCount),
+                    Math.Max(maxCompletionPortThreads, m_maxThreadCount));
             }
             #endregion
 
@@ -1319,7 +1403,18 @@ namespace Opc.Ua
             {
                 if (disposing)
                 {
+#if THREAD_SCHEDULER
+                    lock (m_lock)
+                    {
+                        m_stopped = true;
+
+                        Monitor.PulseAll(m_lock);
+
+                        m_queue.Clear();
+                    }
+#else
                     m_stopped = true;
+#endif
                 }
             }
             #endregion
@@ -1331,22 +1426,138 @@ namespace Opc.Ua
             /// <param name="request">The request.</param>
             public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
-                if (m_stopped)
+#if THREAD_SCHEDULER
+                bool tooManyOperations = false;
+
+                // queue the request.
+                lock (m_lock)   // i.e. Monitor.Enter(m_lock)
+                {
+                    // check able to schedule requests.
+                    if (m_stopped || m_queue.Count >= m_maxRequestCount)
+                    {
+                        tooManyOperations = true;
+                    }
+                    else
+                    {
+                        m_queue.Enqueue(request);
+
+                        // wake up an idle thread to handle the request if there is one
+                        if (m_activeThreadCount < m_totalThreadCount)
+                        {
+                            Monitor.Pulse(m_lock);
+                        }
+                        // start a new thread to handle the request if none are idle and the pool is not full.
+                        else if (m_totalThreadCount < m_maxThreadCount)
+                        {
+                            Thread thread = new Thread(OnProcessRequestQueue);
+                            thread.IsBackground = true;
+                            thread.Start(null);
+                            m_totalThreadCount++;
+                            m_activeThreadCount++;  // new threads start in an active state
+
+                            Utils.Trace(Utils.TraceMasks.Error, "Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
+                        }
+                    }
+                }
+
+                if (tooManyOperations)
                 {
                     request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
                 }
-                else
+#else
+                if (m_stopped)
                 {
-                    Task.Run(() => {
-                        m_server.ProcessRequest(request);
-                    });
+                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    return;
+                }
+
+                int activeThreadCount = Interlocked.Increment(ref m_activeThreadCount);
+                if (activeThreadCount >= m_maxRequestCount)
+                {
+                    Interlocked.Decrement(ref m_activeThreadCount);
+                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    Utils.Trace(Utils.TraceMasks.Error, "Too many operations. Active thread count: {0}", m_activeThreadCount);
+                    return;
+                }
+
+                Task.Run(() => {
+                    try
+                    {
+                        m_server.ProcessRequest(request, null);
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref m_activeThreadCount);
+                    }
+                });
+#endif
+            }
+            #endregion
+
+            #region Private Methods
+#if THREAD_SCHEDULER
+            /// <summary>
+            /// Processes the requests in the request queue.
+            /// </summary>
+            private void OnProcessRequestQueue(object state)
+            {
+                lock (m_lock)   // i.e. Monitor.Enter(m_lock)
+                {
+                    while (true)
+                    {
+                        // check if the queue is empty.
+                        while (m_queue.Count == 0)
+                        {
+                            m_activeThreadCount--;
+
+                            // wait for a request. end the thread if no activity.
+                            if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
+                            {
+                                m_totalThreadCount--;
+
+                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Thread.CurrentThread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
+
+                                return;
+                            }
+
+                            m_activeThreadCount++;
+                        }
+
+                        IEndpointIncomingRequest request = m_queue.Dequeue();
+
+                        Monitor.Exit(m_lock);
+
+                        try
+                        {
+                            // process the request.
+                            m_server.ProcessRequest(request, state);
+                        }
+                        catch (Exception e)
+                        {
+                            Utils.Trace(e, "Unexpected error processing incoming request.");
+                        }
+                        finally
+                        {
+                            Monitor.Enter(m_lock);
+                        }
+                    }
                 }
             }
+#endif
             #endregion
 
             #region Private Fields
             private ServerBase m_server;
             private bool m_stopped;
+            private int m_activeThreadCount;
+            private int m_maxThreadCount;
+            private int m_minThreadCount;
+            private int m_maxRequestCount;
+#if THREAD_SCHEDULER
+            private object m_lock = new object();
+            private Queue<IEndpointIncomingRequest> m_queue;
+            private int m_totalThreadCount;
+#endif
             #endregion
 
         }
@@ -1361,7 +1572,7 @@ namespace Opc.Ua
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;
-        private List<Task> m_hosts;
+        private List<ServiceHost> m_hosts;
         private List<ITransportListener> m_listeners;
         private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
