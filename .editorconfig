@@ -262,3 +262,5 @@ dotnet_naming_style.pascal_case_style.capitalization                          = 
 # CA3075: Insecure DTD processing in XML
 dotnet_diagnostic.CA3075.severity = warning
 
+# RCS1090: Add call to 'ConfigureAwait' (or vice versa)
+dotnet_diagnostic.RCS1090.severity = warning
