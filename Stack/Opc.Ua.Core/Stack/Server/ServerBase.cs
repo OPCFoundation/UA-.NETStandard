@@ -519,8 +519,8 @@ namespace Opc.Ua
                     {
                         host.Abort();
                     }
+                    host.Close();
                 }
-                m_hosts.Clear();
             }
         }
         #endregion
@@ -1361,9 +1361,6 @@ namespace Opc.Ua
             /// <param name="maxRequestCount">The maximum number of requests that will placed in the queue.</param>
             public RequestQueue(ServerBase server, int minThreadCount, int maxThreadCount, int maxRequestCount)
             {
-                ThreadPool.SetMaxThreads(maxThreadCount, maxThreadCount);
-                ThreadPool.SetMinThreads(minThreadCount, minThreadCount);
-
                 m_server = server;
                 m_stopped = false;
                 m_minThreadCount = minThreadCount;
