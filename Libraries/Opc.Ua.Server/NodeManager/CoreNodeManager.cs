@@ -462,8 +462,7 @@ namespace Opc.Ua.Server
         public NodeMetadata GetNodeMetadata(
             OperationContext context,
             object           targetHandle,
-            BrowseResultMask resultMask
-            )
+            BrowseResultMask resultMask)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             
