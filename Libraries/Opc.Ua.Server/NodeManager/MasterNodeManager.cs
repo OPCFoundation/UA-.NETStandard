@@ -3015,19 +3015,16 @@ namespace Opc.Ua.Server
             {
                 INodeManager2 nodeManager2 = nodeManager as INodeManager2;
 
-                NodeMetadata nodeMetadata;
+                NodeMetadata nodeMetadata = null;
                 // First attempt to retrieve just the Permission metadata with or without cache optimization
                 // If it happens that nodemanager does not fully implement INodeManager2.GetPermissionMetadata or not INodeManager2,
                 // fallback to INodeManager.GetNodeMetadata
                 if (nodeManager2 != null)
                 {
-                    nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
-                    if (nodeMetadata == null)
-                    {
-                        nodeMetadata = nodeManager2.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
-                    }
+                    nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly); 
                 }
-                else
+                // If not INodeManager2 or GetPermissionMetadata() returns null.
+                if (nodeMetadata == null)
                 {
                     nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
                 }
