@@ -1093,14 +1093,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Prepare a cache per NodeManager and unique NodeId that holds the attributes needed to validate the AccessRestrictions and RolePermitions.
+        /// Prepare a cache per NodeManager and unique NodeId that holds the attributes needed to validate the AccessRestrictions and RolePermissions.
         /// This cache is then used in subsequenct calls to avoid triggering unnecessary time consuming callbacks.
         /// The current services that benefit from this are the Read service
         /// </summary>
-        /// <typeparam name="T">One of the followng types used in the service calls:
+        /// <typeparam name="T">One of the following types used in the service calls:
         ///     ReadValueId used in the Read service</typeparam>
         /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
-        /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermitions attributes needed for Browse and Read service</param>
+        /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermissions attributes needed for Read service</param>
         private void PrepareValidationCache<T>(List<T> nodesCollection,
             out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes) 
         {
@@ -3013,7 +3013,25 @@ namespace Opc.Ua.Server
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
+                INodeManager2 nodeManager2 = nodeManager as INodeManager2;
+
+                NodeMetadata nodeMetadata;
+                // First attempt to retrieve just the Permission metadata with or without cache optimization
+                // If it happens that nodemanager does not fully implement INodeManager2.GetPermissionMetadata or not INodeManager2,
+                // fallback to INodeManager.GetNodeMetadata
+                if (nodeManager2 != null)
+                {
+                    nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
+                    if (nodeMetadata == null)
+                    {
+                        nodeMetadata = nodeManager2.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
+                    }
+                }
+                else
+                {
+                    nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
+                }
+
                 if (nodeMetadata != null)
                 {
                     // check RolePermissions 
@@ -3029,7 +3047,6 @@ namespace Opc.Ua.Server
 
             return serviceResult;
         }
-
 
         /// <summary>
         /// Validate the AccessRestrictions attribute

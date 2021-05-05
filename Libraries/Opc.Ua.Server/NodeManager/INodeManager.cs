@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
             bool           isInverse, 
             ExpandedNodeId targetId, 
             bool           deleteBidirectional);
-         
+
         /// <summary>
         /// Returns the metadata associated with the node.
         /// </summary>
@@ -105,11 +105,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         NodeMetadata GetNodeMetadata(
             OperationContext context,
-            object           targetHandle,
-            BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache = null,
-            bool permissionsOnly = false);
-        
+            object targetHandle,
+            BrowseResultMask resultMask);
+
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
@@ -314,6 +312,21 @@ namespace Opc.Ua.Server
         /// Returns true if the node is in the view.
         /// </summary>
         bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle);
+
+        /// <summary>
+        /// Returns the metadata needed for validating permissions, associated with the node with
+        /// the option to optimize services by using a cache.
+        /// </summary>
+        /// <remarks>
+        /// Returns null if the node does not exist.
+        /// It should return null in case the implementation wishes to handover the task to the parent INodeManager.GetNodeMetadata
+        /// </remarks>
+        NodeMetadata GetPermissionMetadata(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributesCache,
+            bool permissionsOnly);
     }
     
     /// <summary>

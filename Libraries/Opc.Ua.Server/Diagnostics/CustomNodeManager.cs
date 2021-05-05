@@ -1047,11 +1047,9 @@ namespace Opc.Ua.Server
         /// This method validates any placeholder handle.
         /// </remarks>
         public virtual NodeMetadata GetNodeMetadata(
-            OperationContext context,
-            object targetHandle,
-            BrowseResultMask resultMask,
-            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
-            bool permissionsOnly = false)
+                   OperationContext context,
+                   object targetHandle,
+                   BrowseResultMask resultMask)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
 
@@ -1073,7 +1071,22 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                List<object> values = null;
+                // read the attributes.
+                List<object> values = target.ReadAttributes(
+                    systemContext,
+                    Attributes.WriteMask,
+                    Attributes.UserWriteMask,
+                    Attributes.DataType,
+                    Attributes.ValueRank,
+                    Attributes.ArrayDimensions,
+                    Attributes.AccessLevel,
+                    Attributes.UserAccessLevel,
+                    Attributes.EventNotifier,
+                    Attributes.Executable,
+                    Attributes.UserExecutable,
+                    Attributes.AccessRestrictions,
+                    Attributes.RolePermissions,
+                    Attributes.UserRolePermissions);
 
                 // construct the meta-data object.
                 NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
@@ -1082,97 +1095,48 @@ namespace Opc.Ua.Server
                 metadata.BrowseName = target.BrowseName;
                 metadata.DisplayName = target.DisplayName;
 
-                // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
-                if (uniqueNodesServiceAttributes != null)
+                if (values[0] != null && values[1] != null)
                 {
-                    NodeId key = handle.NodeId;
-                    if (uniqueNodesServiceAttributes.ContainsKey(key))
-                    {
-                        if (uniqueNodesServiceAttributes[key].Count == 0)
-                        {
-                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
-                        }
-                        else
-                        {
-                            // Retrieve value from cache
-                            values = uniqueNodesServiceAttributes[key];
-                        }
-                    }
-                    else
-                    {
-                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
-                    }
-
-                    SetAccessAndRolePermissions(values, metadata);
-                }// All other calls that do not use the cache
-                else if (permissionsOnly == true)
-                {
-                    values = ReadValidationAttributes(systemContext, target);
-                    SetAccessAndRolePermissions(values, metadata);
+                    metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) & ((uint)values[1]));
                 }
-                else
+
+                metadata.DataType = (NodeId)values[2];
+
+                if (values[3] != null)
                 {
-                    values = target.ReadAttributes(
-                                                       systemContext,
-                                                       Attributes.WriteMask,
-                                                       Attributes.UserWriteMask,
-                                                       Attributes.DataType,
-                                                       Attributes.ValueRank,
-                                                       Attributes.ArrayDimensions,
-                                                       Attributes.AccessLevel,
-                                                       Attributes.UserAccessLevel,
-                                                       Attributes.EventNotifier,
-                                                       Attributes.Executable,
-                                                       Attributes.UserExecutable,
-                                                       Attributes.AccessRestrictions,
-                                                       Attributes.RolePermissions,
-                                                       Attributes.UserRolePermissions);
+                    metadata.ValueRank = (int)values[3];
+                }
 
-                    // read the attributes.
+                metadata.ArrayDimensions = (IList<uint>)values[4];
 
-                    if (values[0] != null && values[1] != null)
-                    {
-                        metadata.WriteMask = (AttributeWriteMask)(((uint)values[0]) & ((uint)values[1]));
-                    }
+                if (values[5] != null && values[6] != null)
+                {
+                    metadata.AccessLevel = (byte)(((byte)values[5]) & ((byte)values[6]));
+                }
 
-                    metadata.DataType = (NodeId)values[2];
+                if (values[7] != null)
+                {
+                    metadata.EventNotifier = (byte)values[7];
+                }
 
-                    if (values[3] != null)
-                    {
-                        metadata.ValueRank = (int)values[3];
-                    }
+                if (values[8] != null && values[9] != null)
+                {
+                    metadata.Executable = (((bool)values[8]) && ((bool)values[9]));
+                }
 
-                    metadata.ArrayDimensions = (IList<uint>)values[4];
+                if (values[10] != null)
+                {
+                    metadata.AccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType), values[10]);
+                }
 
-                    if (values[5] != null && values[6] != null)
-                    {
-                        metadata.AccessLevel = (byte)(((byte)values[5]) & ((byte)values[6]));
-                    }
+                if (values[11] != null)
+                {
+                    metadata.RolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[11]));
+                }
 
-                    if (values[7] != null)
-                    {
-                        metadata.EventNotifier = (byte)values[7];
-                    }
-
-                    if (values[8] != null && values[9] != null)
-                    {
-                        metadata.Executable = (((bool)values[8]) && ((bool)values[9]));
-                    }
-
-                    if (values[10] != null)
-                    {
-                        metadata.AccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType), values[10]);
-                    }
-
-                    if (values[11] != null)
-                    {
-                        metadata.RolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[11]));
-                    }
-
-                    if (values[12] != null)
-                    {
-                        metadata.UserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[12]));
-                    }
+                if (values[12] != null)
+                {
+                    metadata.UserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[12]));
                 }
 
                 // check if NamespaceMetadata is defined for NamespaceUri
@@ -1231,6 +1195,11 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Sets the AccessRestrictions, RolePermissions and UserRolePermissions values in the metadata
+        /// </summary>
+        /// <param name="values"></param>
+        /// <param name="metadata"></param>
         private static void SetAccessAndRolePermissions(List<object> values, NodeMetadata metadata)
         {
             if (values[0] != null)
@@ -1248,7 +1217,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reads and caches the Attributes used by the AccessRestrictions and RolePermition validation process
+        /// Reads and caches the Attributes used by the AccessRestrictions and RolePermission validation process
         /// </summary>
         /// <param name="uniqueNodesServiceAttributes">The cache used to save the attributes</param>
         /// <param name="systemContext">The context</param>
@@ -1264,7 +1233,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reads the Attributes used by the AccessRestrictions and RolePermition validation process
+        /// Reads the Attributes used by the AccessRestrictions and RolePermission validation process
         /// </summary>
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
@@ -1272,7 +1241,7 @@ namespace Opc.Ua.Server
         private static List<object> ReadValidationAttributes(ServerSystemContext systemContext, NodeState target)
         {
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
-            // The are originating from services in the context of AccessRestrictions and RolePermition validation.
+            // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
             List<object> values = target.ReadAttributes(systemContext,
                                            Attributes.AccessRestrictions,
@@ -4386,6 +4355,78 @@ namespace Opc.Ua.Server
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns the metadata containing the AccessRestrictions, RolePermissions and UserRolePermissions for the node.
+        /// Returns null if the node does not exist.
+        /// </summary>
+        /// <remarks>
+        /// This method validates any placeholder handle.
+        /// </remarks>
+        public virtual NodeMetadata GetPermissionMetadata(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes,
+            bool permissionsOnly)
+        {
+            ServerSystemContext systemContext = m_systemContext.Copy(context);
+
+            lock (Lock)
+            {
+                // check for valid handle.
+                NodeHandle handle = IsHandleInNamespace(targetHandle);
+
+                if (handle == null)
+                {
+                    return null;
+                }
+
+                // validate node.
+                NodeState target = ValidateNode(systemContext, handle, null);
+
+                if (target == null)
+                {
+                    return null;
+                }
+
+                List<object> values = null;
+
+                // construct the meta-data object.
+                NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
+
+                // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
+                if (uniqueNodesServiceAttributes != null)
+                {
+                    NodeId key = handle.NodeId;
+                    if (uniqueNodesServiceAttributes.ContainsKey(key))
+                    {
+                        if (uniqueNodesServiceAttributes[key].Count == 0)
+                        {
+                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                        }
+                        else
+                        {
+                            // Retrieve value from cache
+                            values = uniqueNodesServiceAttributes[key];
+                        }
+                    }
+                    else
+                    {
+                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                    }
+
+                    SetAccessAndRolePermissions(values, metadata);
+                }// All other calls that do not use the cache
+                else if (permissionsOnly == true)
+                {
+                    values = ReadValidationAttributes(systemContext, target);
+                    SetAccessAndRolePermissions(values, metadata);
+                }
+               
+                return metadata;
+            }
         }
         #endregion
 
