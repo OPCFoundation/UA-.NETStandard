@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else if (m_messageMapping == MessageMapping.Json)
             {
-                // each entry of this loist will generate a network message
+                // each entry of this list will generate a network message
                 List<List<UaDataSetMessage>> dataSetMessagesList = new List<List<UaDataSetMessage>>();
                 if ((((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask) & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {

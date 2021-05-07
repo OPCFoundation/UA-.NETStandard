@@ -165,7 +165,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage;
 
-            using (JsonEncoder encoder = new JsonEncoder(messageContext, false, null, topLevelIsArray))
+            using (JsonEncoder encoder = new JsonEncoder(messageContext, true, null, topLevelIsArray))
             {
                 // handle no header
                 if (HasNetworkMessageHeader)
