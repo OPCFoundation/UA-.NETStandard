@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/>
         /// </summary>
-        public JsonNetworkMessage() : this(null, new List<UaDataSetMessage>())
+        public JsonNetworkMessage() : this(null, new List<JsonDataSetMessage>())
         {
         }
 
@@ -59,7 +59,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>  
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
-        public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> jsonDataSetMessages) : base(writerGroupConfiguration, jsonDataSetMessages)
+        public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<JsonDataSetMessage> jsonDataSetMessages)
+            : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x=> (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
         {
             MessageType = kDefaultMessageType;
             DataSetClassId = string.Empty;

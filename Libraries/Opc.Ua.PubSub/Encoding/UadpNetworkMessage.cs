@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of UadpNetworkMessage
         /// </summary>
-        internal UadpNetworkMessage() : this(null, new List<UaDataSetMessage>())
+        internal UadpNetworkMessage() : this(null, new List<UadpDataSetMessage>())
         {
 
         }
@@ -65,8 +65,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// Create new instance of UadpNetworkMessage
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param> 
-        /// <param name="uadpDataSetMessages">UadpDataSetMessage list as input</param>
-        public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> uadpDataSetMessages) : base(writerGroupConfiguration, uadpDataSetMessages)
+        /// <param name="uadpDataSetMessages"><see cref="UadpDataSetMessage"/> list as input</param>
+        public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UadpDataSetMessage> uadpDataSetMessages)
+            : base(writerGroupConfiguration, uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
         {
             UADPVersion = kUadpVersion;
             DataSetClassId = Guid.Empty;

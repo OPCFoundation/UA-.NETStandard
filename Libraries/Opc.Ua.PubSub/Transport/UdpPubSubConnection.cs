@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             //Create list of dataSet messages to be sent
-            List<UaDataSetMessage> dataSetMessages = new List<UaDataSetMessage>();
+            List<UadpDataSetMessage> dataSetMessages = new List<UadpDataSetMessage>();
             foreach (DataSetWriterDataType dataSetWriter in writerGroupConfiguration.DataSetWriters)
             {
                 //check if dataSetWriter enabled
