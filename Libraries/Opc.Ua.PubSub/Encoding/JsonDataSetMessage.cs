@@ -404,7 +404,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
             {
-                encoder.WriteString(nameof(DataSetWriterId), DataSetWriterId.ToString());
+                encoder.WriteUInt16(nameof(DataSetWriterId), DataSetWriterId);
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
@@ -567,7 +567,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 if (jsonDecoder.ReadField(nameof(DataSetWriterId), out token))
                 {
-                    DataSetWriterId = Convert.ToUInt16(jsonDecoder.ReadString(nameof(DataSetWriterId)));
+                    DataSetWriterId = jsonDecoder.ReadUInt16(nameof(DataSetWriterId));
                 }
             }
 
