@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -258,14 +260,29 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public override byte[] Encode()
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-            byte[] bytes = null;
-            using (BinaryEncoder encoder = new BinaryEncoder(messageContext))
+            ServiceMessageContext messageContext = new ServiceMessageContext {
+                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+            };
+
+            using (MemoryStream stream = new MemoryStream())
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+            {
+                Encode(messageContext, writer);
+                return stream.ToArray();
+            }
+        }
+
+        /// <summary>
+        /// Encodes the object in the specified stream.
+        /// </summary>
+        /// <param name="messageContext">The system context.</param>
+        /// <param name="writer">The stream to use.</param>
+        public override void Encode(ServiceMessageContext messageContext, StreamWriter writer)
+        {
+            using (BinaryEncoder encoder = new BinaryEncoder(writer.BaseStream, messageContext))
             {
                 Encode(encoder);
-                bytes = ReadBytes(encoder.BaseStream);
-
-                return bytes;
             }
         }
 

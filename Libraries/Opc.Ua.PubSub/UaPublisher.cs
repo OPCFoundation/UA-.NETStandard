@@ -226,7 +226,7 @@ namespace Opc.Ua.PubSub
                                 "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
                         }
                     }
-                }                
+                }
             }
             catch (Exception e)
             {
