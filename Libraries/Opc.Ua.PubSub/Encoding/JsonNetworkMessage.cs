@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/>
         /// </summary>
-        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>  
+        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
         public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<JsonDataSetMessage> jsonDataSetMessages)
             : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x=> (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         #region Properties
         /// <summary>
-        /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage  
+        /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage
         /// </summary>
         public JsonNetworkMessageContentMask NetworkMessageContentMask { get; private set; }
 
@@ -85,7 +85,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Flag that indicates if the Network message contains a single dataset message 
+        /// Flag that indicates if the Network message contains a single dataset message
         /// </summary>
         public bool HasSingleDataSetMessage
         {
@@ -148,6 +148,8 @@ namespace Opc.Ua.PubSub.Encoding
         {
             NetworkMessageContentMask = networkMessageContentMask;
 
+            // TODO: duplicate info for DataSetMessageContentMask..
+            // remove from jsondatasetmessage
             foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
             {
                 jsonDataSetMessage.HasDataSetMessageHeader = HasDataSetMessageHeader;
@@ -197,6 +199,8 @@ namespace Opc.Ua.PubSub.Encoding
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
                         {
+                            // TODO: HasDataSetMessageHeader is local to this class
+                            // pass hasdatasetmessage header in encode..
                             if (!jsonDataSetMessage.HasDataSetMessageHeader)
                             {
                                 // If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
@@ -230,7 +234,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Decodes the message 
+        /// Decodes the message
         /// </summary>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
@@ -254,8 +258,8 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Decode the stream from decoder parameter and produce a Dataset 
-        /// </summary> 
+        /// Decode the stream from decoder parameter and produce a Dataset
+        /// </summary>
         /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
@@ -389,7 +393,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         ///  Encode Network Message Header
         /// </summary>
-        private void EncodeNetworkMessageHeader(JsonEncoder jsonEncoder)
+        private void EncodeNetworkMessageHeader(IEncoder jsonEncoder)
         {
             jsonEncoder.WriteString(nameof(MessageId), MessageId);
             jsonEncoder.WriteString(nameof(MessageType), MessageType);
@@ -423,6 +427,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
+                    // can this be implemented with EncodeableArray?
                     encoder.PushArray(kFieldMessages);
                     foreach (var message in DataSetMessages)
                     {
@@ -440,7 +445,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode ReplyTo
         /// </summary>
-        private void EncodeReplyTo(JsonEncoder jsonEncoder)
+        private void EncodeReplyTo(IEncoder jsonEncoder)
         {
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.ReplyTo) != 0)
             {

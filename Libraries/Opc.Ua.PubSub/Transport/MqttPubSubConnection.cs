@@ -184,6 +184,7 @@ namespace Opc.Ua.PubSub.Transport
                         {
                             // set common properties of dataset message
                             uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
+                            // why ushort? SequenceNumber is uint
                             uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
                             if (publishedDataSet.DataSetMetaData != null)
                             {
