@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // update external references.                
+                // update external references.
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
                     INodeManager nodeManager = m_nodeManagers[ii];
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Server
         /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
         /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermissions attributes needed for Read service</param>
         private void PrepareValidationCache<T>(List<T> nodesCollection,
-            out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes) 
+            out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes)
         {
             List<NodeId> uniqueNodes = new List<NodeId>();
             for (int i = 0; i < nodesCollection.Count; i++)
@@ -1524,7 +1524,6 @@ namespace Opc.Ua.Server
                 "MasterNodeManager.Read - Count={0}",
                 nodesToRead.Count);
 
-           
             Dictionary<NodeId, List<object>> uniqueNodesReadAttributes;
             PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
 
@@ -3069,15 +3068,22 @@ namespace Opc.Ua.Server
                 bool encryptionRequired = (restrictions & AccessRestrictionType.EncryptionRequired) == AccessRestrictionType.EncryptionRequired;
                 bool signingRequired = (restrictions & AccessRestrictionType.SigningRequired) == AccessRestrictionType.SigningRequired;
                 bool sessionRequired = (restrictions & AccessRestrictionType.SessionRequired) == AccessRestrictionType.SessionRequired;
+                bool applyRestrictionsToBrowse = (restrictions & AccessRestrictionType.ApplyRestrictionsToBrowse) == AccessRestrictionType.ApplyRestrictionsToBrowse;
+
+                bool browseOperation = context.RequestType == RequestType.Browse ||
+                                       context.RequestType == RequestType.BrowseNext ||
+                                       context.RequestType == RequestType.TranslateBrowsePathsToNodeIds;
 
                 if ((encryptionRequired &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport) ||
+                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                     ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)) ||
                     (signingRequired &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.Sign &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport) ||
-                   (sessionRequired && context.Session == null))
+                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                     ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)) ||
+                    (sessionRequired && context.Session == null))
                 {
                     serviceResult = ServiceResult.Create(StatusCodes.BadSecurityModeInsufficient,
                         "Access restricted to nodeId {0} due to insufficient security mode.", nodeMetadata.NodeId);
