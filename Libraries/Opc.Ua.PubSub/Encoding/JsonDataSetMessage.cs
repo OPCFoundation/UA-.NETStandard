@@ -107,7 +107,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="jsonEncoder">The <see cref="JsonEncoder"/> used to encode this object.</param>
         /// <param name="fieldName">The field name to be used to encode this object, by default it is null.</param>
-        // TODO: do we need extra IJsonEncoder
         public void Encode(JsonEncoder jsonEncoder, string fieldName = null)
         {
             jsonEncoder.PushStructure(fieldName);
