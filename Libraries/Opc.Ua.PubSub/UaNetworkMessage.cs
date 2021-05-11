@@ -43,6 +43,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// list of DataSet messages
         /// </summary>
+        /// // TODO: why readonly?
         protected readonly List<UaDataSetMessage> m_uaDataSetMessages;
         #endregion
 
@@ -97,28 +98,13 @@ namespace Opc.Ua.PubSub
         public abstract void Encode(ServiceMessageContext messageContext, StreamWriter writer);
 
         /// <summary>
-        /// Decodes the message 
+        /// Decodes the message
         /// </summary>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
         public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
         #endregion
 
-        #region Protectd Methods
-        /// <summary>
-        /// Read the bytes from a Stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        protected byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
-        #endregion
+        // TODO: removed, as this was just a generic helper?
     }
 }

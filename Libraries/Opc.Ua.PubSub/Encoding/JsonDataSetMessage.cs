@@ -36,7 +36,7 @@ namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
     /// The JsonDataSetMessage class handler.
-    /// It handles the JsonDataSetMessage encoding 
+    /// It handles the JsonDataSetMessage encoding
     /// </summary>
     public class JsonDataSetMessage : UaDataSetMessage
     {
@@ -46,23 +46,14 @@ namespace Opc.Ua.PubSub.Encoding
         #endregion
 
         #region Constructors
-
-        /// <summary>
-        /// Create new instance of <see cref="JsonDataSetMessage"/>.
-        /// </summary>
-        public JsonDataSetMessage() : base()
-        {
-        }
-
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
-        /// <param name="dataSet"></param>        
-        public JsonDataSetMessage(DataSet dataSet = null) : this()
+        /// <param name="dataSet"></param>
+        public JsonDataSetMessage(DataSet dataSet = null) 
         {
             DataSet = dataSet;
         }
-
         #endregion
 
         #region Properties
@@ -84,7 +75,7 @@ namespace Opc.Ua.PubSub.Encoding
         #region Public Methods
 
         /// <summary>
-        /// Set DataSetFieldContentMask 
+        /// Set DataSetFieldContentMask
         /// </summary>
         /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
         public override void SetFieldContentMask(DataSetFieldContentMask fieldContentMask)
@@ -114,9 +105,10 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Set MessageContentMask 
+        /// Set MessageContentMask
         /// </summary>
         /// <param name="messageContentMask">The new <see cref="JsonDataSetMessageContentMask"/>.</param>
+        /// TODO: Why extra set method?
         public void SetMessageContentMask(JsonDataSetMessageContentMask messageContentMask)
         {
             DataSetMessageContentMask = messageContentMask;
@@ -127,6 +119,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="jsonEncoder">The <see cref="JsonEncoder"/> used to encode this object.</param>
         /// <param name="fieldName">The field name to be used to encode this object, by default it is null.</param>
+        // TODO: do we need extra IJsonEncoder
         public void Encode(JsonEncoder jsonEncoder, string fieldName = null)
         {
             jsonEncoder.PushStructure(fieldName);
@@ -149,7 +142,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder">The json decoder trhat contains the json stream.</param>
         /// <param name="messagesCount">Number of Messages found in current jsonDecoder. If 0 then there is SingleDataSetMessage</param>
         /// <param name="messagesListName">The name of the Messages list</param>
-        /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>        
+        /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>
         public void DecodePossibleDataSetReader(JsonDecoder jsonDecoder, int messagesCount, string messagesListName, DataSetReaderDataType dataSetReader)
         {
             if (messagesCount == 0)
@@ -375,7 +368,7 @@ namespace Opc.Ua.PubSub.Encoding
                 Field dataField = new Field();
                 dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                 dataField.Value = dataValues[i];
-                
+
                 if (targetVariablesData != null && targetVariablesData.TargetVariables != null
                     && i < targetVariablesData.TargetVariables.Count)
                 {
@@ -400,7 +393,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encode DataSet message header
         /// </summary>
-        private void EncodeDataSetMessageHeader(JsonEncoder encoder)
+        private void EncodeDataSetMessageHeader(IEncoder encoder)
         {
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
             {
@@ -525,7 +518,7 @@ namespace Opc.Ua.PubSub.Encoding
         #region Private Decode Methods
 
         /// <summary>
-        /// Decode RawData type 
+        /// Decode RawData type
         /// </summary>
         /// <returns></returns>
         private object DecodeRawData(JsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
