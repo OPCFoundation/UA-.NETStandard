@@ -41,10 +41,9 @@ namespace Opc.Ua.PubSub
     {
         #region Protected Fields
         /// <summary>
-        /// list of DataSet messages
+        /// List of DataSet messages
         /// </summary>
-        /// // TODO: why readonly?
-        protected readonly List<UaDataSetMessage> m_uaDataSetMessages;
+        protected List<UaDataSetMessage> m_uaDataSetMessages;
         #endregion
 
         #region Constructor
@@ -69,11 +68,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSet messages
         /// </summary>
-        public ReadOnlyCollection<UaDataSetMessage> DataSetMessages
+        public List<UaDataSetMessage> DataSetMessages
         {
             get
             {
-                return new ReadOnlyCollection<UaDataSetMessage>(m_uaDataSetMessages);
+                return m_uaDataSetMessages;
             }
         }
 
@@ -104,7 +103,5 @@ namespace Opc.Ua.PubSub
         /// <param name="dataSetReaders"></param>
         public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
         #endregion
-
-        // TODO: removed, as this was just a generic helper?
     }
 }

@@ -68,8 +68,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         #endregion
 
-        #region Properties   
-
+        #region Properties
         /// <summary>
         /// Get UadpDataSetMessageContentMask
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
@@ -148,7 +147,6 @@ namespace Opc.Ua.PubSub.Encoding
                 // 10 DataValue Field Encoding
                 fieldType = FieldTypeEncodingMask.DataValue;
             }
-           
 
             DataSetFlags1 |= (DataSetFlags1EncodingMask)((byte)fieldType << 1);
 

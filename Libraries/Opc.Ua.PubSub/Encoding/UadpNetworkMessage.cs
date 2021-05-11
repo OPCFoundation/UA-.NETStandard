@@ -767,8 +767,7 @@ namespace Opc.Ua.PubSub.Encoding
                 uadpDataSetMessage.Encode(encoder);
             }
 
-            if (DataSetMessages.Count > 1
-                && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
+            if (DataSetMessages.Count > 1 && (NetworkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
                 int payloadEndPositionInStream = encoder.Position;
                 encoder.Position = payloadStartPositionInStream;

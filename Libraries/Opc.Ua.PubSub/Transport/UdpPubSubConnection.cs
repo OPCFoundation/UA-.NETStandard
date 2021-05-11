@@ -406,21 +406,6 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Read All bytes from a given stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        private byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
-
-        /// <summary>
         /// Raise DataReceived event
         /// </summary>
         /// <param name="e"></param>

@@ -350,7 +350,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                         // initialize the dataset message
                         JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage();
-                        jsonDataSetMessage.SetMessageContentMask((JsonDataSetMessageContentMask)jsonMessageSettings.DataSetMessageContentMask);
+                        jsonDataSetMessage.DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonMessageSettings.DataSetMessageContentMask;
                         jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask);
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader = (networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;

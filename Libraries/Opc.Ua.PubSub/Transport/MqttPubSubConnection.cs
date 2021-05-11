@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.Transport
                             if (jsonDataSetMessageSettings != null)
                             {
                                 JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage(dataSet);
-                                jsonDataSetMessage.SetMessageContentMask((JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask);
+                                jsonDataSetMessage.DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask;
                                 jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
                                 uaDataSetMessage = jsonDataSetMessage;
 
@@ -184,8 +184,8 @@ namespace Opc.Ua.PubSub.Transport
                         {
                             // set common properties of dataset message
                             uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
-                            // why ushort? SequenceNumber is uint
-                            uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
+                            uaDataSetMessage.SequenceNumber = (uint)Utils.IncrementIdentifier(ref m_dataSetSequenceNumber);
+
                             if (publishedDataSet.DataSetMetaData != null)
                             {
                                 uaDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;

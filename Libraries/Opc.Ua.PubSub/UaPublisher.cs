@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// A class responsible with calculating and triggering publish messages.
     /// </summary>
-    internal class UaPublisher : IUaPublisher, IDisposable
+    internal class UaPublisher : IUaPublisher
     {
         #region Fields
         private const int kMinPublishingInterval = 10;

@@ -57,13 +57,12 @@ namespace Opc.Ua.PubSub.Encoding
         #endregion
 
         #region Properties
-
         /// <summary>
         /// Get JsonDataSetMessageContentMask
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
         /// The Json message mapping specific flags are defined by the <see cref="JsonDataSetMessageContentMask"/> enum.
         /// </summary>
-        public JsonDataSetMessageContentMask DataSetMessageContentMask { get; private set; }
+        public JsonDataSetMessageContentMask DataSetMessageContentMask { get; set; }
 
         /// <summary>
         /// Flag that indicates if the dataset message header is encoded
@@ -73,7 +72,6 @@ namespace Opc.Ua.PubSub.Encoding
         #endregion Properties
 
         #region Public Methods
-
         /// <summary>
         /// Set DataSetFieldContentMask
         /// </summary>
@@ -102,16 +100,6 @@ namespace Opc.Ua.PubSub.Encoding
                 // 10 DataValue Field Encoding
                 m_fieldTypeEncoding = FieldTypeEncodingMask.DataValue;
             }
-        }
-
-        /// <summary>
-        /// Set MessageContentMask
-        /// </summary>
-        /// <param name="messageContentMask">The new <see cref="JsonDataSetMessageContentMask"/>.</param>
-        /// TODO: Why extra set method?
-        public void SetMessageContentMask(JsonDataSetMessageContentMask messageContentMask)
-        {
-            DataSetMessageContentMask = messageContentMask;
         }
 
         /// <summary>
@@ -389,7 +377,6 @@ namespace Opc.Ua.PubSub.Encoding
         #endregion
 
         #region Private Encode Methods
-
         /// <summary>
         /// Encode DataSet message header
         /// </summary>
