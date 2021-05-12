@@ -148,8 +148,6 @@ namespace Opc.Ua.PubSub.Encoding
         {
             NetworkMessageContentMask = networkMessageContentMask;
 
-            // TODO: duplicate info for DataSetMessageContentMask..
-            // remove from jsondatasetmessage
             foreach (JsonDataSetMessage jsonDataSetMessage in DataSetMessages)
             {
                 jsonDataSetMessage.HasDataSetMessageHeader = HasDataSetMessageHeader;
@@ -199,8 +197,6 @@ namespace Opc.Ua.PubSub.Encoding
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
                         if (jsonDataSetMessage != null)
                         {
-                            // TODO: HasDataSetMessageHeader is local to this class
-                            // pass hasdatasetmessage header in encode..
                             if (!jsonDataSetMessage.HasDataSetMessageHeader)
                             {
                                 // If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
@@ -427,7 +423,6 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    // can this be implemented with EncodeableArray?
                     encoder.PushArray(kFieldMessages);
                     foreach (var message in DataSetMessages)
                     {
