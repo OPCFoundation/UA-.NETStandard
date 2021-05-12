@@ -128,23 +128,26 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            startPublishingTimer();
+            StartPublishingTimer();
             Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
         }
 
         /// <summary>
-        /// stop the publishing thread.
+        /// Stop the publishing thread.
         /// </summary>
         public virtual void Stop()
         {
-            stopPublishingTimer();
+            StopPublishingTimer();
             Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", m_writerGroupConfiguration.Name);
         }
         #endregion
 
         #region Private Methods
 
-        private void startPublishingTimer()
+        /// <summary>
+        /// Start the publish timer.
+        /// </summary>
+        private void StartPublishingTimer()
         {
             int sleepCycle = 0;
 
@@ -171,7 +174,10 @@ namespace Opc.Ua.PubSub
             }
         }
 
-        private void stopPublishingTimer()
+        /// <summary>
+        /// Stop the publish timer.
+        /// </summary>
+        private void StopPublishingTimer()
         {
             lock (m_lock)
             {
