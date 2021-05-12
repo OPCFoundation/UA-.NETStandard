@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using SystemTimer = System.Timers;
 
 namespace Opc.Ua.PubSub
 {
@@ -43,7 +45,9 @@ namespace Opc.Ua.PubSub
         private const int kMinPublishingInterval = 10;
         private object m_lock = new object();
         // event used to trigger publish 
-        private ManualResetEvent m_shutdownEvent;
+
+        private SystemTimer.Timer m_PublishingTimer;
+        private SystemTimer.ElapsedEventHandler m_periodicPublishHandler = null;
 
         private IUaPubSubConnection m_pubSubConnection;
         private WriterGroupDataType m_writerGroupConfiguration;
@@ -112,7 +116,7 @@ namespace Opc.Ua.PubSub
             {
                 Stop();
                 // free managed resources
-                m_shutdownEvent.Dispose();
+                m_PublishingTimer.Dispose();
             }
         }
         #endregion
@@ -124,14 +128,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            lock (m_lock)
-            {
-                m_shutdownEvent.Reset();
-
-                Task.Run(() => {
-                    PublishData();
-                });
-            }
+            startPublishingTimer();
             Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
         }
 
@@ -140,70 +137,80 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public virtual void Stop()
         {
-            lock (m_lock)
-            {
-                m_shutdownEvent.Set();
-            }
+            stopPublishingTimer();
             Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", m_writerGroupConfiguration.Name);
         }
         #endregion
 
         #region Private Methods
+
+        private void startPublishingTimer()
+        {
+            int sleepCycle = 0;
+
+            lock (m_lock)
+            {
+                m_PublishingTimer = new SystemTimer.Timer();
+
+                if (m_writerGroupConfiguration != null)
+                {
+                    sleepCycle = Convert.ToInt32(m_writerGroupConfiguration.PublishingInterval);
+                }
+            }
+
+            if (sleepCycle < kMinPublishingInterval)
+            {
+                sleepCycle = kMinPublishingInterval;
+            }
+
+            lock (m_lock)
+            {
+                m_PublishingTimer.Elapsed += m_periodicPublishHandler;
+                m_PublishingTimer.Interval = sleepCycle;
+                m_PublishingTimer.Enabled = true;
+            }
+        }
+
+        private void stopPublishingTimer()
+        {
+            lock (m_lock)
+            {
+                m_PublishingTimer.Elapsed -= m_periodicPublishHandler;
+                m_PublishingTimer.Enabled = false;
+            }
+        }
+
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
         private void Initialize()
         {
-            m_shutdownEvent = new ManualResetEvent(true);
+            m_periodicPublishHandler = new SystemTimer.ElapsedEventHandler(PeriodicTimerPublishData);
         }
 
         /// <summary>
         /// Periodically checks if there is data to publish.
         /// </summary>
-        private void PublishData()
+        private void PeriodicTimerPublishData(object source, SystemTimer.ElapsedEventArgs e)
         {
             try
             {
-                do
+                lock (m_lock)
                 {
-                    int sleepCycle = 0;
-
-                    lock (m_lock)
+                    if (m_pubSubConnection.CanPublish(m_writerGroupConfiguration))
                     {
-                        if (m_writerGroupConfiguration != null)
+                        // call on a new thread
+                        Task.Run(() =>
                         {
-                            sleepCycle = Convert.ToInt32(m_writerGroupConfiguration.PublishingInterval);
-                        }
-                    }
-
-                    if (sleepCycle < kMinPublishingInterval)
-                    {
-                        sleepCycle = kMinPublishingInterval;
-                    }
-
-                    if (m_shutdownEvent.WaitOne(sleepCycle))
-                    {
-                        Utils.Trace(Utils.TraceMasks.Information, "UaPublisher: Publish Thread Exited Normally.");
-                        break;
-                    }
-
-                    lock (m_lock)
-                    {
-                        if (m_pubSubConnection.CanPublish(m_writerGroupConfiguration))
-                        {
-                            // call on a new thread
-                            Task.Run(() => {
-                                PublishMessages();
-                            });
-                        }
+                            PublishMessages();
+                        });
                     }
                 }
-                while (true);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
                 // Unexpected exception in publish thread!
-                Utils.Trace(e, "UaPublisher: Publish Thread Exited Unexpectedly");
+                Utils.Trace(ex, "UaPublisher: PeriodicPublishData Exited Unexpectedly");
             }
         }
 
@@ -226,7 +233,7 @@ namespace Opc.Ua.PubSub
                                 "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
                         }
                     }
-                }                
+                }
             }
             catch (Exception e)
             {
