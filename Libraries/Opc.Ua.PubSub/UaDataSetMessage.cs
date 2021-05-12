@@ -42,13 +42,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Default value for Configured MetaDataVersion.MajorVersion
         /// </summary>
-        protected const UInt32 ConfigMajorVersion = 1;
+        protected const UInt32 ConfigMajorVersion = 0;
         /// <summary>
         /// Default value for Configured MetaDataVersion.MinorVersion
         /// </summary>
-        protected const UInt32 ConfigMinorVersion = 1;
-
-        private DataSet m_dataSet;
+        protected const UInt32 ConfigMinorVersion = 0;
         #endregion
 
         #region Constructor
@@ -69,17 +67,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get DataSet
         /// </summary>
-        public DataSet DataSet
-        {
-            get
-            {
-                return m_dataSet;
-            }
-            internal set
-            {
-                m_dataSet = value;
-            }
-        }
+        public DataSet DataSet { get; internal set; }
 
         /// <summary>
         /// Get and Set corresponding DataSetWriterId

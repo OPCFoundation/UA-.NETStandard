@@ -75,10 +75,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get referece to current JsonTextReader
-        /// </summary>
-        public JsonTextReader Reader { get { return m_reader; } }
-        /// <summary>
         /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
         /// </summary>
         /// <param name="systemType">The system type of the encoded JSON stram.</param>
