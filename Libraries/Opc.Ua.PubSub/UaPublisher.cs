@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub
             {
                 Stop();
                 // free managed resources
-                m_PublishingTimer.Dispose();
+                m_PublishingTimer?.Dispose();
             }
         }
         #endregion
@@ -181,8 +181,11 @@ namespace Opc.Ua.PubSub
         {
             lock (m_lock)
             {
-                m_PublishingTimer.Elapsed -= m_periodicPublishHandler;
-                m_PublishingTimer.Enabled = false;
+                if (m_PublishingTimer != null)
+                {
+                    m_PublishingTimer.Elapsed -= m_periodicPublishHandler;
+                    m_PublishingTimer.Enabled = false;
+                }
             }
         }
 
