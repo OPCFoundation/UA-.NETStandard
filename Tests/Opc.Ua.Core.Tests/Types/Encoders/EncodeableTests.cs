@@ -70,6 +70,113 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
             EncodeDecode(encoderType, BuiltInType.ExtensionObject, new ExtensionObject(testObject.TypeId, testObject));
         }
+
+        [Theory]
+        [Category("EncodableTypes")]
+        public void ActivateEncodableTypeArray(
+            EncodingType encoderType,
+            Type systemType
+            )
+        {
+            int arrayLength = DataGenerator.GetRandomByte();
+            Array array = Array.CreateInstance(systemType, arrayLength);
+            ExpandedNodeId dataTypeId = NodeId.Null;
+            for(int i = 0; i < array.Length; i ++)
+            {
+                IEncodeable testObject = CreateDefaultEncodableType(systemType) as IEncodeable;
+                array.SetValue(testObject, i);
+                if (dataTypeId == NodeId.Null)
+                {
+                    dataTypeId = testObject.TypeId;
+                }
+            }           
+
+            string objectName = "Array";
+            BuiltInType builtInType = BuiltInType.Variant;
+            var encoderStream = new MemoryStream();
+            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType);
+            encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
+            Dispose(encoder);
+
+            var buffer = encoderStream.ToArray();
+            switch (encoderType)
+            {
+                case EncodingType.Json:
+                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    break;
+            }
+            var decoderStream = new MemoryStream(buffer);
+            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
+            object result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, dataTypeId);
+            Dispose(decoder);
+
+            TestContext.Out.WriteLine("Result:");
+            TestContext.Out.WriteLine(result);
+            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, array);
+
+            string encodeInfo = $"Encoder: {encoderType} Type: Array of {systemType}. Expected is diferent from result.";
+
+            Assert.IsTrue(Utils.IsEqual(expected, result), encodeInfo);
+            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+        }
+
+        [Theory]
+        [Category("EncodableTypes")]
+        public void ActivateEncodableTypeMatrix(
+            EncodingType encoderType,
+            Type systemType
+            )
+        {
+            int matrixDimension = RandomSource.NextInt32(2) + 2;
+            int[] dimensions = new int[matrixDimension];
+            SetMatrixDimensions(dimensions);
+            int elementsCount = ElementsFromDimension(dimensions);
+            Array array = Array.CreateInstance(systemType, elementsCount);
+
+            
+
+            ExpandedNodeId dataTypeId = NodeId.Null;
+            for (int i = 0; i < array.Length; i++)
+            {
+                IEncodeable testObject = CreateDefaultEncodableType(systemType) as IEncodeable;
+                array.SetValue(testObject, i);
+                if (dataTypeId == NodeId.Null)
+                {
+                    dataTypeId = testObject.TypeId;
+                }
+            }            
+
+            string objectName = "Matrix";
+            BuiltInType builtInType = BuiltInType.Variant;
+
+            Matrix matrix = new Matrix(array, builtInType, dimensions);
+
+            var encoderStream = new MemoryStream();
+            IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType);
+            encoder.WriteArray(objectName, matrix, matrix.TypeInfo.ValueRank, builtInType);
+            Dispose(encoder);
+
+            var buffer = encoderStream.ToArray();
+            switch (encoderType)
+            {
+                case EncodingType.Json:
+                    PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
+                    break;
+            }
+            var decoderStream = new MemoryStream(buffer);
+            IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType);
+            object result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, dataTypeId);
+            Dispose(decoder);
+
+            TestContext.Out.WriteLine("Result:");
+            TestContext.Out.WriteLine(result);
+            object expected = AdjustExpectedBoundaryValues(encoderType, builtInType, matrix);
+
+            string encodeInfo = $"Encoder: {encoderType} Type: Matrix of {systemType}. Expected is diferent from result.";
+
+            Assert.AreEqual(expected, result, encodeInfo);
+            Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+        }
         #endregion
 
         #region Private Methods

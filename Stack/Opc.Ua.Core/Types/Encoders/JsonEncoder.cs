@@ -2372,6 +2372,14 @@ namespace Opc.Ua
                             return;
                         }
 
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = array as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            return;
+                        }
+
                         object[] objects = array as object[];
 
                         if (objects != null)

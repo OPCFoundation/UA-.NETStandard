@@ -1429,7 +1429,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -1481,6 +1481,14 @@ namespace Opc.Ua
                     case BuiltInType.DataValue:
                         return ReadDataValueArray(fieldName).ToArray();
                     case BuiltInType.Variant:
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
                         return ReadVariantArray(fieldName).ToArray();
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName).ToArray();
@@ -1516,14 +1524,33 @@ namespace Opc.Ua
                         length *= dimensions[ii];
                     }
                     // read the elements
-                    Array array = ReadArrayElements(length, builtInType);
-                    if (array == null)
+                    Array elements = null;
+                    if (encodeableTypeId != null)
+                    {
+                        Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                        if (systemType != null)
+                        {
+                            elements = Array.CreateInstance(systemType, length);
+                            for (int i = 0; i < length; i++)
+                            {
+                                IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
+
+                                elements.SetValue(Convert.ChangeType(element, systemType), i);
+                            }
+                        }
+                    }
+                    if (elements == null)
+                    {
+                        elements = ReadArrayElements(length, builtInType);
+                    }
+
+                    if (elements == null)
                     {
                         throw new ServiceResultException(
                                StatusCodes.BadDecodingError,
                                Utils.Format("Unexpected null Array for multidimensional matrix with {0} elements.", length));
                     }
-                    return new Matrix(array, builtInType, dimensions.ToArray());
+                    return new Matrix(elements, builtInType, dimensions.ToArray());
                 }
                 throw new ServiceResultException(
                                StatusCodes.BadDecodingError,
@@ -1538,9 +1565,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reads and returns an array of elements of the specified length and builtInType 
         /// </summary>
-        /// <param name="length"></param>
-        /// <param name="builtInType"></param>
-        /// <returns></returns>
         private Array ReadArrayElements(int length, BuiltInType builtInType)
         {
             Array array = null;
