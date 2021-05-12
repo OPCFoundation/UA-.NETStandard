@@ -2622,7 +2622,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2630,7 +2630,7 @@ namespace Opc.Ua
                  * and inserting the container into the structure. The name of the container element should be the name of the parameter. 
                  * The name of the element in the array shall be the type name.*/
 
-                return ReadArrayElements(fieldName, builtInType);
+                return ReadArrayElements(fieldName, builtInType, encodeableTypeId);
             }
 
             // write matrix.
@@ -2645,7 +2645,7 @@ namespace Opc.Ua
                     // dimensions are written before elements when encoding multi dimensional array!! UA Specs
                     dimensions = ReadInt32Array("Dimensions");
 
-                    elements = ReadArrayElements("Elements", builtInType);
+                    elements = ReadArrayElements("Elements", builtInType, encodeableTypeId);
 
                     PopNamespace();
 
@@ -2729,8 +2729,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="fieldName">provides the fieldName for the array</param>
         /// <param name="builtInType">provides the BuiltInType of the elements that are read</param>
+        /// <param name="encodeableTypeId">provides the type id of the encodeable element</param>
         /// <returns></returns>
-        private Array ReadArrayElements(string fieldName, BuiltInType builtInType)
+        private Array ReadArrayElements(string fieldName, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2905,6 +2906,15 @@ namespace Opc.Ua
                     }
                     case BuiltInType.Variant:
                     {
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
+
                         VariantCollection collection = ReadVariantArray(fieldName);
                         if (collection != null) return collection.ToArray();
                         return null;

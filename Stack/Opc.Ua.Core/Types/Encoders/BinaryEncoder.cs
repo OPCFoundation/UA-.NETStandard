@@ -1641,6 +1641,14 @@ namespace Opc.Ua
                         WriteXmlElementArray(null, (System.Xml.XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = array as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            return;
+                        }
+
                         WriteVariantArray(null, (Variant[])array);
                         break;
                     case BuiltInType.Enumeration:
@@ -1942,6 +1950,17 @@ namespace Opc.Ua
                             for (int ii = 0; ii < variants.Length; ii++)
                             {
                                 WriteVariant(null, variants[ii]);
+                            }
+                            break;
+                        }
+
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            for (int ii = 0; ii < encodeableArray.Length; ii++)
+                            {
+                                WriteEncodeable(null, encodeableArray[ii], null);
                             }
                             break;
                         }
