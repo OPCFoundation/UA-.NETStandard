@@ -29,10 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
-using SystemTimer = System.Timers;
+using System.Timers;
 
 namespace Opc.Ua.PubSub
 {
@@ -46,8 +44,8 @@ namespace Opc.Ua.PubSub
         private object m_lock = new object();
         // event used to trigger publish 
 
-        private SystemTimer.Timer m_PublishingTimer;
-        private SystemTimer.ElapsedEventHandler m_periodicPublishHandler = null;
+        private Timer m_PublishingTimer;
+        private ElapsedEventHandler m_periodicPublishHandler = null;
 
         private IUaPubSubConnection m_pubSubConnection;
         private WriterGroupDataType m_writerGroupConfiguration;
@@ -115,8 +113,13 @@ namespace Opc.Ua.PubSub
             if (disposing)
             {
                 Stop();
+
                 // free managed resources
-                m_PublishingTimer?.Dispose();
+                if (m_PublishingTimer != null)
+                {
+                    Utils.SilentDispose(m_PublishingTimer);
+                    m_PublishingTimer = null;
+                }
             }
         }
         #endregion
@@ -153,7 +156,13 @@ namespace Opc.Ua.PubSub
 
             lock (m_lock)
             {
-                m_PublishingTimer = new SystemTimer.Timer();
+                if (m_PublishingTimer != null)
+                {
+                    m_PublishingTimer.Dispose();
+                    m_PublishingTimer = null;
+                }
+
+                m_PublishingTimer = new Timer();
 
                 if (m_writerGroupConfiguration != null)
                 {
@@ -194,13 +203,13 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private void Initialize()
         {
-            m_periodicPublishHandler = new SystemTimer.ElapsedEventHandler(PeriodicTimerPublishData);
+            m_periodicPublishHandler = new ElapsedEventHandler(PeriodicTimerPublishData);
         }
 
         /// <summary>
         /// Periodically checks if there is data to publish.
         /// </summary>
-        private void PeriodicTimerPublishData(object source, SystemTimer.ElapsedEventArgs e)
+        private void PeriodicTimerPublishData(object source, ElapsedEventArgs e)
         {
             try
             {
