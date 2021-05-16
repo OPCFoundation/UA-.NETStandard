@@ -66,6 +66,22 @@ namespace Opc.Ua.PubSub
         public UInt16 WriterGroupId { get; set; }
 
         /// <summary>
+        /// Get and Set DataSetWriterId if a single value exists for the message.
+        /// </summary>
+        public UInt16? DataSetWriterId
+        {
+            get
+            {
+                if (m_uaDataSetMessages != null && m_uaDataSetMessages.Count == 1)
+                {
+                    return m_uaDataSetMessages[0].DataSetWriterId;
+                }
+
+                return null;
+            }
+        }
+    
+        /// <summary>
         /// DataSet messages
         /// </summary>
         public ReadOnlyCollection<UaDataSetMessage> DataSetMessages

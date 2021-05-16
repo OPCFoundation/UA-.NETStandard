@@ -40,6 +40,7 @@ namespace Opc.Ua.PubSub
     internal class UaPublisher : IUaPublisher, IDisposable
     {
         #region Fields
+        private DateTime m_nextPublishTime = DateTime.MinValue;
         private const int kMinPublishingInterval = 10;
         private object m_lock = new object();
         // event used to trigger publish 
@@ -127,11 +128,9 @@ namespace Opc.Ua.PubSub
             lock (m_lock)
             {
                 m_shutdownEvent.Reset();
-
-                Task.Run(() => {
-                    PublishData();
-                });
+                Task.Run(() => PublishData());
             }
+
             Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
         }
 
@@ -167,6 +166,8 @@ namespace Opc.Ua.PubSub
                 do
                 {
                     int sleepCycle = 0;
+                    DateTime now = DateTime.UtcNow;
+                    DateTime nextPublishTime = DateTime.MinValue;
 
                     lock (m_lock)
                     {
@@ -174,21 +175,27 @@ namespace Opc.Ua.PubSub
                         {
                             sleepCycle = Convert.ToInt32(m_writerGroupConfiguration.PublishingInterval);
                         }
+
+                        nextPublishTime = m_nextPublishTime;
                     }
 
-                    if (sleepCycle < kMinPublishingInterval)
+                    if (nextPublishTime > now)
                     {
-                        sleepCycle = kMinPublishingInterval;
-                    }
+                        sleepCycle = (int)Math.Min((nextPublishTime - now).TotalMilliseconds, sleepCycle);
+                        sleepCycle = (int)Math.Max(kMinPublishingInterval, sleepCycle);
 
-                    if (m_shutdownEvent.WaitOne(sleepCycle))
-                    {
-                        Utils.Trace(Utils.TraceMasks.Information, "UaPublisher: Publish Thread Exited Normally.");
-                        break;
+                        if (m_shutdownEvent.WaitOne(sleepCycle))
+                        {
+                            Utils.Trace(Utils.TraceMasks.Information, "UaPublisher: Publish Thread Exited Normally.");
+                            break;
+                        }
                     }
 
                     lock (m_lock)
                     {
+                        var nextCycle = Convert.ToInt32(m_writerGroupConfiguration.PublishingInterval);
+                        m_nextPublishTime = DateTime.UtcNow.AddMilliseconds(nextCycle);
+
                         if (m_pubSubConnection.CanPublish(m_writerGroupConfiguration))
                         {
                             // call on a new thread
@@ -226,7 +233,7 @@ namespace Opc.Ua.PubSub
                                 "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
                         }
                     }
-                }                
+                }
             }
             catch (Exception e)
             {

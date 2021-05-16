@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub
@@ -155,6 +156,9 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
+            InternalStart().Wait();
+            Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
+
             lock (m_lock)
             {
                 m_isRunning = true;
@@ -163,8 +167,6 @@ namespace Opc.Ua.PubSub
                     publisher.Start();
                 }
             }
-            InternalStart();
-            Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
         }
 
         /// <summary>
@@ -172,7 +174,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
-            InternalStop();
+            InternalStop().Wait();
             lock (m_lock)
             {
                 m_isRunning = false;
@@ -267,12 +269,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
-        protected abstract void InternalStart();
+        protected abstract Task InternalStart();
 
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
-        protected abstract void InternalStop();
+        protected abstract Task InternalStop();
 
         /// <summary>
         /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.

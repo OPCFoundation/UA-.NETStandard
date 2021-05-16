@@ -110,16 +110,20 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration)
         {
-            UadpWriterGroupMessageDataType uadpMessageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
-                as UadpWriterGroupMessageDataType;
+            UadpWriterGroupMessageDataType uadpMessageSettings = ExtensionObject.ToEncodeable(
+                writerGroupConfiguration.MessageSettings)
+                    as UadpWriterGroupMessageDataType;
 
-            JsonWriterGroupMessageDataType jsonMessageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
-               as JsonWriterGroupMessageDataType;
+            JsonWriterGroupMessageDataType jsonMessageSettings = ExtensionObject.ToEncodeable(
+                writerGroupConfiguration.MessageSettings)
+                    as JsonWriterGroupMessageDataType;
+
             if (m_messageMapping == MessageMapping.Uadp && uadpMessageSettings == null)
             {
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
+
             if (m_messageMapping == MessageMapping.Json && jsonMessageSettings == null)
             {
                 //Wrong configuration of writer group MessageSettings
@@ -210,12 +214,11 @@ namespace Opc.Ua.PubSub.Transport
                 uadpNetworkMessage.GroupVersion = uadpMessageSettings.GroupVersion;
                 uadpNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
-
                 return new List<UaNetworkMessage>() { uadpNetworkMessage };
             }
             else if (m_messageMapping == MessageMapping.Json)
             {
-                // each entry of this loist will generate a network message
+                // each entry of this list will generate a network message
                 List<List<UaDataSetMessage>> dataSetMessagesList = new List<List<UaDataSetMessage>>();
                 if ((((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask) & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {
@@ -272,17 +275,39 @@ namespace Opc.Ua.PubSub.Transport
 
                         try
                         {
-                            BrokerWriterGroupTransportDataType transportSettings = ExtensionObject.ToEncodeable(networkMessage.WriterGroupConfiguration.TransportSettings)
-                                as BrokerWriterGroupTransportDataType;
-                            if (transportSettings == null)
+                            string queueName = null;
+                            BrokerTransportQualityOfService qos = BrokerTransportQualityOfService.AtLeastOnce;
+
+                            if (networkMessage.DataSetWriterId != null)
                             {
-                                return false;
+                                var transportSettings = ExtensionObject.ToEncodeable(
+                                    networkMessage.WriterGroupConfiguration.DataSetWriters[0].TransportSettings)
+                                        as BrokerDataSetWriterTransportDataType;
+
+                                if (transportSettings != null)
+                                {
+                                    queueName = transportSettings.QueueName;
+                                    qos = transportSettings.RequestedDeliveryGuarantee;
+                                }
+                            }
+
+                            if (queueName == null)
+                            {
+                                var transportSettings = ExtensionObject.ToEncodeable(
+                                    networkMessage.WriterGroupConfiguration.TransportSettings)
+                                        as BrokerWriterGroupTransportDataType;
+
+                                if (transportSettings != null)
+                                {
+                                    queueName = transportSettings.QueueName;
+                                    qos = transportSettings.RequestedDeliveryGuarantee;
+                                }
                             }
 
                             var message = new MqttApplicationMessage {
-                                Topic = transportSettings.QueueName,
+                                Topic = queueName,
                                 Payload = bytes,
-                                QualityOfServiceLevel = GetMqttQualityOfServiceLevel(transportSettings.RequestedDeliveryGuarantee)
+                                QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos)
                             };
 
                             m_publisherMqttClient.PublishAsync(message).GetAwaiter().GetResult();
@@ -311,22 +336,26 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
-        protected override void InternalStart()
+        protected override async Task InternalStart()
         {
             int nrOfPublishers = 0;
             int nrOfSubscribers = 0;
 
+            //cleanup all existing MQTT connections previously open
+            await InternalStop();
+
             lock (m_lock)
             {
-                //cleanup all existing MQTT connections previously open
-                InternalStop();
+                NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(
+                    PubSubConnectionConfiguration.Address) as NetworkAddressUrlDataType;
 
-                NetworkAddressUrlDataType networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
-                       as NetworkAddressUrlDataType;
                 if (networkAddressUrlState == null)
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
-                              PubSubConnectionConfiguration.Name);
+                    Utils.Trace(
+                        Utils.TraceMasks.Error,
+                        "The configuration for connection {0} has invalid Address configuration.",
+                        PubSubConnectionConfiguration.Name);
+
                     return;
                 }
 
@@ -352,10 +381,10 @@ namespace Opc.Ua.PubSub.Transport
             //publisher initialization
             if (nrOfPublishers > 0)
             {
-                publisherClient = Task.Run(async () =>
-                          (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
-                                                                                 mqttOptions,
-                                                                                 null).ConfigureAwait(false)).Result;
+                publisherClient = (MqttClient)await MqttClientCreator.GetMqttClientAsync(
+                    m_reconnectIntervalSeconds,
+                    mqttOptions,
+                    null).ConfigureAwait(false);
             }
 
             //subscriber initialization
@@ -367,8 +396,10 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     foreach (var dataSetReader in readGroup.DataSetReaders)
                     {
-                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
-                            as BrokerDataSetReaderTransportDataType;
+                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(
+                            dataSetReader.TransportSettings)
+                                as BrokerDataSetReaderTransportDataType;
+
                         if (brokerTransportSettings != null && !topics.Contains(brokerTransportSettings.QueueName))
                         {
                             topics.Add(brokerTransportSettings.QueueName);
@@ -376,11 +407,11 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
 
-                subscriberClient = Task.Run(async () =>
-                     (MqttClient)await MqttClientCreator.GetMqttClientAsync(m_reconnectIntervalSeconds,
-                                                                            mqttOptions,
-                                                                            ProcessMqttMessage,
-                                                                            topics).ConfigureAwait(false)).Result;
+                subscriberClient = (MqttClient)await MqttClientCreator.GetMqttClientAsync(
+                        m_reconnectIntervalSeconds,
+                        mqttOptions,
+                        ProcessMqttMessage,
+                        topics).ConfigureAwait(false);
             }
 
             lock (m_lock)
@@ -396,40 +427,79 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
-        protected override void InternalStop()
+        protected override async Task InternalStop()
         {
+            var publisherMqttClient = m_publisherMqttClient;
+            var subscriberMqttClient = m_subscriberMqttClient;
+
+            if (publisherMqttClient != null)
+            {
+                if (publisherMqttClient.IsConnected)
+                {
+                    await publisherMqttClient.DisconnectAsync().ContinueWith((e) => publisherMqttClient.Dispose()).ConfigureAwait(false);
+                }
+                else
+                {
+                    publisherMqttClient.Dispose();
+                }
+            }
+
+            if (subscriberMqttClient != null)
+            {
+                if (subscriberMqttClient.IsConnected)
+                {
+                    await subscriberMqttClient.DisconnectAsync().ContinueWith((e) => subscriberMqttClient.Dispose()).ConfigureAwait(false);
+                }
+                else
+                {
+                    subscriberMqttClient.Dispose();
+                }
+            }
+
             lock (m_lock)
             {
-                if (m_publisherMqttClient != null)
-                {
-                    if (m_publisherMqttClient.IsConnected)
-                    {
-                        Task.Run(async () => await m_publisherMqttClient.DisconnectAsync().ConfigureAwait(false));
-                    }
-                    m_publisherMqttClient.Dispose();
-                }
-
-                if (m_subscriberMqttClient != null)
-                {
-                    if (m_subscriberMqttClient.IsConnected)
-                    {
-                        Task.Run(async () => await m_subscriberMqttClient.DisconnectAsync().ConfigureAwait(false));
-                    }
-                    m_subscriberMqttClient.Dispose();
-                }
-
-                if (m_certificateValidator != null)
-                {
-                    m_certificateValidator.CertificateValidation -= CertificateValidator_CertificateValidation;
-                    m_certificateValidator = null;
-                }
-
+                m_publisherMqttClient = null;
+                m_subscriberMqttClient = null;
                 m_mqttClientTlsOptions = null;
             }
         }
         #endregion Protected Methods
 
         #region Private Methods
+
+        private bool MatchTopic(string pattern, string topic)
+        {
+            if (String.IsNullOrEmpty(pattern) || pattern == "#")
+            {
+                return true;
+            }
+
+            int index = pattern.IndexOf("#");
+
+            if (index < 0)
+            {
+                return pattern == topic;
+            }
+
+            var fields1 = pattern.Split('/');
+            var fields2 = topic.Split('/');
+
+            if (fields1.Length != fields2.Length)
+            {
+                return false;
+            }
+
+            for (int ii = 0; ii < fields1.Length; ii++)
+            {
+                if (fields1[ii] != "#" && fields1[ii] != fields2[ii])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Processes a message from the MQTT broker.
         /// </summary>
@@ -444,46 +514,27 @@ namespace Opc.Ua.PubSub.Transport
             foreach (DataSetReaderDataType dsReader in GetOperationalDataSetReaders())
             {
                 if (dsReader == null) continue;
+
                 BrokerDataSetReaderTransportDataType brokerDataSetReaderTransportDataType =
-                    ExtensionObject.ToEncodeable(dsReader.TransportSettings) as BrokerDataSetReaderTransportDataType;
+                    ExtensionObject.ToEncodeable(dsReader.TransportSettings)
+                       as BrokerDataSetReaderTransportDataType;
 
                 string queueName = brokerDataSetReaderTransportDataType.QueueName;
-                if (queueName != "#")
+                string metadataQueueName = brokerDataSetReaderTransportDataType.MetaDataQueueName;
+
+                if (!MatchTopic(queueName, topic))
                 {
-                    // The following block of code checks if the received topic is the expected one
-                    // In case the message is received from Azure the topic is received with an appended GUID which needs to be filtered out
-                    // The match is done using the following logic
-                    if (!string.IsNullOrEmpty(queueName) && queueName.LastIndexOf('#') == queueName.Length - 1)
+                    if (String.IsNullOrEmpty(metadataQueueName))
                     {
-                        // Keep the queueName without #
-                        queueName = queueName.Substring(0, queueName.Length - 1);
-                    }
-                    if (brokerDataSetReaderTransportDataType == null || !topic.StartsWith(queueName))
-                    {
-                        // Ignore message
                         continue;
                     }
-                    if (topic.Length > queueName.Length)
+
+                    if (!MatchTopic(metadataQueueName, topic))
                     {
-                        // Keep the portion of the topic having the length of the queueName
-                        string filterTopic = topic.Substring(0, queueName.Length);
-                        if (filterTopic != queueName)
-                        {
-                            // Ignore message
-                            continue;
-                        }
-                    }
-                    else if ((topic.Length == queueName.Length) && (topic != queueName))
-                    {
-                        // Ignore message
-                        continue;
-                    }
-                    else if (topic.Length < queueName.Length)
-                    {
-                        // Ignore message
                         continue;
                     }
                 }
+
                 // At this point the message is accepted 
                 // if ((topic.Length == queueName.Length) && (topic == queueName)) || (queueName == #)
                 dataSetReaders.Add(dsReader);

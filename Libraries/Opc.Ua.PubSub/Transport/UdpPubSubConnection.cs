@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
-        protected override void InternalStart()
+        protected override Task InternalStart()
         {
             lock (m_lock)
             {
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
                               this.PubSubConnectionConfiguration.Name);
-                    return;
+                    return Task.FromResult<object>(null);
                 }
                 NetworkInterfaceName = networkAddressUrlState.NetworkInterface;
                 NetworkAddressEndPoint = UdpClientCreator.GetEndPoint(networkAddressUrlState.Url);
@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} with Url:'{1}' resulted in an invalid endpoint.",
                               this.PubSubConnectionConfiguration.Name, networkAddressUrlState.Url);
-                    return;
+                    return Task.FromResult<object>(null);
                 }
 
                 //publisher initialization    
@@ -140,12 +140,13 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
             }
+            return Task.FromResult<object>(null);
         }
 
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
-        protected override void InternalStop()
+        protected override Task InternalStop()
         {
             lock (m_lock)
             {
@@ -169,6 +170,7 @@ namespace Opc.Ua.PubSub.Transport
                     m_subscriberUdpClients.Clear();
                 }
             }
+            return Task.FromResult<object>(null);
         }
 
         /// <summary>
