@@ -10,7 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if !NETSTANDARD2_1
+#if !NETSTANDARD2_1 && !NET5_0
 using System;
 using System.IO;
 using System.Linq;
@@ -90,15 +90,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static RsaKeyParameters GetPublicKeyParameter(X509Certificate2 certificate)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = certificate.GetRSAPublicKey())
             {
-                rsa = certificate.GetRSAPublicKey();
                 return GetPublicKeyParameter(rsa);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -120,16 +114,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static RsaPrivateCrtKeyParameters GetPrivateKeyParameter(X509Certificate2 certificate)
         {
-            RSA rsa = null;
-            try
+            // try to get signing/private key from certificate passed in
+            using (RSA rsa = certificate.GetRSAPrivateKey())
             {
-                // try to get signing/private key from certificate passed in
-                rsa = certificate.GetRSAPrivateKey();
                 return GetPrivateKeyParameter(rsa);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 

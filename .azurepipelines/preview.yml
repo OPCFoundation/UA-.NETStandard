@@ -42,7 +42,7 @@ jobs:
     inputs:
       command: 'custom'
       custom: 'tool'
-      arguments: 'install --tool-path . azuresigntool'
+      arguments: 'install --version 2.0.17 --tool-path . azuresigntool'
     displayName: Install AzureSignTool
   - task: DotNetCoreCLI@2
     inputs:

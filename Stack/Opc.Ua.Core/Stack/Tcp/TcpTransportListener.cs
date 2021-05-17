@@ -390,7 +390,7 @@ namespace Opc.Ua.Bindings
             if (ConnectionWaiting != null)
             {
                 var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
-                await ConnectionWaiting(this, args);
+                await ConnectionWaiting(this, args).ConfigureAwait(false);
                 accepted = args.Accepted;
             }
 
@@ -597,7 +597,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Base address must be an absolute URI.", nameof(baseAddress));
             }
 
-            if (String.Compare(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase) != 0)
+            if (!String.Equals(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"Invalid URI scheme: {baseAddress.Scheme}.", nameof(baseAddress));
             }

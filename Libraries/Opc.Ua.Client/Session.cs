@@ -37,7 +37,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -127,7 +126,7 @@ namespace Opc.Ua.Client
 
             foreach (Subscription subscription in template.Subscriptions)
             {
-                this.AddSubscription(new Subscription(subscription, copyEventHandlers));
+                AddSubscription(new Subscription(subscription, copyEventHandlers));
             }
         }
         #endregion
@@ -169,7 +168,6 @@ namespace Opc.Ua.Client
                     }
 
                     m_instanceCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
-
                 }
 
                 // check for valid certificate.
@@ -230,7 +228,7 @@ namespace Opc.Ua.Client
             m_systemContext.EncodeableFactory = m_factory;
             m_systemContext.NamespaceUris = m_namespaceUris;
             m_systemContext.ServerUris = m_serverUris;
-            m_systemContext.TypeTable = this.TypeTree;
+            m_systemContext.TypeTable = TypeTree;
             m_systemContext.PreferredLocales = null;
             m_systemContext.SessionId = null;
             m_systemContext.UserIdentity = null;
@@ -324,7 +322,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -338,7 +336,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace((int)Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -559,7 +557,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the cache of nodes fetched from the server.
         /// </summary>
-        public NodeCache NodeCache => m_nodeCache;
+        public INodeCache NodeCache => m_nodeCache;
 
         /// <summary>
         /// Gets the context to use for filter operations.
@@ -834,8 +832,8 @@ namespace Opc.Ua.Client
             X509Certificate2Collection clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                clientCertificate = await LoadCertificate(configuration);
-                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate);
+                clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
+                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
             }
 
             // initialize the channel which will be created with the server.
@@ -909,7 +907,7 @@ namespace Opc.Ua.Client
             if (reverseConnectManager == null)
             {
                 return await Create(configuration, endpoint, updateBeforeConnect,
-                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales);
+                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales).ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection = null;
@@ -918,14 +916,14 @@ namespace Opc.Ua.Client
                 connection = await reverseConnectManager.WaitForConnection(
                     endpoint.EndpointUrl,
                     endpoint.ReverseConnect.ServerUri,
-                    ct);
+                    ct).ConfigureAwait(false);
 
                 if (updateBeforeConnect)
                 {
                     await endpoint.UpdateFromServerAsync(
                         endpoint.EndpointUrl, connection,
                         endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri);
+                        endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
@@ -940,7 +938,7 @@ namespace Opc.Ua.Client
                 sessionName,
                 sessionTimeout,
                 userIdentity,
-                preferredLocales);
+                preferredLocales).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1250,7 +1248,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
@@ -1289,7 +1286,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Load the list of subscriptions saved in a file.
         /// </summary>
@@ -1299,6 +1295,8 @@ namespace Opc.Ua.Client
         {
             XmlReaderSettings settings = new XmlReaderSettings();
 
+            settings.DtdProcessing = DtdProcessing.Prohibit;
+            settings.XmlResolver = null;
             settings.ConformanceLevel = ConformanceLevel.Document;
             settings.CloseInput = true;
 
@@ -1409,7 +1407,6 @@ namespace Opc.Ua.Client
         /// Returns the available encodings for a node
         /// </summary>
         /// <param name="variableId">The variable node.</param>
-        /// <returns></returns>
         public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
         {
             VariableNode variable = NodeCache.Find(variableId) as VariableNode;
@@ -1466,12 +1463,10 @@ namespace Opc.Ua.Client
             return browser.Browse(variable.DataType);
         }
 
-
         /// <summary>
         /// Returns the data description for the encoding.
         /// </summary>
         /// <param name="encodingId">The encoding Id.</param>
-        /// <returns></returns>
         public ReferenceDescription FindDataDescription(NodeId encodingId)
         {
             Browser browser = new Browser(this);
@@ -1491,12 +1486,10 @@ namespace Opc.Ua.Client
             return references[0];
         }
 
-
         /// <summary>
         ///  Returns the data dictionary that contains the description.
         /// </summary>
         /// <param name="descriptionId">The description id.</param>
-        /// <returns></returns>
         public async Task<DataDictionary> FindDataDictionary(NodeId descriptionId)
         {
             // check if the dictionary has already been loaded.
@@ -1528,7 +1521,7 @@ namespace Opc.Ua.Client
 
             DataDictionary dictionaryToLoad = new DataDictionary(this);
 
-            await dictionaryToLoad.Load(references[0]);
+            await dictionaryToLoad.Load(references[0]).ConfigureAwait(false);
 
             m_dictionaries[dictionaryId] = dictionaryToLoad;
 
@@ -1554,7 +1547,7 @@ namespace Opc.Ua.Client
 
             // load the dictionary.
             DataDictionary dictionaryToLoad = new DataDictionary(this);
-            await dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString());
+            await dictionaryToLoad.Load(dictionaryId, dictionaryNode.ToString()).ConfigureAwait(false);
             m_dictionaries[dictionaryId] = dictionaryToLoad;
             return dictionaryToLoad;
         }
@@ -1563,7 +1556,6 @@ namespace Opc.Ua.Client
         /// Loads all dictionaries of the OPC binary or Xml schema type system.
         /// </summary>
         /// <param name="dataTypeSystem">The type system.</param>
-        /// <returns></returns>
         public async Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
         {
             if (dataTypeSystem == null)
@@ -1603,7 +1595,7 @@ namespace Opc.Ua.Client
                     try
                     {
                         dictionaryToLoad = new DataDictionary(this);
-                        await dictionaryToLoad.Load(r);
+                        await dictionaryToLoad.Load(r).ConfigureAwait(false);
                         m_dictionaries[dictionaryId] = dictionaryToLoad;
                     }
                     catch (Exception ex)
@@ -1620,8 +1612,9 @@ namespace Opc.Ua.Client
         /// Reads the values for the node attributes and returns a node object.
         /// </summary>
         /// <param name="nodeId">The nodeId.</param>
-        /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public Node ReadNode(NodeId nodeId)
         {
             // build list of attributes.
@@ -1813,7 +1806,7 @@ namespace Opc.Ua.Client
                     {
                         if (value.Value == null)
                         {
-                            variableNode.ArrayDimensions = new uint[0];
+                            variableNode.ArrayDimensions = Array.Empty<uint>();
                         }
                         else
                         {
@@ -2138,7 +2131,6 @@ namespace Opc.Ua.Client
         /// Reads the value for a node.
         /// </summary>
         /// <param name="nodeId">The node Id.</param>
-        /// <returns></returns>
         public DataValue ReadValue(NodeId nodeId)
         {
             ReadValueId itemToRead = new ReadValueId();
@@ -2178,7 +2170,6 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="nodeId">The node id.</param>
         /// <param name="expectedType">The expected type.</param>
-        /// <returns></returns>
         public object ReadValue(NodeId nodeId, Type expectedType)
         {
             DataValue dataValue = ReadValue(nodeId);
@@ -2206,12 +2197,10 @@ namespace Opc.Ua.Client
             return value;
         }
 
-
         /// <summary>
         /// Fetches all references for the specified node.
         /// </summary>
         /// <param name="nodeId">The node id.</param>
-        /// <returns></returns>
         public ReferenceDescriptionCollection FetchReferences(NodeId nodeId)
         {
             // browse for all references.
@@ -2342,9 +2331,11 @@ namespace Opc.Ua.Client
             }
 
             bool requireEncryption = securityPolicyUri != SecurityPolicies.None;
+
             if (!requireEncryption)
             {
-                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None;
+                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
+                    !String.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
 
             // validate the server certificate /certificate chain.
@@ -2380,8 +2371,8 @@ namespace Opc.Ua.Client
             byte[] clientNonce = Utils.Nonce.CreateNonce(length);
             NodeId sessionId = null;
             NodeId sessionCookie = null;
-            byte[] serverNonce = new byte[0];
-            byte[] serverCertificateData = new byte[0];
+            byte[] serverNonce = Array.Empty<byte>();
+            byte[] serverCertificateData = Array.Empty<byte>();
             SignatureData serverSignature = null;
             EndpointDescriptionCollection serverEndpoints = null;
             SignedSoftwareCertificateCollection serverSoftwareCertificates = null;
@@ -2523,7 +2514,8 @@ namespace Opc.Ua.Client
                     // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
                     EndpointDescriptionCollection expectedServerEndpoints = null;
 
-                    if (m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
+                    if (serverEndpoints != null &&
+                        m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
                     {
                         // Select EndpointDescriptions with a transportProfileUri that matches the
                         // profileUris specified in the original GetEndpoints() request.
@@ -2542,7 +2534,8 @@ namespace Opc.Ua.Client
                         expectedServerEndpoints = serverEndpoints;
                     }
 
-                    if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                    if (expectedServerEndpoints == null ||
+                        m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadSecurityChecksFailed,
@@ -3025,7 +3018,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Reads the values for a set of variables.
         /// </summary>
@@ -3111,7 +3103,6 @@ namespace Opc.Ua.Client
                 values[ii] = value;
             }
         }
-
 
         /// <summary>
         /// Reads the display name for a set of Nodes.
@@ -3271,7 +3262,6 @@ namespace Opc.Ua.Client
         /// Adds a subscription to the session.
         /// </summary>
         /// <param name="subscription">The subscription to add.</param>
-        /// <returns></returns>
         public bool AddSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3299,7 +3289,6 @@ namespace Opc.Ua.Client
         /// Removes a subscription from the session.
         /// </summary>
         /// <param name="subscription">The subscription to remove.</param>
-        /// <returns></returns>
         public bool RemoveSubscription(Subscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
@@ -3331,7 +3320,6 @@ namespace Opc.Ua.Client
         /// Removes a list of subscriptions from the sessiont.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
-        /// <returns></returns>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
@@ -3386,7 +3374,6 @@ namespace Opc.Ua.Client
         /// <param name="nodeClassMask">The node class mask.</param>
         /// <param name="continuationPoint">The continuation point.</param>
         /// <param name="references">The list of node references.</param>
-        /// <returns></returns>
         public virtual ResponseHeader Browse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3449,7 +3436,6 @@ namespace Opc.Ua.Client
         /// <param name="nodeClassMask">The node class mask.</param>
         /// <param name="callback">The callback.</param>
         /// <param name="asyncState"></param>
-        /// <returns></returns>
         public IAsyncResult BeginBrowse(
             RequestHeader requestHeader,
             ViewDescription view,
@@ -3489,7 +3475,6 @@ namespace Opc.Ua.Client
         /// <param name="result">The result.</param>
         /// <param name="continuationPoint">The continuation point.</param>
         /// <param name="references">The list of node references.</param>
-        /// <returns></returns>
         public ResponseHeader EndBrowse(
             IAsyncResult result,
             out byte[] continuationPoint,
@@ -4045,14 +4030,7 @@ namespace Opc.Ua.Client
                 m_acknowledgementsToSend = new SubscriptionAcknowledgementCollection();
                 foreach (var toSend in acknowledgementsToSend)
                 {
-                    if (m_latestAcknowledgementsSent.ContainsKey(toSend.SubscriptionId))
-                    {
-                        m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
-                    }
-                    else
-                    {
-                        m_latestAcknowledgementsSent.Add(toSend.SubscriptionId, toSend.SequenceNumber);
-                    }
+                    m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
                 }
             }
 
@@ -4565,7 +4543,7 @@ namespace Opc.Ua.Client
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
             }
 
-            clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true);
+            clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true).ConfigureAwait(false);
 
             if (clientCertificate == null)
             {
@@ -4573,7 +4551,6 @@ namespace Opc.Ua.Client
             }
             return clientCertificate;
         }
-
 
         /// <summary>
         /// Load certificate chain for connection.
@@ -4586,7 +4563,7 @@ namespace Opc.Ua.Client
             {
                 clientCertificateChain = new X509Certificate2Collection(clientCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers);
+                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).ConfigureAwait(false);
 
                 for (int i = 0; i < issuers.Count; i++)
                 {

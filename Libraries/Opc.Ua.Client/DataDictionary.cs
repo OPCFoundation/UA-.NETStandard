@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.Schema;
-using Opc.Ua.Schema.Binary;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using Opc.Ua.Schema;
+using Opc.Ua.Schema.Binary;
 
 namespace Opc.Ua.Client
 {
@@ -132,13 +132,13 @@ namespace Opc.Ua.Client
             }
 
             // Interoperability: some server may return a null terminated dictionary string, adjust length
-            int zeroTerminator = Array.IndexOf<byte>(schema, (byte)0);
+            int zeroTerminator = Array.IndexOf<byte>(schema, 0);
             if (zeroTerminator >= 0)
             {
                 Array.Resize(ref schema, zeroTerminator);
             }
 
-            await Validate(schema);
+            await Validate(schema).ConfigureAwait(false);
 
             ReadDataTypes(dictionaryId);
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await validator.Validate(istrm);
+                    await validator.Validate(istrm).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {

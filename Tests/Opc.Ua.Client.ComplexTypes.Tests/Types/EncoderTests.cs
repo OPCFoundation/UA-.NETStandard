@@ -76,8 +76,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion
-
+        #endregion Test Setup
 
         #region Test Methods
         /// <summary>
@@ -155,6 +154,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             baseType[structureFieldParameter.Name] = null;
             EncodeDecodeComplexType(EncoderContext, encoderType, StructureType.Union, nodeId, emittedType);
         }
-        #endregion
+        #endregion Test Methods
     }
 }

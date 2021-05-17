@@ -93,24 +93,26 @@ namespace Opc.Ua.Security.Certificates.Tests
             foreach (var eCCurveHash in ECCurveHashPairs)
             {
                 if (!eCCurveHash.Curve.IsNamed) continue;
-                var cert = builder
+                using (var cert = builder
                     .SetHashAlgorithm(eCCurveHash.HashAlgorithmName)
                     .SetECCurve(eCCurveHash.Curve)
-                    .CreateForECDsa();
-                Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
-                Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-                // ensure serial numbers are different
-                Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
-                X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-                Assert.True(X509Utils.VerifySelfSigned(cert));
+                    .CreateForECDsa())
+                {
+                    Assert.NotNull(cert);
+                    WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
+                    Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+                    // ensure serial numbers are different
+                    Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
+                    X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
+                    Assert.True(X509Utils.VerifySelfSigned(cert));
+                }
             }
         }
 
         /// <summary>
         /// Create the default RSA certificate.
         /// </summary>
-        [Theory]
+        [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
         {
             // default cert
@@ -140,10 +142,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             var keyUsage = X509Extensions.FindExtension<X509KeyUsageExtension>(cert.Extensions);
             Assert.NotNull(keyUsage);
             X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-            Assert.True(X509Utils.VerifySelfSigned(cert));
+            Assert.True(X509Utils.VerifySelfSigned(cert), "Verify self signed.");
         }
 
-        [Theory]
+        [Theory, Repeat(10)]
         public void CreateSelfSignedForECDsaAllFields(
             ECCurveHashPair ecCurveHashPair
             )
@@ -180,7 +182,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.True(X509Utils.VerifySelfSigned(cert));
         }
 
-        [Theory]
+        [Theory, Repeat(10)]
         public void CreateCACertForECDsa(
             ECCurveHashPair ecCurveHashPair
             )
@@ -246,7 +248,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
                     CertificateBuilder.Create(Subject)
-                    .SetSerialNumber(new byte[0])
+                    .SetSerialNumber(Array.Empty<byte>())
                     .SetECCurve(eccurve)
                     .CreateForECDsa();
                 }
@@ -308,7 +310,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(new X509Certificate2(signingCert.RawData))
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed ECDsa cert");
+                WriteCertificate(cert, "Default signed ECDsa cert");
             }
 
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
@@ -321,7 +323,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed ECDsa cert with Public Key");
+                WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
             }
 
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
@@ -333,7 +335,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed RSA cert");
+                WriteCertificate(cert, "Default signed RSA cert");
             }
 
             // ensure invalid path throws argument exception

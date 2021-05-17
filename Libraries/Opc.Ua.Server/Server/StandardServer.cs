@@ -2155,7 +2155,8 @@ namespace Opc.Ua.Server
         /// <returns>Boolean value.</returns>
         public async Task<bool> RegisterWithDiscoveryServer()
         {
-            ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ? base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false);
+            ApplicationConfiguration configuration = string.IsNullOrEmpty(base.Configuration.SourceFilePath) ?
+                base.Configuration : await ApplicationConfiguration.Load(new FileInfo(base.Configuration.SourceFilePath), ApplicationType.Server, null, false).ConfigureAwait(false);
             CertificateValidationEventHandler registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
 
@@ -2309,7 +2310,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (await RegisterWithDiscoveryServer())
+                if (await RegisterWithDiscoveryServer().ConfigureAwait(false))
                 {
                     // schedule next registration.                        
                     lock (m_registrationLock)
@@ -2599,7 +2600,7 @@ namespace Opc.Ua.Server
                 ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
                     new FileInfo(args.FilePath),
                     Configuration.ApplicationType,
-                    Configuration.GetType());
+                    Configuration.GetType()).ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);
             }
@@ -2664,20 +2665,22 @@ namespace Opc.Ua.Server
         /// Creates the endpoints and creates the hosts.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="bindingFactory">The transport listener binding factory.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="endpoints">The endpoints.</param>
         /// <returns>
         /// Returns IList of a host for a UA service.
         /// </returns>
-        protected override IList<Task> InitializeServiceHosts(
+        protected override IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
+            TransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
             out EndpointDescriptionCollection endpoints)
         {
             serverDescription = null;
             endpoints = null;
 
-            Dictionary<string, Task> hosts = new Dictionary<string, Task>();
+            var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
             if (configuration.ServerConfiguration.SecurityPolicies.Count == 0)
@@ -2710,7 +2713,7 @@ namespace Opc.Ua.Server
 
             foreach (var scheme in Utils.DefaultUriSchemes)
             {
-                var binding = TransportBindings.Listeners.GetBinding(scheme);
+                var binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
                 {
                     endpointsForHost = binding.CreateServiceHost(
@@ -2727,7 +2730,15 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return new List<Task>(hosts.Values);
+            return new List<ServiceHost>(hosts.Values);
+        }
+
+        /// <summary>
+        /// Creates an instance of the service host.
+        /// </summary>
+        public override ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        {
+            return new ServiceHost(this, typeof(SessionEndpoint), addresses);
         }
 
         /// <summary>
@@ -2833,7 +2844,7 @@ namespace Opc.Ua.Server
                         {
                             UriBuilder uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
 
-                            if (String.Compare(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) == 0)
+                            if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                             {
                                 uri.Host = computerName;
                             }
@@ -3142,7 +3153,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        protected readonly object m_lock = new object();
+        private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;

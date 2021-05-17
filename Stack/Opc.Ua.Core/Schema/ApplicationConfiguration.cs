@@ -42,7 +42,7 @@ namespace Opc.Ua
 
             m_securityConfiguration = new SecurityConfiguration();
             m_transportConfigurations = new TransportConfigurationCollection();
-            m_disableHiResClock = true;
+            m_disableHiResClock = false;
             m_properties = new Dictionary<string, object>();
             m_certificateValidator = new CertificateValidator();
         }
@@ -75,7 +75,7 @@ namespace Opc.Ua
 
         #region Persistent Properties
         /// <summary>
-        /// A descriptive name for the the application (not necessarily unique).
+        /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         /// <value>The name of the application.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
@@ -223,7 +223,7 @@ namespace Opc.Ua
         /// <summary>
         /// Disabling / enabling high resolution clock 
         /// </summary>
-        /// <value><c>true</c> if high resolutioin clock is disabled; otherwise, <c>false</c>.</value>
+        /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
         public bool DisableHiResClock
         {
@@ -740,6 +740,7 @@ namespace Opc.Ua
             m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = false;
+            m_suppressNonceValidationErrors = false;
         }
 
         /// <summary>
@@ -1428,7 +1429,7 @@ namespace Opc.Ua
             m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
             m_shutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
-            m_supportedPrivateKeyFormats = new string[] { };
+            m_supportedPrivateKeyFormats = Array.Empty<string>();
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
         }
@@ -3260,7 +3261,7 @@ namespace Opc.Ua
         /// The reverse connect information.
         /// </summary>
         [DataMember(Name = "ReverseConnect", Order = 8, IsRequired = false)]
-        public ReverseConnectEndpoint ReverseConnect 
+        public ReverseConnectEndpoint ReverseConnect
         {
             get { return m_reverseConnect; }
             set { m_reverseConnect = value; }
@@ -3329,7 +3330,8 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public ReverseConnectEndpoint() {
+        public ReverseConnectEndpoint()
+        {
             Initialize();
         }
 
@@ -3342,7 +3344,8 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize() {
+        private void Initialize()
+        {
             m_enabled = false;
             m_serverUri = null;
             m_thumbprint = null;
@@ -3354,7 +3357,8 @@ namespace Opc.Ua
         /// Whether reverse connect is enabled for the endpoint.
         /// </summary>
         [DataMember(Name = "Enabled", Order = 1, IsRequired = false)]
-        public bool Enabled {
+        public bool Enabled
+        {
             get { return m_enabled; }
             set { m_enabled = value; }
         }
@@ -3363,7 +3367,8 @@ namespace Opc.Ua
         /// The server Uri of the endpoint.
         /// </summary>
         [DataMember(Name = "ServerUri", Order = 2, IsRequired = false)]
-        public string ServerUri {
+        public string ServerUri
+        {
             get { return m_serverUri; }
             set { m_serverUri = value; }
         }
@@ -3373,7 +3378,8 @@ namespace Opc.Ua
         /// the server Uri.
         /// </summary>
         [DataMember(Name = "Thumbprint", Order = 3, IsRequired = false)]
-        public string Thumbprint {
+        public string Thumbprint
+        {
             get { return m_thumbprint; }
             set { m_thumbprint = value; }
         }

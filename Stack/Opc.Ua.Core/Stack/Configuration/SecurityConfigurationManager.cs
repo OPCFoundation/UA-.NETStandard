@@ -245,8 +245,11 @@ namespace Opc.Ua.Security
 
             // load from file.
             XmlDocument document = new XmlDocument();
-            document.Load(new FileStream(filePath, FileMode.Open));
-
+            using (var stream = new FileStream(filePath, FileMode.Open))
+            using (var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            {
+                document.Load(xmlReader);
+            }
             XmlElement element = Find(document.DocumentElement, "SecuredApplication", Namespaces.OpcUaSecurity);
 
             // update secured application.
@@ -377,7 +380,7 @@ namespace Opc.Ua.Security
 
                 // must extract the inner xml.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = Encoding.UTF8.GetString(memoryStream.ToArray());
+                document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
                 return document.DocumentElement.InnerXml;
             }
         }

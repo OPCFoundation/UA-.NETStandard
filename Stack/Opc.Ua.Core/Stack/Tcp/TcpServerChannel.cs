@@ -107,7 +107,7 @@ namespace Opc.Ua.Bindings
             ar.Socket = Socket = tcpMessageSocketFactory.Create(this, BufferManager, ReceiveBufferSize);
 
             var connectComplete = new EventHandler<IMessageSocketAsyncEventArgs>(OnReverseConnectComplete);
-            Task t = Task.Run(async () => await Socket.BeginConnect(endpointUrl, connectComplete, ar, ar.CancellationToken));
+            Task t = Task.Run(async () => await Socket.BeginConnect(endpointUrl, connectComplete, ar, ar.CancellationToken).ConfigureAwait(false));
 
             return ar;
         }
@@ -231,8 +231,7 @@ namespace Opc.Ua.Bindings
                     SendOpenSecureChannelResponse(requestId, token, request);
 
                     // send any queue responses.
-                    Task.Factory.StartNew(OnChannelReconnected, m_queuedResponses);
-                    m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();
+                    ResetQueuedResponses(OnChannelReconnected);
                 }
                 catch (Exception e)
                 {
@@ -507,6 +506,7 @@ namespace Opc.Ua.Bindings
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
+                        innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
@@ -936,7 +936,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // hand the request to the server.
-                m_requestReceived?.Invoke(this, requestId, request);
+                RequestReceived?.Invoke(this, requestId, request);
 
                 return true;
             }

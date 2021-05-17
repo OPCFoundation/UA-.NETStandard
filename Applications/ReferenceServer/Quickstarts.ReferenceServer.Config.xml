@@ -255,8 +255,15 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
-
   </ServerConfiguration>
+
+  <Extensions>
+    <ua:XmlElement>
+      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceApplications">
+        <ShowCertificateValidationDialog>false</ShowCertificateValidationDialog>
+      </ReferenceServerConfiguration>
+    </ua:XmlElement>
+  </Extensions>
 
   <TraceConfiguration>
     <OutputFilePath>Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>

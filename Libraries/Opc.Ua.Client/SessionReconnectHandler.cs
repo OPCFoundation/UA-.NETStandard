@@ -71,10 +71,7 @@ namespace Opc.Ua.Client
         /// Gets the session managed by the handler.
         /// </summary>
         /// <value>The session.</value>
-        public Session Session
-        {
-            get { return m_session; }
-        }
+        public Session Session => m_session;
 
         /// <summary>
         /// Begins the reconnect process.
@@ -122,7 +119,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do the reconnect.
-                if (await DoReconnect())
+                if (await DoReconnect().ConfigureAwait(false))
                 {
                     lock (m_lock)
                     {
@@ -166,7 +163,7 @@ namespace Opc.Ua.Client
                         var connection = await m_reverseConnectManager.WaitForConnection(
                                 new Uri(m_session.Endpoint.EndpointUrl),
                                 m_session.Endpoint.Server.ApplicationUri
-                            );
+                            ).ConfigureAwait(false);
 
                         m_session.Reconnect(connection);
                     }
@@ -188,8 +185,7 @@ namespace Opc.Ua.Client
                         (sre.StatusCode == StatusCodes.BadTcpInternalError ||
                          sre.StatusCode == StatusCodes.BadCommunicationError ||
                          sre.StatusCode == StatusCodes.BadNotConnected ||
-                         sre.StatusCode == StatusCodes.BadTimeout)) ||
-                        exception is System.ServiceModel.EndpointNotFoundException)
+                         sre.StatusCode == StatusCodes.BadTimeout)))
                     {
                         // check if reconnecting is still an option.
                         if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
@@ -212,7 +208,7 @@ namespace Opc.Ua.Client
                     var connection = await m_reverseConnectManager.WaitForConnection(
                             new Uri(m_session.Endpoint.EndpointUrl),
                             m_session.Endpoint.Server.ApplicationUri
-                        );
+                        ).ConfigureAwait(false);
 
                     session = Session.Recreate(m_session, connection);
                 }

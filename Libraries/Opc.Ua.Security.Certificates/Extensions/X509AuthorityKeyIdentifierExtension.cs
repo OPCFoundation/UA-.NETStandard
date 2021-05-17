@@ -148,7 +148,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kKeyIdentifier);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_keyIdentifier.ToHexString());
             }
 
@@ -164,7 +164,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kIssuer);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_issuer.Format(true));
             }
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kSerialNumber);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_serialNumber.ToHexString(true));
             }
             return buffer.ToString();

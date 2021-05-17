@@ -50,25 +50,25 @@ namespace Opc.Ua.Security.Certificates
             bool throwOnError = false)
         {
             bool result = false;
-            RSA rsaPrivateKey = null;
-            RSA rsaPublicKey = null;
             try
             {
                 // verify the public and private key match
-                rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-                rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
-                X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+                using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
+                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
                 {
-                    result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                }
-                else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                {
-                    result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
-                }
-                else
-                {
-                    throw new CryptographicException("Don't know how to verify the public/private key pair.");
+                    X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+                    if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+                    {
+                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                    }
+                    else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+                    {
+                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                    }
+                    else
+                    {
+                        throw new CryptographicException("Don't know how to verify the public/private key pair.");
+                    }
                 }
             }
             catch (Exception)
@@ -81,8 +81,6 @@ namespace Opc.Ua.Security.Certificates
             }
             finally
             {
-                RsaUtils.RSADispose(rsaPrivateKey);
-                RsaUtils.RSADispose(rsaPublicKey);
                 if (!result && throwOnError)
                 {
                     throw new CryptographicException("The public/private key pair in the certficates do not match.");

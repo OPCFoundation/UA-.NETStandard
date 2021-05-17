@@ -161,7 +161,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
             Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
             Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
-            Assert.True(x509Crl.VerifySignature(new X509Certificate2(m_issuerCert.RawData), true));
+            using (var issuerPubKey = new X509Certificate2(m_issuerCert.RawData))
+            {
+                Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
+            }
         }
 
         /// <summary>
@@ -202,7 +205,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
             Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
             Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
-            Assert.True(x509Crl.VerifySignature(new X509Certificate2(m_issuerCert.RawData), true));
+            using (var issuerPubKey = new X509Certificate2(m_issuerCert.RawData))
+            {
+                Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
+            }
         }
         #endregion
 
@@ -210,23 +216,23 @@ namespace Opc.Ua.Security.Certificates.Tests
         private string WriteCRL(X509CRL x509Crl)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"Issuer:     {x509Crl.Issuer}");
-            stringBuilder.AppendLine($"ThisUpdate: {x509Crl.ThisUpdate}");
-            stringBuilder.AppendLine($"NextUpdate: {x509Crl.NextUpdate}");
-            stringBuilder.AppendLine($"RevokedCertificates:");
+            stringBuilder.Append("Issuer:     ").AppendLine(x509Crl.Issuer);
+            stringBuilder.Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine();
+            stringBuilder.Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine();
+            stringBuilder.AppendLine("RevokedCertificates:");
             foreach (var revokedCert in x509Crl.RevokedCertificates)
             {
-                stringBuilder.Append($"{revokedCert.SerialNumber:20}, {revokedCert.RevocationDate}, ");
+                stringBuilder.AppendFormat("{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
                 foreach (var entryExt in revokedCert.CrlEntryExtensions)
                 {
-                    stringBuilder.Append($"{entryExt.Format(false)} ");
+                    stringBuilder.Append(entryExt.Format(false)).Append(' ');
                 }
                 stringBuilder.AppendLine("");
             }
-            stringBuilder.AppendLine($"Extensions:");
+            stringBuilder.AppendLine("Extensions:");
             foreach (var extension in x509Crl.CrlExtensions)
             {
-                stringBuilder.AppendLine($"{extension.Format(false)}");
+                stringBuilder.AppendLine(extension.Format(false));
             }
             return stringBuilder.ToString();
         }

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 
+#if !NETSTANDARD2_1 && !NET5_0
 
 using System;
 using System.Security.Cryptography.X509Certificates;
@@ -70,15 +70,12 @@ namespace Opc.Ua.Security.Certificates
             string password = null
             )
         {
-            if (!String.IsNullOrEmpty(password)) throw new ArgumentException(nameof(password), "Export with password not supported on this platform.");
+            if (!String.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
             RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetPrivateKeyParameter(certificate);
-            using (TextWriter textWriter = new StringWriter())
-            {
-                // write private key as PKCS#8
-                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
-                byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
-                return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
-            }
+            // write private key as PKCS#8
+            PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
+            byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
+            return EncodeAsPEM(serializedPrivateBytes, "PRIVATE KEY");
         }
         #endregion
 

@@ -78,11 +78,11 @@ namespace Opc.Ua.Bindings
                     context.Response.ContentLength = 0;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-                    await context.Response.WriteAsync(string.Empty);
+                    await context.Response.WriteAsync(string.Empty).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Listener.SendAsync(context);
+                    await Listener.SendAsync(context).ConfigureAwait(false);
                 }
             });
         }
@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings
             httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
             m_hostBuilder.UseKestrel(options => {
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
-                    listenOptions.NoDelay = true;
+                    // listenOptions.NoDelay = true;
                     listenOptions.UseHttps(httpsOptions);
                 });
             });
@@ -271,7 +271,7 @@ namespace Opc.Ua.Bindings
                     context.Response.ContentLength = 0;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.NotImplemented;
-                    await context.Response.WriteAsync(string.Empty);
+                    await context.Response.WriteAsync(string.Empty).ConfigureAwait(false);
                     return;
                 }
 
@@ -280,19 +280,19 @@ namespace Opc.Ua.Bindings
                     context.Response.ContentLength = 0;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.");
+                    await context.Response.WriteAsync("HTTPSLISTENER - Unsupported content type.").ConfigureAwait(false);
                     return;
                 }
 
                 int length = (int)context.Request.ContentLength;
-                byte[] buffer = await ReadBodyAsync(context.Request);
+                byte[] buffer = await ReadBodyAsync(context.Request).ConfigureAwait(false);
 
                 if (buffer.Length != length)
                 {
                     context.Response.ContentLength = 0;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    await context.Response.WriteAsync("HTTPSLISTENER - Couldn't decode buffer.");
+                    await context.Response.WriteAsync("HTTPSLISTENER - Couldn't decode buffer.").ConfigureAwait(false);
                     return;
                 }
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-                await context.Response.Body.WriteAsync(response, 0, response.Length);
+                await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -350,7 +350,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = e.Message.Length;
                 context.Response.ContentType = "text/plain";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                await context.Response.WriteAsync(e.Message);
+                await context.Response.WriteAsync(e.Message).ConfigureAwait(false);
             }
         }
 
@@ -382,7 +382,7 @@ namespace Opc.Ua.Bindings
             using (var memory = new MemoryStream())
             using (var reader = new StreamReader(req.Body))
             {
-                await reader.BaseStream.CopyToAsync(memory);
+                await reader.BaseStream.CopyToAsync(memory).ConfigureAwait(false);
                 return memory.ToArray();
             }
         }

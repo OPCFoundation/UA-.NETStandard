@@ -231,11 +231,12 @@ namespace Opc.Ua
 
             // merge all existing revocation list
             if (issuerCrls != null)
-            {   
+            {
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
                     var extension = X509Extensions.FindExtension<X509CrlNumberExtension>(issuerCrl.CrlExtensions);
-                    if (extension?.CrlNumber > crlSerialNumber)
+                    if (extension != null &&
+                        extension.CrlNumber > crlSerialNumber)
                     {
                         crlSerialNumber = extension.CrlNumber;
                     }
@@ -271,7 +272,7 @@ namespace Opc.Ua
             return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
         }
 
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NET5_0
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -389,17 +390,11 @@ namespace Opc.Ua
             }
 
             string passcode = Guid.NewGuid().ToString();
-            RSA rsaPrivateKey = null;
-            try
+            using (RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey())
             {
-                rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
                 byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
                     certificate, certificate.FriendlyName, rsaPrivateKey, passcode);
                 return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsaPrivateKey);
             }
         }
 
@@ -572,7 +567,7 @@ namespace Opc.Ua
 
                 builder.Append("urn:");
                 builder.Append(domainNames[0]);
-                builder.Append(":");
+                builder.Append(':');
                 builder.Append(applicationName);
 
                 applicationUri = builder.ToString();

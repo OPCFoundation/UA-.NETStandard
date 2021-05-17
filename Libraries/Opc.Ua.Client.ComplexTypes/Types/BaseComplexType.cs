@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -84,7 +83,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = ExpandedNodeId.Null;
             m_context = MessageContextExtension.CurrentContext;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
         /// <summary cref="IEncodeable.TypeId" />
@@ -126,8 +125,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
-
+            encoder.PushNamespace(XmlNamespace);
+            
             foreach (var property in GetPropertyEnumerator())
             {
                 EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
@@ -139,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             foreach (var property in GetPropertyEnumerator())
             {
@@ -184,7 +183,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return ToString(null, null);
         }
-        #endregion
+        #endregion Public Properties
 
         #region IFormattable Members
         /// <summary>
@@ -209,8 +208,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
-                    return body.ToString();
+                    return body.Append('}').ToString();
                 }
 
                 if (!NodeId.IsNull(this.TypeId))
@@ -223,7 +221,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
+        #endregion IFormattable Members
 
         #region IComplexTypeProperties
         /// <summary cref="IComplexTypeProperties.GetPropertyCount()" />
@@ -263,15 +261,16 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Ordered enumerator for properties.      
+        /// Ordered enumerator for properties.
         /// </summary>
         public virtual IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator()
         {
             return m_propertyList;
         }
-        #endregion
+        #endregion IComplexTypeProperties
 
         #region Private Members
+
         /// <summary>
         /// Formatting helper.
         /// </summary>
@@ -329,15 +328,15 @@ namespace Opc.Ua.Client.ComplexTypes
             StringBuilder body,
             object value)
         {
-            if (value is byte[])
+            if (value is byte[] x)
             {
-                body.AppendFormat(formatProvider, "Byte[{0}]", ((byte[])value).Length);
+                body.AppendFormat(formatProvider, "Byte[{0}]", x.Length);
                 return;
             }
 
-            if (value is XmlElement)
+            if (value is XmlElement xmlElements)
             {
-                body.AppendFormat(formatProvider, "<{0}>", ((XmlElement)value).Name);
+                body.AppendFormat(formatProvider, "<{0}>", xmlElements.Name);
                 return;
             }
 
@@ -501,11 +500,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void EncodePropertyArray(IEncoder encoder, string name, PropertyInfo property)
         {
-            var elementType = property.PropertyType.GetElementType();
-            if (elementType == null)
-            {
-                elementType = property.PropertyType.GetItemType();
-            }
+            var elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             if (elementType == typeof(Boolean))
             {
                 encoder.WriteBooleanArray(name, (BooleanCollection)property.GetValue(this));
@@ -625,7 +620,6 @@ namespace Opc.Ua.Client.ComplexTypes
                     $"Unknown type {elementType} to encode.");
             }
         }
-
 
         /// <summary>
         /// Decode a property based on the property type and value rank.
@@ -783,11 +777,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private void DecodePropertyArray(IDecoder decoder, string name, PropertyInfo property)
         {
-            var elementType = property.PropertyType.GetElementType();
-            if (elementType == null)
-            {
-                elementType = property.PropertyType.GetItemType();
-            }
+            var elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             if (elementType == typeof(Boolean))
             {
                 property.SetValue(this, decoder.ReadBooleanArray(name));
@@ -946,24 +936,45 @@ namespace Opc.Ua.Client.ComplexTypes
             m_propertyList = m_propertyList.OrderBy(p => p.Order).ToList();
             m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
         }
+        #endregion Private Members
+
+
+        #region Protected Properties
+
+        /// <summary>
+        /// Provide XmlNamespace based on systemType
+        /// </summary>
+        protected string XmlNamespace
+        {
+            get
+            {
+                if (m_xmlName == null)
+                {
+                    m_xmlName = EncodeableFactory.GetXmlName(GetType());
+                }
+
+                return m_xmlName != null ? m_xmlName.Namespace : string.Empty;
+            }
+        }
+
         #endregion
 
         #region Protected Fields
         /// <summary>
-        /// The list of properties of this complex type. 
+        /// The list of properties of this complex type.
         /// </summary>
         protected IList<ComplexTypePropertyAttribute> m_propertyList;
         /// <summary>
         /// The list of properties as dictionary.
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyAttribute> m_propertyDict;
-        #endregion
+        #endregion Protected Fields
 
         #region Private Fields
         private ServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
-        #endregion
+        private XmlQualifiedName m_xmlName;
+        #endregion Private Fields
+
     }
-
-
 }//namespace

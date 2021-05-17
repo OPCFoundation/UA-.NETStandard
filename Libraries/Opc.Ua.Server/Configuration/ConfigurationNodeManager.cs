@@ -444,25 +444,25 @@ namespace Opc.Ua.Server
             var updateCertificate = new UpdateCertificateData();
             try
             {
-                string password = String.Empty;
+                var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
                 switch (privateKeyFormat)
                 {
                     case null:
                     case "":
                     {
-                        X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(password).Result;
+                        X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
                         updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, certWithPrivateKey);
                         break;
                     }
                     case "PFX":
                     {
-                        X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(privateKey, password);
+                        X509Certificate2 certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(privateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate));
                         updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPrivateKey(newCert, certWithPrivateKey);
                         break;
                     }
                     case "PEM":
                     {
-                        updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCert, privateKey, password);
+                        updateCertificate.CertificateWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(newCert, privateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate));
                         break;
                     }
                 }
@@ -486,7 +486,8 @@ namespace Opc.Ua.Server
                         Utils.Trace(Utils.TraceMasks.Security, "Delete application certificate {0}", certificateGroup.ApplicationCertificate.Thumbprint);
                         appStore.Delete(certificateGroup.ApplicationCertificate.Thumbprint).Wait();
                         Utils.Trace(Utils.TraceMasks.Security, "Add new application certificate {0}", updateCertificate.CertificateWithPrivateKey);
-                        appStore.Add(updateCertificate.CertificateWithPrivateKey).Wait();
+                        var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
+                        appStore.Add(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(certificateGroup.ApplicationCertificate)).Wait();
                         // keep only track of cert without private key
                         var certOnly = new X509Certificate2(updateCertificate.CertificateWithPrivateKey.RawData);
                         updateCertificate.CertificateWithPrivateKey.Dispose();
@@ -535,14 +536,14 @@ namespace Opc.Ua.Server
 
             if (!String.IsNullOrEmpty(subjectName))
             {
-                throw new ArgumentException(nameof(subjectName));
+                throw new ArgumentNullException(nameof(subjectName));
             }
 
             // TODO: implement regeneratePrivateKey
             // TODO: use nonce for generating the private key
 
-            string password = String.Empty;
-            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKey(password).Result;
+            var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
+            X509Certificate2 certWithPrivateKey = certificateGroup.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).Result;
             certificateRequest = CertificateFactory.CreateSigningRequest(certWithPrivateKey, X509Utils.GetDomainsFromCertficate(certWithPrivateKey));
             return ServiceResult.Good;
         }
@@ -577,11 +578,11 @@ namespace Opc.Ua.Server
             if (disconnectSessions)
             {
                 Task.Run(async () => {
-                    Utils.Trace((int)Utils.TraceMasks.Security, $"Apply Changes for application certificate update.");
+                    Utils.Trace((int)Utils.TraceMasks.Security, "Apply Changes for application certificate update.");
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
-                    await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration);
+                    await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration).ConfigureAwait(false);
                 }
                 );
             }

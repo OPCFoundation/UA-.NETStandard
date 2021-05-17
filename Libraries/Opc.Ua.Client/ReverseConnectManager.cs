@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2016 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -34,7 +34,6 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -435,7 +434,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.Trace(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
+                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting reverse connect manager");
                     throw new ServiceResultException(error);
                 }
             }
@@ -493,7 +492,7 @@ namespace Opc.Ua.Client
                 throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for the reverse connection timed out.");
             }
 
-            return await tcs.Task;
+            return await tcs.Task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -571,7 +570,6 @@ namespace Opc.Ua.Client
                 m_state = ReverseConnectManagerState.Started;
             }
         }
-
 
         /// <summary>
         /// Remove configuration endpoints from list.

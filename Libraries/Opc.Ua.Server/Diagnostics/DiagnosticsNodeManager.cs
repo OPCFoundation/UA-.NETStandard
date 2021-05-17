@@ -308,6 +308,22 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
+                else if (passiveMethod.NodeId == MethodIds.ConditionType_ConditionRefresh2)
+                {
+                    ConditionRefresh2MethodState activeNode = new ConditionRefresh2MethodState(passiveMethod.Parent);
+                    activeNode.Create(context, passiveMethod);
+
+                    // replace the node in the parent.
+                    if (passiveMethod.Parent != null)
+                    {
+                        passiveMethod.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    activeNode.OnCall = OnConditionRefresh2;
+
+                    return activeNode;
+                }
+
 
                 return predefinedNode;
             }
@@ -343,6 +359,24 @@ namespace Opc.Ua.Server
                     return activeNode;
                 }
 
+                case ObjectTypes.HistoryServerCapabilitiesType:
+                {
+                    if (passiveNode is HistoryServerCapabilitiesState)
+                    {
+                        break;
+                    }
+
+                    HistoryServerCapabilitiesState activeNode = new HistoryServerCapabilitiesState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+
+                    // replace the node in the parent.
+                    if (passiveNode.Parent != null)
+                    {
+                        passiveNode.Parent.ReplaceChild(context, activeNode);
+                    }
+
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
@@ -365,6 +399,28 @@ namespace Opc.Ua.Server
             }
 
             Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Handles a request to refresh conditions for a subscription and specific monitored item.
+        /// </summary>
+        private ServiceResult OnConditionRefresh2(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint subscriptionId,
+            uint monitoredItemId)
+        {
+            ServerSystemContext systemContext = context as ServerSystemContext;
+
+            if (systemContext == null)
+            {
+                systemContext = this.SystemContext;
+            }
+
+            Server.ConditionRefresh2(systemContext.OperationContext, subscriptionId, monitoredItemId);
 
             return ServiceResult.Good;
         }
@@ -864,40 +920,49 @@ namespace Opc.Ua.Server
                     return m_historyCapabilities;
                 }
 
-                HistoryServerCapabilitiesState state = new HistoryServerCapabilitiesState(null);
+                // search the Node in PredefinedNodes.
+                HistoryServerCapabilitiesState historyServerCapabilitiesNode = (HistoryServerCapabilitiesState)FindPredefinedNode(
+                    ObjectIds.HistoryServerCapabilities,
+                    typeof(HistoryServerCapabilitiesState));
 
-                NodeId nodeId = CreateNode(
-                    SystemContext,
-                    null,
-                    ReferenceTypeIds.HasComponent,
-                    new QualifiedName(BrowseNames.HistoryServerCapabilities),
-                    state);
-
-                state.AccessHistoryDataCapability.Value = false;
-                state.AccessHistoryEventsCapability.Value = false;
-                state.MaxReturnDataValues.Value = 0;
-                state.MaxReturnEventValues.Value = 0;
-                state.ReplaceDataCapability.Value = false;
-                state.UpdateDataCapability.Value = false;
-                state.InsertEventCapability.Value = false;
-                state.ReplaceEventCapability.Value = false;
-                state.UpdateEventCapability.Value = false;
-                state.InsertAnnotationCapability.Value = false;
-                state.InsertDataCapability.Value = false;
-                state.DeleteRawCapability.Value = false;
-                state.DeleteAtTimeCapability.Value = false;
-
-                NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
-
-                if (parent != null)
+                if (historyServerCapabilitiesNode == null)
                 {
-                    parent.AddReference(ReferenceTypes.HasComponent, false, state.NodeId);
-                    state.AddReference(ReferenceTypes.HasComponent, true, parent.NodeId);
+                    // create new node if not found.
+                    historyServerCapabilitiesNode = new HistoryServerCapabilitiesState(null);
+
+                    NodeId nodeId = CreateNode(
+                        SystemContext,
+                        null,
+                        ReferenceTypeIds.HasComponent,
+                        new QualifiedName(BrowseNames.HistoryServerCapabilities),
+                        historyServerCapabilitiesNode);
+
+                    historyServerCapabilitiesNode.AccessHistoryDataCapability.Value = false;
+                    historyServerCapabilitiesNode.AccessHistoryEventsCapability.Value = false;
+                    historyServerCapabilitiesNode.MaxReturnDataValues.Value = 0;
+                    historyServerCapabilitiesNode.MaxReturnEventValues.Value = 0;
+                    historyServerCapabilitiesNode.ReplaceDataCapability.Value = false;
+                    historyServerCapabilitiesNode.UpdateDataCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertEventCapability.Value = false;
+                    historyServerCapabilitiesNode.ReplaceEventCapability.Value = false;
+                    historyServerCapabilitiesNode.UpdateEventCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertAnnotationCapability.Value = false;
+                    historyServerCapabilitiesNode.InsertDataCapability.Value = false;
+                    historyServerCapabilitiesNode.DeleteRawCapability.Value = false;
+                    historyServerCapabilitiesNode.DeleteAtTimeCapability.Value = false;
+
+                    NodeState parent = FindPredefinedNode(ObjectIds.Server_ServerCapabilities, typeof(ServerCapabilitiesState));
+
+                    if (parent != null)
+                    {
+                        parent.AddReference(ReferenceTypes.HasComponent, false, historyServerCapabilitiesNode.NodeId);
+                        historyServerCapabilitiesNode.AddReference(ReferenceTypes.HasComponent, true, parent.NodeId);
+                    }
+
+                    AddPredefinedNode(SystemContext, historyServerCapabilitiesNode);
                 }
 
-                AddPredefinedNode(SystemContext, state);
-
-                m_historyCapabilities = state;
+                m_historyCapabilities = historyServerCapabilitiesNode;
                 return m_historyCapabilities;
             }
         }
@@ -1182,17 +1247,46 @@ namespace Opc.Ua.Server
 
                 if (DateTime.UtcNow < m_lastDiagnosticsScanTime.AddSeconds(1))
                 {
+                    // diagnostic nodes already scanned.
                     return ServiceResult.Good;
                 }
 
-                DoScan(true);
-
-                // pull the value out of the node which was updated by the scan operation.
-                BaseVariableState variable = node as BaseVariableState;
-
-                if (variable != null)
+                if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray)
                 {
-                    value = variable.Value;
+                    // read session diagnostics.
+                    SessionDiagnosticsDataType[] sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
+
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        SessionDiagnosticsData diagnostics = m_sessions[ii];
+                        UpdateSessionDiagnostics(diagnostics, sessionArray, ii);
+                    }
+
+                    value = sessionArray;
+                }
+                else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
+                {
+                    // read session security diagnostics.
+                    SessionSecurityDiagnosticsDataType[] sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
+
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    {
+                        UpdateSessionSecurityDiagnostics(m_sessions[ii], sessionSecurityArray, ii);
+                    }
+
+                    value = sessionSecurityArray;
+                }
+                else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
+                {
+                    // read subscription diagnostics.
+                    SubscriptionDiagnosticsDataType[] subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions.Count];
+
+                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                    {
+                        UpdateSubscriptionDiagnostics(m_subscriptions[ii], subscriptionArray, ii);
+                    }
+
+                    value = subscriptionArray;
                 }
 
                 return ServiceResult.Good;
@@ -1252,7 +1346,7 @@ namespace Opc.Ua.Server
 
                         if (UpdateSessionSecurityDiagnostics(diagnostics, sessionSecurityArray, ii))
                         {
-                            sessionsChanged = true;
+                            sessionsSecurityChanged = true;
                         }
                     }
 
@@ -1276,7 +1370,7 @@ namespace Opc.Ua.Server
 
                         if (UpdateSubscriptionDiagnostics(diagnostics, subscriptionArray, ii))
                         {
-                            sessionsChanged = true;
+                            subscriptionsChanged = true;
                         }
                     }
 

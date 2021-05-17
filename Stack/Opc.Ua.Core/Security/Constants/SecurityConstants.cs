@@ -114,6 +114,27 @@ namespace Opc.Ua
         public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
 
         /// <summary>
+        /// Uri for "PubSub UDP UADP" Profile.
+        /// This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping
+        /// </summary>
+        public const string PubSubUdpUadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
+        /// <summary>
+        /// Uri for "PubSub MQTT UADP" Profile.
+        /// This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with UADP message mapping.
+        /// This Facet is used for broker-based messaging.
+        /// </summary>
+        public const string PubSubMqttUadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp";
+
+        /// <summary>
+        /// Uri for "PubSub MQTT JSON" Profile.
+        /// This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with JSON message mapping.
+        /// This Facet is used for broker-based messaging.
+        /// </summary>
+        public const string PubSubMqttJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
+
+
+        /// <summary>
         /// An Issued User Token that complies with the JWT specification.
         /// </summary>
         public const string JwtUserToken = "http://opcfoundation.org/UA/UserToken#JWT";

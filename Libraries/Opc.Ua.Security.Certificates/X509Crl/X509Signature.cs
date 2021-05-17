@@ -189,15 +189,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = certificate.GetRSAPublicKey())
             {
-                rsa = certificate.GetRSAPublicKey();
                 return rsa.VerifyData(Tbs, Signature, Name, padding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -208,7 +202,7 @@ namespace Opc.Ua.Security.Certificates
         {
             using (ECDsa key = certificate.GetECDsaPublicKey())
             {
-                var decodedSignature = DecodeECDsa(Signature);
+                var decodedSignature = DecodeECDsa(Signature, key.KeySize);
                 return key.VerifyData(Tbs, decodedSignature, Name);
             }
         }
@@ -258,7 +252,8 @@ namespace Opc.Ua.Security.Certificates
         /// Decode a ECDSA signature from ASN.1.
         /// </summary>
         /// <param name="signature">The signature to decode from ASN.1</param>
-        private static byte[] DecodeECDsa(ReadOnlyMemory<byte> signature)
+        /// <param name="keySize">The keySize in bits.</param>
+        private static byte[] DecodeECDsa(ReadOnlyMemory<byte> signature, int keySize)
         {
             AsnReader reader = new AsnReader(signature, AsnEncodingRules.DER);
             var seqReader = reader.ReadSequence();
@@ -266,17 +261,20 @@ namespace Opc.Ua.Security.Certificates
             var r = seqReader.ReadIntegerBytes();
             var s = seqReader.ReadIntegerBytes();
             seqReader.ThrowIfNotEmpty();
-            if (r.Span[0] == 0)
+            keySize >>= 3;
+            if (r.Span[0] == 0 && r.Length > keySize)
             {
                 r = r.Slice(1);
             }
-            if (s.Span[0] == 0)
+            if (s.Span[0] == 0 && s.Length > keySize)
             {
                 s = s.Slice(1);
             }
-            var result = new byte[r.Length + s.Length];
-            r.CopyTo(new Memory<byte>(result, 0, r.Length));
-            s.CopyTo(new Memory<byte>(result, r.Length, s.Length));
+            var result = new byte[2 * keySize];
+            int offset = keySize - r.Length;
+            r.CopyTo(new Memory<byte>(result, offset, r.Length));
+            offset = 2 * keySize - s.Length;
+            s.CopyTo(new Memory<byte>(result, offset, s.Length));
             return result;
         }
     }

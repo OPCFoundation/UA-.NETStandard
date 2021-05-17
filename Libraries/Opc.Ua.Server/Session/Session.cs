@@ -939,12 +939,6 @@ namespace Opc.Ua.Server
             if (identityToken == null || identityToken.Body == null ||
                 identityToken.Body.GetType() == typeof(Opc.Ua.AnonymousIdentityToken))
             {
-                // not changing the token if already activated.
-                if (m_activated)
-                {
-                    return null;
-                }
-
                 // check if an anonymous login is permitted.
                 if (m_endpoint.UserIdentityTokens != null && m_endpoint.UserIdentityTokens.Count > 0)
                 {
