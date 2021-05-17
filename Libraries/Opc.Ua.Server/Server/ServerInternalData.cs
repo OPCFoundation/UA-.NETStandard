@@ -563,6 +563,18 @@ namespace Opc.Ua.Server
         {
             m_subscriptionManager.ConditionRefresh(context, subscriptionId);
         }
+
+        /// <summary>
+        /// Refreshes the conditions for the specified subscription.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="subscriptionId">The subscription identifier.</param>
+        /// <param name="monitoredItemId">The monitored item identifier.</param>
+        public void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId)
+        {
+            m_subscriptionManager.ConditionRefresh2(context, subscriptionId, monitoredItemId);
+        }
+
         #endregion
 
         #region Private Methods

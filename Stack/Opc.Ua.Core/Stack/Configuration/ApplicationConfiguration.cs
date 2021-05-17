@@ -48,17 +48,11 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
-
-            try
+            using (XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(ConfigurationLocation));
                 ConfigurationLocation configuration = serializer.ReadObject(reader) as ConfigurationLocation;
                 return configuration;
-            }
-            finally
-            {
-                reader.Dispose();
             }
         }
         #endregion
@@ -242,7 +236,7 @@ namespace Opc.Ua
                 var message = new StringBuilder();
                 message.AppendFormat("Configuration file does not exist: {0}", filePath);
                 message.AppendLine();
-                message.AppendFormat("Current directory is: {1}", Directory.GetCurrentDirectory());
+                message.AppendFormat("Current directory is: {0}", Directory.GetCurrentDirectory());
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError, message.ToString());
             }
@@ -279,7 +273,7 @@ namespace Opc.Ua
                     var message = new StringBuilder();
                     message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
                     message.AppendLine();
-                    message.AppendFormat("Error is: {1}", e.Message);
+                    message.AppendFormat("Error is: {0}", e.Message);
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError, e, message.ToString());
                 }
@@ -327,7 +321,7 @@ namespace Opc.Ua
                     var message = new StringBuilder();
                     message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
                     message.AppendLine();
-                    message.AppendFormat("Error is: {1}", e.Message);
+                    message.AppendFormat("Error is: {0}", e.Message);
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError, e, message.ToString());
                 }
@@ -343,7 +337,7 @@ namespace Opc.Ua
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
-                await configuration.Validate(applicationType);
+                await configuration.Validate(applicationType).ConfigureAwait(false);
 
                 configuration.m_sourceFilePath = file.FullName;
             }
@@ -404,13 +398,13 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private key
-            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider);
+            await SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
 
             Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();
                 sb.Append("urn:");
                 sb.Append(Utils.GetHostName());
-                sb.Append(":");
+                sb.Append(':');
                 sb.Append(ApplicationName);
                 return sb.ToString();
             };
@@ -450,7 +444,7 @@ namespace Opc.Ua
             // toggle the state of the hi-res clock.
             HiResClock.Disabled = m_disableHiResClock;
 
-            if (m_disableHiResClock)
+            if (HiResClock.Disabled)
             {
                 if (m_serverConfiguration != null)
                 {
@@ -461,7 +455,7 @@ namespace Opc.Ua
                 }
             }
 
-            await m_certificateValidator.Update(this.SecurityConfiguration);
+            await m_certificateValidator.Update(this.SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>

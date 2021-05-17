@@ -153,7 +153,7 @@ namespace Opc.Ua
                         channel.Close();
                         channel.Dispose();
                     }
-                    catch (Exception)
+                    catch
                     {
                         // ignore errors.
                     }

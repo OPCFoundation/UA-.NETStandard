@@ -566,7 +566,7 @@ namespace Opc.Ua
                     }
                 }
 
-                buffer.Append(";");
+                buffer.Append(';');
             }
 
             NodeId.Format(buffer, identifier, identifierType, namespaceIndex);

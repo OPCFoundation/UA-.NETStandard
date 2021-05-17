@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using MQTTnet.Formatter;
 
 namespace Opc.Ua.PubSub
 {
@@ -317,4 +318,105 @@ namespace Opc.Ua.PubSub
         /// </summary>
         AMQP
     }
+
+    /// <summary>
+    /// The Mqtt Protocol Versions
+    /// </summary>
+    public enum EnumMqttProtocolVersion
+    {
+        /// <summary>
+        /// Unknown version
+        /// </summary>
+        Unknown = MqttProtocolVersion.Unknown,
+        /// <summary>
+        /// Mqtt V310
+        /// </summary>
+        V310 = MqttProtocolVersion.V310,
+        /// <summary>
+        /// Mqtt V311
+        /// </summary>
+        V311 = MqttProtocolVersion.V311,
+        /// <summary>
+        /// Mqtt V500
+        /// </summary>
+        V500 = MqttProtocolVersion.V500
+    }
+
+    /// <summary>
+    /// The identifiers of the MqttClientConfigurationParameters
+    /// </summary>
+    internal enum EnumMqttClientConfigurationParameters
+    {
+        UserName,
+        Password,
+        AzureClientId,
+        CleanSession,
+        ProtocolVersion,
+
+        TlsCertificateCaCertificatePath,
+        TlsCertificateClientCertificatePath,
+        TlsCertificateClientCertificatePassword,
+        TlsProtocolVersion,
+        TlsAllowUntrustedCertificates,
+        TlsIgnoreCertificateChainErrors,
+        TlsIgnoreRevocationListErrors,
+
+        TrustedIssuerCertificatesStoreType,
+        TrustedIssuerCertificatesStorePath,
+        TrustedPeerCertificatesStoreType,
+        TrustedPeerCertificatesStorePath,
+        RejectedCertificateStoreStoreType,
+        RejectedCertificateStoreStorePath
+    }
+
+    /// <summary>
+    /// Where is a method call used in 
+    /// </summary>
+    internal enum UsedInContext
+    {
+        /// <summary>
+        /// Publisher context call
+        /// </summary>
+        Publisher,
+        /// <summary>
+        /// Subscriber context call
+        /// </summary>
+        Subscriber
+    };
+
+    /// <summary>
+    /// Enum that specifies the message mapping for a UaPubSub connection
+    /// </summary>
+    public enum MessageMapping
+    {
+        /// <summary>
+        /// UADP message type
+        /// </summary>
+        Uadp,
+        /// <summary>
+        /// JSON message type
+        /// </summary>
+        Json
+    }
+
+    /// <summary>
+    /// Enum that specifies the poissible JSON message types
+    /// </summary>
+    [Flags]
+    public enum JSONNetworkMessageType
+    {
+        /// <summary>
+        /// DataSet message
+        /// </summary>
+        DataSetMessage = 0,
+        /// <summary>
+        /// Discovery Request message
+        /// </summary>
+        DiscoveryRequest = 4,
+        /// <summary>
+        /// Discovery Response message
+        /// </summary>
+        DiscoveryResponse = 8
+    }
+ 
 }

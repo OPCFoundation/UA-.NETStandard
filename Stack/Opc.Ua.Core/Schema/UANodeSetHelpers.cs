@@ -40,16 +40,11 @@ namespace Opc.Ua.Export
         /// <returns>The set of nodes</returns>
         public static UANodeSet Read(Stream istrm)
         {
-            StreamReader reader = new StreamReader(istrm);
-
-            try
+            using (StreamReader reader = new StreamReader(istrm))
+            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(UANodeSet));
-                return serializer.Deserialize(reader) as UANodeSet;
-            }
-            finally
-            {
-                reader.Dispose();
+                return serializer.Deserialize(xmlReader) as UANodeSet;
             }
         }
 
@@ -103,7 +98,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.Aliases, aliases, this.Aliases.Length);
             }
 
-            aliases[count-1] = new NodeIdAlias() { Alias = alias, Value = Export(nodeId, context.NamespaceUris) };
+            aliases[count - 1] = new NodeIdAlias() { Alias = alias, Value = Export(nodeId, context.NamespaceUris) };
             this.Aliases = aliases;
         }
 
@@ -123,7 +118,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Adds a node to the set.
         /// </summary>
-        public void Export(ISystemContext context, NodeState node, bool outputRedundantNames =true)
+        public void Export(ISystemContext context, NodeState node, bool outputRedundantNames = true)
         {
             if (node == null) throw new ArgumentNullException(nameof(node));
 
@@ -175,7 +170,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.InnerXml = encoder.Close();
+                        document.LoadInnerXml(encoder.Close());
                         value.Value = document.DocumentElement;
                     }
 
@@ -238,7 +233,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.InnerXml = encoder.Close();
+                        document.LoadInnerXml(encoder.Close());
                         value.Value = document.DocumentElement;
                     }
 
@@ -292,7 +287,7 @@ namespace Opc.Ua.Export
             }
             else
             {
-                exportedNode.Description = new LocalizedText[0];
+                exportedNode.Description = Array.Empty<LocalizedText>();
             }
 
             exportedNode.Documentation = node.NodeSetDocumentation;
@@ -351,7 +346,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.Items, nodes, this.Items.Length);
             }
 
-            nodes[count-1] = exportedNode;
+            nodes[count - 1] = exportedNode;
 
             this.Items = nodes;
 
@@ -585,20 +580,6 @@ namespace Opc.Ua.Export
                     Opc.Ua.DataTypeDefinition dataTypeDefinition = Import(o, o.Definition, context.NamespaceUris);
                     value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition);
                     value.Purpose = o.Purpose;
-                    value.DataTypeModifier = DataTypeModifier.None;
-
-                    if (o.Definition != null)
-                    {
-                        if (o.Definition.IsOptionSet)
-                        {
-                            value.DataTypeModifier = DataTypeModifier.OptionSet;
-                        }
-                        else if (o.Definition.IsUnion)
-                        {
-                            value.DataTypeModifier = DataTypeModifier.Union;
-                        }
-                    }
-
                     importedNode = value;
                     break;
                 }
@@ -892,34 +873,44 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            switch (dataType.DataTypeModifier)
-            {
-                case DataTypeModifier.Union: { definition.IsUnion = true; break; }
-                case DataTypeModifier.OptionSet: { definition.IsOptionSet = true; break; }
-            }
+            StructureDefinition sd = source.Body as StructureDefinition;
 
-            StructureDefinition structureDefinition = source.Body as StructureDefinition;
-
-            if (structureDefinition != null)
+            if (sd != null)
             {
-                if (structureDefinition.StructureType == StructureType.Union)
+                if (sd.StructureType == StructureType.Union || sd.StructureType == (StructureType)4) // StructureType.UnionWithSubtypedValues)
                 {
                     definition.IsUnion = true;
                 }
 
-                if (structureDefinition.Fields != null)
+                if (sd.Fields != null)
                 {
                     List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
 
-                    for (int ii = structureDefinition.FirstExplicitFieldIndex; ii < structureDefinition.Fields.Count; ii++)
+                    for (int ii = sd.FirstExplicitFieldIndex; ii < sd.Fields.Count; ii++)
                     {
-                        StructureField field = structureDefinition.Fields[ii];
+                        StructureField field = sd.Fields[ii];
 
                         Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
 
                         output.Name = field.Name;
                         output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
-                        output.IsOptional = field.IsOptional;
+
+                        if (sd.StructureType == StructureType.StructureWithOptionalFields)
+                        {
+                            output.IsOptional = field.IsOptional;
+                            output.AllowSubTypes = false;
+                        }
+                        else if (sd.StructureType == (StructureType)3 || // StructureType.StructureWithSubtypedValues ||
+                                 sd.StructureType == (StructureType)4)   // StructureType.UnionWithSubtypedValues)
+                        {
+                            output.IsOptional = false;
+                            output.AllowSubTypes = field.IsOptional;
+                        }
+                        else
+                        {
+                            output.IsOptional = false;
+                            output.AllowSubTypes = false;
+                        }
 
                         if (NodeId.IsNull(field.DataType))
                         {
@@ -939,15 +930,17 @@ namespace Opc.Ua.Export
                 }
             }
 
-            EnumDefinition enumDefinition = source.Body as EnumDefinition;
+            EnumDefinition ed = source.Body as EnumDefinition;
 
-            if (enumDefinition != null)
+            if (ed != null)
             {
-                if (enumDefinition.Fields != null)
+                definition.IsOptionSet = ed.IsOptionSet;
+
+                if (ed.Fields != null)
                 {
                     List<Opc.Ua.Export.DataTypeField> fields = new List<DataTypeField>();
 
-                    foreach (EnumField field in enumDefinition.Fields)
+                    foreach (EnumField field in ed.Fields)
                     {
                         Opc.Ua.Export.DataTypeField output = new Opc.Ua.Export.DataTypeField();
 
@@ -959,7 +952,7 @@ namespace Opc.Ua.Export
                         }
                         else
                         {
-                            output.DisplayName = new LocalizedText[0];
+                            output.DisplayName = Array.Empty<LocalizedText>();
                         }
 
                         output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
@@ -998,12 +991,12 @@ namespace Opc.Ua.Export
 
                 if (isStructure)
                 {
-                    StructureDefinition structureDefinition = new StructureDefinition();
-                    structureDefinition.BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true);
+                    StructureDefinition sd = new StructureDefinition();
+                    sd.BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true);
 
                     if (source.IsUnion)
                     {
-                        structureDefinition.StructureType = StructureType.Union;
+                        sd.StructureType = StructureType.Union;
                     }
 
                     if (source.Field != null)
@@ -1012,9 +1005,24 @@ namespace Opc.Ua.Export
 
                         foreach (DataTypeField field in source.Field)
                         {
-                            if (field.IsOptional)
+                            if (sd.StructureType == StructureType.Structure ||
+                                sd.StructureType == StructureType.Union)
                             {
-                                structureDefinition.StructureType = StructureType.StructureWithOptionalFields;
+                                if (field.IsOptional)
+                                {
+                                    sd.StructureType = StructureType.StructureWithOptionalFields;
+                                }
+                                else if (field.AllowSubTypes)
+                                {
+                                    if (source.IsUnion)
+                                    {
+                                        sd.StructureType = (StructureType)4; // StructureType.UnionWithSubtypedValues;
+                                    }
+                                    else
+                                    {
+                                        sd.StructureType = (StructureType)3; // StructureType.StructureWithSubtypedValues;
+                                    }
+                                }
                             }
 
                             StructureField output = new StructureField();
@@ -1023,18 +1031,35 @@ namespace Opc.Ua.Export
                             output.Description = Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
-                            output.IsOptional = field.IsOptional;
+
+                            if (sd.StructureType == StructureType.Structure ||
+                                sd.StructureType == StructureType.Union)
+                            {
+                                output.IsOptional = false;
+                            }
+                            else if (sd.StructureType == (StructureType)3 || //StructureType.StructureWithSubtypedValues ||
+                                    sd.StructureType == (StructureType)4)   //StructureType.UnionWithSubtypedValues)
+                            {
+                                output.IsOptional = field.AllowSubTypes;
+                            }
+                            else
+                            {
+                                output.IsOptional = field.IsOptional;
+                            }
 
                             fields.Add(output);
                         }
 
-                        structureDefinition.Fields = fields.ToArray();
+                        sd.Fields = fields.ToArray();
                     }
-                    definition = structureDefinition;
+
+                    definition = sd;
                 }
                 else
                 {
-                    EnumDefinition enumDefinition = new EnumDefinition();
+                    EnumDefinition ed = new EnumDefinition();
+                    ed.IsOptionSet = source.IsOptionSet;
+
                     if (source.Field != null)
                     {
                         List<EnumField> fields = new List<EnumField>();
@@ -1051,9 +1076,10 @@ namespace Opc.Ua.Export
                             fields.Add(output);
                         }
 
-                        enumDefinition.Fields = fields.ToArray();
+                        ed.Fields = fields.ToArray();
                     }
-                    definition = enumDefinition;
+
+                    definition = ed;
                 }
             }
 
@@ -1224,7 +1250,7 @@ namespace Opc.Ua.Export
                 {
                     if (this.NamespaceUris[ii] == targetUri)
                     {
-                        return (ushort)(ii+1); // add 1 to adjust for the well-known URIs which are not stored.
+                        return (ushort)(ii + 1); // add 1 to adjust for the well-known URIs which are not stored.
                     }
                 }
 
@@ -1239,7 +1265,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.NamespaceUris, uris, count - 1);
             }
 
-            uris[count-1] = targetUri;
+            uris[count - 1] = targetUri;
             this.NamespaceUris = uris;
 
             // return the new index.
@@ -1258,13 +1284,13 @@ namespace Opc.Ua.Export
             }
 
             // return a bad value if parameters are bad.
-            if (namespaceUris == null || this.NamespaceUris == null || this.NamespaceUris.Length <= namespaceIndex-1)
+            if (namespaceUris == null || this.NamespaceUris == null || this.NamespaceUris.Length <= namespaceIndex - 1)
             {
                 return UInt16.MaxValue;
             }
 
             // find or append uri.
-            return namespaceUris.GetIndexOrAppend(this.NamespaceUris[namespaceIndex-1]);
+            return namespaceUris.GetIndexOrAppend(this.NamespaceUris[namespaceIndex - 1]);
         }
 
         /// <summary>
@@ -1287,7 +1313,7 @@ namespace Opc.Ua.Export
             }
 
             // find an existing index.
-            int count = 1;;
+            int count = 1; ;
 
             if (this.NamespaceUris != null)
             {
@@ -1359,7 +1385,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.ServerUris, uris, count - 1);
             }
 
-            uris[count-1] = targetUri;
+            uris[count - 1] = targetUri;
             this.ServerUris = uris;
 
             // return the new index.
@@ -1378,7 +1404,7 @@ namespace Opc.Ua.Export
             }
 
             // return a bad value if parameters are bad.
-            if (serverUris == null ||  this.ServerUris == null || this.ServerUris.Length <= serverIndex-1)
+            if (serverUris == null || this.ServerUris == null || this.ServerUris.Length <= serverIndex - 1)
             {
                 return UInt16.MaxValue;
             }

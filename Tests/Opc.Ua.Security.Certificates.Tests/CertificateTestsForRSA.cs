@@ -282,7 +282,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => {
                     CertificateBuilder.Create(Subject)
-                    .SetSerialNumber(new byte[0])
+                    .SetSerialNumber(Array.Empty<byte>())
                     .CreateForRSA();
                 }
             );
@@ -343,7 +343,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
-                        WriteCertificate(cert, $"Default signed RSA cert");
+                        WriteCertificate(cert, "Default signed RSA cert");
                     }
                 }
 
@@ -359,7 +359,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
-                        WriteCertificate(cert, $"Default signed RSA cert with Public Key");
+                        WriteCertificate(cert, "Default signed RSA cert with Public Key");
                     }
                 }
 
@@ -374,7 +374,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         .CreateForRSA(generator))
                     {
                         Assert.NotNull(cert);
-                        WriteCertificate(cert, $"Default signed RSA cert");
+                        WriteCertificate(cert, "Default signed RSA cert");
                     }
                 }
 

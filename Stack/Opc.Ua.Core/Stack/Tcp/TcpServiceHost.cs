@@ -38,7 +38,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
-            IDictionary<string, Task> hosts,
+            IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
@@ -47,12 +47,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2Collection instanceCertificateChain)
         {
             // generate a unique host name.
-            string hostName = String.Empty;
-
-            if (hosts.ContainsKey(hostName))
-            {
-                hostName = "/Tcp";
-            }
+            string hostName = "/Tcp";
 
             if (hosts.ContainsKey(hostName))
             {
@@ -77,7 +72,7 @@ namespace Opc.Ua.Bindings
 
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
 
-                if (String.Compare(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) == 0)
+                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     uri.Host = computerName;
                 }
@@ -138,6 +133,8 @@ namespace Opc.Ua.Bindings
                     Utils.Trace(Utils.TraceMasks.Error, "Failed to create endpoint {0} because the transport profile is unsupported.", uri);
                 }
             }
+
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
 
             return endpoints;
         }

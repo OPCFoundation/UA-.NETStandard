@@ -64,10 +64,10 @@ namespace Opc.Ua.Security.Certificates
                 // search known custom extensions
                 if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
                 {
-                    var extension = extensions.Cast<X509Extension>().Where(e => (
+                    var extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
                         e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid ||
                         e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid)
-                    ).FirstOrDefault();
+                    );
                     if (extension != null)
                     {
                         return new X509AuthorityKeyIdentifierExtension(extension, extension.Critical) as T;
@@ -76,10 +76,10 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509SubjectAltNameExtension))
                 {
-                    var extension = extensions.Cast<X509Extension>().Where(e => (
+                    var extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
                         e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid ||
                         e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid)
-                    ).FirstOrDefault();
+                    );
                     if (extension != null)
                     {
                         return new X509SubjectAltNameExtension(extension, extension.Critical) as T;
@@ -88,9 +88,9 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509CrlNumberExtension))
                 {
-                    var extension = extensions.Cast<X509Extension>().Where(e => (
+                    var extension = extensions.Cast<X509Extension>().FirstOrDefault(e => (
                         e.Oid.Value == X509CrlNumberExtension.CrlNumberOid)
-                    ).FirstOrDefault();
+                    );
                     if (extension != null)
                     {
                         return new X509CrlNumberExtension(extension, extension.Critical) as T;

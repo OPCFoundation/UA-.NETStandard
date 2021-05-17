@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris)
         {
-            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris);
+            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris).ConfigureAwait(false);
             return PatchEndpointUrls(endpoints);
         }
 

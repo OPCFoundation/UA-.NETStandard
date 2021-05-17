@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub
 {
@@ -54,7 +55,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get flag that indicates if the Connection is in running state
         /// </summary>
-        bool IsRunning { get; }        
+        bool IsRunning { get; }
 
         /// <summary>
         /// Start Publish/Subscribe jobs associated with this instance
@@ -69,22 +70,21 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Determine if the connection has anything to publish -> at least one WriterDataSet is configured as enabled for current writer group
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
         bool CanPublish(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
-        /// Create the network message built from the provided writerGroupConfiguration
+        /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
-        UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration);
+        IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
         /// Publish the network message
         /// </summary>
-        /// <param name="networkMessage"></param>
-        /// <returns></returns>
         bool PublishNetworkMessage(UaNetworkMessage networkMessage);
+
+        /// <summary>
+        /// Get current list of dataset readers available in this UaSubscriber component
+        /// </summary>
+        List<DataSetReaderDataType> GetOperationalDataSetReaders();
     }
 }

@@ -15,7 +15,6 @@ using System.Xml;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua
@@ -33,9 +32,9 @@ namespace Opc.Ua
         {
             m_strings = new List<string>();
 
-            #if DEBUG
+#if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
-            #endif
+#endif
         }
 
         /// <summary>
@@ -45,12 +44,12 @@ namespace Opc.Ua
         {
             m_strings = new List<string>();
 
-            #if DEBUG
+#if DEBUG
             m_shared = shared;
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
-            #endif
+#endif
         }
-        
+
         /// <summary>
         /// Copies a list of strings.
         /// </summary>
@@ -58,12 +57,12 @@ namespace Opc.Ua
         {
             Update(strings);
 
-            #if DEBUG
+#if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
-            #endif
+#endif
         }
         #endregion
-        
+
         #region Public Members
         /// <summary>
         /// The synchronization object.
@@ -78,11 +77,11 @@ namespace Opc.Ua
         /// </summary>
         public int InstanceId
         {
-            #if DEBUG
+#if DEBUG
             get { return m_instanceId; }
-            #else
+#else
             get { return 0; }
-            #endif
+#endif
         }
 
         /// <summary>
@@ -95,8 +94,8 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 m_strings = new List<string>(strings);
-                
-                #if DEBUG
+
+#if DEBUG
                 if (m_shared)
                 {
                     for (int ii = 0; ii < m_strings.Count; ii++)
@@ -104,8 +103,8 @@ namespace Opc.Ua
                         Utils.Trace("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], m_instanceId);
                     }
                 }
-                #endif
-            }       
+#endif
+            }
         }
 
         /// <summary>
@@ -117,18 +116,18 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            
-            #if DEBUG
+
+#if DEBUG
             if (m_shared)
             {
                 Utils.Trace("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
             }
-            #endif
+#endif
 
             lock (m_lock)
             {
                 m_strings.Add(value);
-                return m_strings.Count-1;
+                return m_strings.Count - 1;
             }
         }
 
@@ -139,7 +138,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (index >= 0 && index < m_strings.Count)
+                if (index < m_strings.Count)
                 {
                     return m_strings[(int)index];
                 }
@@ -160,9 +159,9 @@ namespace Opc.Ua
                     return -1;
                 }
 
-                return m_strings.IndexOf(value);                
+                return m_strings.IndexOf(value);
             }
-        }   
+        }
 
         /// <summary>
         /// Returns the index of the specified namespace uri, adds it if it does not exist.
@@ -176,24 +175,24 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                int index = m_strings.IndexOf(value);    
-            
+                int index = m_strings.IndexOf(value);
+
                 if (index == -1)
                 {
-                    #if DEBUG
+#if DEBUG
                     if (m_shared)
                     {
                         Utils.Trace("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
                     }
-                    #endif
+#endif
 
                     m_strings.Add(value);
-                    return (ushort)(m_strings.Count-1);
+                    return (ushort)(m_strings.Count - 1);
                 }
 
                 return (ushort)index;
             }
-        }   
+        }
 
         /// <summary>
         /// Returns the contexts of the table.
@@ -263,11 +262,11 @@ namespace Opc.Ua
         private object m_lock = new object();
         private List<string> m_strings;
 
-        #if DEBUG
+#if DEBUG
         internal bool m_shared;
         internal int m_instanceId;
         private static int m_globalInstanceCount;
-        #endif
+#endif
         #endregion
     }
 
@@ -292,11 +291,11 @@ namespace Opc.Ua
         {
             Append(Namespaces.OpcUa);
 
-            #if DEBUG
+#if DEBUG
             m_shared = shared;
-            #endif
+#endif
         }
-        
+
         /// <summary>
         /// Copies a list of strings.
         /// </summary>
@@ -305,7 +304,7 @@ namespace Opc.Ua
             Update(namespaceUris);
         }
         #endregion
-        
+
         #region Public Members
         /// <summary>
         /// Updates the table of namespace uris.
@@ -323,7 +322,7 @@ namespace Opc.Ua
                 {
                     throw new ArgumentException("The first namespace in the table must be the OPC-UA namespace.");
                 }
-                
+
                 ii++;
 
                 if (ii == 2)

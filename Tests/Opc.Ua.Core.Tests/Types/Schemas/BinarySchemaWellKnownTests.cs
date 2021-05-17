@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             Assert.IsNotNull(stream);
             var schema = new BinarySchemaValidator();
             Assert.IsNotNull(schema);
-            await schema.Validate(stream);
+            await schema.Validate(stream).ConfigureAwait(false);
             Assert.IsNotNull(schema.Dictionary);
             Assert.AreEqual(schemaData[0], schema.Dictionary.TargetNamespace);
         }

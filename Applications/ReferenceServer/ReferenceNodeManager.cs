@@ -219,7 +219,6 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "String", "String", DataTypeIds.String, ValueRanks.Scalar));
-                    variables.Add(CreateVariable(staticFolder, scalarStatic + "Time", "Time", DataTypeIds.Time, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.Scalar));
                     variables.Add(CreateVariable(staticFolder, scalarStatic + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.Scalar));
@@ -293,7 +292,6 @@ namespace Quickstarts.ReferenceServer
                         "龙_ 绵羊 大象 芒果; 猫'" };
                     variables.Add(stringArrayVar);
 
-                    variables.Add(CreateVariable(arraysFolder, staticArrays + "Time", "Time", DataTypeIds.Time, ValueRanks.OneDimension));
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.OneDimension));
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.OneDimension));
                     variables.Add(CreateVariable(arraysFolder, staticArrays + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.OneDimension));
@@ -325,7 +323,6 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "String", "String", DataTypeIds.String, ValueRanks.TwoDimensions));
-                    variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "Time", "Time", DataTypeIds.Time, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.TwoDimensions));
                     variables.Add(CreateVariable(arrays2DFolder, staticArrays2D + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.TwoDimensions));
@@ -357,7 +354,6 @@ namespace Quickstarts.ReferenceServer
                     variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "String", "String", DataTypeIds.String, ValueRanks.OneOrMoreDimensions));
-                    variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "Time", "Time", DataTypeIds.Time, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.OneOrMoreDimensions));
                     variables.Add(CreateVariable(arrayDymnamicFolder, staticArraysDynamic + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.OneOrMoreDimensions));
@@ -388,7 +384,6 @@ namespace Quickstarts.ReferenceServer
                     variables.AddRange(CreateVariables(massFolder, staticMass + "Number", "Number", DataTypeIds.Number, ValueRanks.Scalar, 100));
                     variables.AddRange(CreateVariables(massFolder, staticMass + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.Scalar, 100));
                     variables.AddRange(CreateVariables(massFolder, staticMass + "String", "String", DataTypeIds.String, ValueRanks.Scalar, 100));
-                    variables.AddRange(CreateVariables(massFolder, staticMass + "Time", "Time", DataTypeIds.Time, ValueRanks.Scalar, 100));
                     variables.AddRange(CreateVariables(massFolder, staticMass + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.Scalar, 100));
                     variables.AddRange(CreateVariables(massFolder, staticMass + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.Scalar, 100));
                     variables.AddRange(CreateVariables(massFolder, staticMass + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.Scalar, 100));
@@ -420,7 +415,6 @@ namespace Quickstarts.ReferenceServer
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.Scalar);
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.Scalar);
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "String", "String", DataTypeIds.String, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Time", "Time", DataTypeIds.Time, ValueRanks.Scalar);
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.Scalar);
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.Scalar);
                     CreateDynamicVariable(simulationFolder, scalarSimulation + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.Scalar);
@@ -460,7 +454,6 @@ namespace Quickstarts.ReferenceServer
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.OneDimension);
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.OneDimension);
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "String", "String", DataTypeIds.String, ValueRanks.OneDimension);
-                    CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "Time", "Time", DataTypeIds.Time, ValueRanks.OneDimension);
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.OneDimension);
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.OneDimension);
                     CreateDynamicVariable(arraysSimulationFolder, simulationArrays + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.OneDimension);
@@ -492,7 +485,6 @@ namespace Quickstarts.ReferenceServer
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.Scalar, 100);
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.Scalar, 100);
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "String", "String", DataTypeIds.String, ValueRanks.Scalar, 100);
-                    CreateDynamicVariables(massSimulationFolder, massSimulation + "Time", "Time", DataTypeIds.Time, ValueRanks.Scalar, 100);
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.Scalar, 100);
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.Scalar, 100);
                     CreateDynamicVariables(massSimulationFolder, massSimulation + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.Scalar, 100);
@@ -546,6 +538,12 @@ namespace Quickstarts.ReferenceServer
                                 item.EURange.Value.High = 0;
                                 item.EURange.Value.Low = 0;
                             }
+
+                            //set default value for Definition property
+                            if (item.Definition != null)
+                            {
+                                item.Definition.Value = String.Empty;
+                            }
                         }
                     }
                     #endregion
@@ -573,7 +571,6 @@ namespace Quickstarts.ReferenceServer
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "QualifiedName", "QualifiedName", BuiltInType.QualifiedName, ValueRanks.OneDimension, new QualifiedName[] { "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"});
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "SByte", "SByte", BuiltInType.SByte, ValueRanks.OneDimension, new SByte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "String", "String", BuiltInType.String, ValueRanks.OneDimension, new String[] { "a00", "b10", "c20", "d30", "e40", "f50", "g60", "h70", "i80", "j90" });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Time", "Time", DataTypeIds.Time, ValueRanks.OneDimension, new String[] { DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString() }, null);
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt16", "UInt16", BuiltInType.UInt16, ValueRanks.OneDimension, new UInt16[] { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt32", "UInt32", BuiltInType.UInt32, ValueRanks.OneDimension, new UInt32[] { 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInt64", "UInt64", BuiltInType.UInt64, ValueRanks.OneDimension, new UInt64[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
@@ -1995,7 +1992,7 @@ namespace Quickstarts.ReferenceServer
 
             double number = Convert.ToDouble(value);
 
-            if (number >= variable.EnumStrings.Value.Length | number < 0)
+            if (number >= variable.EnumStrings.Value.Length || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }

@@ -216,16 +216,11 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(System.Type type, string path)
         {
-            StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open));
-
-            try
+            using (StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open)))
+            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
                 XmlSerializer serializer = new XmlSerializer(type);
-                return serializer.Deserialize(reader);
-            }
-            finally
-            {
-                reader.Dispose();
+                return serializer.Deserialize(xmlReader);
             }
         }
 
@@ -234,16 +229,11 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(System.Type type, Stream stream)
         {
-            StreamReader reader = new StreamReader(stream);
-
-            try
+            using (StreamReader reader = new StreamReader(stream))
+            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
                 XmlSerializer serializer = new XmlSerializer(type);
-                return serializer.Deserialize(reader);
-            }
-            finally
-            {
-                reader.Dispose();
+                return serializer.Deserialize(xmlReader);
             }
         }
 
@@ -259,17 +249,13 @@ namespace Opc.Ua.Schema
                     assembly = typeof(SchemaValidator).GetTypeInfo().Assembly;
                 }
 
-                StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path));
-
-                try
+                using (StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path)))
+                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
                 {
                     XmlSerializer serializer = new XmlSerializer(type);
-                    return serializer.Deserialize(reader);
+                    return serializer.Deserialize(xmlReader);
                 }
-                finally
-                {
-                    reader.Dispose();
-                }
+
             }
             catch (Exception e)
             {
@@ -305,6 +291,7 @@ namespace Opc.Ua.Schema
         }
 
         #endregion
+
         #region Private Fields
         private Dictionary<string, string> m_knownFiles;
         private Dictionary<string, object> m_loadedFiles;

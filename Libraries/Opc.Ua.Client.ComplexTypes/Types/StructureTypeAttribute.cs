@@ -27,12 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.Client.ComplexTypes
 {
-
     /// <summary>
     /// Attribute for type ids of a structure definition.
     /// </summary>
@@ -54,6 +52,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The xml encoding id attribute.
         /// </summary>
         public string XmlEncodingId { get; set; }
-        #endregion
+        #endregion Public Properties
     }
 }//namespace

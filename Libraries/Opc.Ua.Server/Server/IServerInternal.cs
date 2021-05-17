@@ -31,7 +31,6 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Text;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 using System.Security.Principal;
 using System.Security.Cryptography.X509Certificates;
@@ -246,5 +245,14 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="subscriptionId">The subscription identifier.</param>
         void ConditionRefresh(OperationContext context, uint subscriptionId);
+
+        /// <summary>
+        /// Refreshes the conditions for the specified subscription and monitored item.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="subscriptionId">The subscription identifier.</param>
+        /// <param name="monitoredItemId">The monitored item identifier.</param>
+        void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId);
+
     }
 }

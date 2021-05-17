@@ -415,7 +415,7 @@ namespace Opc.Ua.Bindings
                         {
                             moreAddresses = false;
                         }
-                    }).ConfigureAwait(false);
+                    }, cts).ConfigureAwait(false);
                 }
 
                 if (!moreAddresses || m_tcs.Task.IsCompleted)

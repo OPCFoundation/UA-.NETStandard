@@ -15,7 +15,7 @@ using System;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// The transpaort bindings available for teh stack.
+    /// The transport bindings available for the UA applications.
     /// </summary>
     public static class TransportBindings
     {
@@ -34,55 +34,55 @@ namespace Opc.Ua.Bindings
         /// The bindings for transport listeners (server).
         /// </summary>
         public static TransportListenerBindings Listeners { get; private set; }
+    }
 
+    /// <summary>
+    /// The bindings for the transport channels.
+    /// </summary>
+    public class TransportChannelBindings :
+        TransportBindingsBase<ITransportChannelFactory>
+    {
         /// <summary>
-        /// The bindings for the transport channels.
+        /// Initialize the transport listener.
         /// </summary>
-        public class TransportChannelBindings :
-            TransportBindingsBase<ITransportChannelFactory>
+        /// <param name="defaultBindings">List of known default bindings.</param>
+        public TransportChannelBindings(Type[] defaultBindings) : base(defaultBindings)
         {
-            /// <summary>
-            /// Initialize the transport listener.
-            /// </summary>
-            /// <param name="defaultBindings">List of known default bindings.</param>
-            public TransportChannelBindings(Type[] defaultBindings) : base(defaultBindings)
-            {
-            }
-
-            /// <summary>
-            /// Get a transport channel for the specified uri scheme.
-            /// </summary>
-            /// <param name="uriScheme">The uri scheme of the transport.</param>
-            public ITransportChannel GetChannel(string uriScheme)
-            {
-                var binding = GetBinding(uriScheme);
-                return binding?.Create();
-            }
         }
 
         /// <summary>
-        /// The bindings for the transport listeners.
+        /// Get a transport channel for the specified uri scheme.
         /// </summary>
-        public class TransportListenerBindings :
-            TransportBindingsBase<ITransportListenerFactory>
+        /// <param name="uriScheme">The uri scheme of the transport.</param>
+        public ITransportChannel GetChannel(string uriScheme)
         {
-            /// <summary>
-            /// Initialize the transport listener.
-            /// </summary>
-            /// <param name="defaultBindings">List of known default bindings.</param>
-            public TransportListenerBindings(Type[] defaultBindings) : base(defaultBindings)
-            {
-            }
+            var binding = GetBinding(uriScheme);
+            return binding?.Create();
+        }
+    }
 
-            /// <summary>
-            /// Get a transport listener for the specified uri scheme.
-            /// </summary>
-            /// <param name="uriScheme">The uri scheme of the transport.</param>
-            public ITransportListener GetListener(string uriScheme)
-            {
-                var binding = GetBinding(uriScheme);
-                return binding?.Create();
-            }
+    /// <summary>
+    /// The bindings for the transport listeners.
+    /// </summary>
+    public class TransportListenerBindings :
+        TransportBindingsBase<ITransportListenerFactory>
+    {
+        /// <summary>
+        /// Initialize the transport listener.
+        /// </summary>
+        /// <param name="defaultBindings">List of known default bindings.</param>
+        public TransportListenerBindings(Type[] defaultBindings) : base(defaultBindings)
+        {
+        }
+
+        /// <summary>
+        /// Get a transport listener for the specified uri scheme.
+        /// </summary>
+        /// <param name="uriScheme">The uri scheme of the transport.</param>
+        public ITransportListener GetListener(string uriScheme)
+        {
+            var binding = GetBinding(uriScheme);
+            return binding?.Create();
         }
     }
 }

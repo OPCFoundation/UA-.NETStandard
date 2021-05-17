@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.ServiceModel;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
 

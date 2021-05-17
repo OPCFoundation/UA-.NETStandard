@@ -12,7 +12,6 @@
 
 using System;
 using System.Text;
-using System.ServiceModel.Security;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua

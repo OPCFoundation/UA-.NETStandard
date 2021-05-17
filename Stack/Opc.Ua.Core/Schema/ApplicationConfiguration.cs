@@ -75,7 +75,7 @@ namespace Opc.Ua
 
         #region Persistent Properties
         /// <summary>
-        /// A descriptive name for the the application (not necessarily unique).
+        /// A descriptive name for the application (not necessarily unique).
         /// </summary>
         /// <value>The name of the application.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
@@ -1429,7 +1429,7 @@ namespace Opc.Ua
             m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
             m_shutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
-            m_supportedPrivateKeyFormats = new string[] { };
+            m_supportedPrivateKeyFormats = Array.Empty<string>();
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
         }

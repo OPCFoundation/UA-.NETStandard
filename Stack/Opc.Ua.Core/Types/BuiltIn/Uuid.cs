@@ -241,12 +241,6 @@ namespace Opc.Ua
         /// <param name="obj">The object being compared to *this* object</param>
 		public int CompareTo(object obj)
         {
-            // check for reference comparisons.
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return 0;
-            }
-
             // check for uuids.
             if (obj is Uuid)
             {

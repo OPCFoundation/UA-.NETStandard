@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Client
                         //domainNames.Any(n => String.Compare(n, name, StringComparison.OrdinalIgnoreCase) == 0);
                         foreach (var domainName in domainNames)
                         {
-                            if (String.Compare(domainName, name, StringComparison.OrdinalIgnoreCase) == 0)
+                            if (String.Equals(domainName, name, StringComparison.OrdinalIgnoreCase))
                             {
                                 found = true;
                                 break;

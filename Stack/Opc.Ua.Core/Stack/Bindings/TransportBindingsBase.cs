@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings
                 if (assembly != null)
                 {
                     var listeners = AddBindings(assembly);
-                    return listeners.Count() > 0;
+                    return listeners.Any();
                 }
             }
             else
