@@ -360,14 +360,30 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 Uri connectionUri;
+                m_urlScheme = null;
+
                 if (networkAddressUrlState.Url != null && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
                 {
                     if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
                     {
-                        m_brokerHostName = connectionUri.Host;
-                        m_brokerPort = connectionUri.Port;
-                        m_urlScheme = connectionUri.Scheme;
+                        if (!String.IsNullOrEmpty(connectionUri.Host))
+                        {
+                            m_brokerHostName = connectionUri.Host;
+                            m_brokerPort = (connectionUri.Port > 0) ? connectionUri.Port : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
+                            m_urlScheme = connectionUri.Scheme;
+                        }
                     }
+                }
+
+                if (m_urlScheme == null)
+                {
+                    Utils.Trace(
+                        Utils.TraceMasks.Error,
+                        "The configuration for connection {0} has invalid MQTT URL '{1}'.",
+                        PubSubConnectionConfiguration.Name,
+                        networkAddressUrlState.Url);
+
+                    return;
                 }
 
                 nrOfPublishers = Publishers.Count;
