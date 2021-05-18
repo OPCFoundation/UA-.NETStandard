@@ -50,9 +50,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            EncoderContext = new ServiceMessageContext();
-            // create private copy of factory
-            EncoderContext.Factory = new EncodeableFactory(EncoderContext.Factory);
+            EncoderContext = new ServiceMessageContext() {
+                // create private copy of factory
+                Factory = new EncodeableFactory(EncoderContext.Factory)
+            };
             // add a few random namespaces
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
