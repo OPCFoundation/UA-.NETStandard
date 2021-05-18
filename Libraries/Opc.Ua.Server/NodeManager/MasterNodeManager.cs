@@ -802,7 +802,7 @@ namespace Opc.Ua.Server
                 }
             }
             // validate access rights and role permissions
-            ServiceResult serviceResult = ValidatePermissions(context, nodeManager, sourceHandle, PermissionType.Browse);
+            ServiceResult serviceResult = ValidatePermissions(context, nodeManager, sourceHandle, PermissionType.Browse, null, true);
             if (ServiceResult.IsGood(serviceResult))
             {
                 // translate path only if validation is passing
