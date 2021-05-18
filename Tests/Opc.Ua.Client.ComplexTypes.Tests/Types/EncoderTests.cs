@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             EncoderContext = new ServiceMessageContext() {
                 // create private copy of factory
-                Factory = new EncodeableFactory(EncoderContext.Factory)
+                Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory)
             };
             // add a few random namespaces
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
