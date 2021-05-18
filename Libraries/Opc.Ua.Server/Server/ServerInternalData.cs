@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         public ServerInternalData(
             ServerProperties                     serverDescription,
             ApplicationConfiguration             configuration,
-            ServiceMessageContext                messageContext,
+            IServiceMessageContext                messageContext,
             CertificateValidator                 certificateValidator,
             X509Certificate2                     instanceCertificate)
         {
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
         /// The context to use when serializing/deserializing extension objects.
         /// </summary>
         /// <value>The message context.</value>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get { return m_messageContext; }
         }
@@ -767,7 +767,7 @@ namespace Opc.Ua.Server
         private ServerProperties m_serverDescription;
         private ApplicationConfiguration m_configuration;
         private List<Uri> m_endpointAddresses;
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private ServerSystemContext m_defaultSystemContext;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;

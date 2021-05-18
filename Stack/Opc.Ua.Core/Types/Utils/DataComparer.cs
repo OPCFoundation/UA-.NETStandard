@@ -26,7 +26,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Constructs an instance of the data comparer.
         /// </summary>
-        public DataComparer(ServiceMessageContext context)
+        public DataComparer(IServiceMessageContext context)
         {
             m_context = context;
             m_throwOnError = true;
@@ -949,8 +949,9 @@ namespace Opc.Ua.Test
                 return body;
             }
 
-            ServiceMessageContext context = new ServiceMessageContext();
-            context.Factory = EncodeableFactory;
+            IServiceMessageContext context = new ServiceMessageContext() {
+                Factory = EncodeableFactory
+            };
 
             XmlElement xml = body as XmlElement;
 
@@ -1168,7 +1169,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Private Fields
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private bool m_throwOnError;
         #endregion
     }

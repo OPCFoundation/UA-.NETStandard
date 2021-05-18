@@ -26,14 +26,14 @@ namespace Opc.Ua.Bindings
             EncodeableFactory factory,
             EndpointConfiguration configuration)
         {
-            m_messageContext = new ServiceMessageContext();
-
-            m_messageContext.MaxStringLength = configuration.MaxStringLength;
-            m_messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-            m_messageContext.MaxArrayLength = configuration.MaxArrayLength;
-            m_messageContext.MaxMessageSize = configuration.MaxMessageSize;
-            m_messageContext.Factory = factory;
-            m_messageContext.NamespaceUris = namespaceUris;
+            m_messageContext = new ServiceMessageContext {
+                MaxStringLength = configuration.MaxStringLength,
+                MaxByteStringLength = configuration.MaxByteStringLength,
+                MaxArrayLength = configuration.MaxArrayLength,
+                MaxMessageSize = configuration.MaxMessageSize,
+                Factory = factory,
+                NamespaceUris = namespaceUris
+            };
         }
         #endregion
 
@@ -41,7 +41,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The message context to use with the binding.
         /// </summary>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get { return m_messageContext; }
             set { m_messageContext = value; }
@@ -49,7 +49,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         #endregion
     }
 }

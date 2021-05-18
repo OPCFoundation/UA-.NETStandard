@@ -21,9 +21,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with the message context to use.
         /// </summary>
-        public MessageContextExtension(ServiceMessageContext messageContext)
+        public MessageContextExtension(IServiceMessageContext messageContext)
         {
-            m_messageContext = messageContext;
+            MessageContext = messageContext;
         }
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the message context associated with the current operation context.
         /// </summary>
-        public static ServiceMessageContext CurrentContext
+        public static IServiceMessageContext CurrentContext
         {
             get
             {
@@ -52,9 +52,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context to use.
         /// </summary>
-        public ServiceMessageContext MessageContext => m_messageContext;
-
-        private ServiceMessageContext m_messageContext;
+        public IServiceMessageContext MessageContext { get; private set; }
     }
     #endregion
 }

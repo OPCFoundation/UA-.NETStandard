@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Parallelizable]
     public class ComplexTypesEncoderTests : ComplexTypesCommon
     {
-        public ServiceMessageContext EncoderContext;
+        public IServiceMessageContext EncoderContext;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
         #region Test Setup
