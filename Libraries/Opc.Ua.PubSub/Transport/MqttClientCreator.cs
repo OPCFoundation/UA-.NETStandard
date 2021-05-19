@@ -75,10 +75,16 @@ namespace Opc.Ua.PubSub.Transport
                 mqttClient.UseConnectedHandler(async e => {
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);
 
-                    // Subscribe to provided topics, messages are also filtered on the receiveMessageHandler
-                    await mqttClient.SubscribeAsync(topics.ToArray()).ConfigureAwait(false);
-
-                    Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
+                    try
+                    {
+                        // subscribe to provided topics, messages are also filtered on the receiveMessageHandler
+                        await mqttClient.SubscribeAsync(topics.ToArray()).ConfigureAwait(false);
+                        Utils.Trace("{0} Subscribed to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
+                    }
+                    catch (Exception exception)
+                    {
+                        Utils.Trace(exception, "{0} could not subscribe to topics: {1}", mqttClient?.Options?.ClientId, string.Join(",", topics));
+                    }
                 });
             }
             else

@@ -490,30 +490,23 @@ namespace Opc.Ua.PubSub.Transport
                 return true;
             }
 
-            int index = pattern.IndexOf("#");
-
-            if (index < 0)
-            {
-                return pattern == topic;
-            }
-
             var fields1 = pattern.Split('/');
             var fields2 = topic.Split('/');
 
-            if (fields1.Length != fields2.Length)
+            for (int ii = 0; ii < fields1.Length && ii < fields2.Length; ii++)
             {
-                return false;
-            }
+                if (fields1[ii] == "#")
+                {
+                    return true;
+                }
 
-            for (int ii = 0; ii < fields1.Length; ii++)
-            {
-                if (fields1[ii] != "#" && fields1[ii] != fields2[ii])
+                if (fields1[ii] != "+" && fields1[ii] != fields2[ii])
                 {
                     return false;
                 }
             }
 
-            return true;
+            return fields1.Length == fields2.Length;
         }
 
         /// <summary>
