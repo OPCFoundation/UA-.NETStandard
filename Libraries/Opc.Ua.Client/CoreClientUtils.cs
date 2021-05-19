@@ -282,7 +282,11 @@ namespace Opc.Ua.Client
                     // The security level is a relative measure assigned by the server to the 
                     // endpoints that it returns. Clients should always pick the highest level
                     // unless they have a reason not too.
-                    if (endpoint.SecurityLevel > selectedEndpoint.SecurityLevel)
+                    // Some servers however, mess this up a bit. So prefer a higher SecurityMode
+                    // over the SecurityLevel.
+                    if (endpoint.SecurityMode > selectedEndpoint.SecurityMode
+                        || (endpoint.SecurityMode == selectedEndpoint.SecurityMode
+                            && endpoint.SecurityLevel > selectedEndpoint.SecurityLevel))
                     {
                         selectedEndpoint = endpoint;
                     }
