@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         /// The factory used to create encodeable objects that the server understands.
         /// </summary>
         /// <value>The factory.</value>
-        EncodeableFactory Factory { get; }
+        IEncodeableFactory Factory { get; }
 
         /// <summary>
         /// The datatypes, object types and variable types known to the server.

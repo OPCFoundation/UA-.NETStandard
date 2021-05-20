@@ -63,7 +63,7 @@ namespace Opc.Ua
         /// <summary>
         /// The factory used to create encodeable objects.
         /// </summary>
-        EncodeableFactory Factory { get; }
+        IEncodeableFactory Factory { get; }
         #endregion
     }
 }

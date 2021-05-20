@@ -909,7 +909,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The factory to use when decoding extension objects.
         /// </summary>        
-        public static EncodeableFactory EncodeableFactory
+        public static IEncodeableFactory EncodeableFactory
         {
             get
             {
@@ -924,7 +924,7 @@ namespace Opc.Ua.Test
         }
 
         // It stores encodable types of the executing assembly.       
-        private static EncodeableFactory s_Factory = new EncodeableFactory();
+        private static IEncodeableFactory s_Factory = new EncodeableFactory();
 
         /// <summary>
         /// Extracts the extension object body.
@@ -957,7 +957,7 @@ namespace Opc.Ua.Test
 
             if (xml != null)
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(expectedType);
+                XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
                 XmlDecoder decoder = new XmlDecoder(xml, context);
 
                 decoder.PushNamespace(xmlName.Namespace);

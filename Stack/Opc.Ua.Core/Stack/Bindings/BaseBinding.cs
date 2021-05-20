@@ -23,7 +23,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected BaseBinding(
             NamespaceTable namespaceUris,
-            EncodeableFactory factory,
+            IEncodeableFactory factory,
             EndpointConfiguration configuration)
         {
             m_messageContext = new ServiceMessageContext {

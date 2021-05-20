@@ -248,7 +248,7 @@ namespace Opc.Ua.Server
         /// The factory used to create encodeable objects that the server understands.
         /// </summary>
         /// <value>The factory.</value>
-        public EncodeableFactory Factory
+        public IEncodeableFactory Factory
         {
             get { return m_factory; }
         }
@@ -771,7 +771,7 @@ namespace Opc.Ua.Server
         private ServerSystemContext m_defaultSystemContext;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private EncodeableFactory m_factory;
+        private IEncodeableFactory m_factory;
         private TypeTable m_typeTree;
 
 #if LEGACY_CORENODEMANAGER
