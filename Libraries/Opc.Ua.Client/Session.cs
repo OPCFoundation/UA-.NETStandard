@@ -572,7 +572,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the data type system dictionaries in use.
         /// </summary>
-        public Dictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
+        public IReadOnlyDictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
