@@ -49,6 +49,7 @@ namespace Opc.Ua.PubSub
 
         private IUaPubSubConnection m_pubSubConnection;
         private WriterGroupDataType m_writerGroupConfiguration;
+        private WriterGroupPublishState m_writerGroupPublishState;
         #endregion
 
         #region Constructors
@@ -69,6 +70,7 @@ namespace Opc.Ua.PubSub
 
             m_pubSubConnection = pubSubConnection;
             m_writerGroupConfiguration = writerGroupConfiguration;
+            m_writerGroupPublishState = new WriterGroupPublishState();
 
             Initialize();
         }
@@ -239,7 +241,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration);
+                IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration, m_writerGroupPublishState);
                 if (networkMessages != null)
                 {
                     foreach(UaNetworkMessage uaNetworkMessage in networkMessages)
