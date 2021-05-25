@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create the list of network messages built from the provided writerGroupConfiguration
         /// </summary>
-        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration)
+        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
             UadpWriterGroupMessageDataType uadpMessageSettings = ExtensionObject.ToEncodeable(
                 writerGroupConfiguration.MessageSettings)
@@ -144,11 +144,22 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
+                    bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter);
                     PublishedDataSetDataType publishedDataSet = Application.DataCollector.GetPublishedDataSet(dataSetWriter.DataSetName);
-                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
+                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, isDeltaFrame);
 
                     if (publishedDataSet != null && dataSet != null)
                     {
+                        if (isDeltaFrame)
+                        {
+                            dataSet = state.ExcludeUnchangedFields(dataSetWriter, dataSet);
+
+                            if (dataSet == null)
+                            {
+                                continue;
+                            }
+                        }
+
                         UaDataSetMessage uaDataSetMessage = null;
                         if (m_messageMapping == MessageMapping.Uadp && uadpMessageSettings != null)
                         {
@@ -184,6 +195,8 @@ namespace Opc.Ua.PubSub.Transport
                             // set common properties of dataset message
                             uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                             uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
+                            state.MessagePublished(dataSetWriter, dataSet);
+
                             if (publishedDataSet.DataSetMetaData != null)
                             {
                                 uaDataSetMessage.MetaDataVersion = publishedDataSet.DataSetMetaData.ConfigurationVersion;
@@ -408,12 +421,22 @@ namespace Opc.Ua.PubSub.Transport
             {
                 // collect all topics from all ReaderGroups
                 StringCollection topics = new StringCollection();
-                foreach (var readGroup in PubSubConnectionConfiguration.ReaderGroups)
+                foreach (var readerGroup in PubSubConnectionConfiguration.ReaderGroups)
                 {
-                    foreach (var dataSetReader in readGroup.DataSetReaders)
+                    if (!readerGroup.Enabled)
                     {
-                        BrokerDataSetReaderTransportDataType brokerTransportSettings = ExtensionObject.ToEncodeable(
-                            dataSetReader.TransportSettings)
+                        continue;
+                    }
+
+                    foreach (var dataSetReader in readerGroup.DataSetReaders)
+                    {
+                        if (!dataSetReader.Enabled)
+                        {
+                            continue;
+                        }
+
+                        BrokerDataSetReaderTransportDataType brokerTransportSettings =
+                            ExtensionObject.ToEncodeable(dataSetReader.TransportSettings)
                                 as BrokerDataSetReaderTransportDataType;
 
                         if (brokerTransportSettings != null && !topics.Contains(brokerTransportSettings.QueueName))
@@ -424,10 +447,10 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 subscriberClient = (MqttClient)await MqttClientCreator.GetMqttClientAsync(
-                        m_reconnectIntervalSeconds,
-                        mqttOptions,
-                        ProcessMqttMessage,
-                        topics).ConfigureAwait(false);
+                    m_reconnectIntervalSeconds,
+                    mqttOptions,
+                    ProcessMqttMessage,
+                    topics).ConfigureAwait(false);
             }
 
             lock (m_lock)

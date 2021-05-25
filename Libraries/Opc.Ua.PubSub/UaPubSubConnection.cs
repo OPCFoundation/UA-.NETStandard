@@ -221,8 +221,9 @@ namespace Opc.Ua.PubSub
         /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
         /// <param name="writerGroupConfiguration">The writer group configuration </param>
+        /// <param name="state">The publish state for the writer group.</param>
         /// <returns>A list of the <see cref="UaNetworkMessage"/> created from the provided writerGroupConfiguration.</returns>
-        public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
+        public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state);
 
         /// <summary>
         /// Publish the network message

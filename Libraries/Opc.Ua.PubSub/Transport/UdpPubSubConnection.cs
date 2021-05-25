@@ -176,7 +176,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create the list of network messages built from the provided writerGroupConfiguration
         /// </summary>
-        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration)
+        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
             UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
                 as UadpWriterGroupMessageDataType;
@@ -201,7 +201,8 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
-                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
+                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, false);
+
                     if (dataSet != null)
                     {
                         UadpDataSetWriterMessageDataType dataSetMessageSettings =

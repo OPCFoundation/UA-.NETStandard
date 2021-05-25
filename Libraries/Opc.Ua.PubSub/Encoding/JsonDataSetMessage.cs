@@ -256,7 +256,9 @@ namespace Opc.Ua.PubSub.Encoding
         private DataSet DecodePayloadContent(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
             TargetVariablesDataType targetVariablesData =
-                            ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
+                ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
+                    as TargetVariablesDataType;
+
             DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
 
             object token;
@@ -440,7 +442,10 @@ namespace Opc.Ua.PubSub.Encoding
             }
             foreach (var field in DataSet.Fields)
             {
-                EncodeField(jsonEncoder, field);
+                if (field != null)
+                {
+                    EncodeField(jsonEncoder, field);
+                }
             }
             if (pushStructure)
             {
