@@ -180,6 +180,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                 }
                                 else
                                 {
+                                    dataValue = Utils.Clone(dataValue) as DataValue;
+
                                     //check StatusCode and return SubstituteValue if possible
                                     if (dataValue.StatusCode == StatusCodes.Bad && publishedVariable.SubstituteValue != Variant.Null)
                                     {
@@ -190,7 +192,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 dataValue.ServerTimestamp = DateTime.UtcNow;
 
-                                #region FieldMetaData -> MaxStringLength size validation                                 
+                                #region FieldMetaData -> MaxStringLength size validation
 
                                 Field field = dataSet.Fields[i];
                                 Variant variant = dataValue.WrappedValue;

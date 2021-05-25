@@ -113,11 +113,6 @@ namespace Opc.Ua.PubSub
             {
                 throw new ArgumentException(nameof(attributeId));
             }
-            //copy instance of dataValue to be stored
-            if (dataValue != null)
-            {
-                dataValue = Utils.Clone(dataValue) as DataValue;
-            }
             lock (m_lock)
             {
                 if (m_store.ContainsKey(nodeId))

@@ -138,7 +138,8 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             //Create list of dataSet messages to be sent
-            List<UaDataSetMessage> dataSetMessages = new List<UaDataSetMessage>();
+            List<UadpDataSetMessage> uadpDataSetMessages = new List<UadpDataSetMessage>();
+            List<JsonDataSetMessage> jsonDataSetMessages = new List<JsonDataSetMessage>();
             foreach (DataSetWriterDataType dataSetWriter in writerGroupConfiguration.DataSetWriters)
             {
                 //check if dataSetWriter enabled
@@ -175,6 +176,8 @@ namespace Opc.Ua.PubSub.Transport
                                 uadpDataSetMessage.ConfiguredSize = uadpDataSetMessageSettings.ConfiguredSize;
                                 uadpDataSetMessage.DataSetOffset = uadpDataSetMessageSettings.DataSetOffset;
                                 uaDataSetMessage = uadpDataSetMessage;
+
+                                uadpDataSetMessages.Add(uadpDataSetMessage);
                             }
                         }
                         else if (m_messageMapping == MessageMapping.Json && jsonMessageSettings != null)
@@ -184,9 +187,11 @@ namespace Opc.Ua.PubSub.Transport
                             if (jsonDataSetMessageSettings != null)
                             {
                                 JsonDataSetMessage jsonDataSetMessage = new JsonDataSetMessage(dataSet);
-                                jsonDataSetMessage.SetMessageContentMask((JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask);
+                                jsonDataSetMessage.DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonDataSetMessageSettings.DataSetMessageContentMask;
                                 jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
                                 uaDataSetMessage = jsonDataSetMessage;
+
+                                jsonDataSetMessages.Add(jsonDataSetMessage);
                             }
                         }
 
@@ -194,7 +199,8 @@ namespace Opc.Ua.PubSub.Transport
                         {
                             // set common properties of dataset message
                             uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
-                            uaDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref m_dataSetSequenceNumber) % UInt16.MaxValue);
+                            uaDataSetMessage.SequenceNumber = (uint)Utils.IncrementIdentifier(ref m_dataSetSequenceNumber);
+
                             state.MessagePublished(dataSetWriter, dataSet);
 
                             if (publishedDataSet.DataSetMetaData != null)
@@ -203,21 +209,20 @@ namespace Opc.Ua.PubSub.Transport
                             }
                             uaDataSetMessage.Timestamp = DateTime.UtcNow;
                             uaDataSetMessage.Status = StatusCodes.Good;
-                            dataSetMessages.Add(uaDataSetMessage);
                         }
                     }
                 }
             }
 
+            if (m_messageMapping == MessageMapping.Uadp)
+            {
             //cancel send if no dataset message
-            if (dataSetMessages.Count == 0)
+                if (uadpDataSetMessages.Count == 0)
             {
                 return null;
             }
 
-            if (m_messageMapping == MessageMapping.Uadp)
-            {
-                UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, dataSetMessages);
+                UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, uadpDataSetMessages);
                 uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
                 // Network message header
                 uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
@@ -231,24 +236,30 @@ namespace Opc.Ua.PubSub.Transport
             }
             else if (m_messageMapping == MessageMapping.Json)
             {
+                //cancel send if no dataset message
+                if (jsonDataSetMessages.Count == 0)
+                {
+                    return null;
+                }
+
                 // each entry of this list will generate a network message
-                List<List<UaDataSetMessage>> dataSetMessagesList = new List<List<UaDataSetMessage>>();
+                List<List<JsonDataSetMessage>> dataSetMessagesList = new List<List<JsonDataSetMessage>>();
                 if ((((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask) & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                 {
                     // create a new network message for each dataset
-                    foreach (UaDataSetMessage dataSetMessage in dataSetMessages)
+                    foreach (JsonDataSetMessage dataSetMessage in jsonDataSetMessages)
                     {
-                        dataSetMessagesList.Add(new List<UaDataSetMessage>() { dataSetMessage });
+                        dataSetMessagesList.Add(new List<JsonDataSetMessage>() { dataSetMessage });
                     }
                 }
                 else
                 {
-                    dataSetMessagesList.Add(dataSetMessages);
+                    dataSetMessagesList.Add(jsonDataSetMessages);
                 }
 
                 List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
 
-                foreach (List<UaDataSetMessage> dataSetMessagesToUse in dataSetMessagesList)
+                foreach (List<JsonDataSetMessage> dataSetMessagesToUse in dataSetMessagesList)
                 {
                     JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessagesToUse);
                     jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);

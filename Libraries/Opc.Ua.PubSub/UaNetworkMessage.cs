@@ -41,9 +41,9 @@ namespace Opc.Ua.PubSub
     {
         #region Protected Fields
         /// <summary>
-        /// list of DataSet messages
+        /// List of DataSet messages
         /// </summary>
-        protected readonly List<UaDataSetMessage> m_uaDataSetMessages;
+        protected List<UaDataSetMessage> m_uaDataSetMessages;
         #endregion
 
         #region Constructor
@@ -84,11 +84,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSet messages
         /// </summary>
-        public ReadOnlyCollection<UaDataSetMessage> DataSetMessages
+        public List<UaDataSetMessage> DataSetMessages
         {
             get
             {
-                return new ReadOnlyCollection<UaDataSetMessage>(m_uaDataSetMessages);
+                return m_uaDataSetMessages;
             }
         }
 
@@ -106,28 +106,18 @@ namespace Opc.Ua.PubSub
         public abstract byte[] Encode();
 
         /// <summary>
-        /// Decodes the message 
+        /// Encodes the object in the specified stream.
+        /// </summary>
+        /// <param name="messageContext">The context.</param>
+        /// <param name="writer">The stream to use.</param>
+        public abstract void Encode(ServiceMessageContext messageContext, StreamWriter writer);
+
+        /// <summary>
+        /// Decodes the message
         /// </summary>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
         public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
-        #endregion
-
-        #region Protectd Methods
-        /// <summary>
-        /// Read the bytes from a Stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        protected byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
         #endregion
     }
 }

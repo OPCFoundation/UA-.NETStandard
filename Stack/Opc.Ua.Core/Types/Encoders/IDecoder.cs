@@ -328,6 +328,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType);
+        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null);
     }
 }

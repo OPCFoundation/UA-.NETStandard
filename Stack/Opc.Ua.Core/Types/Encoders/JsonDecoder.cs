@@ -75,10 +75,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get referece to current JsonTextReader
-        /// </summary>
-        public JsonTextReader Reader { get { return m_reader; } }
-        /// <summary>
         /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
         /// </summary>
         /// <param name="systemType">The system type of the encoded JSON stram.</param>
@@ -2394,7 +2390,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2447,7 +2443,17 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.Variant:
+                    {
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
                         return ReadVariantArray(fieldName).ToArray();
+                    }
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
@@ -2469,7 +2475,7 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0);
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, encodeableTypeId);
 
                 switch (builtInType)
                 {
@@ -2520,6 +2526,19 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.Variant:
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                Array newElements = Array.CreateInstance(systemType, elements.Count);
+                                for (int i = 0; i < elements.Count; i++)
+                                {
+                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
+                                }
+                                return new Matrix(newElements, builtInType, dimensions.ToArray());
+                            }
+                        }
                         return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.ExtensionObject:
                         return new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
@@ -2792,7 +2811,7 @@ namespace Opc.Ua
         /// <summary>
         /// Read the Matrix part (simple array or array of arrays)
         /// </summary>
-        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level)
+        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level, ExpandedNodeId encodeableTypeId = null)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2823,7 +2842,7 @@ namespace Opc.Ua
 
                             PushArray(fieldName, ii);
 
-                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1);
+                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, encodeableTypeId);
 
                             Pop();
                         }
@@ -2835,7 +2854,7 @@ namespace Opc.Ua
                     if (!hasInnerArray)
                     {
                         // read array from one dimension
-                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
+                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType, encodeableTypeId) as System.Collections.IList;
                         if (part != null && part.Count > 0)
                         {
                             // add part elements to final list 

@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             //Create list of dataSet messages to be sent
-            List<UaDataSetMessage> dataSetMessages = new List<UaDataSetMessage>();
+            List<UadpDataSetMessage> dataSetMessages = new List<UadpDataSetMessage>();
             foreach (DataSetWriterDataType dataSetWriter in writerGroupConfiguration.DataSetWriters)
             {
                 //check if dataSetWriter enabled
@@ -405,21 +405,6 @@ namespace Opc.Ua.PubSub.Transport
             if (newsocket != null)
             {
                 newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
-            }
-        }
-
-        /// <summary>
-        /// Read All bytes from a given stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        private byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (MemoryStream ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
             }
         }
 

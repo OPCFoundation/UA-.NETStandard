@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub
     /// <summary>
     /// Abstract class that represents a working connection for PubSub
     /// </summary>
-    internal abstract class UaPubSubConnection : IUaPubSubConnection, IDisposable
+    internal abstract class UaPubSubConnection : IUaPubSubConnection
     {
         #region Fields
         protected object m_lock = new object();
