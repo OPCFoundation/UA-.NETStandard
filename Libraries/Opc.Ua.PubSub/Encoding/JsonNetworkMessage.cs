@@ -195,6 +195,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         // encode single dataset message
                         JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+
                         if (jsonDataSetMessage != null)
                         {
                             if (!jsonDataSetMessage.HasDataSetMessageHeader)
@@ -401,7 +402,15 @@ namespace Opc.Ua.PubSub.Encoding
 
             if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
             {
-                jsonEncoder.WriteString(nameof(DataSetClassId), DataSetClassId);
+                if (HasSingleDataSetMessage)
+                {
+                    JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+
+                    if (jsonDataSetMessage?.DataSet != null)
+                    {
+                        jsonEncoder.WriteString(nameof(DataSetClassId), jsonDataSetMessage.DataSet.DataSetClassId);
+                    }
+                }
             }
         }
 

@@ -131,10 +131,12 @@ namespace Opc.Ua.PubSub.PublishedData
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
             if (publishedDataSet != null)
-            {
+            {                
                 if (publishedDataSet.DataSetSource != null)
                 {
                     DataSet dataSet = new DataSet(dataSetName);
+                    dataSet.DataSetClassId = publishedDataSet.DataSetMetaData.DataSetClassId.ToString();
+
                     PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
 
                     if (publishedDataItems != null && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)

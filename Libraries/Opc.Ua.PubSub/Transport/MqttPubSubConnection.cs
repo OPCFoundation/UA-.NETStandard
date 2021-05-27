@@ -129,8 +129,11 @@ namespace Opc.Ua.PubSub.Transport
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
-            BrokerWriterGroupTransportDataType transportSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings)
-                as BrokerWriterGroupTransportDataType;
+
+            BrokerWriterGroupTransportDataType transportSettings =
+                ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings)
+                    as BrokerWriterGroupTransportDataType;
+
             if (transportSettings == null)
             {
                 //Wrong configuration of writer group MessageSettings
@@ -216,11 +219,11 @@ namespace Opc.Ua.PubSub.Transport
 
             if (m_messageMapping == MessageMapping.Uadp)
             {
-            //cancel send if no dataset message
+                // cancel send if no dataset message
                 if (uadpDataSetMessages.Count == 0)
-            {
-                return null;
-            }
+                {
+                    return null;
+                }
 
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, uadpDataSetMessages);
                 uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
@@ -267,6 +270,11 @@ namespace Opc.Ua.PubSub.Transport
                     // Network message header
                     jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
                     jsonNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
+
+                    if ((jsonNetworkMessage.NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
+                    {
+                        jsonNetworkMessage.DataSetClassId = dataSetMessagesToUse[0].DataSet.DataSetClassId;
+                    }
 
                     networkMessages.Add(jsonNetworkMessage);
                 }
