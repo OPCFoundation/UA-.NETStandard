@@ -11,6 +11,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <HighEntropyVA>true</HighEntropyVA>
     <IsPackable>false</IsPackable>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!--TODO <GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>

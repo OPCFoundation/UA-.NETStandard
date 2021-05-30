@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.ComplexTypes
             var typeSystem = await m_session.LoadDataTypeSystem().ConfigureAwait(false);
 
             // sort dictionaries with import dependencies to the end of the list
-            var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary?.Import?.Count()).ToList();
+            var sortedTypeSystem = typeSystem.OrderBy(t => t.Value.TypeDictionary?.Import?.Length).ToList();
 
             bool allTypesLoaded = true;
 

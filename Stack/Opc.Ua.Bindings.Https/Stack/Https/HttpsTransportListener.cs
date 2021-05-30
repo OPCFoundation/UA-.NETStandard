@@ -234,7 +234,7 @@ namespace Opc.Ua.Bindings
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
-            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+            httpsOptions.SslProtocols = SslProtocols.None;
             m_hostBuilder.UseKestrel(options => {
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
                     // listenOptions.NoDelay = true;
@@ -342,7 +342,11 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
+#if NETSTANDARD2_1
+                await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
+#else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
+#endif
             }
             catch (Exception e)
             {
