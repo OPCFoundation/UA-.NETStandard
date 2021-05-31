@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -36,24 +37,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Configuration
 {
-    /// <summary>
-    /// Interface to create application callbacks.
-    /// </summary>
-    public abstract class IApplicationMessageDlg
-    {
-        /// <summary>
-        /// The application message.
-        /// </summary>
-        /// <param name="text">The text of the message.</param>
-        /// <param name="ask">If the application should ask the user.</param>
-        public abstract void Message(string text, Boolean ask = false);
-
-        /// <summary>
-        /// Show the message and return result.
-        /// </summary>
-        public abstract Task<bool> ShowAsync();
-    }
-
     /// <summary>
     /// A class that install, configures and runs a UA application.
     /// </summary>
@@ -195,34 +178,11 @@ namespace Opc.Ua.Configuration
         {
             m_server.Stop();
         }
-        #endregion
-
-        #region Static Methods
-        /// <summary>
-        /// Helper to replace localhost with the hostname
-        /// in the application uri and base adresses of the
-        /// configuration.
-        /// </summary>
-        /// <param name="configuration"></param>
-        public static ApplicationConfiguration FixupAppConfig(
-            ApplicationConfiguration configuration)
-        {
-            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
-            if (configuration.ServerConfiguration != null)
-            {
-                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
-                {
-                    configuration.ServerConfiguration.BaseAddresses[i] =
-                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
-                }
-            }
-            return configuration;
-        }
 
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        public static async Task<ApplicationConfiguration> LoadAppConfig(
+        public async Task<ApplicationConfiguration> LoadAppConfig(
             bool silent,
             string filePath,
             ApplicationType applicationType,
@@ -271,6 +231,84 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
+        /// Loads the configuration.
+        /// </summary>
+        public async Task<ApplicationConfiguration> LoadAppConfig(
+            bool silent,
+            Stream stream,
+            ApplicationType applicationType,
+            Type configurationType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            Utils.Trace(Utils.TraceMasks.Information, "Loading application from stream.");
+
+            try
+            {
+                // load the configuration file.
+                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                    stream,
+                    applicationType,
+                    configurationType,
+                    applyTraceSettings,
+                    certificatePasswordProvider)
+                    .ConfigureAwait(false);
+
+                if (configuration == null)
+                {
+                    return null;
+                }
+
+                return configuration;
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Could not load configuration from stream.");
+
+                // warn user.
+                if (!silent)
+                {
+                    if (MessageDlg != null)
+                    {
+                        MessageDlg.Message("Load Application Configuration: " + e.Message);
+                        await MessageDlg.ShowAsync().ConfigureAwait(false);
+                    }
+
+                    throw;
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Loads the application configuration.
+        /// </summary>
+        public async Task<ApplicationConfiguration> LoadApplicationConfiguration(Stream stream, bool silent)
+        {
+            ApplicationConfiguration configuration = null;
+
+            try
+            {
+                configuration = await LoadAppConfig(
+                    silent, stream, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception) when (silent)
+            {
+            }
+
+            if (configuration == null)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "Could not load configuration.");
+            }
+
+            m_applicationConfiguration = FixupAppConfig(configuration);
+
+            return configuration;
+        }
+
+        /// <summary>
         /// Loads the application configuration.
         /// </summary>
         public async Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
@@ -305,6 +343,32 @@ namespace Opc.Ua.Configuration
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
 
             return await LoadApplicationConfiguration(filePath, silent).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Create a builder for a UA application configuration.
+        /// </summary>
+        public IApplicationInstanceBuilderTypes Build(
+            string applicationUri,
+            string productUri
+            )
+        {
+            // App Uri and cert subject
+            ApplicationConfiguration = new ApplicationConfiguration {
+                ApplicationName = this.ApplicationName,
+                ApplicationType = this.ApplicationType,
+                ApplicationUri = applicationUri,
+                ProductUri = productUri,
+                TraceConfiguration = new TraceConfiguration {
+                    TraceMasks = Utils.TraceMasks.None
+                },
+                TransportQuotas = new TransportQuotas()
+            };
+
+            // Trace off
+            ApplicationConfiguration.TraceConfiguration.ApplySettings();
+
+            return new ApplicationInstanceBuilder(this);
         }
 
         /// <summary>
@@ -436,7 +500,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
-        private static async Task<bool> CheckApplicationInstanceCertificate(
+        private async Task<bool> CheckApplicationInstanceCertificate(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
             bool silent,
@@ -513,7 +577,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Checks that the domains in the server addresses match the domains in the certificates.
         /// </summary>
-        private static async Task<bool> CheckDomainsInCertificate(
+        private async Task<bool> CheckDomainsInCertificate(
             ApplicationConfiguration configuration,
             X509Certificate2 certificate,
             bool silent)
@@ -783,7 +847,7 @@ namespace Opc.Ua.Configuration
         /// <param name="message"></param>
         /// <param name="silent"></param>
         /// <returns>True if approved, false otherwise.</returns>
-        private static async Task<bool> ApproveMessage(string message, bool silent)
+        private async Task<bool> ApproveMessage(string message, bool silent)
         {
             if (!silent && MessageDlg != null)
             {
@@ -795,6 +859,27 @@ namespace Opc.Ua.Configuration
                 Utils.Trace(message);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Helper to replace localhost with the hostname
+        /// in the application uri and base adresses of the
+        /// configuration.
+        /// </summary>
+        /// <param name="configuration"></param>
+        private static ApplicationConfiguration FixupAppConfig(
+            ApplicationConfiguration configuration)
+        {
+            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
+            if (configuration.ServerConfiguration != null)
+            {
+                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+                {
+                    configuration.ServerConfiguration.BaseAddresses[i] =
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                }
+            }
+            return configuration;
         }
         #endregion
 

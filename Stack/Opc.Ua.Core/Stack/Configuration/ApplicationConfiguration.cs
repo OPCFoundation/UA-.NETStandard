@@ -307,24 +307,64 @@ namespace Opc.Ua
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
             ApplicationConfiguration configuration = null;
+
+            try
+            {
+                using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+                {
+                    configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider);
+                }
+            }
+            catch (Exception e)
+            {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendLine();
+                message.Append(e.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError, e, message.ToString());
+            }
+
+            if (configuration != null)
+            {
+                configuration.m_sourceFilePath = file.FullName;
+            }
+
+            return configuration;
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <returns>Application configuration</returns>
+        public static async Task<ApplicationConfiguration> Load(
+            Stream stream,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            ApplicationConfiguration configuration = null;
             systemType = systemType ?? typeof(ApplicationConfiguration);
 
-            using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+            try
             {
-                try
-                {
-                    DataContractSerializer serializer = new DataContractSerializer(systemType);
-                    configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
-                }
-                catch (Exception e)
-                {
-                    var message = new StringBuilder();
-                    message.AppendFormat("Configuration file could not be loaded: {0}", file.FullName);
-                    message.AppendLine();
-                    message.AppendFormat("Error is: {0}", e.Message);
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError, e, message.ToString());
-                }
+                DataContractSerializer serializer = new DataContractSerializer(systemType);
+                configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
+            }
+            catch (Exception e)
+            {
+                var message = new StringBuilder();
+                message.AppendFormat("Configuration could not be loaded.");
+                message.AppendLine();
+                message.AppendFormat("Error is: {0}", e.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError, e, message.ToString());
             }
 
             if (configuration != null)
@@ -338,8 +378,6 @@ namespace Opc.Ua
                 configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
                 await configuration.Validate(applicationType).ConfigureAwait(false);
-
-                configuration.m_sourceFilePath = file.FullName;
             }
 
             return configuration;
