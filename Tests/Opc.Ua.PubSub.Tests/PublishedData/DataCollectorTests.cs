@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act  
             dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets.First());
-            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets.First().Name);
+            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets.First().Name, false);
             //Assert
             Assert.IsNotNull(collectedDataSet, 
                 "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.", pubSubConfiguration.PublishedDataSets[0].Name);
@@ -79,7 +79,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSet);
             dataCollector.RemovePublishedDataSet(publishedDataSet);
-            DataSet collectedDataSet = dataCollector.CollectData(publishedDataSet.Name);
+            DataSet collectedDataSet = dataCollector.CollectData(publishedDataSet.Name, false);
             //Assert
             Assert.IsNull(collectedDataSet, "The '{0}' publishedDataSet was not removed correctly.", publishedDataSet.Name);
         }
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
-            DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name);
+            DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name, false);
 
             //Assert
             Assert.IsNotNull(publishedDataItems, "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
@@ -263,7 +263,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
-            DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name);
+            DataSet collectedDataSet = dataCollector.CollectData(publishedDataSetSimple.Name, false);
             //Assert
             Assert.IsNotNull(publishedDataItems, "The m_firstPublishedDataSet.DataSetSource is not PublishedDataItemsDataType.");
             Assert.IsNotNull(collectedDataSet, "collectedDataSet is null.");
@@ -283,7 +283,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act              
-            DataSet collectedDataSet = dataCollector.CollectData("");
+            DataSet collectedDataSet = dataCollector.CollectData("", false);
             //Assert
             Assert.IsNull(collectedDataSet, "The data collect returns data for unknown DataSetName.");
         }
@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
             
             //Assert
-            Assert.Throws<ArgumentException>(()=> dataCollector.CollectData(null), "The data collect does not throw exception when null parameter.");
+            Assert.Throws<ArgumentException>(()=> dataCollector.CollectData(null, false), "The data collect does not throw exception when null parameter.");
         }
     }
 }
