@@ -284,7 +284,22 @@ namespace Opc.Ua.PubSub
         /// <param name="source">The source of the received event.</param>
         protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
         {
-            if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
+            if (networkMessage.IsMetaDataMessage)
+            {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                    NetworkMessage = networkMessage,
+                    Source = source
+                };
+
+                // trigger notification for received subscribed data set
+                Application.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
+
+                Utils.Trace(
+                    "Connection '{0}' - RaiseMetaDataReceivedEvent() from source={0}",
+                    source,
+                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+            }
+            else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
                 SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
@@ -293,8 +308,11 @@ namespace Opc.Ua.PubSub
 
                 //trigger notification for received subscribed data set
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
-                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
-                    source, subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+
+                Utils.Trace(
+                    "Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
+                    source,
+                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
             else
             {

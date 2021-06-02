@@ -94,24 +94,38 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public class WriterGroupPublishState
     {
+        private class DataSetState
+        {
+            public uint MessageCount;
+            public DataSet LastDataSet;
+            public ConfigurationVersionDataType ConfigurationVersion;
+            public DateTime LastMetaDataUpdate;
+        }
+
         /// <summary>
         /// Creates a new instance.
         /// </summary>
         public WriterGroupPublishState()
         {
-            MessageCounts = new Dictionary<ushort, uint>();
-            DataSets = new Dictionary<ushort, DataSet>();
+            DataSets = new Dictionary<ushort, DataSetState>();
         }
 
         /// <summary>
-        /// The message count indexed by dataset writer group id.
+        /// The last DataSet indexed by dataset writer group id.
         /// </summary>
-        public Dictionary<ushort, uint> MessageCounts { get; }
+        private Dictionary<ushort, DataSetState> DataSets { get; }
 
-        /// <summary>
-        /// The message count indexed by dataset writer group id.
-        /// </summary>
-        public Dictionary<ushort, DataSet> DataSets { get; }
+        private DataSetState GetState(DataSetWriterDataType writer)
+        {
+            DataSetState state;
+
+            if (!DataSets.TryGetValue(writer.DataSetWriterId, out state))
+            {
+                DataSets[writer.DataSetWriterId] = state = new DataSetState();
+            }
+
+            return state;
+        }
 
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
@@ -120,37 +134,100 @@ namespace Opc.Ua.PubSub
         {
             if (writer.KeyFrameCount > 1)
             {
-                uint count;
-
-                lock (MessageCounts)
+                lock (DataSets)
                 {
-                    if (!MessageCounts.TryGetValue(writer.DataSetWriterId, out count))
+                    DataSetState state = GetState(writer);
+
+                    if (state.MessageCount % writer.KeyFrameCount != 0)
                     {
-                        MessageCounts[writer.DataSetWriterId] = count = 0;
+                        return true;
                     }
-                }
-
-                if (count % writer.KeyFrameCount != 0)
-                {
-                    return true;
                 }
             }
 
             return false;
         }
 
+        /// <summary>
+        /// Returns TRUE if the next DataSetMessage is a delta frame.
+        /// </summary>
+        public bool HasMetaDataChanged(DataSetWriterDataType writer, DataSetMetaDataType metadata, double updateTime)
+        {
+            if (metadata == null)
+            {
+                return false;
+            }
+
+            lock (DataSets)
+            {
+                DataSetState state = GetState(writer);
+
+                ConfigurationVersionDataType version = state.ConfigurationVersion;
+
+                if (version == null)
+                {
+                    state.ConfigurationVersion = metadata.ConfigurationVersion;
+                    state.LastMetaDataUpdate = DateTime.UtcNow;
+                    return true;
+                }
+
+                if (version.MajorVersion != metadata.ConfigurationVersion.MajorVersion ||
+                    version.MinorVersion != metadata.ConfigurationVersion.MinorVersion)
+                {
+                    state.ConfigurationVersion = metadata.ConfigurationVersion;
+                    state.LastMetaDataUpdate = DateTime.UtcNow;
+                    return true;
+                }
+
+                if (updateTime > 0)
+                {
+                    if (state.LastMetaDataUpdate.AddMilliseconds(updateTime) <= DateTime.UtcNow)
+                    {
+                        state.LastMetaDataUpdate = DateTime.UtcNow;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private DataSet Copy(DataSet dataset)
+        {
+            DataSet lastDataSet = new DataSet() {
+                DataSetWriterId = dataset.DataSetWriterId,
+                Name = dataset.Name,
+                SequenceNumber = dataset.SequenceNumber,
+                Fields = new Field[dataset.Fields.Length]
+            };
+
+            for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
+            {
+                var field = dataset.Fields[ii];
+
+                if (field != null)
+                {
+                    lastDataSet.Fields[ii] = field;
+                }
+            }
+
+            return lastDataSet;
+        }
 
         /// <summary>
         /// Checks if the DataSet has changed and null
         /// </summary>
         public DataSet ExcludeUnchangedFields(DataSetWriterDataType writer, DataSet dataset)
         {
-            lock (MessageCounts)
+            lock (DataSets)
             {
-                DataSet lastDataSet;
+                DataSetState state = GetState(writer);
 
-                if (!DataSets.TryGetValue(writer.DataSetWriterId, out lastDataSet) || lastDataSet == null)
+                DataSet lastDataSet = state.LastDataSet;
+
+                if (lastDataSet == null)
                 {
+                    state.LastDataSet = Copy(dataset);
                     return dataset;
                 }
 
@@ -198,39 +275,27 @@ namespace Opc.Ua.PubSub
         {
             if (writer.KeyFrameCount > 1)
             {
-                uint count;
-
-                lock (MessageCounts)
+                lock (DataSets)
                 {
-                    if (MessageCounts.TryGetValue(writer.DataSetWriterId, out count))
+                    DataSetState state = GetState(writer);
+                    state.MessageCount++;
+                    state.ConfigurationVersion = dataset.DataSetMetaData.ConfigurationVersion;
+
+                    if (state.LastDataSet == null)
                     {
-                        MessageCounts[writer.DataSetWriterId] = count + 1;
+                        state.LastDataSet = Copy(dataset);
+                        return;
                     }
 
-                    DataSet lastDataSet = null;
-
-                    if (!DataSets.TryGetValue(writer.DataSetWriterId, out lastDataSet))
+                    for (int ii = 0; ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length; ii++)
                     {
-                        DataSets[writer.DataSetWriterId] = lastDataSet = new DataSet()
-                        {
-                            DataSetWriterId = writer.DataSetWriterId,
-                            Name = dataset.Name,
-                            SequenceNumber = dataset.SequenceNumber,
-                            Fields = new Field[dataset.Fields.Length]
-                        };
-                    }
+                        var field = dataset.Fields[ii];
 
-                    for (int ii = 0; ii < dataset.Fields.Length && lastDataSet.Fields.Length < 0; ii++)
-                    {
-                        var field1 = dataset.Fields[ii];
-
-                        if (field1 != null)
+                        if (field != null)
                         {
-                            lastDataSet.Fields[ii] = field1;
+                            state.LastDataSet.Fields[ii] = field;
                         }
                     }
-
-                    DataSets[writer.DataSetWriterId] = dataset;
                 }
             }
         }

@@ -52,5 +52,10 @@ namespace Opc.Ua.PubSub
         /// <param name="deltaFrame">TRUE if the a delta frame is being created.</param>
         /// <returns></returns>
         DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, bool deltaFrame = false);
+
+        /// <summary>
+        /// Updates the metadata if it has changed from when the DataStore was created.
+        /// </summary>
+        void UpdateMetaData(PublishedDataSetDataType publishedDataSet);
     }
 }

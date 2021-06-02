@@ -130,12 +130,15 @@ namespace Opc.Ua.PubSub.PublishedData
         public DataSet CollectData(string dataSetName, bool isDeltaFrame)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
+
             if (publishedDataSet != null)
-            {                
+            {
+                m_dataStore.UpdateMetaData(publishedDataSet);
+
                 if (publishedDataSet.DataSetSource != null)
                 {
                     DataSet dataSet = new DataSet(dataSetName);
-                    dataSet.DataSetClassId = publishedDataSet.DataSetMetaData.DataSetClassId.ToString();
+                    dataSet.DataSetMetaData = publishedDataSet.DataSetMetaData;
 
                     PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
 

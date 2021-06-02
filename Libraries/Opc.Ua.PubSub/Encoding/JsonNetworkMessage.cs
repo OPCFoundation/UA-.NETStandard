@@ -41,6 +41,7 @@ namespace Opc.Ua.PubSub.Encoding
     {
         #region Fields
         private const string kDefaultMessageType = "ua-data";
+        private const string kMetaDataMessageType = "ua-metadata";
         private const string kFieldMessages = "Messages";
 
         private JSONNetworkMessageType m_jsonNetworkMessageType = JSONNetworkMessageType.DataSetMessage;
@@ -63,6 +64,16 @@ namespace Opc.Ua.PubSub.Encoding
             : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x=> (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
         {
             MessageType = kDefaultMessageType;
+            DataSetClassId = string.Empty;
+        }
+
+        /// <summary>
+        /// Create new instance of <see cref="JsonNetworkMessage"/>
+        /// </summary>
+        public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+            : base(writerGroupConfiguration, metadata)
+        {
+            MessageType = kMetaDataMessageType;
             DataSetClassId = string.Empty;
         }
         #endregion
@@ -114,13 +125,13 @@ namespace Opc.Ua.PubSub.Encoding
         public string MessageId { get; set; }
 
         /// <summary>
-        /// This value shall be “ua-data”.
+        /// This value shall be “ua-data” or "ua-metadata"
         /// This value is mandatory.
         /// </summary>
         public string MessageType { get; private set; }
 
         /// <summary>
-        /// Get and Set PublisherId type
+        /// Get and Set PublisherId
         /// </summary>
         public string PublisherId { get; set; }
 
@@ -180,10 +191,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="writer">The stream to use.</param>
         public override void Encode(ServiceMessageContext messageContext, StreamWriter writer)
         {
-            bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage;
+            bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
             using (JsonEncoder encoder = new JsonEncoder(messageContext, true, writer, topLevelIsArray))
             {
+                if (IsMetaDataMessage)
+                {
+                    EncodeNetworkMessageHeader(encoder);
+                    encoder.WriteEncodeable("MetaData", m_metadata, null);
+                    return;
+                }
+
                 // handle no header
                 if (HasNetworkMessageHeader)
                 {
@@ -268,6 +286,13 @@ namespace Opc.Ua.PubSub.Encoding
 
                 // 1. decode network message header (PublisherId & DataSetClassId)
                 DecodeNetworkMessageHeader(jsonDecoder);
+
+                // ihande metadata messages.
+                if (MessageType == kMetaDataMessageType)
+                {
+                    m_metadata = jsonDecoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                    return;
+                }
 
                 // ignore network messages that are not dataSet messages
                 if (m_jsonNetworkMessageType != JSONNetworkMessageType.DataSetMessage)
@@ -406,9 +431,9 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     JsonDataSetMessage jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
 
-                    if (jsonDataSetMessage?.DataSet != null)
+                    if (jsonDataSetMessage?.DataSet?.DataSetMetaData?.DataSetClassId != null)
                     {
-                        jsonEncoder.WriteString(nameof(DataSetClassId), jsonDataSetMessage.DataSet.DataSetClassId);
+                        jsonEncoder.WriteString(nameof(DataSetClassId), jsonDataSetMessage.DataSet.DataSetMetaData.DataSetClassId.ToString());
                     }
                 }
             }

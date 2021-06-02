@@ -53,6 +53,11 @@ namespace Opc.Ua.PubSub
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> DataReceived;
+
+        /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
+        /// </summary>
+        public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
         #endregion
 
         #region Event Callbacks
@@ -74,6 +79,7 @@ namespace Opc.Ua.PubSub
         private UaPubSubApplication(IUaPubSubDataStore dataStore = null)
         {
             m_uaPubSubConnections = new List<IUaPubSubConnection>();
+
             if (dataStore != null)
             {
                 m_dataStore = dataStore;
@@ -82,6 +88,7 @@ namespace Opc.Ua.PubSub
             {
                 m_dataStore = new UaPubSubDataStore();
             }
+
             m_dataCollector = new DataCollector(m_dataStore);
             m_uaPubSubConfigurator = new UaPubSubConfigurator();
             m_uaPubSubConfigurator.ConnectionAdded += UaPubSubConfigurator_ConnectionAdded;
@@ -220,7 +227,6 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Internal Methods
-
         /// <summary>
         /// Raise DataReceived event
         /// </summary>
@@ -237,6 +243,25 @@ namespace Opc.Ua.PubSub
             catch (Exception ex)
             {
                 Utils.Trace(ex, "UaPubSubApplication.RaiseSubscriptionRecievedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise MetaDataReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseMetaDataReceivedEvent(SubscribedDataEventArgs e)
+        {
+            try
+            {
+                if (MetaDataReceived != null)
+                {
+                    MetaDataReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
             }
         }
         #endregion

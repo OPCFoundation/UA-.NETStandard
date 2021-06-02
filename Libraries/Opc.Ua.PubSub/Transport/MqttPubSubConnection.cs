@@ -143,6 +143,8 @@ namespace Opc.Ua.PubSub.Transport
             //Create list of dataSet messages to be sent
             List<UadpDataSetMessage> uadpDataSetMessages = new List<UadpDataSetMessage>();
             List<JsonDataSetMessage> jsonDataSetMessages = new List<JsonDataSetMessage>();
+            List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
+
             foreach (DataSetWriterDataType dataSetWriter in writerGroupConfiguration.DataSetWriters)
             {
                 //check if dataSetWriter enabled
@@ -151,6 +153,8 @@ namespace Opc.Ua.PubSub.Transport
                     bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter);
                     PublishedDataSetDataType publishedDataSet = Application.DataCollector.GetPublishedDataSet(dataSetWriter.DataSetName);
                     DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, isDeltaFrame);
+
+                    BrokerDataSetWriterTransportDataType transport = ExtensionObject.ToEncodeable(dataSetWriter.TransportSettings) as BrokerDataSetWriterTransportDataType;
 
                     if (publishedDataSet != null && dataSet != null)
                     {
@@ -162,6 +166,17 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 continue;
                             }
+                        }
+
+                        bool hasMetaDataChanged = state.HasMetaDataChanged(dataSetWriter, dataSet.DataSetMetaData, transport?.MetaDataUpdateTime ?? 0);
+
+                        if (hasMetaDataChanged)
+                        {
+                            networkMessages.Add(new JsonNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData)
+                            {
+                                PublisherId = PubSubConnectionConfiguration.PublisherId.ToString(),
+                                DataSetWriterId = dataSetWriter.DataSetWriterId
+                            });
                         }
 
                         UaDataSetMessage uaDataSetMessage = null;
@@ -227,6 +242,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, uadpDataSetMessages);
                 uadpNetworkMessage.SetNetworkMessageContentMask((UadpNetworkMessageContentMask)uadpMessageSettings?.NetworkMessageContentMask);
+
                 // Network message header
                 uadpNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
                 uadpNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
@@ -260,20 +276,19 @@ namespace Opc.Ua.PubSub.Transport
                     dataSetMessagesList.Add(jsonDataSetMessages);
                 }
 
-                List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
-
                 foreach (List<JsonDataSetMessage> dataSetMessagesToUse in dataSetMessagesList)
                 {
                     JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroupConfiguration, dataSetMessagesToUse);
                     jsonNetworkMessage.SetNetworkMessageContentMask((JsonNetworkMessageContentMask)jsonMessageSettings?.NetworkMessageContentMask);
                     jsonNetworkMessage.MessageId = Guid.NewGuid().ToString();
+
                     // Network message header
                     jsonNetworkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value.ToString();
                     jsonNetworkMessage.WriterGroupId = writerGroupConfiguration.WriterGroupId;
 
                     if ((jsonNetworkMessage.NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                     {
-                        jsonNetworkMessage.DataSetClassId = dataSetMessagesToUse[0].DataSet.DataSetClassId;
+                        jsonNetworkMessage.DataSetClassId = dataSetMessagesToUse[0].DataSet?.DataSetMetaData?.DataSetClassId.ToString();
                     }
 
                     networkMessages.Add(jsonNetworkMessage);
@@ -312,15 +327,29 @@ namespace Opc.Ua.PubSub.Transport
 
                             if (networkMessage.DataSetWriterId != null)
                             {
-                                var transportSettings = ExtensionObject.ToEncodeable(
-                                    networkMessage.WriterGroupConfiguration.DataSetWriters[0].TransportSettings)
-                                        as BrokerDataSetWriterTransportDataType;
+                                var dataSetWriter = networkMessage.WriterGroupConfiguration.DataSetWriters
+                                    .Find(x => x.DataSetWriterId == networkMessage.DataSetWriterId);
 
-                                if (transportSettings != null)
-                                {
-                                    queueName = transportSettings.QueueName;
-                                    qos = transportSettings.RequestedDeliveryGuarantee;
-                                }
+                                if (dataSetWriter != null)
+                                { 
+                                    var transportSettings = ExtensionObject
+                                        .ToEncodeable(dataSetWriter.TransportSettings)
+                                            as BrokerDataSetWriterTransportDataType;
+
+                                    if (transportSettings != null)
+                                    {
+                                        qos = transportSettings.RequestedDeliveryGuarantee;
+
+                                        if (networkMessage.IsMetaDataMessage)
+                                        {
+                                            queueName = transportSettings.MetaDataQueueName;
+                                        }
+                                        else
+                                        {
+                                            queueName = transportSettings.QueueName;
+                                        }
+                                    }
+                                 }
                             }
 
                             if (queueName == null)
@@ -336,13 +365,17 @@ namespace Opc.Ua.PubSub.Transport
                                 }
                             }
 
-                            var message = new MqttApplicationMessage {
-                                Topic = queueName,
-                                Payload = bytes,
-                                QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos)
-                            };
+                            if (!String.IsNullOrEmpty(queueName))
+                            {
+                                var message = new MqttApplicationMessage {
+                                    Topic = queueName,
+                                    Payload = bytes,
+                                    QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos),
+                                    Retain = networkMessage.IsMetaDataMessage
+                                };
 
-                            m_publisherMqttClient.PublishAsync(message).GetAwaiter().GetResult();
+                                m_publisherMqttClient.PublishAsync(message).GetAwaiter().GetResult();
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -461,6 +494,11 @@ namespace Opc.Ua.PubSub.Transport
                         if (brokerTransportSettings != null && !topics.Contains(brokerTransportSettings.QueueName))
                         {
                             topics.Add(brokerTransportSettings.QueueName);
+
+                            if (brokerTransportSettings.MetaDataQueueName != null)
+                            {
+                                topics.Add(brokerTransportSettings.MetaDataQueueName);
+                            }
                         }
                     }
                 }

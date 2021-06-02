@@ -161,6 +161,13 @@ namespace Opc.Ua.PubSub
             }
             return null;
         }
+
+        /// <summary>
+        /// Updates the metadata.
+        /// </summary>
+        public void UpdateMetaData(PublishedDataSetDataType publishedDataSet)
+        {
+        }
         #endregion
     }
 }
