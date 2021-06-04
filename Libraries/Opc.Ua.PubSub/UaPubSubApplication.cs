@@ -76,7 +76,8 @@ namespace Opc.Ua.PubSub
         ///  Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
         /// </summary>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
-        private UaPubSubApplication(IUaPubSubDataStore dataStore = null)
+        /// <param name="applicationId"> The application id for instance.</param>
+        private UaPubSubApplication(IUaPubSubDataStore dataStore = null, string applicationId = null)
         {
             m_uaPubSubConnections = new List<IUaPubSubConnection>();
 
@@ -87,6 +88,15 @@ namespace Opc.Ua.PubSub
             else
             {
                 m_dataStore = new UaPubSubDataStore();
+            }
+
+            if (!String.IsNullOrEmpty(applicationId))
+            {
+                ApplicationId = applicationId;
+            }
+            else
+            {
+                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next().ToString("D10")}";
             }
 
             m_dataCollector = new DataCollector(m_dataStore);
@@ -102,6 +112,11 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// The application id associated with the UA
+        /// </summary>
+        public string ApplicationId { get; set; }
+
         /// <summary>
         /// Get the list of SupportedTransportProfiles
         /// </summary>

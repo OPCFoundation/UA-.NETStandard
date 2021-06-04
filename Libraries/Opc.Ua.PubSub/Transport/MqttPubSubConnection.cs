@@ -50,6 +50,7 @@ namespace Opc.Ua.PubSub.Transport
         #region Private Fields
         private static int m_dataSetSequenceNumber = 0;
 
+        private string m_applicationId;
         private string m_brokerHostName = "localhost";
         private string m_urlScheme;
         private int m_brokerPort = Utils.MqttDefaultPort;
@@ -99,6 +100,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_transportProtocol = TransportProtocol.MQTT;
             m_messageMapping = messageMapping;
+            m_applicationId = uaPubSubApplication.ApplicationId;
 
             Utils.Trace("MqttPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }
@@ -407,7 +409,7 @@ namespace Opc.Ua.PubSub.Transport
             int nrOfSubscribers = 0;
 
             //cleanup all existing MQTT connections previously open
-            await InternalStop();
+            await InternalStop().ConfigureAwait(false); 
 
             lock (m_lock)
             {
@@ -748,6 +750,7 @@ namespace Opc.Ua.PubSub.Transport
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
                             .WithProtocolVersion(mqttProtocolVersion)
+                            .WithClientId(m_applicationId)
                             .WithTls(new MqttClientOptionsBuilderTlsParameters {
                                 UseTls = true,
                                 Certificates = mqttTlsOptions?.Certificates?.X509Certificates,
@@ -784,6 +787,7 @@ namespace Opc.Ua.PubSub.Transport
                         MqttClientOptionsBuilder mqttClientOptionsBuilder = new MqttClientOptionsBuilder()
                             .WithTcpServer(m_brokerHostName, m_brokerPort)
                             .WithKeepAlivePeriod(mqttKeepAlive)
+                            .WithClientId(m_applicationId)
                             .WithProtocolVersion(mqttProtocolVersion);
 
                         // Set user credentials.
