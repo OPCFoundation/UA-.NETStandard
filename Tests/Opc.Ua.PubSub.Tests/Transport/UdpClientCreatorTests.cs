@@ -203,7 +203,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (isValidIP)
                 {
                     byte[] ipAddressBytes = validIp.GetAddressBytes();
-                    for (int pos = 0; pos < ipAddressBytes.Count() - 1; pos++)
+                    for (int pos = 0; pos < ipAddressBytes.Length - 1; pos++)
                     {
                         newIPAddress += string.Format("{0}.", ipAddressBytes[pos]);
                     }

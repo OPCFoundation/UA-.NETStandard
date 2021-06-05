@@ -246,7 +246,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (isValidIP)
                 {
                     byte[] ipAddressBytes = validIp.GetAddressBytes();
-                    ipAddressBytes[ipAddressBytes.Count() - 1] = lastIpByte;
+                    ipAddressBytes[ipAddressBytes.Length - 1] = lastIpByte;
                     return new IPAddress(ipAddressBytes);
                 }
             }
