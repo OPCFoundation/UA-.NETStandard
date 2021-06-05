@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -51,6 +51,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         RSA m_rsaPrivateKey;
         RSA m_rsaPublicKey;
 
+        /// <summary>
+        /// Setup variables for running benchmarks.
+        /// </summary>
         [GlobalSetup]
         public void GlobalSetup()
         {
@@ -73,6 +76,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_signature = m_rsaPrivateKey.SignData(m_randomByteArray, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
+        /// <summary>
+        /// Cleanup variables used in benchmarks.
+        /// </summary>
         [GlobalCleanup]
         public void GlobalCleanup()
         {
@@ -81,72 +87,94 @@ namespace Opc.Ua.Security.Certificates.Tests
             m_rsaPublicKey?.Dispose();
         }
 
+        /// <summary>
+        /// Create a certificate and dispose.
+        /// </summary>
         [Benchmark]
         public void CreateCertificate()
         {
-            X509Certificate2 cert = CertificateBuilder.Create("CN=Create").CreateForRSA();
+            using X509Certificate2 cert = CertificateBuilder.Create("CN=Create").CreateForRSA();
         }
 
+        /// <summary>
+        /// Get the private key from a certificate and dispose it.
+        /// </summary>
         [Benchmark]
         public void GetPrivateKey()
         {
-            using (var privateKey = m_certificate.GetRSAPrivateKey())
-            {
-            }
+            using var privateKey = m_certificate.GetRSAPrivateKey();
         }
 
+        /// <summary>
+        /// Get the private key from a certificate, export parameters and dispose it.
+        /// </summary>
         [Benchmark]
         public void GetPrivateKeyAndExport()
         {
-            using (var privateKey = m_certificate.GetRSAPrivateKey())
-            {
-                privateKey.ExportParameters(true);
-            }
+            using var privateKey = m_certificate.GetRSAPrivateKey();
+            privateKey.ExportParameters(true);
         }
 
+        /// <summary>
+        /// Get the public key from a certificate and dispose it.
+        /// </summary>
         [Benchmark]
         public void GetPublicKey()
         {
-            using (var publicKey = m_certificate.GetRSAPublicKey())
-            {
-            }
+            using var publicKey = m_certificate.GetRSAPublicKey();
         }
 
+        /// <summary>
+        /// Get the public key from a certificate, export parameters and dispose it.
+        /// </summary>
         [Benchmark]
         public void GetPublicKeyAndExport()
         {
-            using (var publicKey = m_certificate.GetRSAPublicKey())
-            {
-                publicKey.ExportParameters(false);
-            }
+            using var publicKey = m_certificate.GetRSAPublicKey();
+            publicKey.ExportParameters(false);
         }
 
+        /// <summary>
+        /// Encrypt one blob with padding OAEP SHA256.
+        /// </summary>
         [Benchmark]
-        public void Encrypt()
+        public void EncryptOAEPSHA256()
         {
             _ = m_rsaPublicKey.Encrypt(m_randomByteArray, RSAEncryptionPadding.OaepSHA256);
         }
 
+        /// <summary>
+        /// Decrypt one blob with padding OAEP SHA256.
+        /// </summary>
         [Benchmark]
-        public void Decrypt()
+        public void DecryptOAEPSHA256()
         {
             _ = m_rsaPrivateKey.Decrypt(m_encryptedByteArray, RSAEncryptionPadding.OaepSHA256);
         }
 
+        /// <summary>
+        /// Verify signature of a random byte blob using SHA256 / PKCS#1.
+        /// </summary>
         [Benchmark]
-        public void Verify()
+        public void VerifySHA256PKCS1()
         {
             _ = m_rsaPublicKey.VerifyData(m_randomByteArray, m_signature,
                 HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
+        /// <summary>
+        /// Sign a random byte blob using SHA256 / PKCS#1.
+        /// </summary>
         [Benchmark]
-        public void Sign()
+        public void SignSHA256PKCS1()
         {
             _ = m_rsaPrivateKey.SignData(m_randomByteArray,
                 HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
+        /// <summary>
+        /// Find a specific cert extension.
+        /// </summary>
         [Benchmark]
         public void FindExtension()
         {
