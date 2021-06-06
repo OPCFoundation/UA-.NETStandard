@@ -1179,7 +1179,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // override the autoaccept flag, but do not approve
             certValidator = validator.Update();
             certValidator.AutoAcceptUntrustedCertificates = autoAccept;
-            approver = new CertValidationApprover(new StatusCode[] { });
+            approver = new CertValidationApprover(Array.Empty<StatusCode>());
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             if (trusted)
             {
