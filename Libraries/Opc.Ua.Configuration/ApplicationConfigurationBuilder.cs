@@ -37,14 +37,14 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// A class that builds a configuration for a UA application.
     /// </summary>
-    public class ApplicationInstanceBuilder :
-        IApplicationInstanceBuilder
+    public class ApplicationConfigurationBuilder :
+        IApplicationConfigurationBuilder
     {
         #region ctor
         /// <summary>
         /// Create the application instance builder.
         /// </summary>
-        public ApplicationInstanceBuilder(ApplicationInstance applicationInstance)
+        public ApplicationConfigurationBuilder(ApplicationInstance applicationInstance)
         {
             ApplicationInstance = applicationInstance;
         }
@@ -63,7 +63,7 @@ namespace Opc.Ua.Configuration
 
         #region Public Methods
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderClientSelected AsClient()
+        public IApplicationConfigurationBuilderClientSelected AsClient()
         {
             switch (ApplicationInstance.ApplicationType)
             {
@@ -86,15 +86,15 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderCreate AddSecurityConfiguration(
+        public IApplicationConfigurationBuilderCreate AddSecurityConfiguration(
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
             string rejectedRoot = null
             )
         {
-            appRoot = DefaultPKIRoot(appRoot, true);
             pkiRoot = DefaultPKIRoot(pkiRoot);
+            appRoot = DefaultPKIRoot(appRoot);
             rejectedRoot = DefaultPKIRoot(rejectedRoot);
             var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
@@ -172,7 +172,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderServerSelected AsServer(
+        public IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
             string[] alternateBaseAddresses = null)
         {
@@ -227,30 +227,30 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderServerSelected AddUnsecurePolicyNone()
+        public IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone()
         {
             AddSecurityPolicies(false, false, true);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderServerSelected AddSignPolicies(bool deprecated = false)
+        public IApplicationConfigurationBuilderServerSelected AddSignPolicies(bool deprecated = false)
         {
             AddSecurityPolicies(true, deprecated, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderServerSelected AddSignAndEncryptPolicies(bool deprecated = false)
+        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool deprecated = false)
         {
             AddSecurityPolicies(false, deprecated, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationInstanceBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType, bool clear = false)
+        public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType, bool replace = false)
         {
-            if (clear)
+            if (replace)
             {
                 ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Clear();
             }
@@ -260,6 +260,9 @@ namespace Opc.Ua.Configuration
         #endregion
 
         #region Private Methods
+        /// <summary>
+        /// Internal enumeration of supported trust lists.
+        /// </summary>
         private enum TrustlistType
         {
             Application,
@@ -272,7 +275,11 @@ namespace Opc.Ua.Configuration
             Rejected
         };
 
-        private string DefaultPKIRoot(string root, bool appStore = false)
+        /// <summary>
+        /// Return the default PKI root path if root is unspecified, directory or X509Store.
+        /// </summary>
+        /// <param name="root">A real root path or the store type.</param>
+        private string DefaultPKIRoot(string root)
         {
             if (root == null ||
                 root.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
@@ -311,7 +318,7 @@ namespace Opc.Ua.Configuration
                         return pkiRoot + "/rejected";
                 }
             }
-            else
+            else if (pkiRootType == CertificateStoreType.X509Store)
             {
                 switch (trustListType)
                 {

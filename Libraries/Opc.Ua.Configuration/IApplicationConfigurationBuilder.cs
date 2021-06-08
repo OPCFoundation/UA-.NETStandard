@@ -32,87 +32,87 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Configuration
 {
     /// <summary>
-    /// A fluent API to build the application instance configuration.
+    /// A fluent API to build the application configuration.
     /// </summary>
-    public interface IApplicationInstanceBuilder :
-        IApplicationInstanceBuilderTypes,
-        IApplicationInstanceBuilderServerSelected,
-        IApplicationInstanceBuilderClientSelected,
-        IApplicationInstanceBuilderSecurity,
-        IApplicationInstanceBuilderServerPolicies,
-        IApplicationInstanceBuilderCreate
+    public interface IApplicationConfigurationBuilder :
+        IApplicationConfigurationBuilderTypes,
+        IApplicationConfigurationBuilderServerSelected,
+        IApplicationConfigurationBuilderClientSelected,
+        IApplicationConfigurationBuilderSecurity,
+        IApplicationConfigurationBuilderServerPolicies,
+        IApplicationConfigurationBuilderCreate
     {
     };
 
     /// <summary>
-    /// The server configuration.
+    /// The client or server configuration types to chose.
     /// </summary>
-    public interface IApplicationInstanceBuilderTypes :
+    public interface IApplicationConfigurationBuilderTypes :
         IApplicationInstanceBuilderServer,
         IApplicationInstanceBuilderClient
     {
     }
 
     /// <summary>
-    /// The server configuration.
+    /// The interfaces to implement if a server is selected.
     /// </summary>
-    public interface IApplicationInstanceBuilderServerSelected :
-        IApplicationInstanceBuilderServerPolicies,
+    public interface IApplicationConfigurationBuilderServerSelected :
+        IApplicationConfigurationBuilderServerPolicies,
         IApplicationInstanceBuilderClient,
-        IApplicationInstanceBuilderSecurity
+        IApplicationConfigurationBuilderSecurity
     {
     }
 
     /// <summary>
-    /// The server configuration.
+    /// The interfaces to implement if a client is selected.
     /// </summary>
-    public interface IApplicationInstanceBuilderClientSelected :
-        IApplicationInstanceBuilderSecurity
+    public interface IApplicationConfigurationBuilderClientSelected :
+        IApplicationConfigurationBuilderSecurity
     {
     }
 
     /// <summary>
-    /// The server configuration.
+    /// Add the server configuration (optional).
     /// </summary>
     public interface IApplicationInstanceBuilderServer
     {
         /// <summary>
         /// Configure instance to be used for UA server.
         /// </summary>
-        IApplicationInstanceBuilderServerSelected AsServer(
+        IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
             string[] alternateBaseAddresses = null);
     }
 
     /// <summary>
-    /// The server configuration.
+    /// Add the client configuration (optional).
     /// </summary>
     public interface IApplicationInstanceBuilderClient
     {
         /// <summary>
         /// Configure instance to be used for UA client.
         /// </summary>
-        IApplicationInstanceBuilderClientSelected AsClient();
+        IApplicationConfigurationBuilderClientSelected AsClient();
     }
 
     /// <summary>
-    /// 
+    /// Add the security configuration (mandatory).
     /// </summary>
-    public interface IApplicationInstanceBuilderSecurity
+    public interface IApplicationConfigurationBuilderSecurity
     {
         /// <summary>
         /// Add the security configuration.
         /// </summary>
         /// <remarks>
-        /// The pki root path default to the directory store
+        /// The pki root path default to the certificate store
         /// location as defined in <see cref="CertificateStoreIdentifier.DefaultPKIRoot"/>
         /// A <see cref="CertificateStoreType"/> defaults to the corresponding default store location.
         /// </remarks>
         /// <param name="subjectName">Application certificate subject name as distinguished name. A DC=localhost entry is converted to the hostname. The common name CN= is mandatory.</param>
-        /// <param name="pkiRoot">The path to the pki root.</param>
+        /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-        IApplicationInstanceBuilderCreate AddSecurityConfiguration(
+        IApplicationConfigurationBuilderCreate AddSecurityConfiguration(
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
@@ -121,37 +121,49 @@ namespace Opc.Ua.Configuration
     }
 
     /// <summary>
-    /// 
+    /// Add the supported server policies.
     /// </summary>
-    public interface IApplicationInstanceBuilderServerPolicies
+    public interface IApplicationConfigurationBuilderServerPolicies
     {
         /// <summary>
         /// Add the unsecure security policy type none to server configuration.
         /// </summary>
-        IApplicationInstanceBuilderServerSelected AddUnsecurePolicyNone();
+        IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone();
 
         /// <summary>
         /// Add the sign security policies to the server configuration.
         /// </summary>
-        IApplicationInstanceBuilderServerSelected AddSignPolicies(bool deprecated = false);
+        /// <param name="deprecated">If set to true add also deprecated security policies.</param>
+        /// <remarks>
+        /// Some of the deprecated security policies might be considered unsecure,
+        /// only add to solve interoperability issues, e.g. when a client only
+        /// supports the deprecated policies.
+        /// </remarks>
+        IApplicationConfigurationBuilderServerSelected AddSignPolicies(bool deprecated = false);
 
         /// <summary>
         /// Add the sign and encrypt security policies to the server configuration.
         /// </summary>
-        IApplicationInstanceBuilderServerSelected AddSignAndEncryptPolicies(bool deprecated = false);
+        /// <param name="deprecated">If set to true add also deprecated security policies.</param>
+        /// <remarks>
+        /// Some of the deprecated security policies might be considered unsecure,
+        /// only add to solve interoperability issues, e.g. when a client only
+        /// supports the deprecated policies.
+        /// </remarks>
+        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool deprecated = false);
 
         /// <summary>
-        /// Add user token policy to server config.
+        /// Add user token policy to the server configuration.
         /// </summary>
         /// <param name="userTokenType">The user token type to add.</param>
-        /// <param name="clean">replace policies before add.</param>
-        IApplicationInstanceBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType, bool clean = false);
+        /// <param name="replace">Replace existing policies when adding this user token type.</param>
+        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType, bool replace = false);
     }
 
     /// <summary>
     /// Create and validate the application configuration.
     /// </summary>
-    public interface IApplicationInstanceBuilderCreate
+    public interface IApplicationConfigurationBuilderCreate
     {
         /// <summary>
         /// The application configuration.

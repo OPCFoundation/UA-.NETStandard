@@ -348,7 +348,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Create a builder for a UA application configuration.
         /// </summary>
-        public IApplicationInstanceBuilderTypes Build(
+        public IApplicationConfigurationBuilderTypes Build(
             string applicationUri,
             string productUri
             )
@@ -368,7 +368,7 @@ namespace Opc.Ua.Configuration
             // Trace off
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
 
-            return new ApplicationInstanceBuilder(this);
+            return new ApplicationConfigurationBuilder(this);
         }
 
         /// <summary>
