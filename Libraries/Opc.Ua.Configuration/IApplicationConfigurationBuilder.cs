@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -48,8 +48,8 @@ namespace Opc.Ua.Configuration
     /// The client or server configuration types to chose.
     /// </summary>
     public interface IApplicationConfigurationBuilderTypes :
-        IApplicationInstanceBuilderServer,
-        IApplicationInstanceBuilderClient
+        IApplicationConfigurationBuilderServer,
+        IApplicationConfigurationBuilderClient
     {
     }
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.Configuration
     /// </summary>
     public interface IApplicationConfigurationBuilderServerSelected :
         IApplicationConfigurationBuilderServerPolicies,
-        IApplicationInstanceBuilderClient,
+        IApplicationConfigurationBuilderClient,
         IApplicationConfigurationBuilderSecurity
     {
     }
@@ -74,7 +74,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// Add the server configuration (optional).
     /// </summary>
-    public interface IApplicationInstanceBuilderServer
+    public interface IApplicationConfigurationBuilderServer
     {
         /// <summary>
         /// Configure instance to be used for UA server.
@@ -87,7 +87,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// Add the client configuration (optional).
     /// </summary>
-    public interface IApplicationInstanceBuilderClient
+    public interface IApplicationConfigurationBuilderClient
     {
         /// <summary>
         /// Configure instance to be used for UA client.

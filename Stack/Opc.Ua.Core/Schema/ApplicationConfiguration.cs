@@ -2528,7 +2528,7 @@ namespace Opc.Ua
         /// The path that identifies the certificate store.
         /// </summary>
         /// <value>
-        /// If the StoreName is not empty and the StoreLocation is empty, the Utils.Format("LocalMachine\\{0}", m_storeName) is returned.
+        /// If the StoreName is not empty and the StoreLocation is empty, the Utils.Format("CurrentUser\\{0}", m_storeName) is returned.
         /// If the StoreName is not empty and the StoreLocation is not empty, the Utils.Format("{1}\\{0}", m_storeName, m_storeLocation) is returned.
         /// If the StoreName is empty, the m_storePath is returned.
         /// </value>
@@ -2541,7 +2541,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeLocation))
                     {
-                        return Utils.Format("CurrentUser\\{0}", m_storeName);
+                        return CurrentUser + m_storeName;
                     }
 
                     return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
@@ -2558,14 +2558,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeType))
                     {
-                        if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            m_storeType = CertificateStoreType.X509Store;
-                        }
-                        else
-                        {
-                            m_storeType = CertificateStoreType.Directory;
-                        }
+                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
                 }
             }
@@ -2804,14 +2797,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeType))
                     {
-                        if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            m_storeType = CertificateStoreType.X509Store;
-                        }
-                        else
-                        {
-                            m_storeType = CertificateStoreType.Directory;
-                        }
+                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
                 }
             }

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -296,7 +296,7 @@ namespace Opc.Ua.Configuration
         private string DefaultCertificateStorePath(TrustlistType trustListType, string pkiRoot)
         {
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
-            if (pkiRootType == CertificateStoreType.Directory)
+            if (pkiRootType.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
             {
                 switch (trustListType)
                 {
@@ -318,7 +318,7 @@ namespace Opc.Ua.Configuration
                         return pkiRoot + "/rejected";
                 }
             }
-            else if (pkiRootType == CertificateStoreType.X509Store)
+            else if (pkiRootType.Equals(CertificateStoreType.X509Store, StringComparison.OrdinalIgnoreCase))
             {
                 switch (trustListType)
                 {

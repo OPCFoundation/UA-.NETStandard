@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -136,6 +136,30 @@ namespace Opc.Ua.Configuration.Tests
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            Assert.True(certOK);
+        }
+
+        [Test]
+        public async Task TestNoFileConfigAsServerX509Store()
+        {
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName
+            };
+            Assert.NotNull(applicationInstance);
+            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                .AddUnsecurePolicyNone()
+                .AddSignAndEncryptPolicies()
+                .AddUserTokenPolicy(UserTokenType.UserName)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, CertificateStoreType.X509Store)
+                .Create().ConfigureAwait(false);
+            Assert.NotNull(config);
+            bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            using (var store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+            {
+                await store.Add(applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate);
+            }
             Assert.True(certOK);
         }
 
