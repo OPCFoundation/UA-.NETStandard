@@ -172,9 +172,6 @@ namespace Opc.Ua.Configuration
                 ApplicationConfiguration.TraceConfiguration.ApplySettings();
             }
 
-            // TODO
-            // ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
-
             await ApplicationConfiguration.Validate(ApplicationInstance.ApplicationType).ConfigureAwait(false);
 
             await ApplicationConfiguration.CertificateValidator.

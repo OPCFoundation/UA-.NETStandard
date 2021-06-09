@@ -156,47 +156,62 @@ namespace Opc.Ua.Configuration
     }
 
     /// <summary>
-    /// Create and validate the application configuration.
+    /// Add security options to the configuration.
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurityOptions :
         IApplicationConfigurationBuilderCreate
     {
         /// <summary>
-        /// 
+        /// Whether an unknown application certificate should be accepted
+        /// once all other security checks passed.
         /// </summary>
-        /// <param name="autoAccept"></param>
+        /// <param name="autoAccept"><see langword="true"/> to accept unknown application certificates.</param>
         IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept);
         /// <summary>
-        /// 
+        /// Whether a newly created application certificate should be added to the trusted store.
+        /// This function is only useful if multiple UA applications share the same trusted store.
         /// </summary>
-        /// <param name="addToTrustedStore"></param>
+        /// <param name="addToTrustedStore"><see langword="true"/> to add the cert to the trusted store.</param>
         IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(bool addToTrustedStore);
         /// <summary>
-        /// 
+        /// Reject SHA1 signed certificates.
         /// </summary>
-        /// <param name="rejectSHA1Signed"></param>
-        /// <returns></returns>
+        /// <param name="rejectSHA1Signed"><see langword="false"/> to accept SHA1 signed certificates.</param>
         IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(bool rejectSHA1Signed);
         /// <summary>
-        /// 
+        /// Reject chain validation with CA certs with unknown revocation status,
+        /// e.g. when the CRL is not available or the OCSP provider is offline.
         /// </summary>
-        /// <param name="rejectUnknownRevocationStatus"></param>
+        /// <param name="rejectUnknownRevocationStatus"><see langword="false"/> to accept CA certs with unknown revocation status.</param>
         IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus);
         /// <summary>
-        /// 
+        /// Whether to suppress errors which are caused by clients and servers which provide
+        /// zero nonce values or nonce with insufficient entropy.
+        /// Suppressing this error is a security risk and may allow an attacker to decrypt user tokens.
+        /// Only use if interoperability issues with legacy servers or clients leave no other choice to operate.
         /// </summary>
-        /// <param name="suppressNonceValidationErrors"></param>
+        /// <param name="suppressNonceValidationErrors"><see langword="true"/> to suppress nonce validation errors.</param>
         IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(bool suppressNonceValidationErrors);
+
         /// <summary>
-        /// 
+        /// Whether a certificate chain should be sent with the application certificate.
+        /// Only used if the application certificate is CA signed.
         /// </summary>
-        /// <param name="sendCertificateChain"></param>
+        /// <param name="sendCertificateChain"><see langword="true"/> to send the certificate chain with the application certificate.</param>
         IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(bool sendCertificateChain);
+
         /// <summary>
-        /// 
+        /// The minimum RSA key size to accept.
+        /// By default the key size is set to <see cref="CertificateFactory.DefaultKeySize"/>.
         /// </summary>
         /// <param name="keySize">The minimum RSA key size to accept.</param>
         IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize);
+
+        /// <summary>
+        /// Add a certificate password provider.
+        /// </summary>
+        /// <param name="certificatePasswordProvider">The certificate password provider to use.</param>
+        IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider);
     }
 
     /// <summary>

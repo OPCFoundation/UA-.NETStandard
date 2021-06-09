@@ -110,9 +110,20 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
                 .AddUnsecurePolicyNone()
-                .AddUserTokenPolicy(UserTokenType.UserName, true)
+                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
+                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
+                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
+                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
+                .AddUserTokenPolicy(UserTokenType.Anonymous)
+                .AddUserTokenPolicy(UserTokenType.UserName)
                 .AddUserTokenPolicy(UserTokenType.Certificate)
                 .AddSecurityConfiguration(SubjectName)
+                .SetAddAppCertToTrustedStore(true)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetMinimumCertificateKeySize(1024)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetSendCertificateChain(true)
+                .SetSuppressNonceValidationErrors(true)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
@@ -132,7 +143,6 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
                 .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
-                .AddUserTokenPolicy(UserTokenType.UserName)
                 .AsClient()
                 .AddSecurityConfiguration(SubjectName)
                 .Create().ConfigureAwait(false);
