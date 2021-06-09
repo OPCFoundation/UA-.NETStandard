@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -58,9 +59,9 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var configPath = Opc.Ua.Utils.GetAbsoluteFilePath("Opc.Ua.Configuration.Tests.Config.xml", true, false, false);
+            string configPath = Opc.Ua.Utils.GetAbsoluteFilePath("Opc.Ua.Configuration.Tests.Config.xml", true, false, false);
             Assert.NotNull(configPath);
-            var applicationConfiguration = await applicationInstance.LoadApplicationConfiguration(configPath, true).ConfigureAwait(false);
+            ApplicationConfiguration applicationConfiguration = await applicationInstance.LoadApplicationConfiguration(configPath, true).ConfigureAwait(false);
             Assert.NotNull(applicationConfiguration);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             Assert.True(certOK);
@@ -73,7 +74,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(SubjectName)
                 .Create().ConfigureAwait(false);
@@ -89,7 +90,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddSecurityConfiguration(SubjectName)
                 .Create().ConfigureAwait(false);
@@ -105,7 +106,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
@@ -137,7 +138,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddUnsecurePolicyNone()
                 .AddSignPolicies()
@@ -154,11 +155,18 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerX509Store()
         {
+#if NETCOREAPP2_1_OR_GREATER
+            // this test fails on macOS, ignore
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                Assert.Ignore("X509Store trust lists not supported on mac OS.");
+            }
+#endif
             var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddUnsecurePolicyNone()
                 .AddSignAndEncryptPolicies()
@@ -168,7 +176,7 @@ namespace Opc.Ua.Configuration.Tests
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
-            using (var store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+            using (ICertificateStore store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
             {
                 await store.Add(applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate);
             }
@@ -182,11 +190,11 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            var builder = applicationInstance.Build(ApplicationUri, ProductUri)
+            IApplicationConfigurationBuilderSecurityOptions builder = applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddSecurityConfiguration(SubjectName);
             builder.ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore = true;
-            var config = await builder.Create().ConfigureAwait(false);
+            ApplicationConfiguration config = await builder.Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             Assert.True(certOK);

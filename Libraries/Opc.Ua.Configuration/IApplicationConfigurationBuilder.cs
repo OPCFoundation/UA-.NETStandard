@@ -167,23 +167,27 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="autoAccept"><see langword="true"/> to accept unknown application certificates.</param>
         IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept);
+
         /// <summary>
         /// Whether a newly created application certificate should be added to the trusted store.
         /// This function is only useful if multiple UA applications share the same trusted store.
         /// </summary>
         /// <param name="addToTrustedStore"><see langword="true"/> to add the cert to the trusted store.</param>
         IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(bool addToTrustedStore);
+
         /// <summary>
         /// Reject SHA1 signed certificates.
         /// </summary>
         /// <param name="rejectSHA1Signed"><see langword="false"/> to accept SHA1 signed certificates.</param>
         IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(bool rejectSHA1Signed);
+
         /// <summary>
         /// Reject chain validation with CA certs with unknown revocation status,
         /// e.g. when the CRL is not available or the OCSP provider is offline.
         /// </summary>
         /// <param name="rejectUnknownRevocationStatus"><see langword="false"/> to accept CA certs with unknown revocation status.</param>
         IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus);
+
         /// <summary>
         /// Whether to suppress errors which are caused by clients and servers which provide
         /// zero nonce values or nonce with insufficient entropy.
