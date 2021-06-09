@@ -211,7 +211,7 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // add secure default policies
+            // add container for policies
             serverConfiguration.SecurityPolicies = new ServerSecurityPolicyCollection();
 
             // add user token policy container and Anonymous
@@ -234,16 +234,25 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddSignPolicies(bool deprecated = false)
+        public IApplicationConfigurationBuilderServerSelected AddSignPolicies()
         {
-            AddSecurityPolicies(true, deprecated, false);
+            AddSecurityPolicies(true, false, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool deprecated = false)
+        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies()
         {
-            AddSecurityPolicies(false, deprecated, false);
+            AddSecurityPolicies(false, false, false);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
+        {
+            if (SecurityPolicies.GetDisplayName(securityPolicy) == null) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
+            if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None)) throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
+            InternalAddPolicy(ApplicationConfiguration.ServerConfiguration.SecurityPolicies, securityMode, securityPolicy);
             return this;
         }
 
@@ -293,6 +302,11 @@ namespace Opc.Ua.Configuration
             return root;
         }
 
+        /// <summary>
+        /// Determine the default store path for a given trust list type.
+        /// </summary>
+        /// <param name="trustListType">The trust list type.</param>
+        /// <param name="pkiRoot">A PKI root for which the store path is needed.</param>
         private string DefaultCertificateStorePath(TrustlistType trustListType, string pkiRoot)
         {
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
@@ -350,6 +364,12 @@ namespace Opc.Ua.Configuration
             throw new NotSupportedException("Unsupported store type.");
         }
 
+        /// <summary>
+        /// Add specified groups of security policies and security modes.
+        /// </summary>
+        /// <param name="includeSign"></param>
+        /// <param name="deprecated"></param>
+        /// <param name="policyNone"></param>
         private void AddSecurityPolicies(bool includeSign = false, bool deprecated = false, bool policyNone = false)
         {
             // create list of supported policies
@@ -373,38 +393,41 @@ namespace Opc.Ua.Configuration
                 var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
                 if (policyNone && securityMode == MessageSecurityMode.None)
                 {
-                    var newPolicy = new ServerSecurityPolicy() {
-                        SecurityMode = MessageSecurityMode.None,
-                        SecurityPolicyUri = SecurityPolicies.None
-                    };
-                    if (policies.Find(s =>
-                        s.SecurityMode == newPolicy.SecurityMode &&
-                        string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)
-                        ) == null)
-                    {
-                        policies.Add(newPolicy);
-                    }
+                    InternalAddPolicy(policies, MessageSecurityMode.None, SecurityPolicies.None);
                 }
                 else if (securityMode >= MessageSecurityMode.SignAndEncrypt ||
                     (includeSign && securityMode == MessageSecurityMode.Sign))
                 {
                     foreach (var policyUri in defaultPolicyUris)
                     {
-                        var newPolicy = new ServerSecurityPolicy() {
-                            SecurityMode = securityMode,
-                            SecurityPolicyUri = policyUri
-                        };
-                        if (policies.Find(s =>
-                            s.SecurityMode == newPolicy.SecurityMode &&
-                            string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)
-                            ) == null)
-                        {
-                            policies.Add(newPolicy);
-                        }
+                        InternalAddPolicy(policies, securityMode, policyUri);
                     }
                 }
-
             }
+        }
+
+        /// <summary>
+        /// Add security policy if it doesn't exist yet.
+        /// </summary>
+        /// <param name="policies">The collection to which the policies are added.</param>
+        /// <param name="securityMode">The message security mode.</param>
+        /// <param name="policyUri">The security policy Uri.</param>
+        private bool InternalAddPolicy(ServerSecurityPolicyCollection policies, MessageSecurityMode securityMode, string policyUri)
+        {
+            if (securityMode == MessageSecurityMode.Invalid) throw new ArgumentException("Invalid security mode selected", nameof(securityMode));
+            var newPolicy = new ServerSecurityPolicy() {
+                SecurityMode = securityMode,
+                SecurityPolicyUri = policyUri
+            };
+            if (policies.Find(s =>
+                s.SecurityMode == newPolicy.SecurityMode &&
+                string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)
+                ) == null)
+            {
+                policies.Add(newPolicy);
+                return true;
+            }
+            return false;
         }
         #endregion
 

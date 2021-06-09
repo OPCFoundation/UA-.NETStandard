@@ -133,24 +133,19 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Add the sign security policies to the server configuration.
         /// </summary>
-        /// <param name="deprecated">If set to true add also deprecated security policies.</param>
-        /// <remarks>
-        /// Some of the deprecated security policies might be considered unsecure,
-        /// only add to solve interoperability issues, e.g. when a client only
-        /// supports the deprecated policies.
-        /// </remarks>
-        IApplicationConfigurationBuilderServerSelected AddSignPolicies(bool deprecated = false);
+        IApplicationConfigurationBuilderServerSelected AddSignPolicies();
 
         /// <summary>
         /// Add the sign and encrypt security policies to the server configuration.
         /// </summary>
-        /// <param name="deprecated">If set to true add also deprecated security policies.</param>
-        /// <remarks>
-        /// Some of the deprecated security policies might be considered unsecure,
-        /// only add to solve interoperability issues, e.g. when a client only
-        /// supports the deprecated policies.
-        /// </remarks>
-        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies(bool deprecated = false);
+        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies();
+
+        /// <summary>
+        /// Add the specified security policy with the specified security mode.
+        /// </summary>
+        /// <param name="securityMode">The message security mode to add the policy to.</param>
+        /// <param name="securityPolicy">The security policy Uri string.</param>
+        IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy);
 
         /// <summary>
         /// Add user token policy to the server configuration.

@@ -98,8 +98,8 @@ namespace Opc.Ua.Configuration.Tests
             Assert.True(certOK);
         }
 
-        [Theory]
-        public async Task TestNoFileConfigAsServerMaximal(bool deprecated)
+        [Test]
+        public async Task TestNoFileConfigAsServerMaximal()
         {
             var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
@@ -107,8 +107,8 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(applicationInstance);
             var config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
-                .AddSignPolicies(deprecated)
-                .AddSignAndEncryptPolicies(deprecated)
+                .AddSignPolicies()
+                .AddSignAndEncryptPolicies()
                 .AddUnsecurePolicyNone()
                 .AddUserTokenPolicy(UserTokenType.UserName, true)
                 .AddUserTokenPolicy(UserTokenType.Certificate)
@@ -119,8 +119,8 @@ namespace Opc.Ua.Configuration.Tests
             Assert.True(certOK);
         }
 
-        [Theory]
-        public async Task TestNoFileConfigAsClientAndServer(bool deprecated)
+        [Test]
+        public async Task TestNoFileConfigAsClientAndServer()
         {
             var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
@@ -129,7 +129,9 @@ namespace Opc.Ua.Configuration.Tests
             var config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddUnsecurePolicyNone()
-                .AddSignAndEncryptPolicies(deprecated)
+                .AddSignPolicies()
+                .AddSignAndEncryptPolicies()
+                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                 .AddUserTokenPolicy(UserTokenType.UserName)
                 .AsClient()
                 .AddSecurityConfiguration(SubjectName)
