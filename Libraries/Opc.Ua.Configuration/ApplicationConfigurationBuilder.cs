@@ -86,7 +86,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderCreate AddSecurityConfiguration(
+        public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
             string pkiRoot = null,
             string appRoot = null,
@@ -154,6 +154,18 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public async Task<ApplicationConfiguration> Create()
         {
+            // ensure for a user token policy
+            if (ApplicationConfiguration.ServerConfiguration?.UserTokenPolicies.Count == 0)
+            {
+                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Anonymous));
+            }
+
+            // ensure for secure transport profiles
+            if (ApplicationConfiguration.ServerConfiguration?.SecurityPolicies.Count == 0)
+            {
+                AddSecurityPolicies();
+            }
+
             // TODO: check applyTraceSettings
             if (/*applyTraceSettings && */ ApplicationConfiguration.TraceConfiguration != null)
             {
@@ -216,12 +228,8 @@ namespace Opc.Ua.Configuration
 
             // add user token policy container and Anonymous
             serverConfiguration.UserTokenPolicies = new UserTokenPolicyCollection();
-            serverConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Anonymous));
 
             ApplicationConfiguration.ServerConfiguration = serverConfiguration;
-
-            // add secure policies
-            AddSecurityPolicies();
 
             return this;
         }
@@ -257,13 +265,57 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType, bool replace = false)
+        public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType)
         {
-            if (replace)
-            {
-                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Clear();
-            }
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(userTokenType));
+            return this;
+        }
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept)
+        {
+            ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = autoAccept;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(bool addToTrustedStore)
+        {
+            ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore = addToTrustedStore;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(bool rejectSHA1Signed)
+        {
+            ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates = rejectSHA1Signed;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus)
+        {
+            ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(bool suppressNonceValidationErrors)
+        {
+            ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors = suppressNonceValidationErrors;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(bool sendCertificateChain)
+        {
+            ApplicationConfiguration.SecurityConfiguration.SendCertificateChain = sendCertificateChain;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize)
+        {
+            ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize = keySize;
             return this;
         }
         #endregion

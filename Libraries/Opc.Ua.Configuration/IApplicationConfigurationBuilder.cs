@@ -39,6 +39,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderServerSelected,
         IApplicationConfigurationBuilderClientSelected,
         IApplicationConfigurationBuilderSecurity,
+        IApplicationConfigurationBuilderSecurityOptions,
         IApplicationConfigurationBuilderServerPolicies,
         IApplicationConfigurationBuilderCreate
     {
@@ -96,31 +97,6 @@ namespace Opc.Ua.Configuration
     }
 
     /// <summary>
-    /// Add the security configuration (mandatory).
-    /// </summary>
-    public interface IApplicationConfigurationBuilderSecurity
-    {
-        /// <summary>
-        /// Add the security configuration.
-        /// </summary>
-        /// <remarks>
-        /// The pki root path default to the certificate store
-        /// location as defined in <see cref="CertificateStoreIdentifier.DefaultPKIRoot"/>
-        /// A <see cref="CertificateStoreType"/> defaults to the corresponding default store location.
-        /// </remarks>
-        /// <param name="subjectName">Application certificate subject name as distinguished name. A DC=localhost entry is converted to the hostname. The common name CN= is mandatory.</param>
-        /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
-        /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
-        /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
-        IApplicationConfigurationBuilderCreate AddSecurityConfiguration(
-            string subjectName,
-            string pkiRoot = null,
-            string appRoot = null,
-            string rejectedRoot = null
-            );
-    }
-
-    /// <summary>
     /// Add the supported server policies.
     /// </summary>
     public interface IApplicationConfigurationBuilderServerPolicies
@@ -151,8 +127,76 @@ namespace Opc.Ua.Configuration
         /// Add user token policy to the server configuration.
         /// </summary>
         /// <param name="userTokenType">The user token type to add.</param>
-        /// <param name="replace">Replace existing policies when adding this user token type.</param>
-        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType, bool replace = false);
+        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType);
+    }
+
+    /// <summary>
+    /// Add the security configuration (mandatory).
+    /// </summary>
+    public interface IApplicationConfigurationBuilderSecurity
+    {
+        /// <summary>
+        /// Add the security configuration.
+        /// </summary>
+        /// <remarks>
+        /// The pki root path default to the certificate store
+        /// location as defined in <see cref="CertificateStoreIdentifier.DefaultPKIRoot"/>
+        /// A <see cref="CertificateStoreType"/> defaults to the corresponding default store location.
+        /// </remarks>
+        /// <param name="subjectName">Application certificate subject name as distinguished name. A DC=localhost entry is converted to the hostname. The common name CN= is mandatory.</param>
+        /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
+        /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
+        /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
+        IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
+            string subjectName,
+            string pkiRoot = null,
+            string appRoot = null,
+            string rejectedRoot = null
+            );
+    }
+
+    /// <summary>
+    /// Create and validate the application configuration.
+    /// </summary>
+    public interface IApplicationConfigurationBuilderSecurityOptions :
+        IApplicationConfigurationBuilderCreate
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="autoAccept"></param>
+        IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="addToTrustedStore"></param>
+        IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(bool addToTrustedStore);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="rejectSHA1Signed"></param>
+        /// <returns></returns>
+        IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(bool rejectSHA1Signed);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="rejectUnknownRevocationStatus"></param>
+        IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(bool rejectUnknownRevocationStatus);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="suppressNonceValidationErrors"></param>
+        IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(bool suppressNonceValidationErrors);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sendCertificateChain"></param>
+        IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(bool sendCertificateChain);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="keySize">The minimum RSA key size to accept.</param>
+        IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize);
     }
 
     /// <summary>
