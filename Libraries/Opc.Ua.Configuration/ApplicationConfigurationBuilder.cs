@@ -267,6 +267,7 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(userTokenType));
             return this;
         }
+
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept)
         {
@@ -313,6 +314,13 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(ushort keySize)
         {
             ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize = keySize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider)
+        {
+            ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
             return this;
         }
         #endregion
