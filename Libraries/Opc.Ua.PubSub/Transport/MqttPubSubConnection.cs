@@ -48,8 +48,6 @@ namespace Opc.Ua.PubSub.Transport
     internal class MqttPubSubConnection : UaPubSubConnection
     {
         #region Private Fields
-        private static int m_dataSetSequenceNumber = 0;
-
         private string m_applicationId;
         private string m_brokerHostName = "localhost";
         private string m_urlScheme;
@@ -152,9 +150,11 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
-                    bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter);
+                    uint sequenceNumber = 0;
+                    bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
                     PublishedDataSetDataType publishedDataSet = Application.DataCollector.GetPublishedDataSet(dataSetWriter.DataSetName);
                     DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, isDeltaFrame);
+                    dataSet.SequenceNumber = sequenceNumber;
 
                     BrokerDataSetWriterTransportDataType transport = ExtensionObject.ToEncodeable(dataSetWriter.TransportSettings) as BrokerDataSetWriterTransportDataType;
 
@@ -219,7 +219,7 @@ namespace Opc.Ua.PubSub.Transport
                         {
                             // set common properties of dataset message
                             uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
-                            uaDataSetMessage.SequenceNumber = (uint)Utils.IncrementIdentifier(ref m_dataSetSequenceNumber);
+                            uaDataSetMessage.SequenceNumber = dataSet.SequenceNumber;
 
                             state.MessagePublished(dataSetWriter, dataSet);
 

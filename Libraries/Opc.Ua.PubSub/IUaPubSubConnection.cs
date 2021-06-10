@@ -130,18 +130,16 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
         /// </summary>
-        public bool IsDeltaFrame(DataSetWriterDataType writer)
+        public bool IsDeltaFrame(DataSetWriterDataType writer, out uint sequenceNumber)
         {
-            if (writer.KeyFrameCount > 1)
+            lock (DataSets)
             {
-                lock (DataSets)
-                {
-                    DataSetState state = GetState(writer);
+                DataSetState state = GetState(writer);
+                sequenceNumber = state.MessageCount + 1;
 
-                    if (state.MessageCount % writer.KeyFrameCount != 0)
-                    {
-                        return true;
-                    }
+                if (state.MessageCount % writer.KeyFrameCount != 0)
+                {
+                    return true;
                 }
             }
 
