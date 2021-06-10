@@ -63,7 +63,7 @@ namespace Opc.Ua.Configuration
 
         #region Public Methods
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderClientSelected AsClient()
+        public IApplicationConfigurationBuilderClientOptions AsClient()
         {
             switch (ApplicationInstance.ApplicationType)
             {
@@ -181,7 +181,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AsServer(
+        public IApplicationConfigurationBuilderServerOptions AsServer(
             string[] baseAddresses,
             string[] alternateBaseAddresses = null)
         {
@@ -232,28 +232,28 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone()
+        public IApplicationConfigurationBuilderServerOptions AddUnsecurePolicyNone()
         {
             AddSecurityPolicies(false, false, true);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddSignPolicies()
+        public IApplicationConfigurationBuilderServerOptions AddSignPolicies()
         {
             AddSecurityPolicies(true, false, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies()
+        public IApplicationConfigurationBuilderServerOptions AddSignAndEncryptPolicies()
         {
             AddSecurityPolicies(false, false, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
+        public IApplicationConfigurationBuilderServerOptions AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
         {
             if (SecurityPolicies.GetDisplayName(securityPolicy) == null) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None)) throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
@@ -262,7 +262,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType)
+        public IApplicationConfigurationBuilderServerOptions AddUserTokenPolicy(UserTokenType userTokenType)
         {
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(userTokenType));
             return this;
@@ -321,6 +321,69 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider)
         {
             ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotasSet SetTransportQuotas(TransportQuotas transportQuotas)
+        {
+            ApplicationConfiguration.TransportQuotas = transportQuotas;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetOperationTimeout(int operationTimeout)
+        {
+            ApplicationConfiguration.TransportQuotas.OperationTimeout = operationTimeout;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxStringLength(int maxStringLength)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxStringLength = maxStringLength;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxByteStringLength(int maxByteStringLength)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxByteStringLength = maxByteStringLength;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxArrayLength(int maxArrayLength)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxArrayLength = maxArrayLength;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxMessageSize(int maxMessageSize)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxMessageSize = maxMessageSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetMaxBufferSize(int maxBufferSize)
+        {
+            ApplicationConfiguration.TransportQuotas.MaxBufferSize = maxBufferSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetChannelLifetime(int channelLifetime)
+        {
+            ApplicationConfiguration.TransportQuotas.ChannelLifetime = channelLifetime;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(int securityTokenLifetime)
+        {
+            ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime = securityTokenLifetime;
             return this;
         }
         #endregion

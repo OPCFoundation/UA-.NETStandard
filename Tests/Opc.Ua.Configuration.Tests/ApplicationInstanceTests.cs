@@ -55,7 +55,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestFileConfig()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -70,7 +71,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClient()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -86,11 +88,13 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMinimal()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .SetOperationTimeout(10000)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddSecurityConfiguration(SubjectName)
                 .Create().ConfigureAwait(false);
@@ -102,11 +106,13 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMaximal()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .SetTransportQuotas(new TransportQuotas() { OperationTimeout = 10000 })
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
@@ -134,11 +140,13 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClientAndServer()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .SetMaxBufferSize(32768)
                 .AsServer(new string[] { "opc.tcp://localhost:51000" })
                 .AddUnsecurePolicyNone()
                 .AddSignPolicies()
@@ -162,7 +170,8 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.Ignore("X509Store trust lists not supported on mac OS.");
             }
 #endif
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -186,7 +195,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerCustom()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);

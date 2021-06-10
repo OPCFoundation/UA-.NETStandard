@@ -36,8 +36,10 @@ namespace Opc.Ua.Configuration
     /// </summary>
     public interface IApplicationConfigurationBuilder :
         IApplicationConfigurationBuilderTypes,
-        IApplicationConfigurationBuilderServerSelected,
-        IApplicationConfigurationBuilderClientSelected,
+        IApplicationConfigurationBuilderTransportQuotas,
+        IApplicationConfigurationBuilderTransportQuotasSet,
+        IApplicationConfigurationBuilderServerOptions,
+        IApplicationConfigurationBuilderClientOptions,
         IApplicationConfigurationBuilderSecurity,
         IApplicationConfigurationBuilderSecurityOptions,
         IApplicationConfigurationBuilderServerPolicies,
@@ -49,6 +51,85 @@ namespace Opc.Ua.Configuration
     /// The client or server configuration types to chose.
     /// </summary>
     public interface IApplicationConfigurationBuilderTypes :
+        IApplicationConfigurationBuilderTransportQuotas,
+        IApplicationConfigurationBuilderServer,
+        IApplicationConfigurationBuilderClient
+    {
+    }
+
+    /// <summary>
+    /// The set transport quota state.
+    /// </summary>
+    public interface IApplicationConfigurationBuilderTransportQuotas :
+        IApplicationConfigurationBuilderServer,
+        IApplicationConfigurationBuilderClient
+    {
+        /// <summary>
+        /// Set the transport quotas for this application (client and server).
+        /// </summary>
+        /// <param name="transportQuotas">The object with the new transport quotas.</param>
+        IApplicationConfigurationBuilderTransportQuotasSet SetTransportQuotas(TransportQuotas transportQuotas);
+
+        /// <summary>
+        /// Set the operation timeout in [ms].
+        /// <see cref="TransportQuotas.OperationTimeout"/>
+        /// </summary>
+        /// <param name="operationTimeout">The operation timeout in ms.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetOperationTimeout(int operationTimeout);
+
+        /// <summary>
+        /// Set the max string length encoded in a message body.
+        /// <see cref="TransportQuotas.MaxStringLength"/>
+        /// </summary>
+        /// <param name="maxStringLength">The max string length.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxStringLength(int maxStringLength);
+
+        /// <summary>
+        /// Set the max byte string length encoded in a message body.
+        /// <see cref="TransportQuotas.MaxByteStringLength"/>
+        /// </summary>
+        /// <param name="maxByteStringLength">The max byte string length.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxByteStringLength(int maxByteStringLength);
+
+        /// <summary>
+        /// Set the max array length encoded in a message body.
+        /// <see cref="TransportQuotas.MaxArrayLength"/>
+        /// </summary>
+        /// <param name="maxArrayLength">The max array length.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxArrayLength(int maxArrayLength);
+
+        /// <summary>
+        /// Set the max length of a message body.
+        /// <see cref="TransportQuotas.MaxMessageSize"/>
+        /// </summary>
+        /// <param name="maxMessageSize">The max message size.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxMessageSize(int maxMessageSize);
+
+        /// <summary>
+        /// Set the max buffer size when sending a message.
+        /// <see cref="TransportQuotas.MaxBufferSize"/>
+        /// </summary>
+        /// <param name="maxBufferSize">The max buffer size.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetMaxBufferSize(int maxBufferSize);
+        /// <summary>
+        /// Set the lifetime of a secure channel in [ms].
+        /// <see cref="TransportQuotas.ChannelLifetime"/>
+        /// </summary>
+        /// <param name="channelLifetime">The lifetime.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetChannelLifetime(int channelLifetime);
+
+        /// <summary>
+        /// Set the lifetime of a security token in [ms].
+        /// <see cref="TransportQuotas.SecurityTokenLifetime"/>
+        /// </summary>
+        /// <param name="securityTokenLifetime">The lifetime.</param>
+        IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(int securityTokenLifetime);
+    }
+
+    /// <summary>
+    /// The set transport quota state.
+    /// </summary>
+    public interface IApplicationConfigurationBuilderTransportQuotasSet :
         IApplicationConfigurationBuilderServer,
         IApplicationConfigurationBuilderClient
     {
@@ -57,7 +138,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// The interfaces to implement if a server is selected.
     /// </summary>
-    public interface IApplicationConfigurationBuilderServerSelected :
+    public interface IApplicationConfigurationBuilderServerOptions :
         IApplicationConfigurationBuilderServerPolicies,
         IApplicationConfigurationBuilderClient,
         IApplicationConfigurationBuilderSecurity
@@ -67,7 +148,7 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// The interfaces to implement if a client is selected.
     /// </summary>
-    public interface IApplicationConfigurationBuilderClientSelected :
+    public interface IApplicationConfigurationBuilderClientOptions :
         IApplicationConfigurationBuilderSecurity
     {
     }
@@ -80,7 +161,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Configure instance to be used for UA server.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AsServer(
+        IApplicationConfigurationBuilderServerOptions AsServer(
             string[] baseAddresses,
             string[] alternateBaseAddresses = null);
     }
@@ -93,7 +174,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Configure instance to be used for UA client.
         /// </summary>
-        IApplicationConfigurationBuilderClientSelected AsClient();
+        IApplicationConfigurationBuilderClientOptions AsClient();
     }
 
     /// <summary>
@@ -104,30 +185,30 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Add the unsecure security policy type none to server configuration.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone();
+        IApplicationConfigurationBuilderServerOptions AddUnsecurePolicyNone();
 
         /// <summary>
         /// Add the sign security policies to the server configuration.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AddSignPolicies();
+        IApplicationConfigurationBuilderServerOptions AddSignPolicies();
 
         /// <summary>
         /// Add the sign and encrypt security policies to the server configuration.
         /// </summary>
-        IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies();
+        IApplicationConfigurationBuilderServerOptions AddSignAndEncryptPolicies();
 
         /// <summary>
         /// Add the specified security policy with the specified security mode.
         /// </summary>
         /// <param name="securityMode">The message security mode to add the policy to.</param>
         /// <param name="securityPolicy">The security policy Uri string.</param>
-        IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy);
+        IApplicationConfigurationBuilderServerOptions AddPolicy(MessageSecurityMode securityMode, string securityPolicy);
 
         /// <summary>
         /// Add user token policy to the server configuration.
         /// </summary>
         /// <param name="userTokenType">The user token type to add.</param>
-        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType);
+        IApplicationConfigurationBuilderServerOptions AddUserTokenPolicy(UserTokenType userTokenType);
     }
 
     /// <summary>
