@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -86,6 +87,19 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public void TestBadNoApplicationNameConfigAsServer()
+        {
+            var applicationInstance = new ApplicationInstance();
+            Assert.NotNull(applicationInstance);
+            Assert.ThrowsAsync<ServiceResultException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+        }
+
+        [Test]
         public async Task TestNoFileConfigAsServerMinimal()
         {
             var applicationInstance = new ApplicationInstance()
@@ -124,6 +138,8 @@ namespace Opc.Ua.Configuration.Tests
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)
                 .AddUserTokenPolicy(UserTokenType.Certificate)
+                .SetDiagnosticsEnabled(true)
+                .SetPublishingResolution(100)
                 .AddSecurityConfiguration(SubjectName)
                 .SetAddAppCertToTrustedStore(true)
                 .SetAutoAcceptUntrustedCertificates(true)

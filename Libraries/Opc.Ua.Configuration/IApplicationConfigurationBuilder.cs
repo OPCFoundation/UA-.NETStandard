@@ -367,6 +367,7 @@ namespace Opc.Ua.Configuration
     /// Add security options to the configuration.
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurityOptions :
+        IApplicationConfigurationBuilderTraceConfiguration,
         IApplicationConfigurationBuilderCreate
     {
         /// <summary>
@@ -424,6 +425,22 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="certificatePasswordProvider">The certificate password provider to use.</param>
         IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider);
+    }
+
+    /// <summary>
+    /// Add the trace configuration.
+    /// </summary>
+    public interface IApplicationConfigurationBuilderTraceConfiguration :
+        IApplicationConfigurationBuilderCreate
+    {
+        /// <inheritdoc cref="TraceConfiguration.OutputFilePath"/>
+        IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(string outputFilePath);
+
+        /// <inheritdoc cref="TraceConfiguration.DeleteOnLoad"/>
+        IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad);
+
+        /// <inheritdoc cref="TraceConfiguration.TraceMasks"/>
+        IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int TraceMasks);
     }
 
     /// <summary>

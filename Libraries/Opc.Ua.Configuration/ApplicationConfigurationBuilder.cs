@@ -175,11 +175,7 @@ namespace Opc.Ua.Configuration
                 AddSecurityPolicies();
             }
 
-            // TODO: check applyTraceSettings
-            if (/*applyTraceSettings && */ ApplicationConfiguration.TraceConfiguration != null)
-            {
-                ApplicationConfiguration.TraceConfiguration.ApplySettings();
-            }
+            ApplicationConfiguration.TraceConfiguration?.ApplySettings();
 
             await ApplicationConfiguration.Validate(ApplicationInstance.ApplicationType).ConfigureAwait(false);
 
@@ -673,6 +669,27 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions SetReverseConnect(ReverseConnectClientConfiguration reverseConnect)
         {
             ApplicationConfiguration.ClientConfiguration.ReverseConnect = reverseConnect;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(string outputFilePath)
+        {
+            ApplicationConfiguration.TraceConfiguration.OutputFilePath = outputFilePath;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
+        {
+            ApplicationConfiguration.TraceConfiguration.DeleteOnLoad = deleteOnLoad;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
+        {
+            ApplicationConfiguration.TraceConfiguration.TraceMasks = traceMasks;
             return this;
         }
         #endregion
