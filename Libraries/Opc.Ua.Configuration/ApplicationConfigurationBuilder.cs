@@ -63,7 +63,7 @@ namespace Opc.Ua.Configuration
 
         #region Public Methods
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderClientOptions AsClient()
+        public IApplicationConfigurationBuilderClientSelected AsClient()
         {
             switch (ApplicationInstance.ApplicationType)
             {
@@ -99,42 +99,51 @@ namespace Opc.Ua.Configuration
             var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
-            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
+            {
                 // app cert store
-                ApplicationCertificate = new CertificateIdentifier() {
+                ApplicationCertificate = new CertificateIdentifier()
+                {
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, pkiRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
                 // App trusted & issuer
-                TrustedPeerCertificates = new CertificateTrustList() {
+                TrustedPeerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, pkiRoot)
                 },
-                TrustedIssuerCertificates = new CertificateTrustList() {
+                TrustedIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, pkiRoot)
                 },
                 // Https trusted & issuer
-                TrustedHttpsCertificates = new CertificateTrustList() {
+                TrustedHttpsCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, pkiRoot)
                 },
-                HttpsIssuerCertificates = new CertificateTrustList() {
+                HttpsIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, pkiRoot)
                 },
                 // User trusted & issuer
-                TrustedUserCertificates = new CertificateTrustList() {
+                TrustedUserCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, pkiRoot)
                 },
-                UserIssuerCertificates = new CertificateTrustList() {
+                UserIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateTrustList() {
+                RejectedCertificateStore = new CertificateTrustList()
+                {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
@@ -181,7 +190,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions AsServer(
+        public IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
             string[] alternateBaseAddresses = null)
         {
@@ -232,28 +241,28 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions AddUnsecurePolicyNone()
+        public IApplicationConfigurationBuilderServerSelected AddUnsecurePolicyNone()
         {
             AddSecurityPolicies(false, false, true);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions AddSignPolicies()
+        public IApplicationConfigurationBuilderServerSelected AddSignPolicies()
         {
             AddSecurityPolicies(true, false, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions AddSignAndEncryptPolicies()
+        public IApplicationConfigurationBuilderServerSelected AddSignAndEncryptPolicies()
         {
             AddSecurityPolicies(false, false, false);
             return this;
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
+        public IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
         {
             if (SecurityPolicies.GetDisplayName(securityPolicy) == null) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
             if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None)) throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
@@ -262,7 +271,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
-        public IApplicationConfigurationBuilderServerOptions AddUserTokenPolicy(UserTokenType userTokenType)
+        public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType)
         {
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(userTokenType));
             return this;
@@ -384,6 +393,286 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(int securityTokenLifetime)
         {
             ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime = securityTokenLifetime;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMinRequestThreadCount(int minRequestThreadCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MinRequestThreadCount = minRequestThreadCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxRequestThreadCount(int maxRequestThreadCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxRequestThreadCount = maxRequestThreadCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxQueuedRequestCount(int maxQueuedRequestCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxQueuedRequestCount = maxQueuedRequestCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetDiagnosticsEnabled(bool diagnosticsEnabled)
+        {
+            ApplicationConfiguration.ServerConfiguration.DiagnosticsEnabled = diagnosticsEnabled;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxSessionCount(int maxSessionCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxSessionCount = maxSessionCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMinSessionTimeout(int minSessionTimeout)
+        {
+            ApplicationConfiguration.ServerConfiguration.MinSessionTimeout = minSessionTimeout;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxSessionTimeout(int maxSessionTimeout)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxSessionTimeout = maxSessionTimeout;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(int maxBrowseContinuationPoints)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxQueryContinuationPoints(int maxQueryContinuationPoints)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxQueryContinuationPoints = maxQueryContinuationPoints;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxHistoryContinuationPoints(int maxHistoryContinuationPoints)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxHistoryContinuationPoints = maxHistoryContinuationPoints;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxRequestAge(int maxRequestAge)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxRequestAge = maxRequestAge;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMinPublishingInterval(int minPublishingInterval)
+        {
+            ApplicationConfiguration.ServerConfiguration.MinPublishingInterval = minPublishingInterval;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxPublishingInterval(int maxPublishingInterval)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxPublishingInterval = maxPublishingInterval;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetPublishingResolution(int publishingResolution)
+        {
+            ApplicationConfiguration.ServerConfiguration.PublishingResolution = publishingResolution;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionLifetime(int maxSubscriptionLifetime)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxSubscriptionLifetime = maxSubscriptionLifetime;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxMessageQueueSize(int maxMessageQueueSize)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxMessageQueueSize = maxMessageQueueSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxNotificationQueueSize(int maxNotificationQueueSize)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxNotificationQueueSize = maxNotificationQueueSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(int maxNotificationsPerPublish)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxNotificationsPerPublish = maxNotificationsPerPublish;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(int minMetadataSamplingInterval)
+        {
+            ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval = minMetadataSamplingInterval;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(SamplingRateGroupCollection availableSampleRates)
+        {
+            ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates = availableSampleRates;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(EndpointDescription registrationEndpoint)
+        {
+            ApplicationConfiguration.ServerConfiguration.RegistrationEndpoint = registrationEndpoint;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxRegistrationInterval(int maxRegistrationInterval)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval = maxRegistrationInterval;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetNodeManagerSaveFile(string nodeManagerSaveFile)
+        {
+            ApplicationConfiguration.ServerConfiguration.NodeManagerSaveFile = nodeManagerSaveFile;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMinSubscriptionLifetime(int minSubscriptionLifetime)
+        {
+            ApplicationConfiguration.ServerConfiguration.MinSubscriptionLifetime = minSubscriptionLifetime;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxPublishRequestCount(int maxPublishRequestCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxPublishRequestCount = maxPublishRequestCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionCount(int maxSubscriptionCount)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxSubscriptionCount = maxSubscriptionCount;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxEventQueueSize(int maxEventQueueSize)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxEventQueueSize = maxEventQueueSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions AddServerProfile(string serverProfile)
+        {
+            ApplicationConfiguration.ServerConfiguration.ServerProfileArray.Add(serverProfile);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetShutdownDelay(int shutdownDelay)
+        {
+            ApplicationConfiguration.ServerConfiguration.ShutdownDelay = shutdownDelay;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions AddServerCapabilities(string serverCapability)
+        {
+            ApplicationConfiguration.ServerConfiguration.ServerCapabilities.Add(serverCapability);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(StringCollection supportedPrivateKeyFormats)
+        {
+            ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats = supportedPrivateKeyFormats;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMaxTrustListSize(int maxTrustListSize)
+        {
+            ApplicationConfiguration.ServerConfiguration.MaxTrustListSize = maxTrustListSize;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetMultiCastDnsEnabled(bool multiCastDnsEnabled)
+        {
+            ApplicationConfiguration.ServerConfiguration.MultiCastDnsEnabled = multiCastDnsEnabled;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerOptions SetReverseConnect(ReverseConnectServerConfiguration reverseConnectConfiguration)
+        {
+            ApplicationConfiguration.ServerConfiguration.ReverseConnect = reverseConnectConfiguration;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(int defaultSessionTimeout)
+        {
+            ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout = defaultSessionTimeout;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderClientOptions AddWellKnownDiscoveryUrls(string wellKnownDiscoveryUrl)
+        {
+            ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls.Add(wellKnownDiscoveryUrl);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderClientOptions AddDiscoveryServer(EndpointDescription discoveryServer)
+        {
+            ApplicationConfiguration.ClientConfiguration.DiscoveryServers.Add(discoveryServer);
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderClientOptions SetEndpointCacheFilePath(string endpointCacheFilePath)
+        {
+            ApplicationConfiguration.ClientConfiguration.EndpointCacheFilePath = endpointCacheFilePath;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        IApplicationConfigurationBuilderClientOptions IApplicationConfigurationBuilderClientOptions.SetMinSubscriptionLifetime(int minSubscriptionLifetime)
+        {
+            ApplicationConfiguration.ClientConfiguration.MinSubscriptionLifetime = minSubscriptionLifetime;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderClientOptions SetReverseConnect(ReverseConnectClientConfiguration reverseConnect)
+        {
+            ApplicationConfiguration.ClientConfiguration.ReverseConnect = reverseConnect;
             return this;
         }
         #endregion
@@ -535,7 +824,8 @@ namespace Opc.Ua.Configuration
         private bool InternalAddPolicy(ServerSecurityPolicyCollection policies, MessageSecurityMode securityMode, string policyUri)
         {
             if (securityMode == MessageSecurityMode.Invalid) throw new ArgumentException("Invalid security mode selected", nameof(securityMode));
-            var newPolicy = new ServerSecurityPolicy() {
+            var newPolicy = new ServerSecurityPolicy()
+            {
                 SecurityMode = securityMode,
                 SecurityPolicyUri = policyUri
             };

@@ -152,6 +152,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
                 .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
+                .SetDiagnosticsEnabled(true)
                 .AsClient()
                 .AddSecurityConfiguration(SubjectName)
                 .Create().ConfigureAwait(false);
@@ -181,6 +182,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddSignAndEncryptPolicies()
                 .AddUserTokenPolicy(UserTokenType.UserName)
                 .AsClient()
+                .SetDefaultSessionTimeout(10000)
                 .AddSecurityConfiguration(SubjectName, CertificateStoreType.X509Store)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
@@ -200,11 +202,11 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            IApplicationConfigurationBuilderSecurityOptions builder = applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { "opc.tcp://localhost:51000" })
-                .AddSecurityConfiguration(SubjectName);
-            builder.ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore = true;
-            ApplicationConfiguration config = await builder.Create().ConfigureAwait(false);
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .AsServer(new string[] { "opc.tcp://localhost:51000", "https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
+                .AddSecurityConfiguration(SubjectName)
+                .SetAddAppCertToTrustedStore(true)
+                .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             Assert.True(certOK);
