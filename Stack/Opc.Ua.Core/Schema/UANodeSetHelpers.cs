@@ -367,10 +367,11 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlEncoder CreateEncoder(ISystemContext context)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            IServiceMessageContext messageContext = new ServiceMessageContext() {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
             XmlEncoder encoder = new XmlEncoder(messageContext);
 
@@ -984,8 +985,7 @@ namespace Opc.Ua.Export
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup)
-                {
+                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
                     return fieldLookup.Value == -1;
                 });
 

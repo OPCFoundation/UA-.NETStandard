@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to a memory buffer.
         /// </summary>
-        public BinaryEncoder(ServiceMessageContext context)
+        public BinaryEncoder(IServiceMessageContext context)
         {
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to a fixed size memory buffer.
         /// </summary>
-        public BinaryEncoder(byte[] buffer, int start, int count, ServiceMessageContext context)
+        public BinaryEncoder(byte[] buffer, int start, int count, IServiceMessageContext context)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
 
@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to the stream.
         /// </summary>
-        public BinaryEncoder(Stream stream, ServiceMessageContext context)
+        public BinaryEncoder(Stream stream, IServiceMessageContext context)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
 
@@ -172,7 +172,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a buffer.
         /// </summary>
-        public static byte[] EncodeMessage(IEncodeable message, ServiceMessageContext context)
+        public static byte[] EncodeMessage(IEncodeable message, IServiceMessageContext context)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -190,7 +190,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -236,7 +236,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static void EncodeMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (stream == null) throw new ArgumentNullException(nameof(stream));
@@ -313,7 +313,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Binary Encoder always produces reversible encoding.
@@ -2353,7 +2353,7 @@ namespace Opc.Ua
         #region Private Fields
         private Stream m_ostrm;
         private BinaryWriter m_writer;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

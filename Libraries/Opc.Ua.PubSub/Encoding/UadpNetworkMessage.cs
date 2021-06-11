@@ -279,7 +279,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="messageContext">The system context.</param>
         /// <param name="writer">The stream to use.</param>
-        public override void Encode(ServiceMessageContext messageContext, StreamWriter writer)
+        public override void Encode(IServiceMessageContext messageContext, StreamWriter writer)
         {
             using (BinaryEncoder encoder = new BinaryEncoder(writer.BaseStream, messageContext))
             {

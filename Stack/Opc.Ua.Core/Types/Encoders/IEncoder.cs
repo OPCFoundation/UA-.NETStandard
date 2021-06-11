@@ -34,7 +34,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        ServiceMessageContext Context { get; }
+        IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Sets the mapping tables to use during decoding.

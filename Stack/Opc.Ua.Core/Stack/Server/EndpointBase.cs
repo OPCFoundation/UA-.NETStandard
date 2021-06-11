@@ -443,7 +443,7 @@ namespace Opc.Ua
         /// Returns the message context used by the server associated with the endpoint.
         /// </summary>
         /// <value>The message context.</value>
-        protected ServiceMessageContext MessageContext
+        protected IServiceMessageContext MessageContext
         {
             get { return m_messageContext; }
             set { m_messageContext = value; }
@@ -852,7 +852,7 @@ namespace Opc.Ua
 
         #region Private Fields
         private ServiceResult m_serverError;
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private EndpointDescription m_endpointDescription;
         private Dictionary<ExpandedNodeId, ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;

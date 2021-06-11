@@ -116,7 +116,7 @@ namespace Opc.Ua
         /// in the encoded message.
         /// </remarks>
         /// <seealso cref="NamespaceUris" />
-        public EncodeableFactory Factory
+        public IEncodeableFactory Factory
         {
             get { return m_channelFactory; }
             set { m_channelFactory = value; }
@@ -131,7 +131,7 @@ namespace Opc.Ua
         private X509Certificate2 m_serverCertificate;
         private ICertificateValidator m_certificateValidator;
         private NamespaceTable m_namespaceUris;
-        private EncodeableFactory m_channelFactory;
+        private IEncodeableFactory m_channelFactory;
         #endregion
     }
 }

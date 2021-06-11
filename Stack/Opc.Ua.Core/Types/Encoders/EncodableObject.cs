@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the data encoding to the value.
         /// </summary>
-        public static ServiceResult ApplyDataEncoding(ServiceMessageContext context, QualifiedName dataEncoding, ref object value)
+        public static ServiceResult ApplyDataEncoding(IServiceMessageContext context, QualifiedName dataEncoding, ref object value)
         {
             // check if nothing to do.
             if (QualifiedName.IsNull(dataEncoding) || value == null)
@@ -155,7 +155,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in XML or Binary
         /// </summary>
-        public static ExtensionObject Encode(ServiceMessageContext context, IEncodeable encodeable, bool useXml)
+        public static ExtensionObject Encode(IServiceMessageContext context, IEncodeable encodeable, bool useXml)
         {
             if (useXml)
             {
@@ -172,7 +172,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in XML.
         /// </summary>
-        public static XmlElement EncodeXml(IEncodeable encodeable, ServiceMessageContext context)
+        public static XmlElement EncodeXml(IEncodeable encodeable, IServiceMessageContext context)
         {
             // create encoder.
             XmlEncoder encoder = new XmlEncoder(context);
@@ -191,7 +191,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in binary
         /// </summary>
-        public static byte[] EncodeBinary(IEncodeable encodeable, ServiceMessageContext context)
+        public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
             BinaryEncoder encoder = new BinaryEncoder(context);
             encoder.WriteEncodeable(null, encodeable, null);

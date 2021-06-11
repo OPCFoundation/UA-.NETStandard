@@ -17,7 +17,7 @@ namespace Opc.Ua
     /// <summary>
 	/// Stores context information associated with a UA server that is used during message processing.
 	/// </summary>
-	public class ServiceMessageContext
+	public class ServiceMessageContext : IServiceMessageContext
     {
         #region Constructors
         /// <summary>
@@ -174,7 +174,7 @@ namespace Opc.Ua
         /// <summary>
         /// The factory used to create encodeable objects.
         /// </summary>
-        public EncodeableFactory Factory
+        public IEncodeableFactory Factory
         {
             get
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua
         private uint m_maxEncodingNestingLevels;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private EncodeableFactory m_factory;
+        private IEncodeableFactory m_factory;
 
         private static ServiceMessageContext s_globalContext = new ServiceMessageContext(true);
         #endregion

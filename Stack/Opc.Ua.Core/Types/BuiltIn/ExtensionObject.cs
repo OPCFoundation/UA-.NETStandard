@@ -799,7 +799,7 @@ namespace Opc.Ua
         private ExpandedNodeId m_typeId;
         private ExtensionObjectEncoding m_encoding;
         private object m_body;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         #endregion
     }
 
