@@ -250,7 +250,7 @@ namespace Opc.Ua
         private XmlElementCollection m_extensions;
         private string m_sourceFilePath;
 
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private CertificateValidator m_certificateValidator;
         private Dictionary<string, object> m_properties;
         #endregion

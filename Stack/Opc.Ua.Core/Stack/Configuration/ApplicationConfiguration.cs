@@ -196,7 +196,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>A new instance of a ServiceMessageContext object.</value>
         [Obsolete("Warning: Behavior changed return a copy instead of a reference. Should call CreateMessageContext() instead.")]
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {

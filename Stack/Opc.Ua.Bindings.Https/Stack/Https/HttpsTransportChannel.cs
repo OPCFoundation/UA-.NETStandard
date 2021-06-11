@@ -69,7 +69,7 @@ namespace Opc.Ua.Bindings
         public EndpointConfiguration EndpointConfiguration => m_settings.Configuration;
 
         /// <inheritdoc/>
-        public ServiceMessageContext MessageContext => m_quotas.MessageContext;
+        public IServiceMessageContext MessageContext => m_quotas.MessageContext;
 
         /// <inheritdoc/>
         public ChannelToken CurrentToken => null;
@@ -347,24 +347,24 @@ namespace Opc.Ua.Bindings
             m_operationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas();
+            m_quotas = new ChannelQuotas {
+                MaxBufferSize = m_settings.Configuration.MaxBufferSize,
+                MaxMessageSize = m_settings.Configuration.MaxMessageSize,
+                ChannelLifetime = m_settings.Configuration.ChannelLifetime,
+                SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-            m_quotas.MaxBufferSize = m_settings.Configuration.MaxBufferSize;
-            m_quotas.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
-            m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
-            m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
+                MessageContext = new ServiceMessageContext {
+                    MaxArrayLength = m_settings.Configuration.MaxArrayLength,
+                    MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
+                    MaxMessageSize = m_settings.Configuration.MaxMessageSize,
+                    MaxStringLength = m_settings.Configuration.MaxStringLength,
+                    NamespaceUris = m_settings.NamespaceUris,
+                    ServerUris = new StringTable(),
+                    Factory = m_settings.Factory
+                },
 
-            m_quotas.MessageContext = new ServiceMessageContext();
-
-            m_quotas.MessageContext.MaxArrayLength = m_settings.Configuration.MaxArrayLength;
-            m_quotas.MessageContext.MaxByteStringLength = m_settings.Configuration.MaxByteStringLength;
-            m_quotas.MessageContext.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
-            m_quotas.MessageContext.MaxStringLength = m_settings.Configuration.MaxStringLength;
-            m_quotas.MessageContext.NamespaceUris = m_settings.NamespaceUris;
-            m_quotas.MessageContext.ServerUris = new StringTable();
-            m_quotas.MessageContext.Factory = m_settings.Factory;
-
-            m_quotas.CertificateValidator = settings.CertificateValidator;
+                CertificateValidator = settings.CertificateValidator
+            };
         }
 
         private Uri m_url;

@@ -23,7 +23,7 @@ namespace Opc.Ua
         /// <value>
         /// The context information associated with a UA server that is used during message processing.
         /// </value>
-        ServiceMessageContext MessageContext { get; }
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// An error condition that describes why the server if not running (null if no error exists).
