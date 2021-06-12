@@ -56,8 +56,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestFileConfig()
         {
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -72,8 +71,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClient()
         {
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -102,8 +100,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMinimal()
         {
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -120,8 +117,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMaximal()
         {
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -137,7 +133,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)
-                .AddUserTokenPolicy(UserTokenType.Certificate)
+                .AddUserTokenPolicy(new UserTokenPolicy(UserTokenType.Certificate, SecurityPolicies.Basic256Sha256))
                 .SetDiagnosticsEnabled(true)
                 .SetPublishingResolution(100)
                 .AddSecurityConfiguration(SubjectName)
@@ -156,8 +152,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClientAndServer()
         {
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -187,8 +182,7 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.Ignore("X509Store trust lists not supported on mac OS.");
             }
 #endif
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -213,8 +207,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerCustom()
         {
-            var applicationInstance = new ApplicationInstance()
-            {
+            var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);

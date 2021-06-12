@@ -275,6 +275,13 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenPolicy userTokenPolicy)
+        {
+            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(bool autoAccept)
         {
             ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = autoAccept;

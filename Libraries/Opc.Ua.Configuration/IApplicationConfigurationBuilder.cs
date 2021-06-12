@@ -337,6 +337,13 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="userTokenType">The user token type to add.</param>
         IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenType userTokenType);
+
+        /// <summary>
+        /// Add user token policy to the server configuration.
+        /// </summary>
+        /// <param name="userTokenPolicy">The user token policy to add.</param>
+        IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenPolicy userTokenPolicy);
+
     }
 
     /// <summary>
