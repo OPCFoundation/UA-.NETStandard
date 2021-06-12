@@ -133,7 +133,7 @@ namespace Opc.Ua.Configuration.Tests
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)
-                .AddUserTokenPolicy(new UserTokenPolicy(UserTokenType.Certificate, SecurityPolicies.Basic256Sha256))
+                .AddUserTokenPolicy(new UserTokenPolicy(UserTokenType.Certificate) { SecurityPolicyUri = SecurityPolicies.Basic256Sha256 })
                 .SetDiagnosticsEnabled(true)
                 .SetPublishingResolution(100)
                 .AddSecurityConfiguration(SubjectName)
