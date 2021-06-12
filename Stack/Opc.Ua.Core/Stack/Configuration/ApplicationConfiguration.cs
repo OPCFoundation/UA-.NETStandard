@@ -584,16 +584,6 @@ namespace Opc.Ua
         /// <param name="value">The value.</param>
         public void UpdateExtension<T>(XmlQualifiedName elementName, object value) =>
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
-
-        /// <summary>
-        /// Updates the extension.
-        /// </summary>
-        /// <param name="type">The type.</param>
-        /// <param name="value">The value.</param>
-        [Obsolete("Not non-functional. Replaced by a template version UpdateExtension<T>")]
-        public void UpdateExtension(Type type, object value)
-        {
-        }
         #endregion
     }
 
