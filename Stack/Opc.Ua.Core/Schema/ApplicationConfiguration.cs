@@ -39,12 +39,12 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_sourceFilePath = null;
-
             m_securityConfiguration = new SecurityConfiguration();
             m_transportConfigurations = new TransportConfigurationCollection();
             m_disableHiResClock = false;
             m_properties = new Dictionary<string, object>();
             m_certificateValidator = new CertificateValidator();
+            m_extensionObjects = new List<object>();
         }
 
         /// <summary>
@@ -71,6 +71,12 @@ namespace Opc.Ua
         /// The dictionary used to save state associated with the application.
         /// </value>
         public IDictionary<string, object> Properties => m_properties;
+
+        /// <summary>
+        /// Storage for decoded extensions of the application.
+        /// Used by ParseExtension if no matching XmlElement is found.
+        /// </summary>
+        public IList<object> ExtensionObjects => m_extensionObjects;
         #endregion
 
         #region Persistent Properties
@@ -248,6 +254,7 @@ namespace Opc.Ua
         private TraceConfiguration m_traceConfiguration;
         private bool m_disableHiResClock;
         private XmlElementCollection m_extensions;
+        private List<object> m_extensionObjects;
         private string m_sourceFilePath;
 
         private ServiceMessageContext m_messageContext;
