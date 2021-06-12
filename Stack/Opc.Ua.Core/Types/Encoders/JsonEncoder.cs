@@ -30,7 +30,7 @@ namespace Opc.Ua
         private Stack<string> m_namespaces;
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
@@ -44,7 +44,7 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// </summary>
         public JsonEncoder(
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             bool useReversibleEncoding,
             StreamWriter writer = null,
             bool topLevelIsArray = false)
@@ -106,7 +106,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -152,7 +152,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, ServiceMessageContext context)
+        public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, IServiceMessageContext context)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
@@ -280,7 +280,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// The Json encoder reversible encoding option

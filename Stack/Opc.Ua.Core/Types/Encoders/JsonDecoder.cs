@@ -34,11 +34,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-
         private JsonTextReader m_reader;
         private Dictionary<string, object> m_root;
         private Stack<object> m_stack;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
@@ -58,7 +57,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="json">The JSON encoded string.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(string json, ServiceMessageContext context)
+        public JsonDecoder(string json, IServiceMessageContext context)
         {
             if (context == null)
             {
@@ -80,7 +79,7 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encoded JSON stram.</param>
         /// <param name="reader">The text reader.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(Type systemType, JsonTextReader reader, ServiceMessageContext context)
+        public JsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
         {
             Initialize();
 
@@ -105,7 +104,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
+        public static IEncodeable DecodeSessionLessMessage(byte[] buffer, IServiceMessageContext context)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -128,7 +127,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, ServiceMessageContext context)
+        public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, IServiceMessageContext context)
         {
             return DecodeMessage(new ArraySegment<byte>(buffer), expectedType, context);
         }
@@ -136,7 +135,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, ServiceMessageContext context)
+        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, IServiceMessageContext context)
         {
             if (context == null)
             {
@@ -290,7 +289,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.

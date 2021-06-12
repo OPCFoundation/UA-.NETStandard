@@ -257,7 +257,7 @@ namespace Opc.Ua
         private List<object> m_extensionObjects;
         private string m_sourceFilePath;
 
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private CertificateValidator m_certificateValidator;
         private Dictionary<string, object> m_properties;
         #endregion

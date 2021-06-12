@@ -971,7 +971,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Protected Fields
 
         #region Private Fields
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
         #endregion Private Fields

@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
         /// The context to use when serializing/deserializing extension objects.
         /// </summary>
         /// <value>The message context.</value>
-        ServiceMessageContext MessageContext { get; }
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// The default system context for the server.
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         /// The factory used to create encodeable objects that the server understands.
         /// </summary>
         /// <value>The factory.</value>
-        EncodeableFactory Factory { get; }
+        IEncodeableFactory Factory { get; }
 
         /// <summary>
         /// The datatypes, object types and variable types known to the server.
