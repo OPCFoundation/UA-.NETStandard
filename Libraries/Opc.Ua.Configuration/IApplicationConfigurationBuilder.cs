@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Opc.Ua.Configuration
 {
@@ -368,6 +369,7 @@ namespace Opc.Ua.Configuration
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurityOptions :
         IApplicationConfigurationBuilderTraceConfiguration,
+        IApplicationConfigurationBuilderExtension,
         IApplicationConfigurationBuilderCreate
     {
         /// <summary>
@@ -425,6 +427,21 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="certificatePasswordProvider">The certificate password provider to use.</param>
         IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(ICertificatePasswordProvider certificatePasswordProvider);
+    }
+
+    /// <summary>
+    /// Add extensions configuration.
+    /// </summary>
+    public interface IApplicationConfigurationBuilderExtension :
+        IApplicationConfigurationBuilderTraceConfiguration
+    {
+        /// <summary>
+        /// Add an extension to the configuration.
+        /// </summary>
+        /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
+        /// <param name="elementName">The name of the extension, null to use the name.</param>
+        /// <param name="value">The object to add and encode.</param>
+        IApplicationConfigurationBuilderExtension AddExtension<T>(XmlQualifiedName elementName, object value);
     }
 
     /// <summary>

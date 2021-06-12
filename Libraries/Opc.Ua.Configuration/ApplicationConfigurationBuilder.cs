@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Opc.Ua.Configuration
 {
@@ -690,6 +691,13 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
         {
             ApplicationConfiguration.TraceConfiguration.TraceMasks = traceMasks;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IApplicationConfigurationBuilderExtension AddExtension<T>(XmlQualifiedName elementName, object value)
+        {
+            ApplicationConfiguration.UpdateExtension<T>(elementName, value);
             return this;
         }
         #endregion
