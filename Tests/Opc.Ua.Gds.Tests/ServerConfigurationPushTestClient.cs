@@ -60,10 +60,37 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
             };
-
+#if USE_FILE_CONFIG
             // load the application configuration.
             Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+#else
+            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            var clientConfig = new ServerConfigurationPushTestClientConfiguration() {
+                ServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
+                AppUserName = "",
+                AppPassword = "",
+                SysAdminUserName = "sysadmin",
+                SysAdminPassword = "demo",
+                TempStorePath =""
+            };
 
+            // build the application configuration.
+            Config = await application
+                .Build(
+                    "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
+                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
+                .AsClient()
+                .AddSecurityConfiguration(
+                    "CN=Server Configuration Push Test Client, O=OPC Foundation",
+                    pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetMinimumCertificateKeySize(1024)
+                .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
+                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetTraceMasks(519)
+                .Create().ConfigureAwait(false);
+#endif
             // check the application certificate.
             bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
@@ -133,7 +160,7 @@ namespace Opc.Ua.Gds.Tests
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaConfig)]
     public class ServerConfigurationPushTestClientConfiguration
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -157,9 +184,9 @@ namespace Opc.Ua.Gds.Tests
         private void Initialize()
         {
         }
-        #endregion
+#endregion
 
-        #region Public
+#region Public
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
         [DataMember(Order = 2)]
@@ -172,9 +199,9 @@ namespace Opc.Ua.Gds.Tests
         public string SysAdminPassword { get; set; }
         [DataMember(Order = 6, IsRequired = true)]
         public string TempStorePath { get; set; }
-        #endregion
+#endregion
 
-        #region Private Members
-        #endregion
+#region Private Members
+#endregion
     }
 }
