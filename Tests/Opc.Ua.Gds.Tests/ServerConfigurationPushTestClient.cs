@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
                 AppPassword = "",
                 SysAdminUserName = "sysadmin",
                 SysAdminPassword = "demo",
-                TempStorePath =""
+                TempStorePath = pkiRoot + "/temp"
             };
 
             // build the application configuration.
@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Tests
     [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaConfig)]
     public class ServerConfigurationPushTestClientConfiguration
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -184,9 +184,9 @@ namespace Opc.Ua.Gds.Tests
         private void Initialize()
         {
         }
-#endregion
+        #endregion
 
-#region Public
+        #region Public
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
         [DataMember(Order = 2)]
@@ -199,9 +199,9 @@ namespace Opc.Ua.Gds.Tests
         public string SysAdminPassword { get; set; }
         [DataMember(Order = 6, IsRequired = true)]
         public string TempStorePath { get; set; }
-#endregion
+        #endregion
 
-#region Private Members
-#endregion
+        #region Private Members
+        #endregion
     }
 }
