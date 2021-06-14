@@ -15,9 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\ReferenceServer\ReferenceNodeManager.cs" />
-    <Compile Include="..\ReferenceServer\ReferenceServerConfiguration.cs" />
-    <Compile Include="..\ReferenceServer\ReferenceServer.cs" />
     <Compile Include="..\ReferenceServer\SerilogTraceLogger.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
 
@@ -29,6 +26,7 @@
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Quickstarts.Servers\Quickstarts.Servers.csproj" />
   </ItemGroup>
 
   <ItemGroup>

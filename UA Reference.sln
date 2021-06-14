@@ -41,6 +41,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Bindings.Https", "St
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates", "Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj", "{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quickstarts.Servers", "Applications\Quickstarts.Servers\Quickstarts.Servers.csproj", "{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -208,6 +210,18 @@ Global
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x64.Build.0 = Release|Any CPU
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x86.ActiveCfg = Release|Any CPU
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x86.Build.0 = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x64.Build.0 = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x86.Build.0 = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x64.ActiveCfg = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x64.Build.0 = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x86.ActiveCfg = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

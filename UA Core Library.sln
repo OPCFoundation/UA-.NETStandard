@@ -67,7 +67,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificate
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server.Tests", "Tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj", "{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}"
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration.Tests", "Tests\Opc.Ua.Configuration.Tests\Opc.Ua.Configuration.Tests.csproj", "{707A1C12-9C29-40A1-8091-2891E0FE0907}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.Tests", "Tests\Opc.Ua.Client.Tests\Opc.Ua.Client.Tests.csproj", "{FC588507-282A-426E-8BC9-940860C76610}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -135,10 +139,18 @@ Global
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC588507-282A-426E-8BC9-940860C76610}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC588507-282A-426E-8BC9-940860C76610}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC588507-282A-426E-8BC9-940860C76610}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC588507-282A-426E-8BC9-940860C76610}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

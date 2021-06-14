@@ -27,60 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.ServiceModel;
-using System.Runtime.Serialization;
-using System.Collections.Generic;
-using Opc.Ua.Server;
-
-namespace Quickstarts.ReferenceServer
+namespace Quickstarts.Servers
 {
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// Defines constants for namespaces used by the servers.
     /// </summary>
-    [DataContract(Namespace=Namespaces.ReferenceApplications)]
-    public class ReferenceServerConfiguration
+    public static partial class Namespaces
     {
-        #region Constructors
         /// <summary>
-        /// The default constructor.
+        /// The namespace for the nodes provided by the reference server.
         /// </summary>
-        public ReferenceServerConfiguration()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// Whether the user dialog for accepting invalid certificates should be displayed.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
-        {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private bool m_showCertificateValidationDialog;
-        #endregion
+        public const string ReferenceServer = "http://opcfoundation.org/Quickstarts/ReferenceServer";
     }
 }

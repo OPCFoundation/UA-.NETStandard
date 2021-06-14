@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,30 +29,20 @@
 
 using System;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Environments;
-using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 
-namespace Opc.Ua.Security.Certificates.Tests
+namespace Opc.Ua.Server.Tests
 {
     static class Program
     {
         // Main Method 
         static public void Main(String[] args)
         {
-            _ = BenchmarkRunner.Run<Benchmarks>(
-                    ManualConfig
+            var summary = BenchmarkRunner.Run<ReferenceServerTests>(
+                ManualConfig
                     .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline())
-                    .AddJob(Job.Default.WithRuntime(ClrRuntime.Net472))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core50))
-#if DEBUG
                     .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-#endif
-                   );
+                    );
         }
     }
 }
-

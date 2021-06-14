@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>Quickstarts.Servers</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <LangVersion>6</LangVersion>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers</PackageId>
+    <RootNamespace>Quickstarts.Servers</RootNamespace>
+    <Description>OPC UA Quickstarts Servers Class Library</Description>
+    <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
+    <IsPackable>false</IsPackable>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
+    <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
+  </PropertyGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+    <Reference Include="System.IdentityModel" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <Reference Include="System.IdentityModel" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <Target Name="GetPackagingOutputs" />
+  
+</Project>
