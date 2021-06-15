@@ -95,7 +95,7 @@ namespace Opc.Ua.Configuration
             )
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
-            appRoot = DefaultPKIRoot(appRoot);
+            appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
             rejectedRoot = DefaultPKIRoot(rejectedRoot);
             var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
@@ -106,7 +106,7 @@ namespace Opc.Ua.Configuration
                 ApplicationCertificate = new CertificateIdentifier()
                 {
                     StoreType = appStoreType,
-                    StorePath = DefaultCertificateStorePath(TrustlistType.Application, pkiRoot),
+                    StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
                 // App trusted & issuer
@@ -782,7 +782,7 @@ namespace Opc.Ua.Configuration
                         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
                             pkiRoot.StartsWith(CertificateStoreIdentifier.CurrentUser, StringComparison.OrdinalIgnoreCase))
                         {
-                            return pkiRoot + "/My";
+                            return pkiRoot + "My";
                         }
 #endif
                         return pkiRoot + "UA_MachineDefault";
