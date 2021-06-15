@@ -39,12 +39,12 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_sourceFilePath = null;
-
             m_securityConfiguration = new SecurityConfiguration();
             m_transportConfigurations = new TransportConfigurationCollection();
             m_disableHiResClock = false;
             m_properties = new Dictionary<string, object>();
             m_certificateValidator = new CertificateValidator();
+            m_extensionObjects = new List<object>();
         }
 
         /// <summary>
@@ -71,6 +71,12 @@ namespace Opc.Ua
         /// The dictionary used to save state associated with the application.
         /// </value>
         public IDictionary<string, object> Properties => m_properties;
+
+        /// <summary>
+        /// Storage for decoded extensions of the application.
+        /// Used by ParseExtension if no matching XmlElement is found.
+        /// </summary>
+        public IList<object> ExtensionObjects => m_extensionObjects;
         #endregion
 
         #region Persistent Properties
@@ -248,6 +254,7 @@ namespace Opc.Ua
         private TraceConfiguration m_traceConfiguration;
         private bool m_disableHiResClock;
         private XmlElementCollection m_extensions;
+        private List<object> m_extensionObjects;
         private string m_sourceFilePath;
 
         private IServiceMessageContext m_messageContext;
@@ -298,7 +305,7 @@ namespace Opc.Ua
 
         #region Persistent Properties
         /// <summary>
-        /// The default timeout to use when sending requests.
+        /// The default timeout to use when sending requests (in milliseconds).
         /// </summary>
         /// <value>The operation timeout.</value>
         [DataMember(IsRequired = false, Order = 0)]
@@ -364,7 +371,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The lifetime of a secure channel.
+        /// The lifetime of a secure channel (in milliseconds).
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 6)]
@@ -375,7 +382,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The lifetime of a security token.
+        /// The lifetime of a security token (in milliseconds).
         /// </summary>
         /// <value>The security token lifetime.</value>
         [DataMember(IsRequired = false, Order = 7)]
@@ -1336,7 +1343,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the minimum number of threads assigned to processing requests.
+        /// The minimum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The minimum request thread count.</value>
         [DataMember(IsRequired = false, Order = 3)]
@@ -1347,7 +1354,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the maximum number of threads assigned to processing requests.
+        /// The maximum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The maximum request thread count.</value>
         [DataMember(IsRequired = false, Order = 4)]
@@ -1358,7 +1365,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the maximum number of requests that will be queued waiting for a thread.
+        /// The maximum number of requests that will be queued waiting for a thread.
         /// </summary>
         /// <value>The maximum queued request count.</value>
         [DataMember(IsRequired = false, Order = 5)]
@@ -1425,11 +1432,11 @@ namespace Opc.Ua
             m_maxPublishRequestCount = 20;
             m_maxSubscriptionCount = 100;
             m_maxEventQueueSize = 10000;
-            // see https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
+            // https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
             m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
             m_shutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
-            m_supportedPrivateKeyFormats = Array.Empty<string>();
+            m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
         }
@@ -1489,7 +1496,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// That minimum period of that a session is allowed to remain open without communication from the client (in milliseconds).
+        /// That minimum period of that a session is allowed to remain
+        /// open without communication from the client (in milliseconds).
         /// </summary>
         /// <value>The minimum session timeout.</value>
         [DataMember(IsRequired = false, Order = 6)]
@@ -1500,7 +1508,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// That maximum period of that a session is allowed to remain open without communication from the client (in milliseconds).
+        /// That maximum period of that a session is allowed to remain
+        /// open without communication from the client (in milliseconds).
         /// </summary>
         /// <value>The maximum session timeout.</value>
         [DataMember(IsRequired = false, Order = 7)]
@@ -1511,7 +1520,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The maximum number of continuation points used for Browse/BrowseNext operations.
+        /// The maximum number of continuation points used for
+        /// Browse/BrowseNext operations.
         /// </summary>
         /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
         [DataMember(IsRequired = false, Order = 8)]
@@ -1522,7 +1532,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The maximum number of continuation points used for Query/QueryNext operations.
+        /// The maximum number of continuation points used for
+        /// Query/QueryNext operations.
         /// </summary>
         /// <value>The maximum number of query continuation points.</value>
         [DataMember(IsRequired = false, Order = 9)]
@@ -1544,7 +1555,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The maximum age of an incoming request (old requests are rejected).
+        /// The maximum age of an incoming request (old requests are rejected) (in milliseconds).
         /// </summary>
         /// <value>The maximum age of an incoming request.</value>
         [DataMember(IsRequired = false, Order = 11)]
@@ -1687,7 +1698,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The minimum lifetime for a subscription.
+        /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataMember(IsRequired = false, Order = 24)]
@@ -1698,7 +1709,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the max publish request count.
+        /// The max publish request count.
         /// </summary>
         /// <value>The max publish request count.</value>
         [DataMember(IsRequired = false, Order = 25)]
@@ -1709,7 +1720,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the max subscription count.
+        /// The max subscription count.
         /// </summary>
         /// <value>The max subscription count.</value>
         [DataMember(IsRequired = false, Order = 26)]
@@ -1720,7 +1731,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the max size of the event queue.
+        /// The max size of the event queue.
         /// </summary>
         /// <value>The max size of the event queue.</value>
         [DataMember(IsRequired = false, Order = 27)]
@@ -1731,7 +1742,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the server profile array.
+        /// The server profile array.
         /// </summary>
         /// <value>The array of server profiles.</value>
         [DataMember(IsRequired = false, Order = 28)]
@@ -1749,9 +1760,9 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the server shutdown delay.
+        /// The server shutdown delay.
         /// </summary>
-        /// <value>The array of server profiles.</value>
+        /// <value>The number of seconds to delay the shutdown if a client is connected.</value>
         [DataMember(IsRequired = false, Order = 29)]
         public int ShutdownDelay
         {
@@ -1763,9 +1774,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets the server capabilities.
+        /// The server capabilities.
+        /// The latest set of server capabilities is listed 
+        /// <see href="http://www.opcfoundation.org/UA/schemas/1.04/ServerCapabilities.csv">here.</see>
         /// </summary>
-        /// <value>The array of server profiles.</value>
+        /// <value>The array of server capabilites.</value>
         [DataMember(IsRequired = false, Order = 30)]
         public StringCollection ServerCapabilities
         {
@@ -2057,7 +2070,7 @@ namespace Opc.Ua
 
         #region Persistent Properties
         /// <summary>
-        /// The default session timeout.
+        /// The default session timeout (in milliseconds).
         /// </summary>
         /// <value>The default session timeout.</value>
         [DataMember(IsRequired = false, Order = 0)]
@@ -2125,7 +2138,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The minimum lifetime for a subscription.
+        /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataMember(IsRequired = false, Order = 4)]
@@ -2136,7 +2149,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or sets reverse connect Client configuration.
+        /// The reverse connect Client configuration.
         /// </summary>
         [DataMember(IsRequired = false, Order = 5)]
         public ReverseConnectClientConfiguration ReverseConnect
@@ -2528,7 +2541,7 @@ namespace Opc.Ua
         /// The path that identifies the certificate store.
         /// </summary>
         /// <value>
-        /// If the StoreName is not empty and the StoreLocation is empty, the Utils.Format("LocalMachine\\{0}", m_storeName) is returned.
+        /// If the StoreName is not empty and the StoreLocation is empty, the Utils.Format("CurrentUser\\{0}", m_storeName) is returned.
         /// If the StoreName is not empty and the StoreLocation is not empty, the Utils.Format("{1}\\{0}", m_storeName, m_storeLocation) is returned.
         /// If the StoreName is empty, the m_storePath is returned.
         /// </value>
@@ -2541,7 +2554,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeLocation))
                     {
-                        return Utils.Format("CurrentUser\\{0}", m_storeName);
+                        return CurrentUser + m_storeName;
                     }
 
                     return Utils.Format("{1}\\{0}", m_storeName, m_storeLocation);
@@ -2558,14 +2571,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeType))
                     {
-                        if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            m_storeType = CertificateStoreType.X509Store;
-                        }
-                        else
-                        {
-                            m_storeType = CertificateStoreType.Directory;
-                        }
+                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
                 }
             }
@@ -2804,14 +2810,7 @@ namespace Opc.Ua
                 {
                     if (String.IsNullOrEmpty(m_storeType))
                     {
-                        if (m_storePath.StartsWith("LocalMachine", StringComparison.CurrentCultureIgnoreCase) || m_storePath.StartsWith("CurrentUser", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            m_storeType = CertificateStoreType.X509Store;
-                        }
-                        else
-                        {
-                            m_storeType = CertificateStoreType.Directory;
-                        }
+                        m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                     }
                 }
             }

@@ -20,10 +20,6 @@
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
@@ -31,7 +27,11 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <Reference Include="System.IdentityModel" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  
   <Target Name="GetPackagingOutputs" />
 
 </Project>

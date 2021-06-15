@@ -71,6 +71,24 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <summary>
+        /// The path to the default PKI Root.
+        /// </summary>
+#if NETFRAMEWORK
+        public static readonly string DefaultPKIRoot = "%CommonApplicationData%/OPC Foundation/pki";
+#else
+        public static readonly string DefaultPKIRoot = "%LocalApplicationData%/OPC Foundation/pki";
+#endif
+        /// <summary>
+        /// The path to the current user X509Store.
+        /// </summary>
+        public static readonly string CurrentUser = "CurrentUser\\";
+
+        /// <summary>
+        /// The path to the local machine X509Store.
+        /// </summary>
+        public static readonly string LocalMachine = "LocalMachine\\";
+
+        /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         public CertificateValidationOptions ValidationOptions
@@ -91,22 +109,12 @@ namespace Opc.Ua
                 return CertificateStoreType.Directory;
             }
 
-            if (storePath.StartsWith("LocalMachine\\", StringComparison.OrdinalIgnoreCase))
+            if (storePath.StartsWith(LocalMachine, StringComparison.OrdinalIgnoreCase))
             {
                 return CertificateStoreType.X509Store;
             }
 
-            if (storePath.StartsWith("CurrentUser\\", StringComparison.OrdinalIgnoreCase))
-            {
-                return CertificateStoreType.X509Store;
-            }
-
-            if (storePath.StartsWith("User\\", StringComparison.OrdinalIgnoreCase))
-            {
-                return CertificateStoreType.X509Store;
-            }
-
-            if (storePath.StartsWith("Service\\", StringComparison.OrdinalIgnoreCase))
+            if (storePath.StartsWith(CurrentUser, StringComparison.OrdinalIgnoreCase))
             {
                 return CertificateStoreType.X509Store;
             }
