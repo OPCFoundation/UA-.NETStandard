@@ -3,7 +3,6 @@
   <PropertyGroup>
     <AssemblyName>Opc.Ua.PubSub</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <LangVersion>7</LangVersion>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.PubSub</PackageId>
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>
     <Description>OPC UA PubSub Class Library</Description>

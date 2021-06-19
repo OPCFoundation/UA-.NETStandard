@@ -73,6 +73,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration.Tests"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.Tests", "Tests\Opc.Ua.Client.Tests\Opc.Ua.Client.Tests.csproj", "{FC588507-282A-426E-8BC9-940860C76610}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quickstarts.Servers", "Applications\Quickstarts.Servers\Quickstarts.Servers.csproj", "{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -151,6 +153,10 @@ Global
 		{FC588507-282A-426E-8BC9-940860C76610}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC588507-282A-426E-8BC9-940860C76610}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FC588507-282A-426E-8BC9-940860C76610}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
