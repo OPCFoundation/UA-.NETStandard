@@ -29,14 +29,14 @@ jobs:
     displayName: Restore ${{ parameters.framework }}
     inputs:
       command: restore
-      projects: 'UA Core Library.sln'
+      projects: '**/*.Tests.csproj'
       arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.framework }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: 'UA Core Library.sln'
+      projects: '**/*.Tests.csproj'
       # note: /p:CollectCoverage=true is only used to disable deterministc builds
       arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings:"./Tests/coverlet.runsettings.xml" --results-directory $(Build.SourcesDirectory)/TestResults '
   - script: |
