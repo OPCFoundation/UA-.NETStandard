@@ -2,13 +2,13 @@
 <RunSettings>
   <DataCollectionRunSettings>
     <DataCollectors>
-      <DataCollector friendlyName="XPlat code coverage">
+      <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura</Format>          
           <Exclude>[coverlet.*.tests?]*,[*]Coverlet.Core*,[Opc.Ua.*.Tests]*</Exclude> <!-- [Assembly-Filter]Type-Filter -->
           <Include></Include> <!-- [Assembly-Filter]Type-Filter -->
-          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
-          <ExcludeByFile></ExcludeByFile> <!-- Globbing filter -->
+          <ExcludeByAttribute>Obsolete,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <ExcludeByFile>**/Generated/*.cs,**/Model/*.cs</ExcludeByFile> <!-- Globbing filter -->
           <IncludeDirectory></IncludeDirectory>
           <SingleHit>false</SingleHit>
           <UseSourceLink>true</UseSourceLink>
