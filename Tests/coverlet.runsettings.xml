@@ -11,7 +11,7 @@
           <ExcludeByFile>**/Generated/*.cs,**/Model/*.cs</ExcludeByFile> <!-- Globbing filter -->
           <IncludeDirectory></IncludeDirectory>
           <SingleHit>false</SingleHit>
-          <UseSourceLink>true</UseSourceLink>
+          <UseSourceLink>false</UseSourceLink>
           <IncludeTestAssembly>false</IncludeTestAssembly>
           <SkipAutoProps>true</SkipAutoProps>
           <DeterministicReport>false</DeterministicReport>
