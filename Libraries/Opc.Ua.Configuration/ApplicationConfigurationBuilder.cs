@@ -164,6 +164,18 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public async Task<ApplicationConfiguration> Create()
         {
+            // sanity checks
+            if (ApplicationInstance.ApplicationType == ApplicationType.Server ||
+                ApplicationInstance.ApplicationType == ApplicationType.ClientAndServer)
+            {
+                if (ApplicationConfiguration.ServerConfiguration == null) throw new ArgumentException("ApplicationType Server is not configured.");
+            }
+            if (ApplicationInstance.ApplicationType == ApplicationType.Client ||
+                ApplicationInstance.ApplicationType == ApplicationType.ClientAndServer)
+            {
+                if (ApplicationConfiguration.ClientConfiguration == null) throw new ArgumentException("ApplicationType Client is not configured.");
+            }
+
             // ensure for a user token policy
             if (ApplicationConfiguration.ServerConfiguration?.UserTokenPolicies.Count == 0)
             {
@@ -277,6 +289,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenPolicy userTokenPolicy)
         {
+            if (userTokenPolicy == null) throw new ArgumentNullException(nameof(userTokenPolicy));
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
             return this;
         }

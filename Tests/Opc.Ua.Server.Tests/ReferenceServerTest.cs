@@ -263,6 +263,155 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, browsePaths);
         }
+
+        /// <summary>
+        /// Create a subscription with a monitored item.
+        /// Read a few notifications with Publish.
+        /// Delete the monitored item and subscription.
+        /// </summary>
+        [Test]
+        public void Subscription()
+        {
+            // Session
+            var requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.TimeoutHint = 10000;
+
+            // create subscription
+            double publishingInterval = 1000.0;
+            uint lifetimeCount = 60;
+            uint maxKeepAliveCount = 2;
+            uint maxNotificationPerPublish = 0;
+            byte priority = 128;
+            bool enabled = false;
+            uint queueSize = 5;
+
+            var response = m_server.CreateSubscription(requestHeader,
+                publishingInterval, lifetimeCount, maxKeepAliveCount,
+                maxNotificationPerPublish, enabled, priority,
+                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
+            Assert.AreEqual(publishingInterval, revisedPublishingInterval);
+            Assert.AreEqual(lifetimeCount, revisedLifetimeCount);
+            Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            MonitoredItemCreateRequestCollection itemsToCreate = new MonitoredItemCreateRequestCollection();
+            // check badnothingtodo
+            var sre = Assert.Throws<ServiceResultException>(() =>
+                m_server.CreateMonitoredItems(requestHeader, id, TimestampsToReturn.Neither, itemsToCreate,
+                    out MonitoredItemCreateResultCollection mockResults, out DiagnosticInfoCollection mockInfos));
+            Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+
+            // add item
+            uint handleCounter = 1;
+            itemsToCreate.Add(new MonitoredItemCreateRequest() {
+                ItemToMonitor = new ReadValueId() {
+                    AttributeId = Attributes.Value,
+                    NodeId = new NodeId(2258)
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters() {
+                    ClientHandle = ++handleCounter,
+                    SamplingInterval = -1,
+                    Filter = null,
+                    DiscardOldest = true,
+                    QueueSize = queueSize
+                }
+            });
+            response = m_server.CreateMonitoredItems(requestHeader, id, TimestampsToReturn.Neither, itemsToCreate,
+                out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
+
+            // modify subscription
+            response = m_server.ModifySubscription(requestHeader, id,
+                publishingInterval, lifetimeCount, maxKeepAliveCount,
+                maxNotificationPerPublish, priority,
+                out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+            Assert.AreEqual(publishingInterval, revisedPublishingInterval);
+            Assert.AreEqual(lifetimeCount, revisedLifetimeCount);
+            Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            // modify monitored item, just timestamps to return
+            var itemsToModify = new MonitoredItemModifyRequestCollection();
+            foreach (var itemCreated in itemCreateResults)
+            {
+                itemsToModify.Add(
+                    new MonitoredItemModifyRequest() {
+                        MonitoredItemId = itemCreated.MonitoredItemId
+                    });
+            };
+            response = m_server.ModifyMonitoredItems(requestHeader, id, TimestampsToReturn.Both, itemsToModify,
+                out MonitoredItemModifyResultCollection modifyResults, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToModify);
+
+            // publish request
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            response = m_server.Publish(requestHeader, acknoledgements,
+                out uint subscriptionId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection statuses, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.AreEqual(id, subscriptionId);
+            Assert.AreEqual(0, availableSequenceNumbers.Count);
+
+            // enable publishing
+            enabled = true;
+            var subscriptions = new UInt32Collection() { id };
+            response = m_server.SetPublishingMode(requestHeader, enabled, subscriptions,
+                out statuses, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
+
+            // wait some time to fill queue
+            int loopCounter = (int)queueSize;
+            Thread.Sleep(loopCounter * 1000);
+
+            acknoledgements = new SubscriptionAcknowledgementCollection();
+            do
+            {
+                // get publish responses
+                response = m_server.Publish(requestHeader, acknoledgements,
+                    out subscriptionId, out availableSequenceNumbers,
+                    out moreNotifications, out notificationMessage,
+                    out statuses, out diagnosticInfos);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+                Assert.AreEqual(id, subscriptionId);
+
+                var dataChangeNotification = notificationMessage.NotificationData[0].Body as DataChangeNotification;
+                TestContext.Out.WriteLine("Notification: {0} {1} {2}",
+                    notificationMessage.SequenceNumber,
+                    dataChangeNotification?.MonitoredItems[0].Value.ToString(),
+                    notificationMessage.PublishTime);
+
+                acknoledgements.Clear();
+                acknoledgements.Add(new SubscriptionAcknowledgement() {
+                    SubscriptionId = id,
+                    SequenceNumber = notificationMessage.SequenceNumber
+                });
+
+            } while (acknoledgements.Count > 0 && --loopCounter > 0);
+
+            // republish
+            response = m_server.Republish(requestHeader, subscriptionId, notificationMessage.SequenceNumber, out notificationMessage);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            // disable publishing
+            enabled = false;
+            response = m_server.SetPublishingMode(requestHeader, enabled, subscriptions,
+                out statuses, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
+
+            // delete subscription
+            response = m_server.DeleteSubscriptions(requestHeader, subscriptions, out statuses, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
+        }
         #endregion
     }
 }

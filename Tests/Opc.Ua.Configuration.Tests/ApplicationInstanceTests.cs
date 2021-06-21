@@ -47,6 +47,7 @@ namespace Opc.Ua.Configuration.Tests
         public const string ApplicationUri = "urn:localhost:opcfoundation.org:ConfigurationTest";
         public const string ProductUri = "http://opcfoundation.org/UA/ConfigurationTest";
         public const string SubjectName = "CN=UA Configuration Test";
+        public const string EndpointUrl = "opc.tcp://localhost:51000";
         #endregion
 
         #region Test Methods
@@ -85,13 +86,91 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void TestBadNoApplicationNameConfigAsServer()
+        public async Task TestBadApplicationInstance()
         {
+            // no app name
             var applicationInstance = new ApplicationInstance();
             Assert.NotNull(applicationInstance);
             Assert.ThrowsAsync<ServiceResultException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                   .AsServer(new string[] { EndpointUrl })
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+            // discoveryserver can not be combined with client/server
+            applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.DiscoveryServer
+            };
+            Assert.ThrowsAsync<ArgumentException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsClient()
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+            Assert.ThrowsAsync<ArgumentException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsServer(new string[] { EndpointUrl })
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+            // server overrides client settings
+            applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.Client
+            };
+
+            var config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .AsServer(new string[] { EndpointUrl })
+                .AddSecurityConfiguration(SubjectName)
+                .Create();
+            Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
+
+            // client overrides server setting
+            applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName,
+                ApplicationType = ApplicationType.Server
+            };
+
+            await applicationInstance.Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName)
+                .Create();
+            Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
+
+            // invalid sec policy testing
+            applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName
+            };
+            // invalid use, use AddUnsecurePolicyNone instead
+            Assert.ThrowsAsync<ArgumentException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsServer(new string[] { EndpointUrl })
+                   .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+            // invalid mix sign / none
+            Assert.ThrowsAsync<ArgumentException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsServer(new string[] { EndpointUrl })
+                   .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+            // invalid policy
+            Assert.ThrowsAsync<ArgumentException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsServer(new string[] { EndpointUrl })
+                   .AddPolicy(MessageSecurityMode.Sign, "123")
+                   .AddSecurityConfiguration(SubjectName)
+                   .Create()
+            );
+            // invalid user token policy
+            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+               await applicationInstance.Build(ApplicationUri, ProductUri)
+                   .AsServer(new string[] { EndpointUrl })
+                   .AddUserTokenPolicy(null)
                    .AddSecurityConfiguration(SubjectName)
                    .Create()
             );
@@ -106,7 +185,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetOperationTimeout(10000)
-                .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                .AsServer(new string[] { EndpointUrl })
                 .AddSecurityConfiguration(SubjectName)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
@@ -123,7 +202,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetTransportQuotas(new TransportQuotas() { OperationTimeout = 10000 })
-                .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                .AsServer(new string[] { EndpointUrl })
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
                 .AddUnsecurePolicyNone()
@@ -143,6 +222,7 @@ namespace Opc.Ua.Configuration.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetSendCertificateChain(true)
                 .SetSuppressNonceValidationErrors(true)
+                .SetRejectUnknownRevocationStatus(true)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
@@ -158,14 +238,14 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxBufferSize(32768)
-                .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                .AsServer(new string[] { EndpointUrl })
                 .AddUnsecurePolicyNone()
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
                 .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                 .SetDiagnosticsEnabled(true)
                 .AsClient()
-                .AddSecurityConfiguration(SubjectName)
+                .AddSecurityConfiguration(SubjectName, CertificateStoreType.Directory, CertificateStoreType.X509Store)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
@@ -187,7 +267,7 @@ namespace Opc.Ua.Configuration.Tests
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { "opc.tcp://localhost:51000" })
+                .AsServer(new string[] { EndpointUrl })
                 .AddUnsecurePolicyNone()
                 .AddSignAndEncryptPolicies()
                 .AddUserTokenPolicy(UserTokenType.UserName)
@@ -212,7 +292,7 @@ namespace Opc.Ua.Configuration.Tests
             };
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { "opc.tcp://localhost:51000", "https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
+                .AsServer(new string[] { EndpointUrl, "https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
                 .AddSecurityConfiguration(SubjectName)
                 .SetAddAppCertToTrustedStore(true)
                 .Create().ConfigureAwait(false);
