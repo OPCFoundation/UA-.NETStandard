@@ -13,12 +13,12 @@ cd %build_root%
 
 rd /s /Q .\CodeCoverage
 rd /s /Q .\TestResults
-dotnet test "UA Core Library.sln"  -v n --configuration Release  --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ./TestResults 
+dotnet test "UA Core Library.sln" -v n --configuration Release  --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ./TestResults 
 
 REM ensure latest report tool is installed
 dotnet tool uninstall -g dotnet-reportgenerator-globaltool
 dotnet tool install -g dotnet-reportgenerator-globaltool
-reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./CodeCoverage -reporttypes:Badges;Html;HtmlSummary;Cobertura 
+reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./CodeCoverage  "-title:UA .Net Standard Test Coverage" -reporttypes:Badges;Html;HtmlSummary;Cobertura 
 
 REM Display result in browser
 .\CodeCoverage\index.html

@@ -47,7 +47,7 @@ stages:
     parameters:
       configuration: Release
       framework: netcoreapp3.1
-      agents: '@{ windows = "windows-2019"; mac = "macOS-10.15" }'
+      agents: '@{ windows = "windows-2019"; mac = "macOS-10.15"; linux = "ubuntu-18.04" }'
       jobnamesuffix: core3
   - template: .azurepipelines/testcc.yml
     parameters:
