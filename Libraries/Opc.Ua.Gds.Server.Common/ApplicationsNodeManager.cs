@@ -681,7 +681,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (builder.Length > 0)
                 {
-                    builder.Append(",");
+                    builder.Append(',');
                 }
 
                 if (field.StartsWith("CN=", StringComparison.Ordinal))

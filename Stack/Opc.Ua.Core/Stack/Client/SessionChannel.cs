@@ -34,7 +34,7 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             return Create(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
         }
@@ -55,7 +55,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
             ITransportChannel channel = CreateUaBinaryChannel(
@@ -87,7 +87,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
             ITransportChannel channel = CreateUaBinaryChannel(

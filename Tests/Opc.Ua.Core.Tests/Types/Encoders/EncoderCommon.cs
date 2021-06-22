@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const string ApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
-        protected ServiceMessageContext Context { get; private set; }
+        protected IServiceMessageContext Context { get; private set; }
         protected NamespaceTable NameSpaceUris { get; private set; }
         protected StringTable ServerUris { get; private set; }
 
@@ -318,7 +318,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <returns></returns>
         protected IEncoder CreateEncoder(
             EncodingType encoderType,
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             Stream stream,
             Type systemType,
             bool useReversibleEncoding = true,
@@ -351,7 +351,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected IDecoder CreateDecoder(
             EncodingType decoderType,
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             Stream stream,
             Type systemType
             )
