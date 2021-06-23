@@ -94,10 +94,6 @@ namespace Opc.Ua.Server
             m_serverUris = new StringTable();
             m_typeTree = new TypeTable(m_namespaceUris);
 
-#if LEGACY_CORENODEMANAGER
-            m_typeSources = new TypeSourceTable();
-#endif
-
             // add the server uri to the server table.
             m_serverUris.Append(m_configuration.ApplicationUri);
 
@@ -268,23 +264,6 @@ namespace Opc.Ua.Server
             get { return m_typeTree; }
         }
 
-#if LEGACY_CORENODEMANAGER
-
-        /// <summary>
-        /// Returns the source for a types that has shared components defined.
-        /// </summary>
-        /// <value>The type sources.</value>
-        /// <remarks>
-        /// Some types define shared components which are used by all instances of the type. This
-        /// table contains sources for those shared components. The namespace qualified browse name
-        /// is assumed to be a unique identifier for a type.
-        /// </remarks>
-        public TypeSourceTable TypeSources
-        {
-            get { return m_typeSources; } 
-        }
-#endif
-
         /// <summary>
         /// The master node manager for the server.
         /// </summary>
@@ -444,19 +423,6 @@ namespace Opc.Ua.Server
         {
             get { return m_serverDiagnostics; }
         }
-
-#if LEGACY_CORENODEMANAGER
-
-        /// <summary>
-        /// Returns the diagnostics object for the server.
-        /// </summary>
-        /// <value>The diagnostics.</value>
-        public ServerDiagnostics Diagnostics
-        {
-            get { return null; }
-        }
-#endif
-
 
         /// <summary>
         /// Whether the server is currently running.
@@ -773,11 +739,6 @@ namespace Opc.Ua.Server
         private StringTable m_serverUris;
         private IEncodeableFactory m_factory;
         private TypeTable m_typeTree;
-
-#if LEGACY_CORENODEMANAGER
-        private TypeSourceTable m_typeSources;
-#endif
-
         private ResourceManager m_resourceManager;
         private RequestManager m_requestManager;
         private AggregateManager m_aggregateManager;

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Environments;
 using BenchmarkDotNet.Jobs;
@@ -40,18 +41,20 @@ namespace Opc.Ua.Security.Certificates.Tests
         // Main Method 
         static public void Main(String[] args)
         {
-            _ = BenchmarkRunner.Run<Benchmarks>(
-                    ManualConfig
+            var config = ManualConfig
                     .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline())
-                    .AddJob(Job.Default.WithRuntime(ClrRuntime.Net472))
                     .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
                     .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core50))
 #if DEBUG
                     .WithOptions(ConfigOptions.DisableOptimizationsValidator)
 #endif
-                   );
+                    ;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
+            }
+
+            _ = BenchmarkRunner.Run<Benchmarks>(config);
         }
     }
 }

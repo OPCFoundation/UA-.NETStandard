@@ -352,7 +352,7 @@ namespace Opc.Ua.Gds.Tests
             GlobalDiscoveryTestServer server = null;
             int testPort;
             bool retryStartServer = false;
-            int serverStartRetries = 10;
+            int serverStartRetries = 100;
             do
             {
                 try

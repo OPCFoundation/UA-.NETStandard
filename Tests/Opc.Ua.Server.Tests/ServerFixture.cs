@@ -37,10 +37,10 @@ namespace Opc.Ua.Server.Tests
     public class ServerFixture<T> where T : ServerBase, new()
     {
         private NUnitTraceLogger m_traceLogger;
-        public T Server { get; set; }
+        public T Server { get; private set; }
         public bool LogConsole { get; set; }
         public bool AutoAccept { get; set; }
-        public int Port { get; set; }
+        public int Port { get; private set; }
 
         private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
@@ -97,30 +97,39 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// 
+        /// Create the configuration and start the server.
         /// </summary>
         private async Task InternalStartServerAsync(TextWriter writer, bool clean, int port)
         {
+            // TODO: support password
+            // TODO: support clean start
             //CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
             ApplicationInstance application = new ApplicationInstance
             {
-                ApplicationName = nameof(T),
+                ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
             };
 
             // create the application configuration. Use temp path for cert stores.
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-            var endpointUrl = $"opc.tcp://localhost:{port}/" + nameof(T);
+            var endpointUrl = $"opc.tcp://localhost:{port}/" + typeof(T).Name;
             ApplicationConfiguration config = await application.Build(
-                "urn:localhost:UA:" + nameof(T),
-                "uri:opcfoundation.org:" + nameof(T))
+                "urn:localhost:UA:" + typeof(T).Name,
+                "uri:opcfoundation.org:" + typeof(T).Name)
                 .AsServer(
                     new string[] {
                     endpointUrl
                 })
+                .AddUnsecurePolicyNone()
+                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
+                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
+                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
+                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
                 .AddSecurityConfiguration(
-                    "CN=" + nameof(T) + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
-                    pkiRoot).Create().ConfigureAwait(false);
+                    "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
+                    pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(AutoAccept)
+                .Create().ConfigureAwait(false);
 
             if (writer != null)
             {
@@ -135,6 +144,9 @@ namespace Opc.Ua.Server.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
+            // cert validator
+            // config.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
+
             // start the server.
             T server = new T();
             await application.Start(server).ConfigureAwait(false);
@@ -142,19 +154,22 @@ namespace Opc.Ua.Server.Tests
             Port = port;
         }
 
+        /// <summary>
+        /// Connect the nunit writer with the logger.
+        /// </summary>
         public void SetTraceOutput(TextWriter writer)
         {
             m_traceLogger.SetWriter(writer);
         }
 
         /// <summary>
-        /// 
+        /// Stop the server
         /// </summary>
-        public async Task StopAsync()
+        public Task StopAsync()
         {
             Server.Stop();
             Server = null;
-            await Task.Delay(100).ConfigureAwait(false);
+            return Task.Delay(100);
         }
     }
 }

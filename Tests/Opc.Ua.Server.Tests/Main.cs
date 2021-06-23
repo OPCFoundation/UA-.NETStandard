@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Environments;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 
 namespace Opc.Ua.Server.Tests
@@ -38,11 +41,20 @@ namespace Opc.Ua.Server.Tests
         // Main Method 
         static public void Main(String[] args)
         {
-            var summary = BenchmarkRunner.Run<ReferenceServerTests>(
-                ManualConfig
+            var config = ManualConfig
                     .Create(DefaultConfig.Instance)
+                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
+                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
+#if DEBUG
                     .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-                    );
+#endif
+                    ;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
+            }
+
+            _ = BenchmarkRunner.Run<ReferenceServerTests>(config);
         }
     }
 }
