@@ -38,7 +38,6 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientFixture
     {
-
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
         public string EndpointUrl { get; set; }
@@ -147,14 +146,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             Session = await Session.Create(
-                Config,
-                endpoint,
-                false,
-                false,
-                Config.ApplicationName,
-                10000,
-                null,
-                null).ConfigureAwait(false);
+                Config, endpoint, false, false,
+                Config.ApplicationName, 10000, null, null).ConfigureAwait(false);
 
             Endpoint = Session.ConfiguredEndpoint;
 

@@ -238,6 +238,10 @@ _Pvt_Extensions
 # FAKE - F# Make
 .fake/
 
+
+# BenchmarkDotNet Artifacts
+BenchmarkDotNet.Artifacts
+
 # OPC UA Sample app certificate stores
 OPC\ Foundation/
 *.der

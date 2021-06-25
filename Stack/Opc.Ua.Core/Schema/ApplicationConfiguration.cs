@@ -1840,6 +1840,16 @@ namespace Opc.Ua
             get { return m_reverseConnect; }
             set { m_reverseConnect = value; }
         }
+
+        /// <summary>
+        /// Gets or sets the operation limits of the OPC UA Server.
+        /// </summary>
+        [DataMember(IsRequired = false, Order = 35)]
+        public OperationLimits OperationLimits
+        {
+            get { return m_operationLimits; }
+            set { m_operationLimits = value; }
+        }
         #endregion
 
         #region Private Members
@@ -1875,6 +1885,7 @@ namespace Opc.Ua
         private int m_maxTrustListSize;
         private bool m_multicastDnsEnabled;
         private ReverseConnectServerConfiguration m_reverseConnect;
+        private OperationLimits m_operationLimits;
         #endregion
     }
     #endregion
@@ -1934,6 +1945,125 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 40)]
         public int RejectTimeout { get; set; } = 60000;
+        #endregion
+    }
+    #endregion
+
+    #region OperationLimits Class
+    /// <summary>
+    /// Stores the operation limits of a OPC UA Server.
+    /// </summary>
+    [DataContract(Namespace = Namespaces.OpcUaConfig)]
+    public class OperationLimits
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public OperationLimits()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context) => Initialize();
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            MaxNodesPerRead = 0;
+            MaxNodesPerHistoryReadData = 0;
+            MaxNodesPerHistoryReadEvents = 0;
+            MaxNodesPerWrite = 0;
+            MaxNodesPerHistoryUpdateData = 0;
+            MaxNodesPerHistoryUpdateEvents = 0;
+            MaxNodesPerMethodCall = 0;
+            MaxNodesPerBrowse = 0;
+            MaxNodesPerRegisterNodes = 0;
+            MaxNodesPerTranslateBrowsePathsToNodeIds = 0;
+            MaxNodesPerNodeManagement = 0;
+            MaxMonitoredItemsPerCall = 0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Indicates the maximum size of the nodesToRead array when a Client calls the Read Service.
+        /// </summary>
+        [DataMember(Order = 10)]
+        public uint MaxNodesPerRead { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
+        /// Service using the historyReadDetails RAW, PROCESSED, MODIFIED or ATTIME.
+        /// </summary>
+        [DataMember(Order = 20)]
+        public uint MaxNodesPerHistoryReadData { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
+        /// Service using the historyReadDetails EVENTS.
+        /// </summary>
+        [DataMember(Order = 30)]
+        public uint MaxNodesPerHistoryReadEvents { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the nodesToWrite array when a Client calls the Write Service.
+        /// </summary>
+        [DataMember(Order = 40)]
+        public uint MaxNodesPerWrite { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the historyUpdateDetails array supported by the Server
+        /// when a Client calls the HistoryUpdate Service.
+        /// </summary>
+        [DataMember(Order = 50)]
+        public uint MaxNodesPerHistoryUpdateData { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the historyUpdateDetails array
+        /// when a Client calls the HistoryUpdate Service.
+        /// </summary>
+        [DataMember(Order = 60)]
+        public uint MaxNodesPerHistoryUpdateEvents { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the methodsToCall array when a Client calls the Call Service.
+        /// </summary>
+        [DataMember(Order = 70)]
+        public uint MaxNodesPerMethodCall { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the nodesToBrowse array when calling the Browse Service
+        /// or the continuationPoints array when a Client calls the BrowseNext Service.
+        /// </summary>
+        [DataMember(Order = 80)]
+        public uint MaxNodesPerBrowse { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the nodesToRegister array when a Client calls the RegisterNodes Service
+        /// and the maximum size of the nodesToUnregister when calling the UnregisterNodes Service.
+        /// </summary>
+        [DataMember(Order = 90)]
+        public uint MaxNodesPerRegisterNodes { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the browsePaths array when a Client calls the TranslateBrowsePathsToNodeIds Service.
+        /// </summary>
+        [DataMember(Order = 100)]
+        public uint MaxNodesPerTranslateBrowsePathsToNodeIds { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the nodesToAdd array when a Client calls the AddNodes Service,
+        /// the maximum size of the referencesToAdd array when a Client calls the AddReferences Service,
+        /// the maximum size of the nodesToDelete array when a Client calls the DeleteNodes Service,
+        /// and the maximum size of the referencesToDelete array when a Client calls the DeleteReferences Service.
+        /// </summary>
+        [DataMember(Order = 110)]
+        public uint MaxNodesPerNodeManagement { get; set; }
+        /// <summary>
+        /// Indicates the maximum size of the itemsToCreate array when a Client calls the CreateMonitoredItems Service,
+        /// the maximum size of the itemsToModify array when a Client calls the ModifyMonitoredItems Service,
+        /// the maximum size of the monitoredItemIds array when a Client calls the SetMonitoringMode Service or the DeleteMonitoredItems Service,
+        /// the maximum size of the sum of the linksToAdd and linksToRemove arrays when a Client calls the SetTriggering Service.
+        /// </summary>
+        [DataMember(Order = 120)]
+        public uint MaxMonitoredItemsPerCall { get; set; }
         #endregion
     }
     #endregion

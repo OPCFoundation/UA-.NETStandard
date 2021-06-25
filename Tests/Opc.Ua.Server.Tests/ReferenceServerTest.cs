@@ -28,12 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Jobs;
 using NUnit.Framework;
 using Quickstarts.ReferenceServer;
 
@@ -49,9 +47,13 @@ namespace Opc.Ua.Server.Tests
     [DisassemblyDiagnoser]
     public class ReferenceServerTests
     {
+        const double MaxAge = 10000;
+        const uint TimeoutHint = 10000;
         ServerFixture<ReferenceServer> m_fixture;
         ReferenceServer m_server;
         RequestHeader m_requestHeader;
+        OperationLimits m_operationLimits;
+        ReferenceDescriptionCollection m_referenceDescriptions;
 
         #region Test Setup
         /// <summary>
@@ -62,6 +64,7 @@ namespace Opc.Ua.Server.Tests
         {
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>();
+            m_fixture.OperationLimits = true;
             m_server = await m_fixture.StartAsync(TestContext.Out, true).ConfigureAwait(false);
         }
 
@@ -80,6 +83,8 @@ namespace Opc.Ua.Server.Tests
         {
             m_fixture.SetTraceOutput(TestContext.Out);
             m_requestHeader = m_server.CreateAndActivateSession(TestContext.CurrentContext.Test.Name);
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            m_requestHeader.TimeoutHint = TimeoutHint;
         }
 
         [TearDown]
@@ -124,6 +129,7 @@ namespace Opc.Ua.Server.Tests
         public void ServiceResultException()
         {
             // test invalid timestamp
+            m_requestHeader.Timestamp = DateTime.UtcNow - TimeSpan.FromDays(30);
             var sre = Assert.Throws<ServiceResultException>(() => m_server.CloseSession(m_requestHeader, false));
             Assert.AreEqual(StatusCodes.BadInvalidTimestamp, sre.StatusCode);
         }
@@ -139,7 +145,53 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Browse address space.
+        /// Get Endpoints.
+        /// </summary>
+        [Test, Order(100)]
+        public void GetOperationLimits()
+        {
+            var readIdCollection = new ReadValueIdCollection() {
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds },
+                new ReadValueId(){ AttributeId = Attributes.Value, NodeId = VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall }
+            };
+
+            var requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+            var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Neither, readIdCollection, out var results, out var diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, results);
+
+            Assert.NotNull(results);
+            Assert.AreEqual(readIdCollection.Count, results.Count);
+
+            m_operationLimits = new OperationLimits() {
+                MaxNodesPerRead = (uint)results[0].Value,
+                MaxNodesPerHistoryReadData = (uint)results[1].Value,
+                MaxNodesPerHistoryReadEvents = (uint)results[2].Value,
+                MaxNodesPerWrite = (uint)results[3].Value,
+                MaxNodesPerHistoryUpdateData = (uint)results[4].Value,
+                MaxNodesPerHistoryUpdateEvents = (uint)results[5].Value,
+                MaxNodesPerBrowse = (uint)results[6].Value,
+                MaxMonitoredItemsPerCall = (uint)results[7].Value,
+                MaxNodesPerNodeManagement = (uint)results[8].Value,
+                MaxNodesPerRegisterNodes = (uint)results[9].Value,
+                MaxNodesPerTranslateBrowsePathsToNodeIds = (uint)results[10].Value,
+                MaxNodesPerMethodCall = (uint)results[11].Value
+            };
+        }
+
+        /// <summary>
+        /// Read node.
         /// </summary>
         [Test]
         [Benchmark]
@@ -154,15 +206,14 @@ namespace Opc.Ua.Server.Tests
             {
                 nodesToRead.Add(new ReadValueId() { NodeId = nodeId, AttributeId = attributeId });
             }
-            double maxAge = 1000;
-            var response = m_server.Read(requestHeader, maxAge, TimestampsToReturn.Neither, nodesToRead,
+            var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Neither, nodesToRead,
                 out var dataValues, out var diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
         }
 
         /// <summary>
-        /// Browse address space.
+        /// Write Node.
         /// </summary>
         [Test]
         [Benchmark]
@@ -183,85 +234,35 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Browse full address space.
         /// </summary>
-        [Test]
+        [Test, Order(400)]
         [Benchmark]
         public void BrowseFullAddressSpace()
         {
-            // Session
-            var requestHeader = m_requestHeader;
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = 10000;
-
-            // Browse template
-            var startingNode = Objects.RootFolder;
-            var browseTemplate = new BrowseDescription {
-                NodeId = startingNode,
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.Organizes,
-                IncludeSubtypes = true,
-                NodeClassMask = 0,
-                ResultMask = (uint)BrowseResultMask.All
-            };
-            var browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                new NodeIdCollection(new NodeId[] { Objects.RootFolder }),
-                browseTemplate);
-
-            // Browse
-            ResponseHeader response;
-            uint requestedMaxReferencesPerNode = 5;
-            var referenceDescriptions = new ReferenceDescriptionCollection();
-            while (browseDescriptionCollection.Any())
+            var serverTestServices = new ServerTestServices(m_server);
+            if (m_operationLimits == null)
             {
-                BrowseResultCollection allResults = new BrowseResultCollection();
-
-                requestHeader.Timestamp = DateTime.UtcNow;
-                response = m_server.Browse(requestHeader, null,
-                    requestedMaxReferencesPerNode, browseDescriptionCollection,
-                    out var browseResultCollection, out var diagnosticsInfoCollection);
-                ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseDescriptionCollection);
-
-                browseDescriptionCollection.Clear();
-                allResults.AddRange(browseResultCollection);
-
-                // Browse next
-                var continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseResultCollection);
-                while (continuationPoints.Any())
-                {
-                    response = m_server.BrowseNext(requestHeader, false, continuationPoints,
-                        out var browseNextResultCollection, out diagnosticsInfoCollection);
-                    ServerFixtureUtils.ValidateResponse(response);
-                    ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints);
-                    allResults.AddRange(browseNextResultCollection);
-                    continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseNextResultCollection);
-                }
-
-                // build browse request for next level
-                var browseTable = new NodeIdCollection();
-                foreach (var result in allResults)
-                {
-                    referenceDescriptions.AddRange(result.References);
-                    foreach (var reference in result.References)
-                    {
-                        browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, null));
-                    }
-                }
-                browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
+                GetOperationLimits();
             }
+            m_referenceDescriptions = ReferenceServerTests.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
+        }
 
-            TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
-            foreach (var reference in referenceDescriptions)
+        /// <summary>
+        /// Translate references.
+        /// </summary>
+        [Test, Order(500)]
+        [Benchmark]
+        public void TranslateBrowsePath()
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            if (m_operationLimits == null)
             {
-                TestContext.Out.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
+                GetOperationLimits();
             }
-
-            // TranslateBrowsePath
-            var browsePaths = new BrowsePathCollection(
-                referenceDescriptions.Select(r => new BrowsePath() { RelativePath = new RelativePath(r.BrowseName), StartingNode = startingNode })
-                );
-            response = m_server.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out var browsePathResults, out var diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, browsePaths);
+            if (m_referenceDescriptions == null)
+            {
+                m_referenceDescriptions = ReferenceServerTests.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
+            }
+            _ = ReferenceServerTests.TranslateBrowsePathWorker(serverTestServices, m_referenceDescriptions, m_requestHeader, m_operationLimits);
         }
 
         /// <summary>
@@ -275,7 +276,7 @@ namespace Opc.Ua.Server.Tests
             // Session
             var requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = 10000;
+            requestHeader.TimeoutHint = TimeoutHint;
 
             // create subscription
             double publishingInterval = 1000.0;

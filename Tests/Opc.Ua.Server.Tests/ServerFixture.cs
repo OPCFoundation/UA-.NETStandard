@@ -40,6 +40,8 @@ namespace Opc.Ua.Server.Tests
         public T Server { get; private set; }
         public bool LogConsole { get; set; }
         public bool AutoAccept { get; set; }
+        public bool OperationLimits { get; set; }
+        public int TraceMasks { get; set; } = Utils.TraceMasks.All;
         public int Port { get; private set; }
 
         private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
@@ -72,7 +74,7 @@ namespace Opc.Ua.Server.Tests
             Random m_random = new Random();
             int testPort;
             bool retryStartServer = false;
-            int serverStartRetries = 10;
+            int serverStartRetries = 25;
             do
             {
                 try
@@ -104,8 +106,7 @@ namespace Opc.Ua.Server.Tests
             // TODO: support password
             // TODO: support clean start
             //CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
-            ApplicationInstance application = new ApplicationInstance
-            {
+            ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
             };
@@ -125,6 +126,17 @@ namespace Opc.Ua.Server.Tests
                 .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
+                .AddSignPolicies()
+                .AddSignAndEncryptPolicies()
+                //.SetDiagnosticsEnabled(true)
+                .SetOperationLimits(OperationLimits ? new OperationLimits() {
+                    MaxNodesPerBrowse = 2500,
+                    MaxNodesPerRead = 250,
+                    MaxNodesPerWrite = 250,
+                    MaxNodesPerMethodCall = 500,
+                    MaxMonitoredItemsPerCall = 1000,
+                    MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
+                } : new OperationLimits())
                 .AddSecurityConfiguration(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     pkiRoot)
@@ -133,7 +145,7 @@ namespace Opc.Ua.Server.Tests
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTraceLogger.Create(writer, config, Utils.TraceMasks.All);
+                m_traceLogger = NUnitTraceLogger.Create(writer, config, TraceMasks);
             }
 
             // check the application certificate.
@@ -168,6 +180,7 @@ namespace Opc.Ua.Server.Tests
         public Task StopAsync()
         {
             Server.Stop();
+            Server.Dispose();
             Server = null;
             return Task.Delay(100);
         }
