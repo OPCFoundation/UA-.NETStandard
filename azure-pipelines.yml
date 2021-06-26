@@ -57,8 +57,9 @@ stages:
       framework: netcoreapp3.1
       configuration: Debug
 - stage: coverage
-  dependsOn: []
+  dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
+  jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
