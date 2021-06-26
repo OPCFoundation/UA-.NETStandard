@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests
             {
                 GetOperationLimits();
             }
-            m_referenceDescriptions = ReferenceServerTests.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
+            m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
         }
 
         /// <summary>
@@ -260,9 +260,9 @@ namespace Opc.Ua.Server.Tests
             }
             if (m_referenceDescriptions == null)
             {
-                m_referenceDescriptions = ReferenceServerTests.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
+                m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
             }
-            _ = ReferenceServerTests.TranslateBrowsePathWorker(serverTestServices, m_referenceDescriptions, m_requestHeader, m_operationLimits);
+            _ = CommonTestWorkers.TranslateBrowsePathWorker(serverTestServices, m_referenceDescriptions, m_requestHeader, m_operationLimits);
         }
 
         /// <summary>

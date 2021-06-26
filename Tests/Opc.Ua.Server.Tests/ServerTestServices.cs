@@ -93,12 +93,15 @@ namespace Opc.Ua.Server.Tests
                 out results, out diagnosticInfos);
         }
 
-        public ResponseHeader TranslateBrowsePathsToNodeIds(RequestHeader requestHeader, BrowsePathCollection browsePaths, out BrowsePathResultCollection results, out DiagnosticInfoCollection diagnosticInfos)
+        public ResponseHeader TranslateBrowsePathsToNodeIds(
+            RequestHeader requestHeader,
+            BrowsePathCollection browsePaths,
+            out BrowsePathResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_server.TranslateBrowsePathsToNodeIds(
                 requestHeader, browsePaths,
                 out results, out diagnosticInfos);
         }
     }
-
 }
