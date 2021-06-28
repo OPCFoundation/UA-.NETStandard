@@ -165,6 +165,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// exponential entity expansion in this version of .NET.
         /// </summary>
         [Test]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA3075:Insecure DTD processing in XML",
+            Justification =
+                "Validate that XmlDocument DtdProcessing is protected against" +
+                "exponential entity expansion in this version of .NET.")]
         public void ExponentialEntityExpansionProcessing()
         {
             StringBuilder xmlEEXX = new StringBuilder();

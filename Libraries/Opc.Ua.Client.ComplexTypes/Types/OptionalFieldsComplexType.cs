@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
+                    body.Append('}');
                     return body.ToString();
                 }
 

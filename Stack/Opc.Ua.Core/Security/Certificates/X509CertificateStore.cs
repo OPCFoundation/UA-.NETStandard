@@ -86,13 +86,13 @@ namespace Opc.Ua
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
-                if (availableLocation.ToString() == storeLocation)
+                if (availableLocation.ToString().Equals(storeLocation, StringComparison.OrdinalIgnoreCase))
                 {
                     m_storeLocation = availableLocation;
                     found = true;
                 }
             }
-            if (found == false)
+            if (!found)
             {
                 var message = new StringBuilder();
                 message.AppendLine("Store location specified not available.");

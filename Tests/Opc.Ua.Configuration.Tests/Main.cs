@@ -28,22 +28,13 @@
  * ======================================================================*/
 
 using System;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Running;
 
-namespace Opc.Ua.Security.Certificates.Tests
+#if NETFRAMEWORK
+static class Program
 {
-    static class Program
+    // Main Method 
+    static public void Main(String[] args)
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-            _ = BenchmarkRunner.Run<Benchmarks>(
-                ManualConfig
-                    .Create(DefaultConfig.Instance)
-                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-                    );
-        }
     }
 }
-
+#endif

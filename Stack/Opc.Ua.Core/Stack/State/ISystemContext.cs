@@ -73,7 +73,7 @@ namespace Opc.Ua
         /// A factory that can be used to create encodeable types.
         /// </summary>
         /// <value>The encodeable factory.</value>
-        EncodeableFactory EncodeableFactory { get; }
+        IEncodeableFactory EncodeableFactory { get; }
 
         /// <summary>
         /// A factory that can be used to create node ids.
@@ -260,7 +260,7 @@ namespace Opc.Ua
         /// A factory that can be used to create encodeable types.
         /// </summary>
         /// <value>The encodeable factory.</value>
-        public EncodeableFactory EncodeableFactory
+        public IEncodeableFactory EncodeableFactory
         {
             get { return m_encodeableFactory; }
             set { m_encodeableFactory = value; }
@@ -397,7 +397,7 @@ namespace Opc.Ua
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private ITypeTable m_typeTable;
-        private EncodeableFactory m_encodeableFactory;
+        private IEncodeableFactory m_encodeableFactory;
         private INodeIdFactory m_nodeIdFactory;
         private IOperationContext m_operationContext;
         private NodeStateFactory m_nodeStateFactory;

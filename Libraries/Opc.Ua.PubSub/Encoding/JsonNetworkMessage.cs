@@ -189,7 +189,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="messageContext">The context.</param>
         /// <param name="writer">The stream to use.</param>
-        public override void Encode(ServiceMessageContext messageContext, StreamWriter writer)
+        public override void Encode(IServiceMessageContext messageContext, StreamWriter writer)
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 

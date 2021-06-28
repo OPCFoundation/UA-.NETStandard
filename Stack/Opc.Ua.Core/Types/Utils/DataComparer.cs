@@ -26,7 +26,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Constructs an instance of the data comparer.
         /// </summary>
-        public DataComparer(ServiceMessageContext context)
+        public DataComparer(IServiceMessageContext context)
         {
             m_context = context;
             m_throwOnError = true;
@@ -909,7 +909,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// The factory to use when decoding extension objects.
         /// </summary>        
-        public static EncodeableFactory EncodeableFactory
+        public static IEncodeableFactory EncodeableFactory
         {
             get
             {
@@ -924,7 +924,7 @@ namespace Opc.Ua.Test
         }
 
         // It stores encodable types of the executing assembly.       
-        private static EncodeableFactory s_Factory = new EncodeableFactory();
+        private static IEncodeableFactory s_Factory = new EncodeableFactory();
 
         /// <summary>
         /// Extracts the extension object body.
@@ -949,14 +949,15 @@ namespace Opc.Ua.Test
                 return body;
             }
 
-            ServiceMessageContext context = new ServiceMessageContext();
-            context.Factory = EncodeableFactory;
+            IServiceMessageContext context = new ServiceMessageContext() {
+                Factory = EncodeableFactory
+            };
 
             XmlElement xml = body as XmlElement;
 
             if (xml != null)
             {
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(expectedType);
+                XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
                 XmlDecoder decoder = new XmlDecoder(xml, context);
 
                 decoder.PushNamespace(xmlName.Namespace);
@@ -1168,7 +1169,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Private Fields
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private bool m_throwOnError;
         #endregion
     }

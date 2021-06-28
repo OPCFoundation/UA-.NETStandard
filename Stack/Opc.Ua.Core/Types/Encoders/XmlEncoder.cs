@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public XmlEncoder(ServiceMessageContext context)
+        public XmlEncoder(IServiceMessageContext context)
         {
             Initialize();
 
@@ -48,7 +48,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
-        public XmlEncoder(System.Type systemType, XmlWriter writer, ServiceMessageContext context)
+        public XmlEncoder(System.Type systemType, XmlWriter writer, IServiceMessageContext context)
         :
             this(EncodeableFactory.GetXmlName(systemType), writer, context)
         {
@@ -57,7 +57,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
-        public XmlEncoder(XmlQualifiedName root, XmlWriter writer, ServiceMessageContext context)
+        public XmlEncoder(XmlQualifiedName root, XmlWriter writer, IServiceMessageContext context)
         {
             Initialize();
 
@@ -261,7 +261,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Xml Encoder always produces reversible encoding.
@@ -2203,7 +2203,7 @@ namespace Opc.Ua
         private XmlWriter m_writer;
         private Stack<string> m_namespaces;
         private XmlQualifiedName m_root;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

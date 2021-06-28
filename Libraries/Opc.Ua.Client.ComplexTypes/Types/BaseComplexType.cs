@@ -278,7 +278,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (body.Length == 0)
             {
-                body.Append("{");
+                body.Append('{');
             }
             else
             {
@@ -302,17 +302,17 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 bool first = true;
                 var enumerable = value as IEnumerable;
-                body.Append("[");
+                body.Append('[');
                 foreach (var item in enumerable)
                 {
                     if (!first)
                     {
-                        body.Append(",");
+                        body.Append(',');
                     }
                     AppendPropertyValue(formatProvider, body, item);
                     first = false;
                 }
-                body.Append("]");
+                body.Append(']');
             }
             else
             {
@@ -971,7 +971,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Protected Fields
 
         #region Private Fields
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
         #endregion Private Fields
