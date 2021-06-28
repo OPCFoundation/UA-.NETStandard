@@ -1,7 +1,7 @@
 <Project>
   <ItemGroup Condition="$(NBGV_PublicRelease) != 'True' AND '$(CODEQL_RUNNER)' == ''">
     <!-- Note: Keep Version 3.2.31, it is known working for 4 digit versioning -->
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.2.31">
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.4.220">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
