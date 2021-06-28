@@ -32,7 +32,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		common.props = common.props
 		Directory.Build.props = Directory.Build.props
 		lgtm.yml = lgtm.yml
-		Stack\Opc.Ua.Types\Opc.Ua.Tests.csproj = Stack\Opc.Ua.Types\Opc.Ua.Tests.csproj
 		targets.props = targets.props
 		version.json = version.json
 		version.props = version.props
@@ -68,7 +67,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificate
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LIbraries", "LIbraries", "{60D404C2-D918-4D17-88EA-01CFF4DF0A79}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{60D404C2-D918-4D17-88EA-01CFF4DF0A79}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{78FCA48F-DBCE-4CCA-B3C5-16485A7ABCF4}"
 EndProject
@@ -164,6 +163,7 @@ Global
 		{484FB34A-4DCF-4F63-976B-C00F0230BE28} = {60D404C2-D918-4D17-88EA-01CFF4DF0A79}
 		{A727180B-4AA8-4182-B35F-5B6D6CB79593} = {78FCA48F-DBCE-4CCA-B3C5-16485A7ABCF4}
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D} = {78FCA48F-DBCE-4CCA-B3C5-16485A7ABCF4}
+		{707A1C12-9C29-40A1-8091-2891E0FE0907} = {78FCA48F-DBCE-4CCA-B3C5-16485A7ABCF4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EA3AA3AE-CE8A-4DF1-BED8-CA0BAFC87303}
