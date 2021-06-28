@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
-        ServiceMessageContext MessageContext { get; }
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Gets the the channel's current security token.

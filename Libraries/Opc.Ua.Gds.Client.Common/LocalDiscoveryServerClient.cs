@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Client
         #region Public Properties
         public ApplicationConfiguration ApplicationConfiguration { get; private set; }
 
-        public ServiceMessageContext MessageContext { get; private set; }
+        public IServiceMessageContext MessageContext { get; private set; }
 
         public string[] PreferredLocales { get; set; }
 
@@ -412,7 +412,7 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("Not a valid URL.", nameof(endpointUrl));
             }
 
-            ServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
+            IServiceMessageContext context = ApplicationConfiguration.CreateMessageContext();
 
             EndpointConfiguration configuration = EndpointConfiguration.Create(ApplicationConfiguration);
 
