@@ -40,8 +40,9 @@ namespace Opc.Ua.Client.Tests
     {
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
-        public string EndpointUrl { get; set; }
-        public Session Session { get; private set; }
+        public string EndpointUrl { get; private set; }
+        public string ReverseConnectUri { get; private set; }
+        public ReverseConnectManager ReverseConnectManager { get; private set; }
 
         #region Public Methods
         /// <summary>
@@ -77,6 +78,41 @@ namespace Opc.Ua.Client.Tests
             {
                 throw new Exception("Application instance certificate invalid!");
             }
+
+            ReverseConnectManager = new ReverseConnectManager();
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public async Task StartReverseConnectHost()
+        {
+            Random m_random = new Random();
+            int testPort;
+            bool retryStartServer = false;
+            int serverStartRetries = 25;
+            do
+            {
+                try
+                {
+                    testPort = m_random.Next(50000, 60000);
+                    var reverseConnectUri = new Uri("opc.tcp://localhost:"+testPort);
+                    ReverseConnectManager.AddEndpoint(reverseConnectUri);
+                    ReverseConnectManager.StartService(Config);
+                    ReverseConnectUri = reverseConnectUri.ToString();
+                }
+                catch (ServiceResultException sre)
+                {
+                    serverStartRetries--;
+                    if (serverStartRetries == 0 ||
+                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    {
+                        throw;
+                    }
+                    retryStartServer = true;
+                }
+                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
+            } while (retryStartServer);
         }
 
         /// <summary>
@@ -139,36 +175,18 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            if (Session != null)
-            {
-                Session.Dispose();
-                Session = null;
-            }
-
-            Session = await Session.Create(
+            var session = await Session.Create(
                 Config, endpoint, false, false,
                 Config.ApplicationName, 10000, null, null).ConfigureAwait(false);
 
-            Endpoint = Session.ConfiguredEndpoint;
+            Endpoint = session.ConfiguredEndpoint;
 
-            Session.KeepAlive += Session_KeepAlive;
+            session.KeepAlive += Session_KeepAlive;
 
-            Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
-            EndpointUrl = Session.ConfiguredEndpoint.EndpointUrl.ToString();
+            session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
+            EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
 
-            return Session;
-        }
-
-        /// <summary>
-        /// Disconnect the client connection.
-        /// </summary>
-        public void Disconnect()
-        {
-            if (Session != null)
-            {
-                Session.Close();
-                Session = null;
-            }
+            return session;
         }
         #endregion
 
@@ -177,8 +195,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ServiceResult.IsBad(e.Status))
             {
-                Session?.Dispose();
-                Session = null;
+                session?.Dispose();
             }
         }
         #endregion

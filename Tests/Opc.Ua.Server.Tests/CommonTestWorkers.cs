@@ -47,8 +47,9 @@ namespace Opc.Ua.Server.Tests
         public static ReferenceDescriptionCollection BrowseFullAddressSpaceWorker(
             IServerTestServices browser,
             RequestHeader requestHeader,
-            OperationLimits operationLimits)
+            OperationLimits operationLimits = null)
         {
+            operationLimits = operationLimits ?? new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template

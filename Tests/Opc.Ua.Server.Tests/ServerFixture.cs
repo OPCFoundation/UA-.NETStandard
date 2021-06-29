@@ -41,6 +41,7 @@ namespace Opc.Ua.Server.Tests
         public bool LogConsole { get; set; }
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
+        public int ReverseConnectTimeout { get; set; }
         public int TraceMasks { get; set; } = Utils.TraceMasks.All;
         public int Port { get; private set; }
 
@@ -114,7 +115,7 @@ namespace Opc.Ua.Server.Tests
             // create the application configuration. Use temp path for cert stores.
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
             var endpointUrl = $"opc.tcp://localhost:{port}/" + typeof(T).Name;
-            ApplicationConfiguration config = await application.Build(
+            var serverConfig = application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
                 "uri:opcfoundation.org:" + typeof(T).Name)
                 .AsServer(
@@ -127,17 +128,28 @@ namespace Opc.Ua.Server.Tests
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
                 .AddSignPolicies()
-                .AddSignAndEncryptPolicies()
-                //.SetDiagnosticsEnabled(true)
-                .SetOperationLimits(OperationLimits ? new OperationLimits() {
+                .AddSignAndEncryptPolicies();
+            if (OperationLimits)
+            {
+                serverConfig.SetOperationLimits(new OperationLimits() {
                     MaxNodesPerBrowse = 2500,
                     MaxNodesPerRead = 250,
                     MaxNodesPerWrite = 250,
                     MaxNodesPerMethodCall = 500,
                     MaxMonitoredItemsPerCall = 1000,
                     MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
-                } : new OperationLimits())
-                .AddSecurityConfiguration(
+                });
+            }
+            if (ReverseConnectTimeout != 0)
+            {
+                serverConfig.SetReverseConnect(new ReverseConnectServerConfiguration() {
+                    ConnectInterval = ReverseConnectTimeout / 4,
+                    ConnectTimeout = ReverseConnectTimeout,
+                    RejectTimeout = ReverseConnectTimeout / 4
+                });
+            }
+
+            ApplicationConfiguration config = await serverConfig.AddSecurityConfiguration(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)

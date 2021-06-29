@@ -7,7 +7,7 @@
           <Format>cobertura</Format>          
           <Exclude>[coverlet.*.tests?]*,[*]Coverlet.Core*,[Opc.Ua.*.Tests]*</Exclude> <!-- [Assembly-Filter]Type-Filter -->
           <Include></Include> <!-- [Assembly-Filter]Type-Filter -->
-          <ExcludeByAttribute>Obsolete,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <ExcludeByAttribute>Obsolete</ExcludeByAttribute>
           <ExcludeByFile>**/Generated/*.cs,**/Model/*.cs</ExcludeByFile> <!-- Globbing filter -->
           <IncludeDirectory></IncludeDirectory>
           <SingleHit>false</SingleHit>
