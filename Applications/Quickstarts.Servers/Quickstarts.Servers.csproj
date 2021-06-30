@@ -24,14 +24,6 @@
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
   
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <Reference Include="System.IdentityModel" />
-  </ItemGroup>
-
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>

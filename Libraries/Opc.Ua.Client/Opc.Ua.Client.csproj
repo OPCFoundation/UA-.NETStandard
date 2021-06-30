@@ -19,10 +19,6 @@
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-  </ItemGroup>
-
   <Target Name="GetPackagingOutputs" />
 
 </Project>

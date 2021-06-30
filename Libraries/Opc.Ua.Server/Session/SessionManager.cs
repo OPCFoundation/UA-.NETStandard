@@ -114,9 +114,9 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
-                Task.Run(() => {
+                Task.Factory.StartNew(() => {
                     MonitorSessions(m_minSessionTimeout);
-                });
+                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 

@@ -1917,6 +1917,9 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
+            ConnectInterval = 15000;
+            ConnectTimeout = 30000;
+            RejectTimeout = 60000;
         }
         #endregion
 
@@ -1931,20 +1934,20 @@ namespace Opc.Ua
         /// The interval after which a new reverse connection is attempted.
         /// </summary>
         [DataMember(Order = 20)]
-        public int ConnectInterval { get; set; } = 15000;
+        public int ConnectInterval { get; set; }
 
         /// <summary>
         /// The default timeout to wait for a response to a reverse connection.
         /// </summary>
         [DataMember(Order = 30)]
-        public int ConnectTimeout { get; set; } = 30000;
+        public int ConnectTimeout { get; set; }
 
         /// <summary>
         /// The timeout to wait to establish a new reverse
         /// connection after a rejected attempt.
         /// </summary>
         [DataMember(Order = 40)]
-        public int RejectTimeout { get; set; } = 60000;
+        public int RejectTimeout { get; set; }
         #endregion
     }
     #endregion
