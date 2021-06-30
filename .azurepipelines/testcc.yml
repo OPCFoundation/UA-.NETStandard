@@ -68,6 +68,57 @@ jobs:
       reportDirectory: '$(Build.SourcesDirectory)/CodeCoverage'
 
     continueOnError: true
+  - task: BuildQualityChecks@7
+    displayName: 'Check build quality'
+    inputs:
+    # ===== Warnings Policy Inputs =====
+    #checkWarnings: false # Optional
+    #warningFailOption: build # Optional; Valid values: build, fixed
+    #warningThreshold: '0' # Optional
+    #forceFewerWarnings: false # Optional
+    #allowWarningVariance: false # Optional
+    #warningVariance: # Required if allowWarningVariance = true
+    #showStatistics: false # Optional
+    #evaluateTaskWarnings: true # Optional
+    #warningTaskFilters: '/^((vs|ms)build|ant(\\s+.+)?|gradle(w)?(\\s+.+)?|grunt|gulp|maven(\\s+.+)?|xamarin(android|ios)|xcode(\\s+.+)?|cmake|build\\s+.+)$/i' # Optional
+    #warningFilters: # Optional
+    #inclusiveFiltering: false # Optional
+    #evaluateFileWarnings: false # Optional
+    #warningFilesFolder: # Optional
+    #warningFiles: # Required if evaluateFileWarnings = true
+    #warningFileFilters: # Required if evaluateFileWarnings = true
+    #warningFilesArtifact: # Required if evaluateFileWarnings = true and (warningFailOption = build or showStatistics = true)
+    # ===== Code Coverage Policy Inputs =====
+      checkCoverage: true # Optional
+    #coverageFailOption: build # Optional; Valid values: build, fixed
+    #coverageType: blocks # Optional; Valid values: blocks, lines, branches, custom
+    #customCoverageType: # Required if coverageType = custom
+    #treat0of0as100: false # Optional
+      coverageThreshold: '50' # Optional
+    #forceCoverageImprovement: false # Optional
+    #coverageUpperThreshold: '80' # Optional
+    #ignoreDecreaseAboveUpperThreshold: true # Optional
+    #useUncoveredElements: false # Optional
+    #allowCoverageVariance: false # Optional
+    #coverageVariance: # Required if allowCoverageVariance = true
+    #coverageDeltaType: percentage # Optional; Valid values: absolute, percentage
+    #coveragePrecision: '4' # Optional
+    #buildConfiguration: # Optional
+    #buildPlatform: # Optional
+    #explicitFilter: false # Optional
+    # ===== Baseline Inputs =====
+    #includePartiallySucceeded: true # Optional
+    #fallbackOnPRTargetBranch: true # Optional
+    #baseDefinitionFilter: # Ignored - only used by UI editor
+    #baseDefinitionId: # Optional
+    #baseRepoId: # Ignored - only used by UI editor
+    #baseBranchRef: # Optional
+    # ===== Reporting Inputs =====
+    #runTitle: # Optional
+    #fileAnalysisTitle: # Optional
+    # ===== Advanced Inputs =====
+    #disableCertCheck: false # Optional
+    #createBuildIssues: true # Optional
   - script: |
       bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r $REPORT_LOCATION --commit-uuid $COMMIT_UUID
 
