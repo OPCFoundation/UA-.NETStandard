@@ -433,17 +433,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         private DataSet DecodeFieldMessageData(BinaryDecoder binaryDecoder, DataSetReaderDataType dataSetReader)
         {
-            DataSetMetaDataType metaDataType = dataSetReader.DataSetMetaData;
+            DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
             try
             {
                 ushort fieldCount = 0;
                 FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
                 if (fieldType == FieldTypeEncodingMask.RawData)
                 {
-                    if (metaDataType != null)
+                    if (dataSetMetaData != null)
                     {
                         // metadata should provide field count 
-                        fieldCount = (ushort)metaDataType.Fields.Count;
+                        fieldCount = (ushort)dataSetMetaData.Fields.Count;
                     }
                 }
                 else
@@ -454,12 +454,6 @@ namespace Opc.Ua.PubSub.Encoding
                 TargetVariablesDataType targetVariablesData =
                    ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
                 
-                if (targetVariablesData == null || targetVariablesData.TargetVariables.Count != fieldCount)
-                {
-                    // dataset cannot be decoded because the configuration is not for TargetVariables 
-                    return null;
-                }
-
                 // check configuration version
                 List<DataValue> dataValues = new List<DataValue>();
                 switch (fieldType)
@@ -477,11 +471,11 @@ namespace Opc.Ua.PubSub.Encoding
                         }
                         break;
                     case FieldTypeEncodingMask.RawData:
-                        if (metaDataType != null)
+                        if (dataSetMetaData != null)
                         {
                             for (int i = 0; i < fieldCount; i++)
                             {
-                                FieldMetaData fieldMetaData = metaDataType.Fields[i];
+                                FieldMetaData fieldMetaData = dataSetMetaData.Fields[i];
                                 if (fieldMetaData != null)
                                 {
                                     var decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
@@ -499,16 +493,22 @@ namespace Opc.Ua.PubSub.Encoding
                 List<Field> dataFields = new List<Field>();
 
                 for (int i = 0; i < dataValues.Count; i++)
-                {
+                {                
                     Field dataField = new Field();
+                    dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                     dataField.Value = dataValues[i];
-                    dataField.FieldMetaData = metaDataType?.Fields[i];
-                    // remember the target Attribute and target nodeId
-                    dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
-                    dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+
+                    if (targetVariablesData != null && targetVariablesData.TargetVariables != null
+                        && i < targetVariablesData.TargetVariables.Count)
+                    {
+                        // remember the target Attribute and target nodeId
+                        dataField.TargetAttribute = targetVariablesData.TargetVariables[i].AttributeId;
+                        dataField.TargetNodeId = targetVariablesData.TargetVariables[i].TargetNodeId;
+                    }
                     dataFields.Add(dataField);
                 }
-                DataSet dataSet = new DataSet(metaDataType?.Name);
+
+                DataSet dataSet = new DataSet(dataSetMetaData?.Name);
                 dataSet.Fields = dataFields.ToArray();
                 dataSet.DataSetWriterId = DataSetWriterId;
                 dataSet.SequenceNumber = SequenceNumber;
