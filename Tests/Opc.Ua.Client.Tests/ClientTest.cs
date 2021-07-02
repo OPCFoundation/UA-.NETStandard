@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest
@@ -224,6 +224,18 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        [Test, Order(400)]
+        public void Subscription()
+        {
+            var requestHeader = new RequestHeader();
+            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.TimeoutHint = 10000;
+
+            var clientTestServices = new ClientTestServices(m_session);
+            CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
+        }
+
+
         /// <summary>
         /// Browse all variables in the objects folder.
         /// </summary>
@@ -329,6 +341,23 @@ namespace Opc.Ua.Client.Tests
                 var node = m_session.NodeCache.Find(reference.NodeId);
                 TestContext.Out.WriteLine("NodeId: {0} Node: {1}", nodeId, node);
             }
+        }
+
+        [Test, Order(610)]
+        public void FetchTypeTree()
+        {
+            m_session.FetchTypeTree(NodeId.ToExpandedNodeId(DataTypeIds.BaseDataType, m_session.NamespaceUris));
+        }
+
+        [Test, Order(620)]
+        public void ReadAvailableEncodings()
+        {
+            var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadAvailableEncodings(DataTypeIds.BaseDataType));
+            Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
+            var encoding = m_session.ReadAvailableEncodings(VariableIds.Server_ServerStatus_CurrentTime);
+            Assert.NotNull(encoding);
+            Assert.AreEqual(0, encoding.Count);
+
         }
 
         [Test, Order(700)]

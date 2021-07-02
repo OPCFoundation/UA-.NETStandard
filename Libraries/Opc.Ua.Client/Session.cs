@@ -915,7 +915,7 @@ namespace Opc.Ua.Client
             {
                 connection = await reverseConnectManager.WaitForConnection(
                     endpoint.EndpointUrl,
-                    endpoint.ReverseConnect.ServerUri,
+                    endpoint.ReverseConnect?.ServerUri,
                     ct).ConfigureAwait(false);
 
                 if (updateBeforeConnect)

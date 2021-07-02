@@ -65,6 +65,107 @@ namespace Opc.Ua.Client.Tests
                 out results, out diagnosticInfos);
         }
 
+        public ResponseHeader CreateSubscription(
+            RequestHeader requestHeader,
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            bool publishingEnabled,
+            byte priority,
+            out uint subscriptionId,
+            out double revisedPublishingInterval,
+            out uint revisedLifetimeCount,
+            out uint revisedMaxKeepAliveCount)
+        {
+            return m_session.CreateSubscription(requestHeader, requestedPublishingInterval, requestedLifetimeCount, requestedMaxKeepAliveCount,
+                maxNotificationsPerPublish, publishingEnabled, priority,
+                out subscriptionId, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+        }
+
+        public ResponseHeader CreateMonitoredItems(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemCreateRequestCollection itemsToCreate,
+            out MonitoredItemCreateResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.CreateMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToCreate,
+                out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader ModifySubscription(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            double requestedPublishingInterval,
+            uint requestedLifetimeCount,
+            uint requestedMaxKeepAliveCount,
+            uint maxNotificationsPerPublish,
+            byte priority,
+            out double revisedPublishingInterval,
+            out uint revisedLifetimeCount,
+            out uint revisedMaxKeepAliveCount)
+        {
+            return m_session.ModifySubscription(requestHeader, subscriptionId, requestedPublishingInterval,
+                requestedLifetimeCount, requestedMaxKeepAliveCount, maxNotificationsPerPublish,
+                priority, out revisedPublishingInterval, out revisedLifetimeCount, out revisedMaxKeepAliveCount);
+        }
+
+        public ResponseHeader ModifyMonitoredItems(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemModifyRequestCollection itemsToModify,
+            out MonitoredItemModifyResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.ModifyMonitoredItems(requestHeader, subscriptionId, timestampsToReturn, itemsToModify, out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader Publish(
+            RequestHeader requestHeader,
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            out uint subscriptionId,
+            out UInt32Collection availableSequenceNumbers,
+            out bool moreNotifications,
+            out NotificationMessage notificationMessage,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.Publish(requestHeader, subscriptionAcknowledgements, out subscriptionId, out availableSequenceNumbers,
+                out moreNotifications, out notificationMessage, out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader SetPublishingMode(
+            RequestHeader requestHeader,
+            bool publishingEnabled,
+            UInt32Collection subscriptionIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.SetPublishingMode(requestHeader, publishingEnabled, subscriptionIds, out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader Republish(
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            uint retransmitSequenceNumber,
+            out NotificationMessage notificationMessage)
+        {
+            return m_session.Republish(requestHeader, subscriptionId, retransmitSequenceNumber, out notificationMessage);
+        }
+
+        public ResponseHeader DeleteSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_session.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
+        }
+
+
         public ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,

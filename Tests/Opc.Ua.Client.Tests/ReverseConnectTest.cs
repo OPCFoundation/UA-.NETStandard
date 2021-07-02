@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     public class ReverseConnectTest
     {
         const int MaxTimeout = 10000;
@@ -166,6 +166,45 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             // 
+            var requestHeader = new RequestHeader();
+            requestHeader.Timestamp = DateTime.UtcNow;
+            requestHeader.TimeoutHint = MaxTimeout;
+
+            // Browse
+            var clientTestServices = new ClientTestServices(session);
+            var referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
+            Assert.NotNull(referenceDescriptions);
+
+            // close session
+            var result = session.Close();
+            Assert.NotNull(result);
+            session.Dispose();
+        }
+
+        [Theory, Order(301)]
+        public async Task ReverseConnect2( bool updateBeforeConnect, bool checkDomain)
+        {
+            string securityPolicy = SecurityPolicies.Basic256Sha256;
+
+            // ensure endpoints are available
+            await RequireEndpoints();
+
+            // get a connection
+            var config = m_clientFixture.Config;
+
+            // select the secure endpoint
+            var endpointConfiguration = EndpointConfiguration.Create(config);
+            var selectedEndpoint = ClientTest.SelectEndpoint(m_endpoints, m_endpointUrl, securityPolicy);
+            Assert.NotNull(selectedEndpoint);
+            var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+            Assert.NotNull(endpoint);
+
+            // connect
+            var session = await Session.Create(config, m_clientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null);
+            Assert.NotNull(session);
+
+            // header
             var requestHeader = new RequestHeader();
             requestHeader.Timestamp = DateTime.UtcNow;
             requestHeader.TimeoutHint = MaxTimeout;
