@@ -14,5 +14,5 @@ dotnet tool uninstall -g dotnet-reportgenerator-globaltool
 dotnet tool install -g dotnet-reportgenerator-globaltool
 reportgenerator -reports:./TestResults/**/coverage.cobertura.xml -targetdir:./CodeCoverage -reporttypes:"Badges;Html;HtmlSummary;Cobertura"
 
-# Display result in browser
-./CodeCoverage/index.html
+# Display result in browser (mac OS)
+open ./CodeCoverage/index.html
