@@ -163,6 +163,14 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Connects the specified endpoint.
         /// </summary>
+        public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
+        {
+            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints));
+        }
+
+        /// <summary>
+        /// Connects the specified endpoint.
+        /// </summary>
         /// <param name="endpoint">The configured endpoint.</param>
         public async Task<Session> ConnectAsync(ConfiguredEndpoint endpoint)
         {
@@ -187,6 +195,73 @@ namespace Opc.Ua.Client.Tests
             EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
 
             return session;
+        }
+
+        public async Task<ConfiguredEndpoint> GetEndpointAsync(
+            Uri url,
+            string securityPolicy,
+            EndpointDescriptionCollection endpoints = null)
+        {
+            if (endpoints == null)
+            {
+                endpoints = await GetEndpoints(url).ConfigureAwait(false);
+            }
+            var endpointDescription = SelectEndpoint(endpoints, url, securityPolicy);
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
+            return new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+        }
+
+        public static EndpointDescription SelectEndpoint(
+            EndpointDescriptionCollection endpoints,
+            Uri url,
+            string securityPolicy)
+        {
+            EndpointDescription selectedEndpoint = null;
+
+            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
+            foreach (var endpoint in endpoints)
+            {
+                // check for a match on the URL scheme.
+                if (endpoint.EndpointUrl.StartsWith(url.Scheme))
+                {
+                    // skip unsupported security policies
+                    if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
+                    {
+                        continue;
+                    }
+
+                    // pick the first available endpoint by default.
+                    if (selectedEndpoint == null &&
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
+                    {
+                        selectedEndpoint = endpoint;
+                        continue;
+                    }
+
+                    if (selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
+                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
+                    {
+                        selectedEndpoint = endpoint;
+                    }
+                }
+            }
+            // return the selected endpoint.
+            return selectedEndpoint;
+        }
+
+        /// <summary>
+        /// Get endpoints from discovery endpoint.
+        /// </summary>
+        /// <param name="url">The url of the discovery endpoint.</param>
+        public static async Task<EndpointDescriptionCollection> GetEndpoints(Uri url)
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 1000;
+
+            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
+            {
+                return await client.GetEndpointsAsync(null);
+            }
         }
         #endregion
 

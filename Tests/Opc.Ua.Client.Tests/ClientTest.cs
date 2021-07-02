@@ -31,9 +31,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
+using Opc.Ua.Configuration;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 
@@ -57,7 +60,7 @@ namespace Opc.Ua.Client.Tests
         ReferenceDescriptionCollection m_referenceDescriptions;
         Session m_session;
         OperationLimits m_operationLimits;
-        string m_url;
+        Uri m_url;
 
         #region DataPointSources
         [DatapointSource]
@@ -92,8 +95,8 @@ namespace Opc.Ua.Client.Tests
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, true).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfiguration();
-            m_url = "opc.tcp://localhost:" + m_serverFixture.Port.ToString();
-            m_session = m_clientFixture.ConnectAsync(GetEndpointAsync(m_url, SecurityPolicies.Basic256Sha256).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
+            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256);
         }
 
         /// <summary>
@@ -129,7 +132,7 @@ namespace Opc.Ua.Client.Tests
             Console.WriteLine("GlobalSetup: Start Server");
             OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
-            m_session = m_clientFixture.ConnectAsync(GetEndpointAsync(m_url, SecurityPolicy).GetAwaiter().GetResult()).GetAwaiter().GetResult();
+            m_session = m_clientFixture.ConnectAsync(m_url, SecurityPolicy).GetAwaiter().GetResult();
             Console.WriteLine("GlobalSetup: Ready");
         }
 
@@ -157,17 +160,62 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 1000;
 
-            using (var client = DiscoveryClient.Create(new Uri(m_url), endpointConfiguration))
+            using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
             {
                 m_endpoints = await client.GetEndpointsAsync(null);
             }
         }
 
+        [Test, Order(110)]
+        public async Task InvalidConfiguration()
+        {
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = m_clientFixture.Config.ApplicationName
+            };
+            Assert.NotNull(applicationInstance);
+            ApplicationConfiguration config = await applicationInstance.Build(m_clientFixture.Config.ApplicationUri, m_clientFixture.Config.ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(m_clientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName)
+                .Create().ConfigureAwait(false);
+
+        }
+
+
         [Theory, Order(200)]
         public async Task Connect(string securityPolicy)
         {
-            var session = await m_clientFixture.ConnectAsync(await GetEndpointAsync(m_url, securityPolicy));
+            var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints);
             Assert.NotNull(session);
+            var result = session.Close();
+            Assert.NotNull(result);
+            session.Dispose();
+        }
+
+        [Test, Order(210)]
+        public async Task ConnectAndReconnectAsync()
+        {
+            const int Timeout = 10000;
+            var session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints).ConfigureAwait(false);
+            Assert.NotNull(session);
+
+            ManualResetEvent quitEvent = new ManualResetEvent(false);
+            var reconnectHandler = new SessionReconnectHandler();
+            reconnectHandler.BeginReconnect(session, Timeout/5,
+                (object sender, EventArgs e) => {
+                    // ignore callbacks from discarded objects.
+                    if (!Object.ReferenceEquals(sender, reconnectHandler))
+                    {
+                        return;
+                    }
+
+                    session = reconnectHandler.Session;
+                    reconnectHandler.Dispose();
+                    quitEvent.Set();
+                });
+
+            var timeout = quitEvent.WaitOne(Timeout);
+            Assert.True(timeout);
+
             var result = session.Close();
             Assert.NotNull(result);
             session.Dispose();
@@ -207,7 +255,7 @@ namespace Opc.Ua.Client.Tests
             Session session;
             if (securityPolicy != null)
             {
-                session = await m_clientFixture.ConnectAsync(await GetEndpointAsync(m_url, securityPolicy));
+                session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints);
             }
             else
             {
@@ -224,7 +272,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        [Test, Order(400)]
+        [Test, Order(410)]
         public void Subscription()
         {
             var requestHeader = new RequestHeader();
@@ -234,7 +282,6 @@ namespace Opc.Ua.Client.Tests
             var clientTestServices = new ClientTestServices(m_session);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
         }
-
 
         /// <summary>
         /// Browse all variables in the objects folder.
@@ -294,7 +341,7 @@ namespace Opc.Ua.Client.Tests
                     break;
                 }
             }
-            
+
             TestContext.Out.WriteLine("Browsed {0} variables", result.Count);
         }
 
@@ -319,7 +366,8 @@ namespace Opc.Ua.Client.Tests
                         var value = m_session.ReadValue(nodeId);
                         Assert.NotNull(value);
                         TestContext.Out.WriteLine("-- Value {0} ", value);
-                    } catch(ServiceResultException sre)
+                    }
+                    catch (ServiceResultException sre)
                     {
                         TestContext.Out.WriteLine("-- Read Value {0} ", sre.Message);
                     }
@@ -357,7 +405,6 @@ namespace Opc.Ua.Client.Tests
             var encoding = m_session.ReadAvailableEncodings(VariableIds.Server_ServerStatus_CurrentTime);
             Assert.NotNull(encoding);
             Assert.AreEqual(0, encoding.Count);
-
         }
 
         [Test, Order(700)]
@@ -395,53 +442,9 @@ namespace Opc.Ua.Client.Tests
             await BrowseFullAddressSpace(null).ConfigureAwait(false);
         }
 
-        public static EndpointDescription SelectEndpoint(EndpointDescriptionCollection endpoints, Uri url, string securityPolicy)
-        {
-            EndpointDescription selectedEndpoint = null;
-
-            // select the best endpoint to use based on the selected URL and the UseSecurity checkbox. 
-            foreach (var endpoint in endpoints)
-            {
-                // check for a match on the URL scheme.
-                if (endpoint.EndpointUrl.StartsWith(url.Scheme))
-                {
-                    // skip unsupported security policies
-                    if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
-                    {
-                        continue;
-                    }
-
-                    // pick the first available endpoint by default.
-                    if (selectedEndpoint == null &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
-                    {
-                        selectedEndpoint = endpoint;
-                        continue;
-                    }
-
-                    if (selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri))
-                    {
-                        selectedEndpoint = endpoint;
-                    }
-                }
-            }
-            // return the selected endpoint.
-            return selectedEndpoint;
-        }
         #endregion
 
         #region Private Methods
-        private async Task<ConfiguredEndpoint> GetEndpointAsync(string url, string securityPolicy)
-        {
-            if (m_endpoints == null)
-            {
-                await GetEndpoints().ConfigureAwait(false);
-            }
-            var endpointDescription = SelectEndpoint(m_endpoints, new Uri(url), securityPolicy);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_clientFixture.Config);
-            return new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
-        }
         #endregion
     }
 }
