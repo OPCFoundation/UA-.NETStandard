@@ -760,6 +760,7 @@
     <opc:EnumeratedValue Name="SequenceNumber" Value="4" />
     <opc:EnumeratedValue Name="Timestamp" Value="8" />
     <opc:EnumeratedValue Name="Status" Value="16" />
+    <opc:EnumeratedValue Name="MessageType" Value="32" />
   </opc:EnumeratedType>
 
   <opc:StructuredType Name="JsonDataSetWriterMessageDataType" BaseType="tns:DataSetWriterMessageDataType">
@@ -834,6 +835,91 @@
     <opc:Field Name="AliasName" TypeName="ua:QualifiedName" />
     <opc:Field Name="NoOfReferencedNodes" TypeName="opc:Int32" />
     <opc:Field Name="ReferencedNodes" TypeName="ua:ExpandedNodeId" LengthField="NoOfReferencedNodes" />
+  </opc:StructuredType>
+
+  <opc:EnumeratedType Name="Duplex" LengthInBits="32">
+    <opc:EnumeratedValue Name="Full" Value="0" />
+    <opc:EnumeratedValue Name="Half" Value="1" />
+    <opc:EnumeratedValue Name="Unknown" Value="2" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="InterfaceAdminStatus" LengthInBits="32">
+    <opc:EnumeratedValue Name="Up" Value="0" />
+    <opc:EnumeratedValue Name="Down" Value="1" />
+    <opc:EnumeratedValue Name="Testing" Value="2" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="InterfaceOperStatus" LengthInBits="32">
+    <opc:EnumeratedValue Name="Up" Value="0" />
+    <opc:EnumeratedValue Name="Down" Value="1" />
+    <opc:EnumeratedValue Name="Testing" Value="2" />
+    <opc:EnumeratedValue Name="Unknown" Value="3" />
+    <opc:EnumeratedValue Name="Dormant" Value="4" />
+    <opc:EnumeratedValue Name="NotPresent" Value="5" />
+    <opc:EnumeratedValue Name="LowerLayerDown" Value="6" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="NegotiationStatus" LengthInBits="32">
+    <opc:EnumeratedValue Name="InProgress" Value="0" />
+    <opc:EnumeratedValue Name="Complete" Value="1" />
+    <opc:EnumeratedValue Name="Failed" Value="2" />
+    <opc:EnumeratedValue Name="Unknown" Value="3" />
+    <opc:EnumeratedValue Name="NoNegotiation" Value="4" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="TsnFailureCode" LengthInBits="32">
+    <opc:EnumeratedValue Name="NoFailure" Value="0" />
+    <opc:EnumeratedValue Name="InsufficientBandwidth" Value="1" />
+    <opc:EnumeratedValue Name="InsufficientResources" Value="2" />
+    <opc:EnumeratedValue Name="InsufficientTrafficClassBandwidth" Value="3" />
+    <opc:EnumeratedValue Name="StreamIDInUse" Value="4" />
+    <opc:EnumeratedValue Name="StreamDestinationAddressInUse" Value="5" />
+    <opc:EnumeratedValue Name="StreamPreemptedByHigherRank" Value="6" />
+    <opc:EnumeratedValue Name="LatencyHasChanged" Value="7" />
+    <opc:EnumeratedValue Name="EgressPortNotAVBCapable" Value="8" />
+    <opc:EnumeratedValue Name="UseDifferentDestinationAddress" Value="9" />
+    <opc:EnumeratedValue Name="OutOfMSRPResources" Value="10" />
+    <opc:EnumeratedValue Name="OutOfMMRPResources" Value="11" />
+    <opc:EnumeratedValue Name="CannotStoreDestinationAddress" Value="12" />
+    <opc:EnumeratedValue Name="PriorityIsNoAnSRCLass" Value="13" />
+    <opc:EnumeratedValue Name="MaxFrameSizeTooLarge" Value="14" />
+    <opc:EnumeratedValue Name="MaxFanInPortsLimitReached" Value="15" />
+    <opc:EnumeratedValue Name="FirstValueChangedForStreamID" Value="16" />
+    <opc:EnumeratedValue Name="VlanBlockedOnEgress" Value="17" />
+    <opc:EnumeratedValue Name="VlanTaggingDisabledOnEgress" Value="18" />
+    <opc:EnumeratedValue Name="SrClassPriorityMismatch" Value="19" />
+    <opc:EnumeratedValue Name="FeatureNotPropagated" Value="20" />
+    <opc:EnumeratedValue Name="MaxLatencyExceeded" Value="21" />
+    <opc:EnumeratedValue Name="BridgeDoesNotProvideNetworkID" Value="22" />
+    <opc:EnumeratedValue Name="StreamTransformNotSupported" Value="23" />
+    <opc:EnumeratedValue Name="StreamIDTypeNotSupported" Value="24" />
+    <opc:EnumeratedValue Name="FeatureNotSupported" Value="25" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="TsnStreamState" LengthInBits="32">
+    <opc:EnumeratedValue Name="Disabled" Value="0" />
+    <opc:EnumeratedValue Name="Configuring" Value="1" />
+    <opc:EnumeratedValue Name="Ready" Value="2" />
+    <opc:EnumeratedValue Name="Operational" Value="3" />
+    <opc:EnumeratedValue Name="Error" Value="4" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="TsnTalkerStatus" LengthInBits="32">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Ready" Value="1" />
+    <opc:EnumeratedValue Name="Failed" Value="2" />
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="TsnListenerStatus" LengthInBits="32">
+    <opc:EnumeratedValue Name="None" Value="0" />
+    <opc:EnumeratedValue Name="Ready" Value="1" />
+    <opc:EnumeratedValue Name="PartialFailed" Value="2" />
+    <opc:EnumeratedValue Name="Failed" Value="3" />
+  </opc:EnumeratedType>
+
+  <opc:StructuredType Name="UnsignedRationalNumber" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Numerator" TypeName="opc:UInt32" />
+    <opc:Field Name="Denominator" TypeName="opc:UInt32" />
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="IdType" LengthInBits="32">
@@ -1220,6 +1306,12 @@
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="UtcTime">
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Time">
+  </opc:OpaqueType>
+
+  <opc:OpaqueType Name="Date">
   </opc:OpaqueType>
 
   <opc:OpaqueType Name="LocaleId">

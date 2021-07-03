@@ -1900,6 +1900,181 @@
   </xs:complexType>
   <xs:element name="ListOfAliasNameDataType" type="tns:ListOfAliasNameDataType" nillable="true"></xs:element>
 
+  <xs:simpleType  name="Duplex">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Full_0" />
+      <xs:enumeration value="Half_1" />
+      <xs:enumeration value="Unknown_2" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="Duplex" type="tns:Duplex" />
+
+  <xs:complexType name="ListOfDuplex">
+    <xs:sequence>
+      <xs:element name="Duplex" type="tns:Duplex" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDuplex" type="tns:ListOfDuplex" nillable="true"></xs:element>
+
+  <xs:simpleType  name="InterfaceAdminStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Up_0" />
+      <xs:enumeration value="Down_1" />
+      <xs:enumeration value="Testing_2" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="InterfaceAdminStatus" type="tns:InterfaceAdminStatus" />
+
+  <xs:complexType name="ListOfInterfaceAdminStatus">
+    <xs:sequence>
+      <xs:element name="InterfaceAdminStatus" type="tns:InterfaceAdminStatus" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfInterfaceAdminStatus" type="tns:ListOfInterfaceAdminStatus" nillable="true"></xs:element>
+
+  <xs:simpleType  name="InterfaceOperStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Up_0" />
+      <xs:enumeration value="Down_1" />
+      <xs:enumeration value="Testing_2" />
+      <xs:enumeration value="Unknown_3" />
+      <xs:enumeration value="Dormant_4" />
+      <xs:enumeration value="NotPresent_5" />
+      <xs:enumeration value="LowerLayerDown_6" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="InterfaceOperStatus" type="tns:InterfaceOperStatus" />
+
+  <xs:complexType name="ListOfInterfaceOperStatus">
+    <xs:sequence>
+      <xs:element name="InterfaceOperStatus" type="tns:InterfaceOperStatus" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfInterfaceOperStatus" type="tns:ListOfInterfaceOperStatus" nillable="true"></xs:element>
+
+  <xs:simpleType  name="NegotiationStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="InProgress_0" />
+      <xs:enumeration value="Complete_1" />
+      <xs:enumeration value="Failed_2" />
+      <xs:enumeration value="Unknown_3" />
+      <xs:enumeration value="NoNegotiation_4" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="NegotiationStatus" type="tns:NegotiationStatus" />
+
+  <xs:complexType name="ListOfNegotiationStatus">
+    <xs:sequence>
+      <xs:element name="NegotiationStatus" type="tns:NegotiationStatus" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfNegotiationStatus" type="tns:ListOfNegotiationStatus" nillable="true"></xs:element>
+
+  <xs:simpleType  name="TsnFailureCode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="NoFailure_0" />
+      <xs:enumeration value="InsufficientBandwidth_1" />
+      <xs:enumeration value="InsufficientResources_2" />
+      <xs:enumeration value="InsufficientTrafficClassBandwidth_3" />
+      <xs:enumeration value="StreamIDInUse_4" />
+      <xs:enumeration value="StreamDestinationAddressInUse_5" />
+      <xs:enumeration value="StreamPreemptedByHigherRank_6" />
+      <xs:enumeration value="LatencyHasChanged_7" />
+      <xs:enumeration value="EgressPortNotAVBCapable_8" />
+      <xs:enumeration value="UseDifferentDestinationAddress_9" />
+      <xs:enumeration value="OutOfMSRPResources_10" />
+      <xs:enumeration value="OutOfMMRPResources_11" />
+      <xs:enumeration value="CannotStoreDestinationAddress_12" />
+      <xs:enumeration value="PriorityIsNoAnSRCLass_13" />
+      <xs:enumeration value="MaxFrameSizeTooLarge_14" />
+      <xs:enumeration value="MaxFanInPortsLimitReached_15" />
+      <xs:enumeration value="FirstValueChangedForStreamID_16" />
+      <xs:enumeration value="VlanBlockedOnEgress_17" />
+      <xs:enumeration value="VlanTaggingDisabledOnEgress_18" />
+      <xs:enumeration value="SrClassPriorityMismatch_19" />
+      <xs:enumeration value="FeatureNotPropagated_20" />
+      <xs:enumeration value="MaxLatencyExceeded_21" />
+      <xs:enumeration value="BridgeDoesNotProvideNetworkID_22" />
+      <xs:enumeration value="StreamTransformNotSupported_23" />
+      <xs:enumeration value="StreamIDTypeNotSupported_24" />
+      <xs:enumeration value="FeatureNotSupported_25" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="TsnFailureCode" type="tns:TsnFailureCode" />
+
+  <xs:complexType name="ListOfTsnFailureCode">
+    <xs:sequence>
+      <xs:element name="TsnFailureCode" type="tns:TsnFailureCode" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTsnFailureCode" type="tns:ListOfTsnFailureCode" nillable="true"></xs:element>
+
+  <xs:simpleType  name="TsnStreamState">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Disabled_0" />
+      <xs:enumeration value="Configuring_1" />
+      <xs:enumeration value="Ready_2" />
+      <xs:enumeration value="Operational_3" />
+      <xs:enumeration value="Error_4" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="TsnStreamState" type="tns:TsnStreamState" />
+
+  <xs:complexType name="ListOfTsnStreamState">
+    <xs:sequence>
+      <xs:element name="TsnStreamState" type="tns:TsnStreamState" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTsnStreamState" type="tns:ListOfTsnStreamState" nillable="true"></xs:element>
+
+  <xs:simpleType  name="TsnTalkerStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="None_0" />
+      <xs:enumeration value="Ready_1" />
+      <xs:enumeration value="Failed_2" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="TsnTalkerStatus" type="tns:TsnTalkerStatus" />
+
+  <xs:complexType name="ListOfTsnTalkerStatus">
+    <xs:sequence>
+      <xs:element name="TsnTalkerStatus" type="tns:TsnTalkerStatus" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTsnTalkerStatus" type="tns:ListOfTsnTalkerStatus" nillable="true"></xs:element>
+
+  <xs:simpleType  name="TsnListenerStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="None_0" />
+      <xs:enumeration value="Ready_1" />
+      <xs:enumeration value="PartialFailed_2" />
+      <xs:enumeration value="Failed_3" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="TsnListenerStatus" type="tns:TsnListenerStatus" />
+
+  <xs:complexType name="ListOfTsnListenerStatus">
+    <xs:sequence>
+      <xs:element name="TsnListenerStatus" type="tns:TsnListenerStatus" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTsnListenerStatus" type="tns:ListOfTsnListenerStatus" nillable="true"></xs:element>
+
+  <xs:complexType name="UnsignedRationalNumber">
+    <xs:sequence>
+      <xs:element name="Numerator" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Denominator" type="xs:unsignedInt" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" />
+
+  <xs:complexType name="ListOfUnsignedRationalNumber">
+    <xs:sequence>
+      <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUnsignedRationalNumber" type="tns:ListOfUnsignedRationalNumber" nillable="true"></xs:element>
+
   <xs:simpleType  name="IdType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Numeric_0" />
@@ -2299,6 +2474,10 @@
   <xs:element name="Duration" type="xs:double" />
 
   <xs:element name="UtcTime" type="xs:dateTime" />
+
+  <xs:element name="Time" type="xs:string" />
+
+  <xs:element name="Date" type="xs:dateTime" />
 
   <xs:element name="LocaleId" type="xs:string" />
 

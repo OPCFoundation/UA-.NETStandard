@@ -908,8 +908,6 @@ namespace Opc.Ua.Export {
         
         private RolePermission[] rolePermissionsField;
         
-        private string[] conformanceUnitsField;
-        
         private System.Xml.XmlElement[] extensionsField;
         
         private string nodeIdField;
@@ -995,17 +993,6 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.rolePermissionsField = value;
-            }
-        }
-        
-        /// <remarks/>
-        [System.Xml.Serialization.XmlArrayItemAttribute("ConformanceUnit", IsNullable=false)]
-        public string[] ConformanceUnits {
-            get {
-                return this.conformanceUnitsField;
-            }
-            set {
-                this.conformanceUnitsField = value;
             }
         }
         

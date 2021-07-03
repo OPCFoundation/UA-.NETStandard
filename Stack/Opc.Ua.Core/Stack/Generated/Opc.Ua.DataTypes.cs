@@ -16054,6 +16054,10 @@ namespace Opc.Ua
         /// <remarks />
         [EnumMember(Value = "Status_16")]
         Status = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "MessageType_32")]
+        MessageType = 32,
     }
 
     #region JsonDataSetMessageContentMaskCollection Class
@@ -18707,6 +18711,1245 @@ namespace Opc.Ua
             for (int ii = 0; ii < this.Count; ii++)
             {
                 clone.Add((AliasNameDataType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region Duplex Enumeration
+    #if (!OPCUA_EXCLUDE_Duplex)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum Duplex
+    {
+        /// <remarks />
+        [EnumMember(Value = "Full_0")]
+        Full = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Half_1")]
+        Half = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Unknown_2")]
+        Unknown = 2,
+    }
+
+    #region DuplexCollection Class
+    /// <summary>
+    /// A collection of Duplex objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfDuplex", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "Duplex")]
+    #if !NET_STANDARD
+    public partial class DuplexCollection : List<Duplex>, ICloneable
+    #else
+    public partial class DuplexCollection : List<Duplex>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public DuplexCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public DuplexCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public DuplexCollection(IEnumerable<Duplex> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator DuplexCollection(Duplex[] values)
+        {
+            if (values != null)
+            {
+                return new DuplexCollection(values);
+            }
+
+            return new DuplexCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator Duplex[](DuplexCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (DuplexCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            DuplexCollection clone = new DuplexCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((Duplex)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region InterfaceAdminStatus Enumeration
+    #if (!OPCUA_EXCLUDE_InterfaceAdminStatus)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum InterfaceAdminStatus
+    {
+        /// <remarks />
+        [EnumMember(Value = "Up_0")]
+        Up = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Down_1")]
+        Down = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Testing_2")]
+        Testing = 2,
+    }
+
+    #region InterfaceAdminStatusCollection Class
+    /// <summary>
+    /// A collection of InterfaceAdminStatus objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfInterfaceAdminStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceAdminStatus")]
+    #if !NET_STANDARD
+    public partial class InterfaceAdminStatusCollection : List<InterfaceAdminStatus>, ICloneable
+    #else
+    public partial class InterfaceAdminStatusCollection : List<InterfaceAdminStatus>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public InterfaceAdminStatusCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public InterfaceAdminStatusCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public InterfaceAdminStatusCollection(IEnumerable<InterfaceAdminStatus> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator InterfaceAdminStatusCollection(InterfaceAdminStatus[] values)
+        {
+            if (values != null)
+            {
+                return new InterfaceAdminStatusCollection(values);
+            }
+
+            return new InterfaceAdminStatusCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator InterfaceAdminStatus[](InterfaceAdminStatusCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (InterfaceAdminStatusCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            InterfaceAdminStatusCollection clone = new InterfaceAdminStatusCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((InterfaceAdminStatus)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region InterfaceOperStatus Enumeration
+    #if (!OPCUA_EXCLUDE_InterfaceOperStatus)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum InterfaceOperStatus
+    {
+        /// <remarks />
+        [EnumMember(Value = "Up_0")]
+        Up = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Down_1")]
+        Down = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Testing_2")]
+        Testing = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Unknown_3")]
+        Unknown = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "Dormant_4")]
+        Dormant = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "NotPresent_5")]
+        NotPresent = 5,
+
+        /// <remarks />
+        [EnumMember(Value = "LowerLayerDown_6")]
+        LowerLayerDown = 6,
+    }
+
+    #region InterfaceOperStatusCollection Class
+    /// <summary>
+    /// A collection of InterfaceOperStatus objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfInterfaceOperStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "InterfaceOperStatus")]
+    #if !NET_STANDARD
+    public partial class InterfaceOperStatusCollection : List<InterfaceOperStatus>, ICloneable
+    #else
+    public partial class InterfaceOperStatusCollection : List<InterfaceOperStatus>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public InterfaceOperStatusCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public InterfaceOperStatusCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public InterfaceOperStatusCollection(IEnumerable<InterfaceOperStatus> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator InterfaceOperStatusCollection(InterfaceOperStatus[] values)
+        {
+            if (values != null)
+            {
+                return new InterfaceOperStatusCollection(values);
+            }
+
+            return new InterfaceOperStatusCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator InterfaceOperStatus[](InterfaceOperStatusCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (InterfaceOperStatusCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            InterfaceOperStatusCollection clone = new InterfaceOperStatusCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((InterfaceOperStatus)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region NegotiationStatus Enumeration
+    #if (!OPCUA_EXCLUDE_NegotiationStatus)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum NegotiationStatus
+    {
+        /// <remarks />
+        [EnumMember(Value = "InProgress_0")]
+        InProgress = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Complete_1")]
+        Complete = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Failed_2")]
+        Failed = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Unknown_3")]
+        Unknown = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "NoNegotiation_4")]
+        NoNegotiation = 4,
+    }
+
+    #region NegotiationStatusCollection Class
+    /// <summary>
+    /// A collection of NegotiationStatus objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfNegotiationStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "NegotiationStatus")]
+    #if !NET_STANDARD
+    public partial class NegotiationStatusCollection : List<NegotiationStatus>, ICloneable
+    #else
+    public partial class NegotiationStatusCollection : List<NegotiationStatus>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public NegotiationStatusCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public NegotiationStatusCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public NegotiationStatusCollection(IEnumerable<NegotiationStatus> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator NegotiationStatusCollection(NegotiationStatus[] values)
+        {
+            if (values != null)
+            {
+                return new NegotiationStatusCollection(values);
+            }
+
+            return new NegotiationStatusCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator NegotiationStatus[](NegotiationStatusCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (NegotiationStatusCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            NegotiationStatusCollection clone = new NegotiationStatusCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((NegotiationStatus)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TsnFailureCode Enumeration
+    #if (!OPCUA_EXCLUDE_TsnFailureCode)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum TsnFailureCode
+    {
+        /// <remarks />
+        [EnumMember(Value = "NoFailure_0")]
+        NoFailure = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "InsufficientBandwidth_1")]
+        InsufficientBandwidth = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "InsufficientResources_2")]
+        InsufficientResources = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "InsufficientTrafficClassBandwidth_3")]
+        InsufficientTrafficClassBandwidth = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "StreamIDInUse_4")]
+        StreamIDInUse = 4,
+
+        /// <remarks />
+        [EnumMember(Value = "StreamDestinationAddressInUse_5")]
+        StreamDestinationAddressInUse = 5,
+
+        /// <remarks />
+        [EnumMember(Value = "StreamPreemptedByHigherRank_6")]
+        StreamPreemptedByHigherRank = 6,
+
+        /// <remarks />
+        [EnumMember(Value = "LatencyHasChanged_7")]
+        LatencyHasChanged = 7,
+
+        /// <remarks />
+        [EnumMember(Value = "EgressPortNotAVBCapable_8")]
+        EgressPortNotAVBCapable = 8,
+
+        /// <remarks />
+        [EnumMember(Value = "UseDifferentDestinationAddress_9")]
+        UseDifferentDestinationAddress = 9,
+
+        /// <remarks />
+        [EnumMember(Value = "OutOfMSRPResources_10")]
+        OutOfMSRPResources = 10,
+
+        /// <remarks />
+        [EnumMember(Value = "OutOfMMRPResources_11")]
+        OutOfMMRPResources = 11,
+
+        /// <remarks />
+        [EnumMember(Value = "CannotStoreDestinationAddress_12")]
+        CannotStoreDestinationAddress = 12,
+
+        /// <remarks />
+        [EnumMember(Value = "PriorityIsNoAnSRCLass_13")]
+        PriorityIsNoAnSRCLass = 13,
+
+        /// <remarks />
+        [EnumMember(Value = "MaxFrameSizeTooLarge_14")]
+        MaxFrameSizeTooLarge = 14,
+
+        /// <remarks />
+        [EnumMember(Value = "MaxFanInPortsLimitReached_15")]
+        MaxFanInPortsLimitReached = 15,
+
+        /// <remarks />
+        [EnumMember(Value = "FirstValueChangedForStreamID_16")]
+        FirstValueChangedForStreamID = 16,
+
+        /// <remarks />
+        [EnumMember(Value = "VlanBlockedOnEgress_17")]
+        VlanBlockedOnEgress = 17,
+
+        /// <remarks />
+        [EnumMember(Value = "VlanTaggingDisabledOnEgress_18")]
+        VlanTaggingDisabledOnEgress = 18,
+
+        /// <remarks />
+        [EnumMember(Value = "SrClassPriorityMismatch_19")]
+        SrClassPriorityMismatch = 19,
+
+        /// <remarks />
+        [EnumMember(Value = "FeatureNotPropagated_20")]
+        FeatureNotPropagated = 20,
+
+        /// <remarks />
+        [EnumMember(Value = "MaxLatencyExceeded_21")]
+        MaxLatencyExceeded = 21,
+
+        /// <remarks />
+        [EnumMember(Value = "BridgeDoesNotProvideNetworkID_22")]
+        BridgeDoesNotProvideNetworkID = 22,
+
+        /// <remarks />
+        [EnumMember(Value = "StreamTransformNotSupported_23")]
+        StreamTransformNotSupported = 23,
+
+        /// <remarks />
+        [EnumMember(Value = "StreamIDTypeNotSupported_24")]
+        StreamIDTypeNotSupported = 24,
+
+        /// <remarks />
+        [EnumMember(Value = "FeatureNotSupported_25")]
+        FeatureNotSupported = 25,
+    }
+
+    #region TsnFailureCodeCollection Class
+    /// <summary>
+    /// A collection of TsnFailureCode objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTsnFailureCode", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnFailureCode")]
+    #if !NET_STANDARD
+    public partial class TsnFailureCodeCollection : List<TsnFailureCode>, ICloneable
+    #else
+    public partial class TsnFailureCodeCollection : List<TsnFailureCode>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public TsnFailureCodeCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public TsnFailureCodeCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public TsnFailureCodeCollection(IEnumerable<TsnFailureCode> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator TsnFailureCodeCollection(TsnFailureCode[] values)
+        {
+            if (values != null)
+            {
+                return new TsnFailureCodeCollection(values);
+            }
+
+            return new TsnFailureCodeCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator TsnFailureCode[](TsnFailureCodeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (TsnFailureCodeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TsnFailureCodeCollection clone = new TsnFailureCodeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TsnFailureCode)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TsnStreamState Enumeration
+    #if (!OPCUA_EXCLUDE_TsnStreamState)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum TsnStreamState
+    {
+        /// <remarks />
+        [EnumMember(Value = "Disabled_0")]
+        Disabled = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Configuring_1")]
+        Configuring = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Ready_2")]
+        Ready = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Operational_3")]
+        Operational = 3,
+
+        /// <remarks />
+        [EnumMember(Value = "Error_4")]
+        Error = 4,
+    }
+
+    #region TsnStreamStateCollection Class
+    /// <summary>
+    /// A collection of TsnStreamState objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTsnStreamState", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnStreamState")]
+    #if !NET_STANDARD
+    public partial class TsnStreamStateCollection : List<TsnStreamState>, ICloneable
+    #else
+    public partial class TsnStreamStateCollection : List<TsnStreamState>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public TsnStreamStateCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public TsnStreamStateCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public TsnStreamStateCollection(IEnumerable<TsnStreamState> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator TsnStreamStateCollection(TsnStreamState[] values)
+        {
+            if (values != null)
+            {
+                return new TsnStreamStateCollection(values);
+            }
+
+            return new TsnStreamStateCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator TsnStreamState[](TsnStreamStateCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (TsnStreamStateCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TsnStreamStateCollection clone = new TsnStreamStateCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TsnStreamState)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TsnTalkerStatus Enumeration
+    #if (!OPCUA_EXCLUDE_TsnTalkerStatus)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum TsnTalkerStatus
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Ready_1")]
+        Ready = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "Failed_2")]
+        Failed = 2,
+    }
+
+    #region TsnTalkerStatusCollection Class
+    /// <summary>
+    /// A collection of TsnTalkerStatus objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTsnTalkerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnTalkerStatus")]
+    #if !NET_STANDARD
+    public partial class TsnTalkerStatusCollection : List<TsnTalkerStatus>, ICloneable
+    #else
+    public partial class TsnTalkerStatusCollection : List<TsnTalkerStatus>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public TsnTalkerStatusCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public TsnTalkerStatusCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public TsnTalkerStatusCollection(IEnumerable<TsnTalkerStatus> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator TsnTalkerStatusCollection(TsnTalkerStatus[] values)
+        {
+            if (values != null)
+            {
+                return new TsnTalkerStatusCollection(values);
+            }
+
+            return new TsnTalkerStatusCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator TsnTalkerStatus[](TsnTalkerStatusCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (TsnTalkerStatusCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TsnTalkerStatusCollection clone = new TsnTalkerStatusCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TsnTalkerStatus)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region TsnListenerStatus Enumeration
+    #if (!OPCUA_EXCLUDE_TsnListenerStatus)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public enum TsnListenerStatus
+    {
+        /// <remarks />
+        [EnumMember(Value = "None_0")]
+        None = 0,
+
+        /// <remarks />
+        [EnumMember(Value = "Ready_1")]
+        Ready = 1,
+
+        /// <remarks />
+        [EnumMember(Value = "PartialFailed_2")]
+        PartialFailed = 2,
+
+        /// <remarks />
+        [EnumMember(Value = "Failed_3")]
+        Failed = 3,
+    }
+
+    #region TsnListenerStatusCollection Class
+    /// <summary>
+    /// A collection of TsnListenerStatus objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfTsnListenerStatus", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "TsnListenerStatus")]
+    #if !NET_STANDARD
+    public partial class TsnListenerStatusCollection : List<TsnListenerStatus>, ICloneable
+    #else
+    public partial class TsnListenerStatusCollection : List<TsnListenerStatus>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public TsnListenerStatusCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public TsnListenerStatusCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public TsnListenerStatusCollection(IEnumerable<TsnListenerStatus> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator TsnListenerStatusCollection(TsnListenerStatus[] values)
+        {
+            if (values != null)
+            {
+                return new TsnListenerStatusCollection(values);
+            }
+
+            return new TsnListenerStatusCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator TsnListenerStatus[](TsnListenerStatusCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (TsnListenerStatusCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            TsnListenerStatusCollection clone = new TsnListenerStatusCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((TsnListenerStatus)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region UnsignedRationalNumber Class
+    #if (!OPCUA_EXCLUDE_UnsignedRationalNumber)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaXsd)]
+    public partial class UnsignedRationalNumber : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public UnsignedRationalNumber()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_numerator = (uint)0;
+            m_denominator = (uint)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Numerator", IsRequired = false, Order = 1)]
+        public uint Numerator
+        {
+            get { return m_numerator;  }
+            set { m_numerator = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Denominator", IsRequired = false, Order = 2)]
+        public uint Denominator
+        {
+            get { return m_denominator;  }
+            set { m_denominator = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.UnsignedRationalNumber; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.UnsignedRationalNumber_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            encoder.WriteUInt32("Numerator", Numerator);
+            encoder.WriteUInt32("Denominator", Denominator);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
+
+            Numerator = decoder.ReadUInt32("Numerator");
+            Denominator = decoder.ReadUInt32("Denominator");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            UnsignedRationalNumber value = encodeable as UnsignedRationalNumber;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_numerator, value.m_numerator)) return false;
+            if (!Utils.IsEqual(m_denominator, value.m_denominator)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (UnsignedRationalNumber)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UnsignedRationalNumber clone = (UnsignedRationalNumber)base.MemberwiseClone();
+
+            clone.m_numerator = (uint)Utils.Clone(this.m_numerator);
+            clone.m_denominator = (uint)Utils.Clone(this.m_denominator);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_numerator;
+        private uint m_denominator;
+        #endregion
+    }
+
+    #region UnsignedRationalNumberCollection Class
+    /// <summary>
+    /// A collection of UnsignedRationalNumber objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfUnsignedRationalNumber", Namespace = Opc.Ua.Namespaces.OpcUaXsd, ItemName = "UnsignedRationalNumber")]
+    #if !NET_STANDARD
+    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>, ICloneable
+    #else
+    public partial class UnsignedRationalNumberCollection : List<UnsignedRationalNumber>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public UnsignedRationalNumberCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public UnsignedRationalNumberCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public UnsignedRationalNumberCollection(IEnumerable<UnsignedRationalNumber> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator UnsignedRationalNumberCollection(UnsignedRationalNumber[] values)
+        {
+            if (values != null)
+            {
+                return new UnsignedRationalNumberCollection(values);
+            }
+
+            return new UnsignedRationalNumberCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator UnsignedRationalNumber[](UnsignedRationalNumberCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (UnsignedRationalNumberCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            UnsignedRationalNumberCollection clone = new UnsignedRationalNumberCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((UnsignedRationalNumber)Utils.Clone(this[ii]));
             }
 
             return clone;
