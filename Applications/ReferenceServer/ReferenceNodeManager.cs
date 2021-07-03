@@ -538,6 +538,12 @@ namespace Quickstarts.ReferenceServer
                                 item.EURange.Value.High = 0;
                                 item.EURange.Value.Low = 0;
                             }
+
+                            //set default value for Definition property
+                            if (item.Definition != null)
+                            {
+                                item.Definition.Value = String.Empty;
+                            }
                         }
                     }
                     #endregion
@@ -1986,7 +1992,7 @@ namespace Quickstarts.ReferenceServer
 
             double number = Convert.ToDouble(value);
 
-            if (number >= variable.EnumStrings.Value.Length | number < 0)
+            if (number >= variable.EnumStrings.Value.Length || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }

@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // update external references.                
+                // update external references.
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
                     INodeManager nodeManager = m_nodeManagers[ii];
@@ -802,7 +802,7 @@ namespace Opc.Ua.Server
                 }
             }
             // validate access rights and role permissions
-            ServiceResult serviceResult = ValidatePermissions(context, nodeManager, sourceHandle, PermissionType.Browse);
+            ServiceResult serviceResult = ValidatePermissions(context, nodeManager, sourceHandle, PermissionType.Browse, null, true);
             if (ServiceResult.IsGood(serviceResult))
             {
                 // translate path only if validation is passing
@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate access rights and role permissions
-                ServiceResult validationResult = ValidatePermissions(context, viewManager, viewHandle, PermissionType.Browse);
+                ServiceResult validationResult = ValidatePermissions(context, viewManager, viewHandle, PermissionType.Browse, null, true);
                 if (ServiceResult.IsBad(validationResult))
                 {
                     throw new ServiceResultException(validationResult);
@@ -1093,6 +1093,47 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Prepare a cache per NodeManager and unique NodeId that holds the attributes needed to validate the AccessRestrictions and RolePermissions.
+        /// This cache is then used in subsequenct calls to avoid triggering unnecessary time consuming callbacks.
+        /// The current services that benefit from this are the Read service
+        /// </summary>
+        /// <typeparam name="T">One of the following types used in the service calls:
+        ///     ReadValueId used in the Read service</typeparam>
+        /// <param name="nodesCollection">The collection of nodes on which the service operates uppon</param>
+        /// <param name="uniqueNodesServiceAttributes">The resulting cache that holds the values of the AccessRestrictions and RolePermissions attributes needed for Read service</param>
+        private void PrepareValidationCache<T>(List<T> nodesCollection,
+            out Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes)
+        {
+            List<NodeId> uniqueNodes = new List<NodeId>();
+            for (int i = 0; i < nodesCollection.Count; i++)
+            {
+                Type listType = typeof(T);
+                NodeId nodeId = null;
+
+                if (listType == typeof(ReadValueId))
+                {
+                    nodeId = (nodesCollection[i] as ReadValueId)?.NodeId;
+                }
+
+                if (nodeId == null)
+                {
+                    throw new ArgumentException("Provided List<T> nodesCollection is of wrong type, T should be type BrowseDescription, ReadValueId or CallMethodRequest", nameof(nodesCollection));
+                }
+
+                if (!uniqueNodes.Contains(nodeId))
+                {
+                    uniqueNodes.Add(nodeId);
+                }
+            }
+            // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
+            uniqueNodesServiceAttributes = new Dictionary<NodeId, List<object>>();
+            foreach (var uniqueNode in uniqueNodes)
+            {
+                uniqueNodesServiceAttributes.Add(uniqueNode, new List<object>());
+            }
+        }
+
+        /// <summary>
         /// Continues a browse operation that was previously halted.
         /// </summary>
         public virtual void BrowseNext(
@@ -1137,7 +1178,7 @@ namespace Opc.Ua.Server
                 // validate access rights and role permissions
                 if (cp != null)
                 {
-                    ServiceResult validationResult = ValidatePermissions(context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse);
+                    ServiceResult validationResult = ValidatePermissions(context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse, null, true);
                     if (ServiceResult.IsBad(validationResult))
                     {
                         BrowseResult badResult = new BrowseResult();
@@ -1264,8 +1305,9 @@ namespace Opc.Ua.Server
             {
                 return StatusCodes.BadBrowseDirectionInvalid;
             }
+
             // validate access rights and role permissions
-            ServiceResult validationResult = ValidatePermissions(context, nodeManager, handle, PermissionType.Browse);
+            ServiceResult validationResult = ValidatePermissions(context, nodeManager, handle, PermissionType.Browse, null, true);
             if (ServiceResult.IsBad(validationResult))
             {
                 return validationResult;
@@ -1482,6 +1524,9 @@ namespace Opc.Ua.Server
                 "MasterNodeManager.Read - Count={0}",
                 nodesToRead.Count);
 
+            Dictionary<NodeId, List<object>> uniqueNodesReadAttributes;
+            PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
+
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 // add default value to values collection
@@ -1490,7 +1535,7 @@ namespace Opc.Ua.Server
                 diagnosticInfos.Add(null);
 
                 // pre-validate and pre-parse parameter.
-                errors[ii] = ValidateReadRequest(context, nodesToRead[ii]);
+                errors[ii] = ValidateReadRequest(context, nodesToRead[ii], uniqueNodesReadAttributes);
 
                 // return error status.
                 if (ServiceResult.IsBad(errors[ii]))
@@ -2683,7 +2728,7 @@ namespace Opc.Ua.Server
             }
 
             // validate read value id component. Validate also access rights and permissions
-            ServiceResult error = ValidateReadRequest(operationContext, item.ItemToMonitor);
+            ServiceResult error = ValidateReadRequest(operationContext, item.ItemToMonitor, null, true);
 
             if (ServiceResult.IsBad(error))
             {
@@ -2767,7 +2812,8 @@ namespace Opc.Ua.Server
         /// <param name="operationContext"></param>
         /// <param name="callMethodRequest"></param>
         /// <returns></returns>
-        protected ServiceResult ValidateCallRequestItem(OperationContext operationContext, CallMethodRequest callMethodRequest)
+        protected ServiceResult ValidateCallRequestItem(OperationContext operationContext,
+            CallMethodRequest callMethodRequest)
         {
             // check for null structure.
             if (callMethodRequest == null)
@@ -2794,7 +2840,11 @@ namespace Opc.Ua.Server
             }
 
             // passed basic validation. check also access rights and permissions
-            return ValidatePermissions(operationContext, callMethodRequest.MethodId, PermissionType.Call);
+            return ValidatePermissions(operationContext,
+                callMethodRequest.MethodId,
+                PermissionType.Call,
+                null,
+                true);
         }
 
         /// <summary>
@@ -2802,8 +2852,14 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="operationContext"></param>
         /// <param name="readValueId"></param>
+        /// <param name="uniqueNodesReadAttributes"></param>
+        /// <param name="permissionsOnly"></param>
         /// <returns></returns>
-        protected ServiceResult ValidateReadRequest(OperationContext operationContext, ReadValueId readValueId)
+        protected ServiceResult ValidateReadRequest(OperationContext operationContext,
+            ReadValueId readValueId,
+            Dictionary<NodeId, List<object>> uniqueNodesReadAttributes = null,
+            bool permissionsOnly = false
+            )
         {
             ServiceResult serviceResult = ReadValueId.Validate(readValueId);
 
@@ -2821,7 +2877,11 @@ namespace Opc.Ua.Server
                 }
 
                 // check access rights and role permissions
-                serviceResult = ValidatePermissions(operationContext, readValueId.NodeId, requestedPermission);
+                serviceResult = ValidatePermissions(operationContext,
+                    readValueId.NodeId,
+                    requestedPermission,
+                    uniqueNodesReadAttributes,
+                    permissionsOnly);
             }
             return serviceResult;
         }
@@ -2853,7 +2913,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check access rights and permissions
-                serviceResult = ValidatePermissions(operationContext, writeValue.NodeId, requestedPermission);
+                serviceResult = ValidatePermissions(operationContext, writeValue.NodeId, requestedPermission, null, true);
             }
             return serviceResult;
         }
@@ -2871,7 +2931,7 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(serviceResult))
             {
                 // check access rights and permissions
-                serviceResult = ValidatePermissions(operationContext, historyReadValueId.NodeId, PermissionType.ReadHistory);
+                serviceResult = ValidatePermissions(operationContext, historyReadValueId.NodeId, PermissionType.ReadHistory, null, true);
             }
             return serviceResult;
         }
@@ -2890,7 +2950,7 @@ namespace Opc.Ua.Server
             {
                 // check access rights and permissions
                 PermissionType requiredPermission = DetermineHistoryAccessPermission(historyUpdateDetails);
-                serviceResult = ValidatePermissions(operationContext, historyUpdateDetails.NodeId, requiredPermission);
+                serviceResult = ValidatePermissions(operationContext, historyUpdateDetails.NodeId, requiredPermission, null, true);
             }
 
             return serviceResult;
@@ -2904,19 +2964,24 @@ namespace Opc.Ua.Server
         /// <param name="context">The Operation Context</param>
         /// <param name="nodeId">The node whose attributes are validated</param>
         /// <param name="requestedPermision">The requested permission</param>
+        /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
+        /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
             NodeId nodeId,
-            PermissionType requestedPermision)
+            PermissionType requestedPermision,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
+            bool permissionsOnly = false
+           )
         {
             if (context.Session != null)
             {
                 INodeManager nodeManager = null;
                 object nodeHandle = GetManagerHandle(nodeId, out nodeManager);
 
-                return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision);
+                return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision, uniqueNodesServiceAttributes, permissionsOnly);
             }
             return StatusCodes.Good;
         }
@@ -2929,20 +2994,40 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The node manager handling the nodeHandle</param>
         /// <param name="nodeHandle">The node handle of the node whose attributes are validated</param>
         /// <param name="requestedPermision">The requested permission</param>
+        /// <param name="uniqueNodesServiceAttributes">The cache holding the values of the attributes neeeded to be used in subsequent calls</param>
+        /// <param name="permissionsOnly">Only the AccessRestrictions and RolePermission attributes are read. Should be false if uniqueNodesServiceAttributes is not null</param>
         /// <returns>StatusCode Good if permission is granted, BadUserAccessDenied if not granted 
         /// or a bad status code describing the validation process failure </returns>
         protected ServiceResult ValidatePermissions(
             OperationContext context,
             INodeManager nodeManager,
             object nodeHandle,
-            PermissionType requestedPermision)
+            PermissionType requestedPermision,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes = null,
+            bool permissionsOnly = false
+            )
         {
             ServiceResult serviceResult = StatusCodes.Good;
 
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                NodeMetadata nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
+                INodeManager2 nodeManager2 = nodeManager as INodeManager2;
+
+                NodeMetadata nodeMetadata = null;
+                // First attempt to retrieve just the Permission metadata with or without cache optimization
+                // If it happens that nodemanager does not fully implement INodeManager2.GetPermissionMetadata or not INodeManager2,
+                // fallback to INodeManager.GetNodeMetadata
+                if (nodeManager2 != null)
+                {
+                    nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly); 
+                }
+                // If not INodeManager2 or GetPermissionMetadata() returns null.
+                if (nodeMetadata == null)
+                {
+                    nodeMetadata = nodeManager.GetNodeMetadata(context, nodeHandle, BrowseResultMask.NodeClass);
+                }
+
                 if (nodeMetadata != null)
                 {
                     // check RolePermissions 
@@ -2983,15 +3068,22 @@ namespace Opc.Ua.Server
                 bool encryptionRequired = (restrictions & AccessRestrictionType.EncryptionRequired) == AccessRestrictionType.EncryptionRequired;
                 bool signingRequired = (restrictions & AccessRestrictionType.SigningRequired) == AccessRestrictionType.SigningRequired;
                 bool sessionRequired = (restrictions & AccessRestrictionType.SessionRequired) == AccessRestrictionType.SessionRequired;
+                bool applyRestrictionsToBrowse = (restrictions & AccessRestrictionType.ApplyRestrictionsToBrowse) == AccessRestrictionType.ApplyRestrictionsToBrowse;
+
+                bool browseOperation = context.RequestType == RequestType.Browse ||
+                                       context.RequestType == RequestType.BrowseNext ||
+                                       context.RequestType == RequestType.TranslateBrowsePathsToNodeIds;
 
                 if ((encryptionRequired &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport) ||
+                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                     ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)) ||
                     (signingRequired &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.Sign &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport) ||
-                   (sessionRequired && context.Session == null))
+                     context.ChannelContext.EndpointDescription.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                     ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)) ||
+                    (sessionRequired && context.Session == null))
                 {
                     serviceResult = ServiceResult.Create(StatusCodes.BadSecurityModeInsufficient,
                         "Access restricted to nodeId {0} due to insufficient security mode.", nodeMetadata.NodeId);

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -34,9 +34,9 @@ using Opc.Ua.PubSub.Configuration;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// This entity represents a working connection for PubSub
+    /// Abstract class that represents a working connection for PubSub
     /// </summary>
-    internal abstract class UaPubSubConnection : IUaPubSubConnection,  IDisposable
+    internal abstract class UaPubSubConnection : IUaPubSubConnection
     {
         #region Fields
         protected object m_lock = new object();
@@ -45,17 +45,19 @@ namespace Opc.Ua.PubSub
         private PubSubConnectionDataType m_pubSubConnectionDataType;
         private UaPubSubApplication m_uaPubSubApplication;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
-       
         #endregion
 
         #region Constructor
         /// <summary>
         /// Create new instance of UaPubSubConnection with PubSubConnectionDataType configuration data
         /// </summary>
-        /// <param name="parentUaPubSubApplication"></param>
-        /// <param name="pubSubConnectionDataType"></param>
         public UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
+            if (parentUaPubSubApplication == null)
+            {
+                throw new ArgumentNullException(nameof(parentUaPubSubApplication));
+            }
+
             m_uaPubSubApplication = parentUaPubSubApplication;
             m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded += UaPubSubConfigurator_WriterGroupAdded;
             m_pubSubConnectionDataType = pubSubConnectionDataType;
@@ -65,17 +67,7 @@ namespace Opc.Ua.PubSub
             if (string.IsNullOrEmpty(pubSubConnectionDataType.Name))
             {
                 pubSubConnectionDataType.Name = "<connection>";
-            }
-        }
-
-        private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
-        {
-            PubSubConnectionDataType pubSubConnectionDataType = m_uaPubSubApplication.UaPubSubConfigurator.FindObjectById(e.ConnectionId) 
-                as PubSubConnectionDataType;
-            if (m_pubSubConnectionDataType == pubSubConnectionDataType)
-            {
-                UaPublisher publisher = new UaPublisher(this, e.WriterGroupDataType);
-                m_publishers.Add(publisher);
+                Utils.Trace("UaPubSubConnection() received a PubSubConnectionDataType object without name. '<connection>' will be used");
             }
         }
 
@@ -83,7 +75,7 @@ namespace Opc.Ua.PubSub
 
         #region Properties
         /// <summary>
-        /// Get assigned transport protocol for this connection instance
+        /// Get the assigned transport protocol for this connection instance
         /// </summary>
         public TransportProtocol TransportProtocol
         {
@@ -112,7 +104,7 @@ namespace Opc.Ua.PubSub
         public bool IsRunning
         {
             get { return m_isRunning; }
-        }       
+        }
         #endregion
 
         #region Internal Properties
@@ -123,13 +115,37 @@ namespace Opc.Ua.PubSub
         {
             get { return m_publishers.AsReadOnly(); }
         }
+        #endregion
+
+        #region IDisposable Implementation
+        /// <summary>
+        /// Releases all resources used by the current instance of the <see cref="UaPubSubConnection"/> class.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
         /// <summary>
-        /// Get the read only list of dataset readers associated with this connection
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  and optionally releases the managed resources.
         /// </summary>
-        internal IReadOnlyCollection<DataSetReaderDataType> DataSetReaders
+        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
         {
-            get { return GetDataSetReaders().AsReadOnly(); }
+            if (disposing)
+            {
+                m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded -= UaPubSubConfigurator_WriterGroupAdded;
+                Stop();
+                // free managed resources
+                foreach (UaPublisher publisher in m_publishers)
+                {
+                    publisher.Dispose();
+                }
+
+                Utils.Trace("Connection '{0}' was disposed.", m_pubSubConnectionDataType.Name);
+            }
         }
         #endregion
 
@@ -138,7 +154,7 @@ namespace Opc.Ua.PubSub
         /// Start Publish/Subscribe jobs associated with this instance
         /// </summary>
         public void Start()
-        {    
+        {
             lock (m_lock)
             {
                 m_isRunning = true;
@@ -148,7 +164,9 @@ namespace Opc.Ua.PubSub
                 }
             }
             InternalStart();
+            Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
         }
+
         /// <summary>
         /// Stop Publish/Subscribe jobs associated with this instance
         /// </summary>
@@ -163,6 +181,7 @@ namespace Opc.Ua.PubSub
                     publisher.Stop();
                 }
             }
+            Utils.Trace("Connection '{0}' was stopped.", m_pubSubConnectionDataType.Name);
         }
 
         /// <summary>
@@ -194,49 +213,26 @@ namespace Opc.Ua.PubSub
             }
 
             return false;
-        }       
-        
+        }
+
         /// <summary>
-        /// Create the network message built from the provided writerGroupConfiguration
+        /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
-        /// <param name="writerGroupConfiguration"></param>
-        /// <returns></returns>
-        public abstract UaNetworkMessage CreateNetworkMessage(WriterGroupDataType writerGroupConfiguration);
+        /// <param name="writerGroupConfiguration">The writer group configuration </param>
+        /// <returns>A list of the <see cref="UaNetworkMessage"/> created from the provided writerGroupConfiguration.</returns>
+        public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
 
         /// <summary>
         /// Publish the network message
         /// </summary>
-        /// <param name="networkMessage"></param>
-        /// <returns></returns>
+        /// <param name="networkMessage">The network message that needs to be published.</param>
+        /// <returns>True if send was successfull.</returns>
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
-        
-        #endregion
 
-        #region Protected Methods
-
-        /// <summary>
-        /// Initialize the connection object. Must be implemented by derived classes
-        /// </summary>
-        /// <returns></returns>
-        protected abstract bool InternalInitialize();
-
-        /// <summary>
-        /// Perform specific Start tasks
-        /// </summary>
-        protected abstract void InternalStart();
-
-        /// <summary>
-        /// Perform specific Stop tasks
-        /// </summary>
-        protected abstract void InternalStop();
-
-        #endregion
-
-        #region Private Methods       
         /// <summary>
         /// Get current list of dataset readers available in this UaSubscriber component
         /// </summary>
-        protected List<DataSetReaderDataType> GetDataSetReaders()
+        public List<DataSetReaderDataType> GetOperationalDataSetReaders()
         {
             List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
             if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
@@ -249,6 +245,13 @@ namespace Opc.Ua.PubSub
                 {
                     foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
                     {
+                        // check if reader is properlly configuread to receive data
+                        if (reader.DataSetMetaData == null
+                            || reader.DataSetMetaData.Fields == null
+                            || reader.DataSetMetaData.Fields.Count == 0)
+                        {
+                            continue;
+                        }
                         if (Application.UaPubSubConfigurator.FindStateForObject(reader) == PubSubState.Operational)
                         {
                             readersList.Add(reader);
@@ -260,33 +263,92 @@ namespace Opc.Ua.PubSub
         }
         #endregion
 
-        #region IDisposable Implementation
+        #region Protected Methods
         /// <summary>
-        /// Releases all resources used by the current instance of the <see cref="UaPubSubConnection"/> class.
+        /// Perform specific Start tasks
         /// </summary>
-        public void Dispose()
+        protected abstract void InternalStart();
+
+        /// <summary>
+        /// Perform specific Stop tasks
+        /// </summary>
+        protected abstract void InternalStop();
+
+        /// <summary>
+        /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.
+        /// </summary>
+        /// <param name="networkMessage">The network message that was received.</param>
+        /// <param name="source">The source of the received event.</param>
+        protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
+            {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                    NetworkMessage = networkMessage,
+                    Source = source
+                };
+
+                //trigger notification for received subscribed data set
+                Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
+                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
+                    source, subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+            }
+            else
+            {
+                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() message from source={0} cannot be decoded.", source);
+            }
         }
 
         /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
-        ///  and optionally releases the managed resources.
+        /// Get all dataset readers defined for this UaSubscriber component
         /// </summary>
-        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
-        protected virtual void Dispose(bool disposing)
+        protected List<DataSetReaderDataType> GetAllDataSetReaders()
         {
-            if (disposing)
+            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
+            if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
             {
-                m_uaPubSubApplication.UaPubSubConfigurator.WriterGroupAdded -= UaPubSubConfigurator_WriterGroupAdded;
-                Stop();
-                // free managed resources
-                foreach (UaPublisher publisher in m_publishers)
+                return readersList;
+            }
+            foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
+            {
+                foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
                 {
-                    publisher.Dispose();
+                    readersList.Add(reader);
                 }
-            }            
+            }
+            return readersList;
+        }
+
+        /// <summary>
+        /// Get the maximum KeepAlive value from all present WriterGroups
+        /// </summary>
+        protected double GetWriterGroupsMaxKeepAlive()
+        {
+            double maxKeepAlive = 0;
+            foreach (WriterGroupDataType writerGroup in m_pubSubConnectionDataType.WriterGroups)
+            {
+                if (maxKeepAlive < writerGroup.KeepAliveTime)
+                {
+                    maxKeepAlive = writerGroup.KeepAliveTime;
+                }
+            }
+            return maxKeepAlive;
+        }
+        #endregion 
+
+        #region Private Methods
+        /// <summary>
+        /// Handler for <see cref="UaPubSubConfigurator.WriterGroupAdded"/> event. 
+        /// </summary>
+        private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
+        {
+            PubSubConnectionDataType pubSubConnectionDataType = m_uaPubSubApplication.UaPubSubConfigurator.FindObjectById(e.ConnectionId)
+                as PubSubConnectionDataType;
+            if (m_pubSubConnectionDataType == pubSubConnectionDataType)
+            {
+                UaPublisher publisher = new UaPublisher(this, e.WriterGroupDataType);
+                m_publishers.Add(publisher);
+            }
         }
         #endregion
     }

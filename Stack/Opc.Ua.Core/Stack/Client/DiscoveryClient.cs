@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public async virtual Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris)
         {
-            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris);
+            var endpoints = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris).ConfigureAwait(false);
             return PatchEndpointUrls(endpoints);
         }
 
@@ -298,7 +298,7 @@ namespace Opc.Ua
         public static ITransportChannel Create(
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext,
+            IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
             // create a dummy description.
@@ -327,7 +327,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext,
+            IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
@@ -358,7 +358,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
-            ServiceMessageContext messageContext,
+            IServiceMessageContext messageContext,
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.

@@ -60,11 +60,38 @@ namespace Opc.Ua.Gds.Tests
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestClient"
             };
 
+#if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfiguration(false);
+            Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+#else
+            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            var clientConfig = new GlobalDiscoveryTestClientConfiguration() {
+                GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
+                AppUserName="appuser",
+                AppPassword="demo",
+                AdminUserName="appadmin",
+                AdminPassword="demo"
+            };
 
+            // build the application configuration.
+            Config = await application
+                .Build(
+                    "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
+                    "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
+                .AsClient()
+                .AddSecurityConfiguration(
+                    "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                    pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetMinimumCertificateKeySize(1024)
+                .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
+                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetTraceMasks(519)
+                .Create().ConfigureAwait(false);
+#endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");

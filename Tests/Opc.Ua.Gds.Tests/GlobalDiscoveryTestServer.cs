@@ -54,14 +54,15 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartServer(bool clean, int basePort = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            Application = new ApplicationInstance {
+            Application = new ApplicationInstance
+            {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
             };
 
             BasePort = basePort;
-            Config = await Load(Application, basePort);
+            Config = await Load(Application, basePort).ConfigureAwait(false);
 
             if (clean)
             {
@@ -70,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using (var store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     {
-                        await store.Delete(thumbprint);
+                        await store.Delete(thumbprint).ConfigureAwait(false);
                     }
                 }
 
@@ -80,11 +81,11 @@ namespace Opc.Ua.Gds.Tests
                 TestUtils.CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore());
                 TestUtils.CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore());
 
-                Config = await Load(Application, basePort);
+                Config = await Load(Application, basePort).ConfigureAwait(false);
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(true, 0);
+            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -123,7 +124,7 @@ namespace Opc.Ua.Gds.Tests
                 database,
                 database,
                 new CertificateGroup());
-            await Application.Start(m_server);
+            await Application.Start(m_server).ConfigureAwait(false);
 
             ServerState serverState = Server.GetStatus().State;
             if (serverState != ServerState.Running)
@@ -188,8 +189,59 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
+#if USE_FILE_CONFIG
             // load the application configuration.
-            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true);
+            ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
+#else
+            string gdsRoot = "%LocalApplicationData%/OPC/GDS";
+            var gdsConfig = new GlobalDiscoveryServerConfiguration()
+            {
+                AuthoritiesStorePath = gdsRoot + "/authorities",
+                ApplicationCertificatesStorePath = gdsRoot + "/applications",
+                DefaultSubjectNameContext = "O=OPC Foundation",
+                CertificateGroups = new CertificateGroupConfigurationCollection()
+                {
+                    new CertificateGroupConfiguration()
+                    {
+                        Id = "Default",
+                        CertificateType ="RsaSha256ApplicationCertificateType",
+                        SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                        BaseStorePath = gdsRoot + "/CA/default",
+                        DefaultCertificateHashSize = 256,
+                        DefaultCertificateKeySize = 2048,
+                        DefaultCertificateLifetime = 12,
+                        CACertificateHashSize = 512,
+                        CACertificateKeySize = 4096,
+                        CACertificateLifetime = 60
+                    }
+                },
+                DatabaseStorePath = gdsRoot + "/gdsdb.json"
+            };
+
+            // build the application configuration.
+            ApplicationConfiguration config = await application
+                .Build(
+                    "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
+                    "http://opcfoundation.org/UA/GlobalDiscoveryTestServer")
+                .AsServer(new string[] { "opc.tcp://localhost:58810/GlobalDiscoveryTestServer" })
+                .AddUserTokenPolicy(UserTokenType.Anonymous)
+                .AddUserTokenPolicy(UserTokenType.UserName)
+                .SetDiagnosticsEnabled(true)
+                .AddServerCapabilities("GDS")
+                .AddServerProfile("http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017")
+                .SetShutdownDelay(0)
+                .AddSecurityConfiguration(
+                    "CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost",
+                    gdsRoot)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetMinimumCertificateKeySize(1024)
+                .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
+                .SetDeleteOnLoad(true)
+                .SetOutputFilePath(gdsRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetTraceMasks(519)
+                .Create().ConfigureAwait(false);
+#endif
             TestUtils.PatchBaseAddressesPorts(config, basePort);
             return config;
         }

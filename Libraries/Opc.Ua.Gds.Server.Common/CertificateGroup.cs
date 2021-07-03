@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Server
 
             using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_authoritiesStorePath))
             {
-                X509Certificate2Collection certificates = await store.Enumerate();
+                X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
                 foreach (var certificate in certificates)
                 {
                     if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Server
                     Configuration.CACertificateHashSize,
                     Configuration.CACertificateLifetime
                     );
-                X509Certificate2 newCertificate = await CreateCACertificateAsync(m_subjectName);
+                X509Certificate2 newCertificate = await CreateCACertificateAsync(m_subjectName).ConfigureAwait(false);
                 Certificate = new X509Certificate2(newCertificate.RawData);
             }
         }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Gds.Server
             if (application.ApplicationUri == null) throw new ArgumentNullException(nameof(application.ApplicationUri));
             if (application.ApplicationNames == null) throw new ArgumentNullException(nameof(application.ApplicationNames));
 
-            using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
+            using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
             using (var certificate = CertificateFactory.CreateCertificate(
                 application.ApplicationUri,
                 application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
@@ -247,7 +247,7 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
-                using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty))
+                using (var signingKey = await LoadSigningKeyAsync(Certificate, string.Empty).ConfigureAwait(false))
                 {
                     return CertificateFactory.CreateCertificate(
                             application.ApplicationUri,
@@ -293,9 +293,9 @@ namespace Opc.Ua.Gds.Server
             Certificate = new X509Certificate2(newCertificate.RawData);
 
             // initialize revocation list
-            await RevokeCertificateAsync(m_authoritiesStorePath, newCertificate, null);
+            await RevokeCertificateAsync(m_authoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
-            await UpdateAuthorityCertInTrustedList();
+            await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
 
             return Certificate;
         }
@@ -312,7 +312,7 @@ namespace Opc.Ua.Gds.Server
                 StorePath = m_authoritiesStorePath,
                 StoreType = m_authoritiesStoreType
             };
-            return await certIdentifier.LoadPrivateKey(signingKeyPassword);
+            return await certIdentifier.LoadPrivateKey(signingKeyPassword).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -363,7 +363,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ArgumentException("Invalid store path/type");
                 }
-                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber);
+                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.Issuer, serialNumber).ConfigureAwait(false);
 
                 if (certCA == null)
                 {
@@ -379,7 +379,7 @@ namespace Opc.Ua.Gds.Server
                     StorePath = storePath,
                     StoreType = CertificateStoreIdentifier.DetermineStoreType(storePath)
                 };
-                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword);
+                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKey(issuerKeyFilePassword).ConfigureAwait(false);
 
                 if (certCAWithPrivateKey == null)
                 {
@@ -420,15 +420,15 @@ namespace Opc.Ua.Gds.Server
                 using (ICertificateStore authorityStore = CertificateStoreIdentifier.OpenStore(m_authoritiesStorePath))
                 using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(trustedListStorePath))
                 {
-                    X509Certificate2Collection certificates = await authorityStore.Enumerate();
+                    X509Certificate2Collection certificates = await authorityStore.Enumerate().ConfigureAwait(false);
                     foreach (var certificate in certificates)
                     {
                         if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
                         {
-                            X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint);
+                            X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                             if (certs.Count == 0)
                             {
-                                await trustedStore.Add(new X509Certificate2(certificate.RawData));
+                                await trustedStore.Add(new X509Certificate2(certificate.RawData)).ConfigureAwait(false);
                             }
 
                             // delete existing CRL in trusted list

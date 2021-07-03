@@ -478,14 +478,14 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype id.</param>
         /// <param name="factory">The factory used to store and retrieve underlying OPC UA system types.</param>
         /// <returns>The system type for the <paramref name="datatypeId"/>.</returns>
-        public static Type GetSystemType(NodeId datatypeId, EncodeableFactory factory)
+        public static Type GetSystemType(ExpandedNodeId datatypeId, IEncodeableFactory factory)
         {
             if (datatypeId == null)
             {
                 return null;
             }
 
-            if (datatypeId.NamespaceIndex != 0 || datatypeId.IdType != Opc.Ua.IdType.Numeric)
+            if (datatypeId.NamespaceIndex != 0 || datatypeId.IdType != Opc.Ua.IdType.Numeric || datatypeId.IsAbsolute)
             {
                 return factory.GetSystemType(datatypeId);
             }
@@ -2324,7 +2324,7 @@ namespace Opc.Ua
 
                     if (text.Length == 0)
                     {
-                        return new byte[0];
+                        return Array.Empty<byte>();
                     }
 
                     using (System.IO.MemoryStream ostrm = new System.IO.MemoryStream())
@@ -2402,7 +2402,7 @@ namespace Opc.Ua
                 case BuiltInType.String:
                 {
                     XmlDocument document = new XmlDocument();
-                    document.InnerXml = (string)value;
+                    document.LoadInnerXml((string)value);
                     return document.DocumentElement;
                 }
             }
@@ -3014,14 +3014,14 @@ namespace Opc.Ua
 
                 if (m_valueRank >= 0)
                 {
-                    buffer.Append("[");
+                    buffer.Append('[');
 
                     for (int ii = 1; ii < m_valueRank; ii++)
                     {
-                        buffer.Append(",");
+                        buffer.Append(',');
                     }
 
-                    buffer.Append("]");
+                    buffer.Append(']');
                 }
 
                 return buffer.ToString();

@@ -10,6 +10,13 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  
+  <!-- override to tag PubSub library as beta until API surface is finalized -->
+  <PropertyGroup Condition="'$(NBGV_PublicRelease)' == 'True' AND '$(NBGV_PrereleaseVersion)' != '-preview'">
+    <Version>$(NBGV_Version)-beta</Version>
+    <VersionSuffix>$(NBGV_VersionRevision)-beta</VersionSuffix>
+    <PackageVersion>$(NBGV_Version)-beta</PackageVersion>
+  </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
@@ -24,18 +31,11 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-    <Reference Include="System.IdentityModel.Selectors" />
-    <Reference Include="System.Security" />
-    <Reference Include="System.Linq" />
-    <Reference Include="System.ServiceModel" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
   </ItemGroup>
   
   <ItemGroup>
+    <PackageReference Include="MQTTnet" Version="3.0.15" />
     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
   </ItemGroup>
 

@@ -780,7 +780,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
+                document.LoadInnerXml(encoder.Close());
 
                 // return element.
                 return document.DocumentElement;
@@ -899,7 +899,7 @@ namespace Opc.Ua
 
             if (array != null && m_typeInfo.ValueRank <= 1)
             {
-                buffer.Append("{");
+                buffer.Append('{');
 
                 if (array.Length > 0)
                 {
@@ -912,7 +912,7 @@ namespace Opc.Ua
                     AppendFormat(buffer, array.GetValue(ii), formatProvider);
                 }
 
-                buffer.Append("}");
+                buffer.Append('}');
                 return;
             }
 
@@ -1516,11 +1516,6 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
             Variant? variant = obj as Variant?;
 
             if (variant != null)
@@ -2779,7 +2774,7 @@ namespace Opc.Ua
                 {
                     if (ii > 0)
                     {
-                        buffer.Append(",");
+                        buffer.Append(',');
                     }
 
                     buffer.AppendFormat(formatProvider, "{0}", m_dimensions[ii]);

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -57,7 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_encodingMask = 0;
         }
-        #endregion
+        #endregion Constructors
 
         #region Public Properties
 
@@ -85,7 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
+            encoder.PushNamespace(XmlNamespace);
 
             if (encoder.UseReversibleEncoding)
             {
@@ -110,7 +109,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public override void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             m_encodingMask = decoder.ReadUInt32("EncodingMask");
 
@@ -137,8 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return true;
             }
 
-            var valueBaseType = equalValue as OptionalFieldsComplexType;
-            if (valueBaseType == null)
+            if (!(equalValue is OptionalFieldsComplexType valueBaseType))
             {
                 return false;
             }
@@ -172,7 +170,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return true;
         }
-        #endregion
+        #endregion Public Properties
 
         #region IFormattable Members
         /// <summary>
@@ -204,7 +202,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
+                    body.Append('}');
                     return body.ToString();
                 }
 
@@ -218,7 +216,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
+        #endregion IFormattable Members
 
         #region IComplexTypeProperties Members
         /// <summary>
@@ -294,7 +292,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion
+        #endregion IComplexTypeProperties Members
 
         #region Private Members
         /// <inheritdoc/>
@@ -314,12 +312,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion
+        #endregion Private Members
 
         #region Private Fields
         private UInt32 m_encodingMask;
-        #endregion
+        #endregion Private Fields
     }
-
-
 }//namespace

@@ -24,25 +24,25 @@ namespace Opc.Ua.Schema.Xml
     /// Generates files used to describe data types.
     /// </summary>
     public class XmlSchemaValidator : SchemaValidator
-    {       
+    {
         #region Constructors
-		/// <summary>
-		/// Intializes the object with default values.
-		/// </summary>
-		public XmlSchemaValidator()
-		{
+        /// <summary>
+        /// Intializes the object with default values.
+        /// </summary>
+        public XmlSchemaValidator()
+        {
             SetResourcePaths(WellKnownDictionaries);
-		}
+        }
 
-		/// <summary>
-		/// Intializes the object with a file table.
-		/// </summary>
-		public XmlSchemaValidator(Dictionary<string,string> fileTable) : base(fileTable)
-		{
+        /// <summary>
+        /// Intializes the object with a file table.
+        /// </summary>
+        public XmlSchemaValidator(Dictionary<string, string> fileTable) : base(fileTable)
+        {
             SetResourcePaths(WellKnownDictionaries);
-		}
-        #endregion      
-        
+        }
+        #endregion
+
         #region Public Members
         /// <summary>
         /// The schema that was validated.
@@ -51,54 +51,66 @@ namespace Opc.Ua.Schema.Xml
         {
             get { return m_schema; }
         }
-        
-		/// <summary>
-		/// Generates the code from the contents of the address space.
-		/// </summary>
-		public void Validate(string inputPath)
-		{
+
+        /// <summary>
+        /// Generates the code from the contents of the address space.
+        /// </summary>
+        public void Validate(string inputPath)
+        {
             using (Stream istrm = File.OpenRead(inputPath))
             {
                 Validate(istrm);
             }
         }
 
-		/// <summary>
-		/// Generates the code from the contents of the address space.
-		/// </summary>
-		public void Validate(Stream stream)
-		{
-            m_schema.Load(stream);
-            
+        /// <summary>
+        /// Generates the code from the contents of the address space.
+        /// </summary>
+        public void Validate(Stream stream)
+        {
+            using (var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            {
+                m_schema.Load(xmlReader);
+            }
+
             foreach (XmlNode import in m_schema.ChildNodes)
-            {                    
+            {
                 if (import.NamespaceURI == Namespaces.OpcUa)
                 {
-                    StreamReader strm = new StreamReader(Assembly.Load(new AssemblyName("Opc.Ua.Core")).GetManifestResourceStream("Opc.Ua.Model.Opc.Ua.Types.xsd"));
-                    m_schema.Load(strm);
+                    using (StreamReader strm = new StreamReader(Assembly.Load(new AssemblyName("Opc.Ua.Core")).GetManifestResourceStream("Opc.Ua.Model.Opc.Ua.Types.xsd")))
+                    using (var xmlReader = XmlReader.Create(strm, Utils.DefaultXmlReaderSettings()))
+                    {
+                        m_schema.Load(xmlReader);
+                    }
                     continue;
                 }
 
                 string location = null;
 
                 if (!KnownFiles.TryGetValue(import.NamespaceURI, out location))
-                { 
+                {
                     location = import.NamespaceURI;
                 }
-                
+
                 FileInfo fileInfo = new FileInfo(location);
                 if (!fileInfo.Exists)
                 {
-                    StreamReader strm = new StreamReader(Assembly.Load(new AssemblyName("Opc.Ua.Core")).GetManifestResourceStream(location));
-                    m_schema.Load(strm);
+                    using (StreamReader strm = new StreamReader(Assembly.Load(new AssemblyName("Opc.Ua.Core")).GetManifestResourceStream(location)))
+                    using (var xmlReader = XmlReader.Create(strm, Utils.DefaultXmlReaderSettings()))
+                    {
+                        m_schema.Load(xmlReader);
+                    }
                 }
                 else
                 {
-                    Stream strm = File.OpenRead(location);
-                    m_schema.Load(strm);
-                }                
+                    using (Stream strm = File.OpenRead(location))
+                    using (var xmlReader = XmlReader.Create(strm, Utils.DefaultXmlReaderSettings()))
+                    {
+                        m_schema.Load(xmlReader);
+                    }
+                }
             }
-		}       
+        }
 
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
@@ -106,14 +118,14 @@ namespace Opc.Ua.Schema.Xml
         public override string GetSchema(string typeName)
         {
             XmlWriterSettings settings = new XmlWriterSettings();
-            
-            settings.Encoding    = Encoding.UTF8;
-            settings.Indent      = true;
+
+            settings.Encoding = Encoding.UTF8;
+            settings.Indent = true;
             settings.IndentChars = "    ";
 
             MemoryStream ostrm = new MemoryStream();
             XmlWriter writer = XmlWriter.Create(ostrm, settings);
-            
+
             try
             {
                 if (typeName == null || m_schema.ChildNodes.Count == 0)
@@ -123,12 +135,12 @@ namespace Opc.Ua.Schema.Xml
                 else
                 {
                     foreach (XmlNode current in m_schema.ChildNodes)
-                    {       
+                    {
                         XmlElement element = current as XmlElement;
                         if (element != null)
                         {
                             if (element.Name == typeName)
-                            {                                
+                            {
                                 XmlDocument schema = new XmlDocument();
                                 schema.AppendChild(element);
                                 schema.WriteTo(writer);
@@ -145,9 +157,9 @@ namespace Opc.Ua.Schema.Xml
             }
 
             return new UTF8Encoding().GetString(ostrm.ToArray());
-        } 
+        }
         #endregion
-        
+
         #region Private Fields
         private readonly string[][] WellKnownDictionaries = new string[][]
         {

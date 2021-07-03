@@ -60,12 +60,39 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
             };
-
+#if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfiguration(false);
+            Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+#else
+            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            var clientConfig = new ServerConfigurationPushTestClientConfiguration() {
+                ServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
+                AppUserName = "",
+                AppPassword = "",
+                SysAdminUserName = "sysadmin",
+                SysAdminPassword = "demo",
+                TempStorePath = pkiRoot + "/temp"
+            };
 
+            // build the application configuration.
+            Config = await application
+                .Build(
+                    "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
+                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
+                .AsClient()
+                .AddSecurityConfiguration(
+                    "CN=Server Configuration Push Test Client, O=OPC Foundation",
+                    pkiRoot)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetMinimumCertificateKeySize(1024)
+                .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
+                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetTraceMasks(519)
+                .Create().ConfigureAwait(false);
+#endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0);
+            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");

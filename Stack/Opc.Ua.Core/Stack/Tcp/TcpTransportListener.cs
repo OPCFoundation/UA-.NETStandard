@@ -111,21 +111,24 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
-            m_quotas.MessageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext() {
+                NamespaceUris = settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = settings.Factory
+            };
+
             if (configuration != null)
             {
                 m_quotas.MaxBufferSize = configuration.MaxBufferSize;
                 m_quotas.MaxMessageSize = configuration.MaxMessageSize;
                 m_quotas.ChannelLifetime = configuration.ChannelLifetime;
                 m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
-                m_quotas.MessageContext.MaxArrayLength = configuration.MaxArrayLength;
-                m_quotas.MessageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-                m_quotas.MessageContext.MaxMessageSize = configuration.MaxMessageSize;
-                m_quotas.MessageContext.MaxStringLength = configuration.MaxStringLength;
+                messageContext.MaxArrayLength = configuration.MaxArrayLength;
+                messageContext.MaxByteStringLength = configuration.MaxByteStringLength;
+                messageContext.MaxMessageSize = configuration.MaxMessageSize;
+                messageContext.MaxStringLength = configuration.MaxStringLength;
             }
-            m_quotas.MessageContext.NamespaceUris = settings.NamespaceUris;
-            m_quotas.MessageContext.ServerUris = new StringTable();
-            m_quotas.MessageContext.Factory = settings.Factory;
+            m_quotas.MessageContext = messageContext;
 
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
@@ -390,7 +393,7 @@ namespace Opc.Ua.Bindings
             if (ConnectionWaiting != null)
             {
                 var args = new TcpConnectionWaitingEventArgs(serverUri, endpointUrl, channel.Socket);
-                await ConnectionWaiting(this, args);
+                await ConnectionWaiting(this, args).ConfigureAwait(false);
                 accepted = args.Accepted;
             }
 
@@ -597,7 +600,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Base address must be an absolute URI.", nameof(baseAddress));
             }
 
-            if (String.Compare(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase) != 0)
+            if (!String.Equals(baseAddress.Scheme, Utils.UriSchemeOpcTcp, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"Invalid URI scheme: {baseAddress.Scheme}.", nameof(baseAddress));
             }

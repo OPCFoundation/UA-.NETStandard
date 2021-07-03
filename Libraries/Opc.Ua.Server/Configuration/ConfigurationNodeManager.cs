@@ -536,7 +536,7 @@ namespace Opc.Ua.Server
 
             if (!String.IsNullOrEmpty(subjectName))
             {
-                throw new ArgumentException(nameof(subjectName));
+                throw new ArgumentNullException(nameof(subjectName));
             }
 
             // TODO: implement regeneratePrivateKey
@@ -578,11 +578,11 @@ namespace Opc.Ua.Server
             if (disconnectSessions)
             {
                 Task.Run(async () => {
-                    Utils.Trace((int)Utils.TraceMasks.Security, $"Apply Changes for application certificate update.");
+                    Utils.Trace((int)Utils.TraceMasks.Security, "Apply Changes for application certificate update.");
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
                     await Task.Delay(1000).ConfigureAwait(false);
-                    await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration);
+                    await m_configuration.CertificateValidator.UpdateCertificate(m_configuration.SecurityConfiguration).ConfigureAwait(false);
                 }
                 );
             }

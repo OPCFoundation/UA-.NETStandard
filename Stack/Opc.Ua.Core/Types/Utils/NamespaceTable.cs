@@ -138,7 +138,7 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                if (index >= 0 && index < m_strings.Count)
+                if (index < m_strings.Count)
                 {
                     return m_strings[(int)index];
                 }

@@ -268,11 +268,6 @@ namespace Opc.Ua
         /// <param name="obj">The object to test against this</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
             NumericRange? range = obj as NumericRange?;
 
             if (range == null)

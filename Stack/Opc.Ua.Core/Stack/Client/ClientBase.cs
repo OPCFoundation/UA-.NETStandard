@@ -105,7 +105,7 @@ namespace Opc.Ua
         /// The message context used when serializing messages.
         /// </summary>
         /// <value>The message context.</value>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -153,7 +153,7 @@ namespace Opc.Ua
                         channel.Close();
                         channel.Dispose();
                     }
-                    catch (Exception)
+                    catch
                     {
                         // ignore errors.
                     }

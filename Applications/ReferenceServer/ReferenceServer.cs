@@ -142,8 +142,11 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                // allow a faster sampling interval for CurrentTime node.
-                ServerInternal.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+                lock (ServerInternal.Status.Lock)
+                {
+                    // allow a faster sampling interval for CurrentTime node.
+                    ServerInternal.Status.Variable.CurrentTime.MinimumSamplingInterval = 250;
+                }
             }
             catch
             { }
@@ -221,9 +224,19 @@ namespace Quickstarts.ReferenceServer
                 return;
             }
 
-            // allow anonymous authentication and set Anonymous role for this authentication
-            args.Identity = new UserIdentity();
-            args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_Anonymous);
+            // check for anonymous token.
+            if (args.NewIdentity is AnonymousIdentityToken || args.NewIdentity == null)
+            {
+                // allow anonymous authentication and set Anonymous role for this authentication
+                args.Identity = new UserIdentity();
+                args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_Anonymous);
+
+                return;
+            }
+
+            // unsuported identity token type.
+            throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid,
+                   "Not supported user token type: {0}.", args.NewIdentity);
         }
 
         /// <summary>

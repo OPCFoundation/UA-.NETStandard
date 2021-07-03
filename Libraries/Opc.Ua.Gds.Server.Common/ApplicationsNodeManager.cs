@@ -281,7 +281,7 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         var x509 = new X509Certificate2(certificate);
-                        await certificateGroup.RevokeCertificateAsync(x509);
+                        await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -306,7 +306,7 @@ namespace Opc.Ua.Gds.Server
             CertificateGroup certificateGroup = m_certificateGroupFactory.Create(
                 m_configuration.AuthoritiesStorePath, certificateGroupConfiguration);
             SetCertificateGroupNodes(certificateGroup);
-            await certificateGroup.Init();
+            await certificateGroup.Init().ConfigureAwait(false);
 
             return certificateGroup;
         }
@@ -681,7 +681,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (builder.Length > 0)
                 {
-                    builder.Append(",");
+                    builder.Append(',');
                 }
 
                 if (field.StartsWith("CN=", StringComparison.Ordinal))
@@ -990,7 +990,7 @@ namespace Opc.Ua.Gds.Server
             {
                 foreach (var group in m_certificateGroups)
                 {
-                    if (String.Compare(group.Value.Configuration.Id, certificateGroupId, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(group.Value.Configuration.Id, certificateGroupId, StringComparison.OrdinalIgnoreCase))
                     {
                         certificateGroup = group.Value;
                         break;

@@ -28,6 +28,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 		azure-pipelines-preview.yml = azure-pipelines-preview.yml
 		azure-pipelines.yml = azure-pipelines.yml
+		Tests\codecoverage.cmd = Tests\codecoverage.cmd
 		common.props = common.props
 		Directory.Build.props = Directory.Build.props
 		lgtm.yml = lgtm.yml
@@ -48,7 +49,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipe
 		.azurepipelines\ci.yml = .azurepipelines\ci.yml
 		.azurepipelines\get-matrix.ps1 = .azurepipelines\get-matrix.ps1
 		.azurepipelines\get-root.ps1 = .azurepipelines\get-root.ps1
+		.azurepipelines\get-version.ps1 = .azurepipelines\get-version.ps1
 		.azurepipelines\preview.yml = .azurepipelines\preview.yml
+		.azurepipelines\set-version.ps1 = .azurepipelines\set-version.ps1
 		.azurepipelines\sln.yml = .azurepipelines\sln.yml
 		.azurepipelines\test.yml = .azurepipelines\test.yml
 		.azurepipelines\testcc.yml = .azurepipelines\testcc.yml
@@ -62,7 +65,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificate
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates.Tests", "Tests\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj", "{A727180B-4AA8-4182-B35F-5B6D6CB79593}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests.Disabled", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.Disabled.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration.Tests", "Tests\Opc.Ua.Configuration.Tests\Opc.Ua.Configuration.Tests.csproj", "{707A1C12-9C29-40A1-8091-2891E0FE0907}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -130,6 +135,10 @@ Global
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

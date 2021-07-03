@@ -40,16 +40,11 @@ namespace Opc.Ua.Export
         /// <returns>The set of nodes</returns>
         public static UANodeSet Read(Stream istrm)
         {
-            StreamReader reader = new StreamReader(istrm);
-
-            try
+            using (StreamReader reader = new StreamReader(istrm))
+            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
                 XmlSerializer serializer = new XmlSerializer(typeof(UANodeSet));
-                return serializer.Deserialize(reader) as UANodeSet;
-            }
-            finally
-            {
-                reader.Dispose();
+                return serializer.Deserialize(xmlReader) as UANodeSet;
             }
         }
 
@@ -103,7 +98,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.Aliases, aliases, this.Aliases.Length);
             }
 
-            aliases[count-1] = new NodeIdAlias() { Alias = alias, Value = Export(nodeId, context.NamespaceUris) };
+            aliases[count - 1] = new NodeIdAlias() { Alias = alias, Value = Export(nodeId, context.NamespaceUris) };
             this.Aliases = aliases;
         }
 
@@ -123,7 +118,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Adds a node to the set.
         /// </summary>
-        public void Export(ISystemContext context, NodeState node, bool outputRedundantNames =true)
+        public void Export(ISystemContext context, NodeState node, bool outputRedundantNames = true)
         {
             if (node == null) throw new ArgumentNullException(nameof(node));
 
@@ -175,7 +170,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.InnerXml = encoder.Close();
+                        document.LoadInnerXml(encoder.Close());
                         value.Value = document.DocumentElement;
                     }
 
@@ -238,7 +233,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
                         XmlDocument document = new XmlDocument();
-                        document.InnerXml = encoder.Close();
+                        document.LoadInnerXml(encoder.Close());
                         value.Value = document.DocumentElement;
                     }
 
@@ -292,7 +287,7 @@ namespace Opc.Ua.Export
             }
             else
             {
-                exportedNode.Description = new LocalizedText[0];
+                exportedNode.Description = Array.Empty<LocalizedText>();
             }
 
             exportedNode.Documentation = node.NodeSetDocumentation;
@@ -351,7 +346,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.Items, nodes, this.Items.Length);
             }
 
-            nodes[count-1] = exportedNode;
+            nodes[count - 1] = exportedNode;
 
             this.Items = nodes;
 
@@ -372,10 +367,11 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlEncoder CreateEncoder(ISystemContext context)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            IServiceMessageContext messageContext = new ServiceMessageContext() {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
             XmlEncoder encoder = new XmlEncoder(messageContext);
 
@@ -957,7 +953,7 @@ namespace Opc.Ua.Export
                         }
                         else
                         {
-                            output.DisplayName = new LocalizedText[0];
+                            output.DisplayName = Array.Empty<LocalizedText>();
                         }
 
                         output.Description = Export(new Opc.Ua.LocalizedText[] { field.Description });
@@ -989,8 +985,7 @@ namespace Opc.Ua.Export
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup)
-                {
+                bool isStructure = Array.Exists<DataTypeField>(source.Field, delegate (DataTypeField fieldLookup) {
                     return fieldLookup.Value == -1;
                 });
 
@@ -1042,7 +1037,7 @@ namespace Opc.Ua.Export
                             {
                                 output.IsOptional = false;
                             }
-                            else if(sd.StructureType == (StructureType)3 || //StructureType.StructureWithSubtypedValues ||
+                            else if (sd.StructureType == (StructureType)3 || //StructureType.StructureWithSubtypedValues ||
                                     sd.StructureType == (StructureType)4)   //StructureType.UnionWithSubtypedValues)
                             {
                                 output.IsOptional = field.AllowSubTypes;
@@ -1255,7 +1250,7 @@ namespace Opc.Ua.Export
                 {
                     if (this.NamespaceUris[ii] == targetUri)
                     {
-                        return (ushort)(ii+1); // add 1 to adjust for the well-known URIs which are not stored.
+                        return (ushort)(ii + 1); // add 1 to adjust for the well-known URIs which are not stored.
                     }
                 }
 
@@ -1270,7 +1265,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.NamespaceUris, uris, count - 1);
             }
 
-            uris[count-1] = targetUri;
+            uris[count - 1] = targetUri;
             this.NamespaceUris = uris;
 
             // return the new index.
@@ -1289,13 +1284,13 @@ namespace Opc.Ua.Export
             }
 
             // return a bad value if parameters are bad.
-            if (namespaceUris == null || this.NamespaceUris == null || this.NamespaceUris.Length <= namespaceIndex-1)
+            if (namespaceUris == null || this.NamespaceUris == null || this.NamespaceUris.Length <= namespaceIndex - 1)
             {
                 return UInt16.MaxValue;
             }
 
             // find or append uri.
-            return namespaceUris.GetIndexOrAppend(this.NamespaceUris[namespaceIndex-1]);
+            return namespaceUris.GetIndexOrAppend(this.NamespaceUris[namespaceIndex - 1]);
         }
 
         /// <summary>
@@ -1318,7 +1313,7 @@ namespace Opc.Ua.Export
             }
 
             // find an existing index.
-            int count = 1;;
+            int count = 1; ;
 
             if (this.NamespaceUris != null)
             {
@@ -1390,7 +1385,7 @@ namespace Opc.Ua.Export
                 Array.Copy(this.ServerUris, uris, count - 1);
             }
 
-            uris[count-1] = targetUri;
+            uris[count - 1] = targetUri;
             this.ServerUris = uris;
 
             // return the new index.
@@ -1409,7 +1404,7 @@ namespace Opc.Ua.Export
             }
 
             // return a bad value if parameters are bad.
-            if (serverUris == null ||  this.ServerUris == null || this.ServerUris.Length <= serverIndex-1)
+            if (serverUris == null || this.ServerUris == null || this.ServerUris.Length <= serverIndex - 1)
             {
                 return UInt16.MaxValue;
             }

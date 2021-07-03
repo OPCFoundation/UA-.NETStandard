@@ -225,9 +225,13 @@
   </xs:simpleType>
 
   <xs:simpleType name="SymbolicName">
-    <xs:restriction base="xs:string">
-      <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
-    </xs:restriction>
+    <xs:list>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:list>
   </xs:simpleType>
 
   <xs:simpleType name="Duration">
@@ -446,7 +450,7 @@
       <xs:element name="Field" type="DataTypeField" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="Name" type="QualifiedName" use="required" />
-    <xs:attribute name="SymbolicName" type="SymbolicName" use="optional" />
+    <xs:attribute name="SymbolicName" type="SymbolicName" default="" />
     <xs:attribute name="IsUnion" type="xs:boolean" default="false" />
     <xs:attribute name="IsOptionSet" type="xs:boolean" default="false" />
     

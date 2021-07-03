@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kUniformResourceIdentifier);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_uris[ii]);
             }
 
@@ -166,7 +166,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kDnsName);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_domainNames[ii]);
             }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
                 }
 
                 buffer.Append(kIpAddress);
-                buffer.Append("=");
+                buffer.Append('=');
                 buffer.Append(m_ipAddresses[ii]);
             }
 
@@ -213,7 +213,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The OID for a Subject Alternate Name 2 extension.
         /// </summary>
-        public static string SubjectAltName2Oid = "2.5.29.17";
+        public const string SubjectAltName2Oid = "2.5.29.17";
 
         /// <summary>
         /// Gets the uris.
@@ -272,7 +272,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-#if NETSTANDARD2_1 || NET472
+#if NETSTANDARD2_1 || NET472 || NET5_0
         /// <summary>
         /// Encode the Subject Alternative name extension.
         /// </summary>

@@ -60,7 +60,7 @@ namespace Opc.Ua
 
                     try
                     {
-                        collection = await store.Enumerate();
+                        collection = await store.Enumerate().ConfigureAwait(false);
                     }
                     finally
                     {
@@ -75,7 +75,7 @@ namespace Opc.Ua
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.Find();
+                X509Certificate2 certificate = await trustedCertificate.Find().ConfigureAwait(false);
 
                 if (certificate != null)
                 {

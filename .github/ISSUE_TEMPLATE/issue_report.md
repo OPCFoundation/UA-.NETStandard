@@ -8,7 +8,11 @@ assignees: ''
 ---
 
 **Type of Issue**
-[ ] Bug [ ] Enhancement [ ] Compliance [ ] Question [ ] Help wanted
+- [ ] Bug 
+- [ ] Enhancement 
+- [ ] Compliance 
+- [ ] Question 
+- [ ] Help wanted
 
 **Describe the Issue**
 
