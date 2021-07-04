@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests
             itemsToCreate.Add(new MonitoredItemCreateRequest() {
                 ItemToMonitor = new ReadValueId() {
                     AttributeId = Attributes.Value,
-                    NodeId = new NodeId(2258)
+                    NodeId = VariableIds.Server_ServerStatus_CurrentTime
                 },
                 MonitoringMode = MonitoringMode.Reporting,
                 RequestedParameters = new MonitoringParameters() {
