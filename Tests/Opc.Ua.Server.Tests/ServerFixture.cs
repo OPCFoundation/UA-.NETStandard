@@ -34,6 +34,10 @@ using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Server fixture for testing.
+    /// </summary>
+    /// <typeparam name="T">A server class T used for testing.</typeparam>
     public class ServerFixture<T> where T : ServerBase, new()
     {
         private NUnitTraceLogger m_traceLogger;
@@ -42,35 +46,13 @@ namespace Opc.Ua.Server.Tests
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
         public int ReverseConnectTimeout { get; set; }
-        public int TraceMasks { get; set; } = Utils.TraceMasks.All;
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
         public int Port { get; private set; }
-
-        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
-        {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
-            {
-                if (AutoAccept)
-                {
-                    if (!LogConsole)
-                    {
-                        Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-                    }
-                    Utils.Trace(Utils.TraceMasks.Security, "Accepted Certificate: {0}", e.Certificate.Subject);
-                    e.Accept = true;
-                    return;
-                }
-            }
-            if (!LogConsole)
-            {
-                Console.WriteLine("Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
-            }
-            Utils.Trace(Utils.TraceMasks.Security, "Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
-        }
 
         /// <summary>
         /// Start server fixture on random port.
         /// </summary>
-        public async Task<T> StartAsync(TextWriter writer, bool clean)
+        public async Task<T> StartAsync(TextWriter writer)
         {
             Random m_random = new Random();
             int testPort;
@@ -80,8 +62,8 @@ namespace Opc.Ua.Server.Tests
             {
                 try
                 {
-                    testPort = m_random.Next(50000, 60000);
-                    await InternalStartServerAsync(writer, clean, testPort).ConfigureAwait(false);
+                    testPort = m_random.Next(50000, 65000);
+                    await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {
@@ -102,11 +84,8 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create the configuration and start the server.
         /// </summary>
-        private async Task InternalStartServerAsync(TextWriter writer, bool clean, int port)
+        private async Task InternalStartServerAsync(TextWriter writer, int port)
         {
-            // TODO: support password
-            // TODO: support clean start
-            //CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
@@ -123,6 +102,7 @@ namespace Opc.Ua.Server.Tests
                     endpointUrl
                 })
                 .AddUnsecurePolicyNone()
+                // add deprecated policies for tests
                 .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
                 .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
@@ -168,9 +148,6 @@ namespace Opc.Ua.Server.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            // cert validator
-            // config.CertificateValidator.CertificateValidation += CertificateValidator_CertificateValidation;
-
             // start the server.
             T server = new T();
             await application.Start(server).ConfigureAwait(false);
@@ -187,7 +164,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Stop the server
+        /// Stop the server.
         /// </summary>
         public Task StopAsync()
         {

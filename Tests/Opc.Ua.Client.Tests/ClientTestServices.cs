@@ -31,6 +31,9 @@ using Opc.Ua.Server.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
+    /// <summary>
+    /// Map test services to client session API.
+    /// </summary>
     public class ClientTestServices : IServerTestServices
     {
         private Session m_session;
@@ -164,7 +167,6 @@ namespace Opc.Ua.Client.Tests
         {
             return m_session.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
         }
-
 
         public ResponseHeader TranslateBrowsePathsToNodeIds(
             RequestHeader requestHeader,

@@ -55,7 +55,6 @@ namespace Opc.Ua.Client.Tests
         ReferenceServer m_server;
         Session m_session;
         Uri m_url;
-        int m_keepAlive = 0;
 
         #region Test Setup
         /// <summary>
@@ -82,7 +81,7 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, true).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfiguration();
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256);
@@ -197,10 +196,6 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        private void KeepAlive(Session sender, KeepAliveEventArgs e)
-        {
-            m_keepAlive++;
-        }
         #endregion
     }
 }

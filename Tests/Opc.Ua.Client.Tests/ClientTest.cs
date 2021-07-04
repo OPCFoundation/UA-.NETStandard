@@ -36,14 +36,13 @@ using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
-    /// Test Client Services.
+    /// Client tests.
     /// </summary>
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -53,6 +52,7 @@ namespace Opc.Ua.Client.Tests
     public class ClientTest
     {
         const int MaxReferences = 100;
+        const int MaxTimeout = 10000;
         ServerFixture<ReferenceServer> m_serverFixture;
         ClientFixture m_clientFixture;
         ReferenceServer m_server;
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, true).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfiguration();
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256);
@@ -177,9 +177,7 @@ namespace Opc.Ua.Client.Tests
                 .AsClient()
                 .AddSecurityConfiguration(m_clientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName)
                 .Create().ConfigureAwait(false);
-
         }
-
 
         [Theory, Order(200)]
         public async Task Connect(string securityPolicy)
@@ -194,13 +192,13 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(210)]
         public async Task ConnectAndReconnectAsync()
         {
-            const int Timeout = 10000;
+            const int Timeout = MaxTimeout;
             var session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
 
             ManualResetEvent quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler();
-            reconnectHandler.BeginReconnect(session, Timeout/5,
+            reconnectHandler.BeginReconnect(session, Timeout / 5,
                 (object sender, EventArgs e) => {
                     // ignore callbacks from discarded objects.
                     if (!Object.ReferenceEquals(sender, reconnectHandler))
@@ -249,7 +247,7 @@ namespace Opc.Ua.Client.Tests
 
             var requestHeader = new RequestHeader();
             requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = 10000;
+            requestHeader.TimeoutHint = MaxTimeout;
 
             // Session
             Session session;
@@ -277,7 +275,7 @@ namespace Opc.Ua.Client.Tests
         {
             var requestHeader = new RequestHeader();
             requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = 10000;
+            requestHeader.TimeoutHint = MaxTimeout;
 
             var clientTestServices = new ClientTestServices(m_session);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
@@ -441,7 +439,6 @@ namespace Opc.Ua.Client.Tests
         {
             await BrowseFullAddressSpace(null).ConfigureAwait(false);
         }
-
         #endregion
 
         #region Private Methods

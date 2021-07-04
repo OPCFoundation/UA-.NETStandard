@@ -38,7 +38,7 @@ using Quickstarts.ReferenceServer;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Test GDS Registration and Client Pull.
+    /// Test Reference Server.
     /// </summary>
     [TestFixture, Category("Server")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>();
             m_fixture.OperationLimits = true;
-            m_server = await m_fixture.StartAsync(TestContext.Out, true).ConfigureAwait(false);
+            m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -78,6 +78,9 @@ namespace Opc.Ua.Server.Tests
             Thread.Sleep(1000);
         }
 
+        /// <summary>
+        /// Create a session for a test.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -87,6 +90,9 @@ namespace Opc.Ua.Server.Tests
             m_requestHeader.TimeoutHint = TimeoutHint;
         }
 
+        /// <summary>
+        /// Tear down the test session.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -98,19 +104,19 @@ namespace Opc.Ua.Server.Tests
 
         #region Benchmark Setup
         /// <summary>
-        /// Set up a Global Discovery Server and Client instance and connect the session
+        /// Set up a Reference Server a session
         /// </summary>
         [GlobalSetup]
         public void GlobalSetup()
         {
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>();
-            m_server = m_fixture.StartAsync(null, true).GetAwaiter().GetResult();
+            m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }
 
         /// <summary>
-        /// Tear down the Global Discovery Server and disconnect the Client
+        /// Tear down Server and the close the session.
         /// </summary>
         [GlobalCleanup]
         public void GlobalCleanup()
@@ -145,7 +151,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Get Endpoints.
+        /// Get Operation limits.
         /// </summary>
         [Test, Order(100)]
         public void GetOperationLimits()

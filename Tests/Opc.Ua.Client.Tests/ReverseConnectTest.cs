@@ -41,7 +41,7 @@ using Quickstarts.ReferenceServer;
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
-    /// Test Client Services.
+    /// Test Client Reverse Connect Services.
     /// </summary>
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
             m_serverFixture.AutoAccept = true;
             m_serverFixture.ReverseConnectTimeout = MaxTimeout;
             m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
-            m_server = await m_serverFixture.StartAsync(TestContext.Out, true).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(TestContext.Out).ConfigureAwait(false);
             // create client
             await m_clientFixture.LoadClientConfiguration();
             await m_clientFixture.StartReverseConnectHost();
@@ -172,7 +172,7 @@ namespace Opc.Ua.Client.Tests
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null);
             Assert.NotNull(session);
 
-            // 
+            // default request header
             var requestHeader = new RequestHeader();
             requestHeader.Timestamp = DateTime.UtcNow;
             requestHeader.TimeoutHint = MaxTimeout;

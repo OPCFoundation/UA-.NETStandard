@@ -45,9 +45,11 @@ namespace Opc.Ua.Server.Tests
         #region Public Methods
         /// <summary>
         /// Create and Activate a session without security.
-        /// The request header can be used to call services directly,
-        /// without establishing a session with a client.
         /// </summary>
+        /// <remarks>
+        /// The request header is used to call services directly,
+        /// without establishing a session with a client.
+        /// </remarks>
         /// <param name="server">The server to connect to.</param>
         /// <param name="sessionName">A session name.</param>
         /// <returns>The request header for the session.</returns>

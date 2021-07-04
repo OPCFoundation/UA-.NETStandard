@@ -43,6 +43,7 @@ namespace Opc.Ua.Client.Tests
         public string EndpointUrl { get; private set; }
         public string ReverseConnectUri { get; private set; }
         public ReverseConnectManager ReverseConnectManager { get; private set; }
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
 
         #region Public Methods
         /// <summary>
@@ -69,7 +70,7 @@ namespace Opc.Ua.Client.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetMinimumCertificateKeySize(1024)
                 .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Client.Tests.log.txt")
-                .SetTraceMasks(519)
+                .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
 
             // check the application certificate.
@@ -83,7 +84,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// 
+        /// Start a host for reverse connections on random port.
         /// </summary>
         public async Task StartReverseConnectHost()
         {
@@ -95,7 +96,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    testPort = m_random.Next(50000, 60000);
+                    testPort = m_random.Next(50000, 65000);
                     var reverseConnectUri = new Uri("opc.tcp://localhost:"+testPort);
                     ReverseConnectManager.AddEndpoint(reverseConnectUri);
                     ReverseConnectManager.StartService(Config);
@@ -161,7 +162,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Connects the specified endpoint.
+        /// Connects the url endpoint with specified security profile.
         /// </summary>
         public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
         {
@@ -197,6 +198,12 @@ namespace Opc.Ua.Client.Tests
             return session;
         }
 
+        /// <summary>
+        /// Get configured endpoint from url with security profile.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="securityPolicy"></param>
+        /// <param name="endpoints"></param>
         public async Task<ConfiguredEndpoint> GetEndpointAsync(
             Uri url,
             string securityPolicy,
@@ -211,6 +218,9 @@ namespace Opc.Ua.Client.Tests
             return new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
         }
 
+        /// <summary>
+        /// Select a security endpoint from description.
+        /// </summary>
         public static EndpointDescription SelectEndpoint(
             EndpointDescriptionCollection endpoints,
             Uri url,

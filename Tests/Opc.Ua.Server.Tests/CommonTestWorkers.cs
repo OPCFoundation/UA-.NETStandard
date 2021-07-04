@@ -48,14 +48,15 @@ namespace Opc.Ua.Server.Tests
         public static ReferenceDescriptionCollection BrowseFullAddressSpaceWorker(
             IServerTestServices services,
             RequestHeader requestHeader,
-            OperationLimits operationLimits = null)
+            OperationLimits operationLimits = null,
+            BrowseDescription browseDescription = null)
         {
             operationLimits = operationLimits ?? new OperationLimits();
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template
             var startingNode = Objects.RootFolder;
-            var browseTemplate = new BrowseDescription {
+            var browseTemplate = browseDescription ?? new BrowseDescription {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -72,6 +73,14 @@ namespace Opc.Ua.Server.Tests
             uint requestedMaxReferencesPerNode = 0;
             bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerBrowse > 0;
             var referenceDescriptions = new ReferenceDescriptionCollection();
+
+            // Test if server responds with BadTooManyOperations
+            var sre = Assert.Throws<ServiceResultException>(() =>
+                _ = services.Browse(requestHeader, null,
+                    0, browseDescriptionCollection.Take(0).ToArray(),
+                    out var results, out var infos));
+            Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+
             while (browseDescriptionCollection.Any())
             {
                 BrowseResultCollection allResults = new BrowseResultCollection();
@@ -81,7 +90,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    var sre = Assert.Throws<ServiceResultException>(() =>
+                    sre = Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(requestHeader, null,
                             0, browseDescriptionCollection,
                             out var results, out var infos));
@@ -208,7 +217,11 @@ namespace Opc.Ua.Server.Tests
             return allBrowsePaths;
         }
 
-
+        /// <summary>
+        /// Worker method to test subscriptions of a server.
+        /// </summary>
+        /// <param name="services"></param>
+        /// <param name="requestHeader"></param>
         public static void SubscriptionTest(
             IServerTestServices services,
             RequestHeader requestHeader)
