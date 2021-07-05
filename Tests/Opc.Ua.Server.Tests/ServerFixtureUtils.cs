@@ -31,6 +31,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -41,6 +43,8 @@ namespace Opc.Ua.Server.Tests
     {
         public const double DefaultSessionTimeout = 120000;
         public const uint DefaultMaxResponseMessageSize = 128 * 1024;
+        public const int MinTestPort = 50000;
+        public const int MaxTestPort = 65000;
 
         #region Public Methods
         /// <summary>
@@ -209,6 +213,23 @@ namespace Opc.Ua.Server.Tests
                 { Attributes.AccessRestrictions, null },
                 { Attributes.AccessLevelEx, null }
             });
+
+        /// <summary>
+        /// Get free IP Port.
+        /// </summary>
+        public static int GetNextFreeIPPort()
+        {
+            IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
+            using (var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
+            {
+                socket.Bind(endpoint);
+                if (socket.LocalEndPoint is IPEndPoint ep)
+                {
+                    return ep.Port;
+                }
+            }
+            return 0;
+        }
         #endregion
     }
 }

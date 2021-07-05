@@ -55,14 +55,13 @@ namespace Opc.Ua.Server.Tests
         public async Task<T> StartAsync(TextWriter writer)
         {
             Random m_random = new Random();
-            int testPort;
             bool retryStartServer = false;
             int serverStartRetries = 25;
+            int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             do
             {
                 try
                 {
-                    testPort = m_random.Next(50000, 65000);
                     await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
@@ -73,6 +72,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         throw;
                     }
+                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
                 await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);

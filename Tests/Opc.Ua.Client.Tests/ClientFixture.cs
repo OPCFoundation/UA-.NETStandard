@@ -30,6 +30,7 @@
 using System;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
+using Opc.Ua.Server.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -89,15 +90,14 @@ namespace Opc.Ua.Client.Tests
         public async Task StartReverseConnectHost()
         {
             Random m_random = new Random();
-            int testPort;
+            int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
             int serverStartRetries = 25;
             do
             {
                 try
                 {
-                    testPort = m_random.Next(50000, 65000);
-                    var reverseConnectUri = new Uri("opc.tcp://localhost:"+testPort);
+                    var reverseConnectUri = new Uri("opc.tcp://localhost:" + testPort);
                     ReverseConnectManager.AddEndpoint(reverseConnectUri);
                     ReverseConnectManager.StartService(Config);
                     ReverseConnectUri = reverseConnectUri.ToString();
@@ -110,6 +110,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         throw;
                     }
+                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
                 await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
