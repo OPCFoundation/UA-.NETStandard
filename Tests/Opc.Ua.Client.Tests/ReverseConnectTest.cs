@@ -125,10 +125,13 @@ namespace Opc.Ua.Client.Tests
         public async Task GetEndpointsInternal()
         {
             var config = m_clientFixture.Config;
-            var connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
-                m_endpointUrl, null, new CancellationTokenSource(MaxTimeout).Token);
-            Assert.NotNull(connection, "Failed to get connection.");
-
+            ITransportWaitingConnection connection;
+            using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
+            {
+                connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
+                    m_endpointUrl, null, cancellationTokenSource.Token);
+                Assert.NotNull(connection, "Failed to get connection.");
+            }
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = MaxTimeout;
             using (DiscoveryClient client = DiscoveryClient.Create(config, connection, endpointConfiguration))
@@ -141,9 +144,13 @@ namespace Opc.Ua.Client.Tests
         public async Task SelectEndpoint()
         {
             var config = m_clientFixture.Config;
-            var connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
-                m_endpointUrl, null, new CancellationTokenSource(MaxTimeout).Token);
-            Assert.NotNull(connection, "Failed to get connection.");
+            ITransportWaitingConnection connection;
+            using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
+            {
+                connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
+                    m_endpointUrl, null, cancellationTokenSource.Token);
+                Assert.NotNull(connection, "Failed to get connection.");
+            }
             var selectedEndpoint = CoreClientUtils.SelectEndpoint(config, connection, true, MaxTimeout);
             Assert.NotNull(selectedEndpoint);
         }
@@ -156,9 +163,13 @@ namespace Opc.Ua.Client.Tests
 
             // get a connection
             var config = m_clientFixture.Config;
-            var connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
-                m_endpointUrl, null, new CancellationTokenSource(MaxTimeout).Token).ConfigureAwait(false);
-            Assert.NotNull(connection, "Failed to get connection.");
+            ITransportWaitingConnection connection;
+            using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
+            {
+                connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
+                    m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
+                Assert.NotNull(connection, "Failed to get connection.");
+            }
 
             // select the secure endpoint
             var endpointConfiguration = EndpointConfiguration.Create(config);
@@ -189,7 +200,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(301)]
-        public async Task ReverseConnect2( bool updateBeforeConnect, bool checkDomain)
+        public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain)
         {
             string securityPolicy = SecurityPolicies.Basic256Sha256;
 
