@@ -169,6 +169,9 @@ namespace Opc.Ua.Client.Tests
             subscription.Priority = 200;
             subscription.Modify();
 
+            // save
+            m_session.Save("SubscriptionTest.xml");
+
             Thread.Sleep(5000);
             TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
             TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);

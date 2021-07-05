@@ -240,6 +240,35 @@ namespace Opc.Ua.Client.Tests
             m_operationLimits = operationLimits;
         }
 
+        [Test]
+        public void ReadProperties()
+        {
+            TestContext.Out.WriteLine("LastKeepAliveTime: {0}", m_session.LastKeepAliveTime);
+            TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
+            m_session.KeepAliveInterval += 1000;
+            TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
+            m_session.KeepAliveInterval -= 1000;
+            TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
+            TestContext.Out.WriteLine("KeepAliveStopped : {0}", m_session.KeepAliveStopped);
+            TestContext.Out.WriteLine("OutstandingRequestCount : {0}", m_session.OutstandingRequestCount);
+            TestContext.Out.WriteLine("DefunctRequestCount : {0}", m_session.DefunctRequestCount);
+            TestContext.Out.WriteLine("GoodPublishRequestCount : {0}", m_session.GoodPublishRequestCount);
+        }
+
+        [Test]
+        public void ReadValues()
+        {
+            // Test ReadValue
+            _ = m_session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
+            _ = m_session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+            var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
+            Assert.AreEqual(StatusCodes.BadTypeMismatch, sre.StatusCode);
+
+            // change locale
+            var locale = new StringCollection() { "de-de", "en-us" };
+            m_session.ChangePreferredLocales(locale);
+        }
+
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy)
         {
@@ -271,6 +300,37 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(410)]
+        public async Task ReadDisplayNames()
+        {
+            if (m_operationLimits == null) { OperationLimits(); }
+            if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null); }
+            var nodeIds = m_referenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, m_session.NamespaceUris)).ToList();
+            if (m_operationLimits.MaxNodesPerRead > 0 &&
+                nodeIds.Count > m_operationLimits.MaxNodesPerRead)
+            {
+                var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadDisplayName(nodeIds, out var displayNames, out var errors));
+                Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
+                while (nodeIds.Count > 0)
+                {
+                    m_session.ReadDisplayName(nodeIds.Take((int)m_operationLimits.MaxNodesPerRead).ToArray(), out var displayNames, out var errors);
+                    foreach (var name in displayNames)
+                    {
+                        TestContext.Out.WriteLine("{0}", name);
+                    }
+                    nodeIds = nodeIds.Skip((int)m_operationLimits.MaxNodesPerRead).ToList();
+                }
+            }
+            else
+            {
+                m_session.ReadDisplayName(nodeIds, out var displayNames, out var errors);
+                foreach (var name in displayNames)
+                {
+                    TestContext.Out.WriteLine("{0}", name);
+                }
+            }
+        }
+
+        [Test, Order(480)]
         public void Subscription()
         {
             var requestHeader = new RequestHeader();
