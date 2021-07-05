@@ -49,6 +49,7 @@ namespace Opc.Ua.Client.Tests
     [NonParallelizable]
     public class SubscriptionTest
     {
+        const string SubscriptionTestXml = "SubscriptionTest.xml";
         const int MaxReferences = 100;
         ServerFixture<ReferenceServer> m_serverFixture;
         ClientFixture m_clientFixture;
@@ -170,7 +171,7 @@ namespace Opc.Ua.Client.Tests
             subscription.Modify();
 
             // save
-            m_session.Save("SubscriptionTest.xml");
+            m_session.Save(SubscriptionTestXml);
 
             Thread.Sleep(5000);
             TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
@@ -194,6 +195,44 @@ namespace Opc.Ua.Client.Tests
             subscription.RemoveItem(list2.First());
 
             var result = m_session.RemoveSubscription(subscription);
+            Assert.True(result);
+        }
+
+        [Test, Order(200)]
+        public void LoadSubscription()
+        {
+            if (!File.Exists(SubscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", SubscriptionTestXml);
+
+            // save
+            var subscriptions = m_session.Load(SubscriptionTestXml);
+            Assert.NotNull(subscriptions);
+            Assert.IsNotEmpty(subscriptions);
+
+            foreach (var subscription in subscriptions)
+            {
+                m_session.AddSubscription(subscription);
+                subscription.Create();
+            }
+
+            Thread.Sleep(5000);
+
+            foreach (var subscription in subscriptions)
+            {
+                TestContext.Out.WriteLine("Subscription            : {0}", subscription.DisplayName);
+                TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
+                TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
+                TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
+                TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
+                TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
+                TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
+                TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
+                TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
+                TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
+                TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            }
+
+            var result = m_session.RemoveSubscriptions(subscriptions);
+            Assert.True(result);
 
         }
         #endregion

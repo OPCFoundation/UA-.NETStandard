@@ -236,13 +236,25 @@ namespace Opc.Ua.Client.Tests
                 MaxNodesPerTranslateBrowsePathsToNodeIds = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds).Value,
                 MaxNodesPerMethodCall = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall).Value
             };
-
             m_operationLimits = operationLimits;
         }
 
         [Test]
-        public void ReadProperties()
+        public void ReadPublicProperties()
         {
+            TestContext.Out.WriteLine("Identity         : {0}", m_session.Identity);
+            TestContext.Out.WriteLine("IdentityHistory  : {0}", m_session.IdentityHistory);
+            TestContext.Out.WriteLine("NamespaceUris    : {0}", m_session.NamespaceUris);
+            TestContext.Out.WriteLine("ServerUris       : {0}", m_session.ServerUris);
+            TestContext.Out.WriteLine("SystemContext    : {0}", m_session.SystemContext);
+            TestContext.Out.WriteLine("Factory          : {0}", m_session.Factory);
+            TestContext.Out.WriteLine("TypeTree         : {0}", m_session.TypeTree);
+            TestContext.Out.WriteLine("FilterContext    : {0}", m_session.FilterContext);
+            TestContext.Out.WriteLine("PreferredLocales : {0}", m_session.PreferredLocales);
+            TestContext.Out.WriteLine("DataTypeSystem   : {0}", m_session.DataTypeSystem);
+            TestContext.Out.WriteLine("Subscriptions    : {0}", m_session.Subscriptions);
+            TestContext.Out.WriteLine("SubscriptionCount: {0}", m_session.SubscriptionCount);
+            TestContext.Out.WriteLine("DefaultSubscription: {0}", m_session.DefaultSubscription);
             TestContext.Out.WriteLine("LastKeepAliveTime: {0}", m_session.LastKeepAliveTime);
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
             m_session.KeepAliveInterval += 1000;
@@ -251,7 +263,7 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("KeepAliveInterval: {0}", m_session.KeepAliveInterval);
             TestContext.Out.WriteLine("KeepAliveStopped : {0}", m_session.KeepAliveStopped);
             TestContext.Out.WriteLine("OutstandingRequestCount : {0}", m_session.OutstandingRequestCount);
-            TestContext.Out.WriteLine("DefunctRequestCount : {0}", m_session.DefunctRequestCount);
+            TestContext.Out.WriteLine("DefunctRequestCount     : {0}", m_session.DefunctRequestCount);
             TestContext.Out.WriteLine("GoodPublishRequestCount : {0}", m_session.GoodPublishRequestCount);
         }
 
