@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public override byte[] Encode()
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext {
+            IServiceMessageContext messageContext = new ServiceMessageContext {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -299,7 +299,7 @@ namespace Opc.Ua.PubSub.Encoding
                 return;
             }
 
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            IServiceMessageContext messageContext = new ServiceMessageContext();
 
             using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
             {

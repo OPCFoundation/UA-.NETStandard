@@ -357,7 +357,7 @@ namespace Opc.Ua.Server
                     m_connections.Count > 0 &&
                     m_reverseConnectTimer == null)
                 {
-                    m_reverseConnectTimer = new Timer(OnReverseConnect, this, m_connectInterval, Timeout.Infinite);
+                    m_reverseConnectTimer = new Timer(OnReverseConnect, this, forceRestart ? m_connectInterval : 1000, Timeout.Infinite);
                 }
             }
         }
@@ -401,7 +401,7 @@ namespace Opc.Ua.Server
             ClearConnections(true);
 
             // get the configuration for the reverse connections.
-            var reverseConnect = configuration.ServerConfiguration.ReverseConnect;
+            var reverseConnect = configuration?.ServerConfiguration?.ReverseConnect;
 
             // add configuration reverse client connection properties.
             if (reverseConnect != null)
@@ -411,19 +411,22 @@ namespace Opc.Ua.Server
                     m_connectInterval = reverseConnect.ConnectInterval > 0 ? reverseConnect.ConnectInterval : DefaultReverseConnectInterval;
                     m_connectTimeout = reverseConnect.ConnectTimeout > 0 ? reverseConnect.ConnectTimeout : DefaultReverseConnectTimeout;
                     m_rejectTimeout = reverseConnect.RejectTimeout > 0 ? reverseConnect.RejectTimeout : DefaultReverseConnectRejectTimeout;
-                    foreach (var client in reverseConnect.Clients)
+                    if (reverseConnect.Clients != null)
                     {
-                        var uri = Utils.ParseUri(client.EndpointUrl);
-                        if (uri != null)
+                        foreach (var client in reverseConnect.Clients)
                         {
-                            if (m_connections.ContainsKey(uri))
+                            var uri = Utils.ParseUri(client.EndpointUrl);
+                            if (uri != null)
                             {
-                                Utils.Trace("Warning: ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {0}.", uri);
-                            }
-                            else
-                            {
-                                m_connections[uri] = new ReverseConnectProperty(uri, client.Timeout, client.MaxSessionCount, true, client.Enabled);
-                                Utils.Trace("Reverse Connection added for EndpointUrl: {0}.", uri);
+                                if (m_connections.ContainsKey(uri))
+                                {
+                                    Utils.Trace("Warning: ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {0}.", uri);
+                                }
+                                else
+                                {
+                                    m_connections[uri] = new ReverseConnectProperty(uri, client.Timeout, client.MaxSessionCount, true, client.Enabled);
+                                    Utils.Trace("Reverse Connection added for EndpointUrl: {0}.", uri);
+                                }
                             }
                         }
                     }

@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
         public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<JsonDataSetMessage> jsonDataSetMessages)
-            : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x=> (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
+            : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
         {
             MessageType = kDefaultMessageType;
             DataSetClassId = string.Empty;
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public override byte[] Encode()
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext {
+            IServiceMessageContext messageContext = new ServiceMessageContext {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -241,9 +241,10 @@ namespace Opc.Ua.PubSub.Encoding
                 return;
             }
 
-            ServiceMessageContext messageContext = new ServiceMessageContext();
-            messageContext.NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
-            messageContext.ServerUris = ServiceMessageContext.GlobalContext.ServerUris;
+            IServiceMessageContext messageContext = new ServiceMessageContext() {
+                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+            };
 
             string json = System.Text.Encoding.ASCII.GetString(message);
             using (JsonDecoder decoder = new JsonDecoder(json, messageContext))

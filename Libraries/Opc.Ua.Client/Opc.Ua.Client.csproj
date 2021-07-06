@@ -3,12 +3,10 @@
   <PropertyGroup>
     <AssemblyName>Opc.Ua.Client</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <LangVersion>6</LangVersion>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Client</PackageId>
     <RootNamespace>Opc.Ua.Client</RootNamespace>
     <Description>OPC UA Client Class Library</Description>
     <IsPackable>true</IsPackable>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -19,10 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
   </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />

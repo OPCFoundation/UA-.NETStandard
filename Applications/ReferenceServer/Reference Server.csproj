@@ -80,10 +80,6 @@
     <Compile Include="MonitoredItemEventLogDlg.Designer.cs">
       <DependentUpon>MonitoredItemEventLogDlg.cs</DependentUpon>
     </Compile>
-    <Compile Include="ReferenceServerConfiguration.cs" />
-    <Compile Include="ReferenceNodeManager.cs" />
-    <Compile Include="ReferenceServer.cs" />
-    <Compile Include="Namespaces.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SerilogTraceLogger.cs" />
@@ -143,6 +139,10 @@
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
       <Project>{4569aaa2-710b-4e8b-a4c6-f917777814da}</Project>
       <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Quickstarts.Servers\Quickstarts.Servers.csproj">
+      <Project>{83cc0d9c-40cd-487a-bf45-c4a8c1b8bf69}</Project>
+      <Name>Quickstarts.Servers</Name>
     </ProjectReference>
     <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>

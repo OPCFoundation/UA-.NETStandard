@@ -28,59 +28,60 @@
  * ======================================================================*/
 
 using System;
-using System.ServiceModel;
-using System.Runtime.Serialization;
 using System.Collections.Generic;
-using Opc.Ua.Server;
+using System.Reflection;
 
-namespace Quickstarts.ReferenceServer
+namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// A client side cache of the server's type model.
     /// </summary>
-    [DataContract(Namespace=Namespaces.ReferenceApplications)]
-    public class ReferenceServerConfiguration
+    public interface INodeCache : INodeTable, ITypeTable
     {
-        #region Constructors
         /// <summary>
-        /// The default constructor.
+        /// Loads the UA defined types into the cache.
         /// </summary>
-        public ReferenceServerConfiguration()
-        {
-            Initialize();
-        }
+        /// <param name="context">The context.</param>
+        void LoadUaDefinedTypes(ISystemContext context);
 
         /// <summary>
-        /// Initializes the object during deserialization.
+        /// Removes all nodes from the cache.
         /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
+        void Clear();
 
         /// <summary>
-        /// Sets private members to default values.
+        /// Fetches a node from the server and updates the cache.
         /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
+        Node FetchNode(ExpandedNodeId nodeId);
 
-        #region Public Properties
         /// <summary>
-        /// Whether the user dialog for accepting invalid certificates should be displayed.
+        /// Adds the supertypes of the node to the cache.
         /// </summary>
-        [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
-        {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
-        }
-        #endregion
+        void FetchSuperTypes(ExpandedNodeId nodeId);
 
-        #region Private Members
-        private bool m_showCertificateValidationDialog;
-        #endregion
+        /// <summary>
+        /// Returns the references of the specified node that meet the criteria specified.
+        /// </summary>
+        IList<INode> FindReferences(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
+
+        /// <summary>
+        /// Returns a display name for a node.
+        /// </summary>
+        string GetDisplayText(INode node);
+
+        /// <summary>
+        /// Returns a display name for a node.
+        /// </summary>
+        string GetDisplayText(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Returns a display name for the target of a reference.
+        /// </summary>
+        string GetDisplayText(ReferenceDescription reference);
+
+        /// <summary>
+        /// Builds the relative path from a type to a node.
+        /// </summary>
+        NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
     }
 }

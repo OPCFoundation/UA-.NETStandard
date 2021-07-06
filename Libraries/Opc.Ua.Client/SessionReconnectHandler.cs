@@ -101,7 +101,6 @@ namespace Opc.Ua.Client
                 m_reconnectTimer = new System.Threading.Timer(OnReconnect, null, reconnectPeriod, Timeout.Infinite);
             }
         }
-
         #endregion
 
         #region Private Methods
@@ -144,7 +143,7 @@ namespace Opc.Ua.Client
             // schedule the next reconnect.
             lock (m_lock)
             {
-                m_reconnectTimer = new System.Threading.Timer(OnReconnect, null, m_reconnectPeriod, Timeout.Infinite);
+                m_reconnectTimer = new Timer(OnReconnect, null, m_reconnectPeriod, Timeout.Infinite);
             }
         }
 
