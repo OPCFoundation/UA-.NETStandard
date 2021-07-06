@@ -45,9 +45,8 @@ namespace Opc.Ua.Client.Tests
                     .Create(DefaultConfig.Instance)
                     .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
                     .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
-#if DEBUG
+                    // need this option because of reference to nunit.framework
                     .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-#endif
                     ;
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
