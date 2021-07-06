@@ -88,7 +88,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
                 .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
-                .SetTraceMasks(519)
+                .SetTraceMasks(Utils.TraceMasks.Error)
                 .Create().ConfigureAwait(false);
 #endif
             // check the application certificate.

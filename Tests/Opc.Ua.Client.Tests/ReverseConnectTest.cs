@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Tests
             m_clientFixture = new ClientFixture();
             m_serverFixture.AutoAccept = true;
             m_serverFixture.ReverseConnectTimeout = MaxTimeout;
-            m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
+            m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             m_server = await m_serverFixture.StartAsync(TestContext.Out).ConfigureAwait(false);
             // create client
             await m_clientFixture.LoadClientConfiguration();

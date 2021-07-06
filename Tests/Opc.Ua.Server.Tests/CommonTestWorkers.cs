@@ -84,7 +84,6 @@ namespace Opc.Ua.Server.Tests
             while (browseDescriptionCollection.Any())
             {
                 BrowseResultCollection allResults = new BrowseResultCollection();
-#if mist
                 if (verifyMaxNodesPerBrowse &&
                     browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
                 {
@@ -104,7 +103,7 @@ namespace Opc.Ua.Server.Tests
                             out var results, out var infos));
                     Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
                 }
-#endif
+
                 var browseCollection = (operationLimits.MaxNodesPerBrowse == 0) ?
                     browseDescriptionCollection :
                     browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse).ToArray();

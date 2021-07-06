@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Client.Common\Opc.Ua.Gds.Client.Common.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Gds.Server.Common\Opc.Ua.Gds.Server.Common.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj" />
   </ItemGroup>
 
   <ItemGroup>
