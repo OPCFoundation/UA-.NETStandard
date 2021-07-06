@@ -16,6 +16,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Properties\**" />
+    <EmbeddedResource Remove="Properties\**" />
+    <None Remove="Properties\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
@@ -23,10 +29,6 @@
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-  
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
 
   <Target Name="GetPackagingOutputs" />
   
