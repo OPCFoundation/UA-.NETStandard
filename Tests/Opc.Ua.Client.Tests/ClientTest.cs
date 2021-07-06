@@ -142,11 +142,7 @@ namespace Opc.Ua.Client.Tests
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            Console.WriteLine("GlobalCleanup: Disconnect");
-            m_session.Close();
-            m_session.Dispose();
-            m_session = null;
-            Console.WriteLine("GlobalCleanup: Stop Server");
+            Console.WriteLine("GlobalCleanup: Disconnect and Stop Server");
             OneTimeTearDownAsync().GetAwaiter().GetResult();
             Console.WriteLine("GlobalCleanup: Done");
         }
@@ -314,7 +310,6 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(410)]
         public async Task ReadDisplayNames()
         {
-            if (m_operationLimits == null) { OperationLimits(); }
             if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null); }
             var nodeIds = m_referenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, m_session.NamespaceUris)).ToList();
             if (m_operationLimits.MaxNodesPerRead > 0 &&

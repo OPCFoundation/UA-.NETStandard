@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests
 
             // Browse
             ResponseHeader response = null;
-            uint requestedMaxReferencesPerNode = 0;
+            uint requestedMaxReferencesPerNode = operationLimits.MaxNodesPerBrowse;
             bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerBrowse > 0;
             var referenceDescriptions = new ReferenceDescriptionCollection();
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Server.Tests
             while (browseDescriptionCollection.Any())
             {
                 BrowseResultCollection allResults = new BrowseResultCollection();
-
+#if mist
                 if (verifyMaxNodesPerBrowse &&
                     browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
                 {
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
                             out var results, out var infos));
                     Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
                 }
-
+#endif
                 var browseCollection = (operationLimits.MaxNodesPerBrowse == 0) ?
                     browseDescriptionCollection :
                     browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse).ToArray();
@@ -364,6 +364,6 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
         }
-        #endregion
+#endregion
     }
 }

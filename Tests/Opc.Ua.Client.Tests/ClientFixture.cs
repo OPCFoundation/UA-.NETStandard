@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading.Tasks;
+using NUnit.Framework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Tests;
 
@@ -215,6 +216,10 @@ namespace Opc.Ua.Client.Tests
                 endpoints = await GetEndpoints(url).ConfigureAwait(false);
             }
             var endpointDescription = SelectEndpoint(endpoints, url, securityPolicy);
+            if (endpointDescription == null)
+            {
+                Assert.Ignore("The endpoint is not supported by the server.");
+            }
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
             return new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
         }
