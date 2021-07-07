@@ -28,8 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.InteropServices;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Environments;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Running;
+using Opc.Ua.Core.Tests.Types.Encoders;
 
-#if NETFRAMEWORK
 namespace Opc.Ua.Core.Tests
 {
     static class Program
@@ -37,7 +42,20 @@ namespace Opc.Ua.Core.Tests
         // Main Method 
         static public void Main(String[] args)
         {
+            var config = ManualConfig
+                    .Create(DefaultConfig.Instance)
+                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
+                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
+                    // need this option because of reference to nunit.framework
+                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
+                    ;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
+            }
+
+            _ = BenchmarkRunner.Run<JsonEncoderTests>(config);
         }
     }
 }
-#endif
+

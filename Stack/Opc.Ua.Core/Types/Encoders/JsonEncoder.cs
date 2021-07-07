@@ -217,6 +217,10 @@ namespace Opc.Ua
             Close();
             if (m_destination == null)
             {
+                if (m_writer?.BaseStream is MemoryStream memoryStream)
+                {
+                    return Encoding.UTF8.GetString(memoryStream.ToArray());
+                }
                 return String.Empty;
             }
             return Encoding.UTF8.GetString(m_destination.ToArray());
@@ -240,10 +244,7 @@ namespace Opc.Ua
             }
 
             m_writer.Flush();
-            int length = (int)m_writer.BaseStream.Position;
-            m_writer.Dispose();
-            m_writer = null;
-            return length;
+            return (int)m_writer.BaseStream.Position;
         }
         #endregion
 
@@ -266,6 +267,15 @@ namespace Opc.Ua
                 if (m_writer != null)
                 {
                     Close();
+                    // only dispose if the memorystream is owned
+                    // by JsonEncoder instance
+                    if (m_destination != null)
+                    {
+                        m_writer?.Dispose();
+                        m_writer = null;
+                        m_destination.Dispose();
+                        m_destination = null;
+                    }
                 }
             }
         }

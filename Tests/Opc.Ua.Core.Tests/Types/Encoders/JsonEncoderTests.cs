@@ -34,6 +34,9 @@ using System.Globalization;
 using System.Runtime.Serialization;
 using NUnit.Framework;
 using System.Threading;
+using BenchmarkDotNet.Attributes;
+using System.Text;
+using System.IO;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -43,6 +46,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture, Category("JsonEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
+    [MemoryDiagnoser]
+    [DisassemblyDiagnoser]
     public class JsonEncoderTests : EncoderCommon
     {
         #region DataSource
@@ -308,7 +313,89 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
         #endregion
 
+        #region Benchmark Setup
+        /// <summary>
+        /// Set up some variables for benchmarks.
+        /// </summary>
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            m_context = new ServiceMessageContext();
+            m_memoryStream = new MemoryStream();
+            m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false));
+        }
+
+        /// <summary>
+        /// Tear down benchmark variables.
+        /// </summary>
+        [GlobalCleanup]
+        public void GlobalCleanup()
+        {
+            m_context = null;
+            m_writer.Dispose();
+            m_writer = null;
+            m_memoryStream.Dispose();
+            m_memoryStream = null;
+        }
+        #endregion
+
         #region Test Methods
+        /// <summary>
+        /// 
+        /// </summary>
+        [Test]
+        public void Constructor_Test()
+        {
+            var context = new ServiceMessageContext();
+            var jsonEncoder = new JsonEncoder(context, false);
+            jsonEncoder.WriteBoolean("TestTrue", true);
+            jsonEncoder.WriteBoolean("TestFalse", false);
+            var result = jsonEncoder.CloseAndReturnText();
+            Assert.NotNull(result);
+        }
+
+        /// <summary>
+        /// Use a constructor with external StreamWriter,
+        /// reuse the StreamWriter after first encoding pass.
+        /// </summary>
+        [Test]
+        public void Constructor_Streamwriter()
+        {
+            var context = new ServiceMessageContext();
+            var memoryStream = new MemoryStream();
+            var writer = new StreamWriter(memoryStream, new UTF8Encoding(false));
+            using (var jsonEncoder = new JsonEncoder(context, false, writer))
+            {
+                jsonEncoder.WriteBoolean("TestTrue", true);
+                jsonEncoder.WriteBoolean("TestFalse", false);
+            }
+            var result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result1);
+
+            // recycle the StreamWriter, ensure the result is equal
+            writer.BaseStream.Seek(0, SeekOrigin.Begin);
+            using (var jsonEncoder = new JsonEncoder(context, false, writer))
+            {
+                jsonEncoder.WriteBoolean("TestTrue", true);
+                jsonEncoder.WriteBoolean("TestFalse", false);
+            }
+            var result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result2);
+            Assert.AreEqual(result1, result2);
+
+            // recycle the StreamWriter, ensure the result is equal,
+            // use reflection to return result in external stream
+            writer.BaseStream.Seek(0, SeekOrigin.Begin);
+            using (var jsonEncoder = new JsonEncoder(context, false, writer))
+            {
+                jsonEncoder.WriteBoolean("TestTrue", true);
+                jsonEncoder.WriteBoolean("TestFalse", false);
+                var result3 = jsonEncoder.CloseAndReturnText();
+                Assert.IsNotEmpty(result3);
+                Assert.AreEqual(result1, result3);
+            }
+        }
+
         /// <summary>
         /// Verify reversible Json encoding.
         /// </summary>
@@ -655,8 +742,51 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         #endregion
 
-        #region Private Methods
+        #region Benchmarks
+        [Benchmark]
+        public void ServiceMessageContext()
+        {
+            _ = new ServiceMessageContext();
+        }
 
+        [Benchmark]
+        public void JsonEncoder_Constructor()
+        {
+            using (var jsonEncoder = new JsonEncoder(m_context, false))
+            {
+                jsonEncoder.WriteBoolean("TestTrue", true);
+                jsonEncoder.WriteBoolean("TestFalse", false);
+                _ = jsonEncoder.CloseAndReturnText();
+            }
+        }
+
+        [Benchmark]
+        public void JsonEncoder_Constructor_Streamwriter()
+        {
+            m_memoryStream.Seek(0, SeekOrigin.Begin);
+            using (var jsonEncoder = new JsonEncoder(m_context, false, m_writer))
+            {
+                jsonEncoder.WriteBoolean("TestTrue", true);
+                jsonEncoder.WriteBoolean("TestFalse", false);
+                jsonEncoder.Close();
+                _ = Encoding.UTF8.GetString(m_memoryStream.ToArray());
+            }
+        }
+
+        [Benchmark]
+        public void JsonEncoder_Constructor_Streamwriter_Reflection()
+        {
+            m_memoryStream.Seek(0, SeekOrigin.Begin);
+            using (var jsonEncoder = new JsonEncoder(m_context, false, m_writer))
+            {
+                jsonEncoder.WriteBoolean("TestTrue", true);
+                jsonEncoder.WriteBoolean("TestFalse", false);
+                _ = jsonEncoder.CloseAndReturnText();
+            }
+        }
+        #endregion
+
+        #region Private Methods
         private void RunWriteEncodeableArrayTest(string fieldName, List<FooBarEncodeable> encodeables, string expected, bool topLevelIsArray, bool noExpectedValidation = false)
         {
             try
@@ -688,10 +818,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encodeables.ForEach(e => e.Dispose());
             }
         }
-
         #endregion
 
         #region Private Fields
+        private IServiceMessageContext m_context;
+        private MemoryStream m_memoryStream;
+        private StreamWriter m_writer;
         #endregion
     }
 
