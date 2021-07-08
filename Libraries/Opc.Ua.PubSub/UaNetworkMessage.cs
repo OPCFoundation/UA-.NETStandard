@@ -39,7 +39,14 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public abstract class UaNetworkMessage
     {
+        private ushort m_dataSetWriterId;
+
         #region Protected Fields
+        /// <summary>
+        /// The DataSetMetaData
+        /// </summary>
+        protected DataSetMetaDataType m_metadata;
+
         /// <summary>
         /// List of DataSet messages
         /// </summary>
@@ -56,6 +63,17 @@ namespace Opc.Ua.PubSub
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
+            m_metadata = null;
+        }
+
+        /// <summary>
+        /// Create instance of <see cref="UaNetworkMessage"/>.
+        /// </summary>
+        protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+        {
+            WriterGroupConfiguration = writerGroupConfiguration;
+            m_uaDataSetMessages = new List<UaDataSetMessage>();
+            m_metadata = metadata;
         }
         #endregion
 
@@ -66,6 +84,32 @@ namespace Opc.Ua.PubSub
         public UInt16 WriterGroupId { get; set; }
 
         /// <summary>
+        /// Get and Set DataSetWriterId if a single value exists for the message.
+        /// </summary>
+        public UInt16? DataSetWriterId
+        {
+            get
+            {
+                if (m_dataSetWriterId == 0)
+                {
+                    if (m_uaDataSetMessages != null && m_uaDataSetMessages.Count == 1)
+                    {
+                        return m_uaDataSetMessages[0].DataSetWriterId;
+                    }
+
+                    return null;
+                }
+
+                return ((m_dataSetWriterId != 0) ? m_dataSetWriterId : (UInt16?)null);
+            }
+
+            set
+            {
+                m_dataSetWriterId = (value != null) ? value.Value : (ushort)0;
+            }
+        }
+    
+        /// <summary>
         /// DataSet messages
         /// </summary>
         public List<UaDataSetMessage> DataSetMessages
@@ -74,6 +118,25 @@ namespace Opc.Ua.PubSub
             {
                 return m_uaDataSetMessages;
             }
+        }
+
+        /// <summary>
+        /// DataSetMetaData messages
+        /// </summary>
+        public DataSetMetaDataType DataSetMetaData
+        {
+            get
+            {
+                return m_metadata;
+            }
+        }
+
+        /// <summary>
+        /// TRUE if it is a metadata message.
+        /// </summary>
+        public bool IsMetaDataMessage
+        {
+            get { return m_metadata != null; }
         }
 
         /// <summary>

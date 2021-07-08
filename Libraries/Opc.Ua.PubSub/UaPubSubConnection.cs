@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub
@@ -158,6 +159,9 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
+            InternalStart().Wait();
+            Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
+
             lock (m_lock)
             {
                 m_isRunning = true;
@@ -166,8 +170,6 @@ namespace Opc.Ua.PubSub
                     publisher.Start();
                 }
             }
-            InternalStart();
-            Utils.Trace("Connection '{0}' was started.", m_pubSubConnectionDataType.Name);
         }
 
         /// <summary>
@@ -175,7 +177,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
-            InternalStop();
+            InternalStop().Wait();
             lock (m_lock)
             {
                 m_isRunning = false;
@@ -222,8 +224,9 @@ namespace Opc.Ua.PubSub
         /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
         /// <param name="writerGroupConfiguration">The writer group configuration </param>
+        /// <param name="state">The publish state for the writer group.</param>
         /// <returns>A list of the <see cref="UaNetworkMessage"/> created from the provided writerGroupConfiguration.</returns>
-        public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
+        public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state);
 
         /// <summary>
         /// Publish the network message
@@ -270,12 +273,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
-        protected abstract void InternalStart();
+        protected abstract Task InternalStart();
 
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
-        protected abstract void InternalStop();
+        protected abstract Task InternalStop();
 
         /// <summary>
         /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.
@@ -284,7 +287,22 @@ namespace Opc.Ua.PubSub
         /// <param name="source">The source of the received event.</param>
         protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
         {
-            if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
+            if (networkMessage.IsMetaDataMessage)
+            {
+                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                    NetworkMessage = networkMessage,
+                    Source = source
+                };
+
+                // trigger notification for received subscribed data set
+                Application.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
+
+                Utils.Trace(
+                    "Connection '{0}' - RaiseMetaDataReceivedEvent() from source={0}",
+                    source,
+                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+            }
+            else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
                 SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
@@ -293,8 +311,11 @@ namespace Opc.Ua.PubSub
 
                 //trigger notification for received subscribed data set
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
-                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
-                    source, subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+
+                Utils.Trace(
+                    "Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
+                    source,
+                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
             }
             else
             {
