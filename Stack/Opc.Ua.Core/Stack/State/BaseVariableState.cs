@@ -1486,7 +1486,11 @@ namespace Opc.Ua
                 return StatusCodes.BadNotReadable;
             }
 
-            if ((m_userAccessLevel & AccessLevels.CurrentRead) == 0)
+            // check the user access level for the variable.
+            byte userAccessLevel = m_userAccessLevel;
+            OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
+
+            if ((userAccessLevel & AccessLevels.CurrentRead) == 0)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
@@ -1867,7 +1871,11 @@ namespace Opc.Ua
                 return StatusCodes.BadNotWritable;
             }
 
-            if ((m_userAccessLevel & AccessLevels.CurrentWrite) == 0)
+            // check the user access level for the variable.
+            byte userAccessLevel = m_userAccessLevel;
+            OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
+
+            if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
@@ -2640,6 +2648,6 @@ namespace Opc.Ua
         /// <summary>
         /// Data is copied when it is written and when it is read.
         /// </summary>
-        Always = 0x3
+        Always = CopyOnWrite | CopyOnRead
     }
 }

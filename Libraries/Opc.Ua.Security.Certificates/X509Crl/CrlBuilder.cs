@@ -173,7 +173,6 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
-            if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
             HashAlgorithmName = hashAlgorithmName;
             return this;
         }

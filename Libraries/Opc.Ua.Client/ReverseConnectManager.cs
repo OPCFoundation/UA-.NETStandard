@@ -277,7 +277,7 @@ namespace Opc.Ua.Client
                     restartService = true;
                 }
 
-                m_configuration = configuration;
+                m_configuration = configuration ?? new ReverseConnectClientConfiguration();
 
                 // clear configured endpoints
                 ClearEndpoints(true);

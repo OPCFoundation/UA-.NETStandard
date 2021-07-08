@@ -180,7 +180,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -688,7 +688,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
@@ -741,7 +741,7 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannel(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
         }
@@ -762,7 +762,7 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
 
@@ -827,7 +827,7 @@ namespace Opc.Ua
 
         #region Private Fields
         internal TransportChannelSettings m_settings;
-        internal ServiceMessageContext m_messageContext;
+        internal IServiceMessageContext m_messageContext;
         internal ITransportChannel m_uaBypassChannel;
         internal int m_operationTimeout;
         internal IChannelBase m_channel;

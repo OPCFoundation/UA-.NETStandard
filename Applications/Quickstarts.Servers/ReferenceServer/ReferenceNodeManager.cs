@@ -34,7 +34,9 @@ using System.Threading;
 using System.Numerics;
 using Opc.Ua;
 using Opc.Ua.Server;
+using Quickstarts.Servers;
 using Range = Opc.Ua.Range;
+using Namespaces = Quickstarts.Servers.Namespaces;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -48,7 +50,7 @@ namespace Quickstarts.ReferenceServer
         /// Initializes the node manager.
         /// </summary>
         public ReferenceNodeManager(IServerInternal server, ApplicationConfiguration configuration)
-            : base(server, configuration, Namespaces.ReferenceApplications)
+            : base(server, configuration, Namespaces.ReferenceServer)
         {
             SystemContext.NodeIdFactory = this;
 

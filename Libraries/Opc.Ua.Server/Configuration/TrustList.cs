@@ -542,7 +542,7 @@ namespace Opc.Ua.Server
             TrustListDataType trustList
             )
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext() {
+            IServiceMessageContext messageContext = new ServiceMessageContext() {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -559,7 +559,7 @@ namespace Opc.Ua.Server
             Stream strm)
         {
             TrustListDataType trustList = new TrustListDataType();
-            ServiceMessageContext messageContext = new ServiceMessageContext() {
+            IServiceMessageContext messageContext = new ServiceMessageContext() {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory

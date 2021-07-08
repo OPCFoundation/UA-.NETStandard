@@ -136,7 +136,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
-        public static Type GetSystemType(NodeId datatypeId, EncodeableFactory factory)
+        public static Type GetSystemType(NodeId datatypeId, IEncodeableFactory factory)
         {
             return TypeInfo.GetSystemType(datatypeId, factory);
         }

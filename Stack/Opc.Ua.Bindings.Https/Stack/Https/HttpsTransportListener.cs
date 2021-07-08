@@ -154,23 +154,24 @@ namespace Opc.Ua.Bindings
             var configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas();
-            m_quotas.MaxBufferSize = configuration.MaxBufferSize;
-            m_quotas.MaxMessageSize = configuration.MaxMessageSize;
-            m_quotas.ChannelLifetime = configuration.ChannelLifetime;
-            m_quotas.SecurityTokenLifetime = configuration.SecurityTokenLifetime;
+            m_quotas = new ChannelQuotas {
+                MaxBufferSize = configuration.MaxBufferSize,
+                MaxMessageSize = configuration.MaxMessageSize,
+                ChannelLifetime = configuration.ChannelLifetime,
+                SecurityTokenLifetime = configuration.SecurityTokenLifetime,
 
-            m_quotas.MessageContext = new ServiceMessageContext();
+                MessageContext = new ServiceMessageContext {
+                    MaxArrayLength = configuration.MaxArrayLength,
+                    MaxByteStringLength = configuration.MaxByteStringLength,
+                    MaxMessageSize = configuration.MaxMessageSize,
+                    MaxStringLength = configuration.MaxStringLength,
+                    NamespaceUris = settings.NamespaceUris,
+                    ServerUris = new StringTable(),
+                    Factory = settings.Factory
+                },
 
-            m_quotas.MessageContext.MaxArrayLength = configuration.MaxArrayLength;
-            m_quotas.MessageContext.MaxByteStringLength = configuration.MaxByteStringLength;
-            m_quotas.MessageContext.MaxMessageSize = configuration.MaxMessageSize;
-            m_quotas.MessageContext.MaxStringLength = configuration.MaxStringLength;
-            m_quotas.MessageContext.NamespaceUris = settings.NamespaceUris;
-            m_quotas.MessageContext.ServerUris = new StringTable();
-            m_quotas.MessageContext.Factory = settings.Factory;
-
-            m_quotas.CertificateValidator = settings.CertificateValidator;
+                CertificateValidator = settings.CertificateValidator
+            };
 
             // save the callback to the server.
             m_callback = callback;
@@ -234,7 +235,7 @@ namespace Opc.Ua.Bindings
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
-            httpsOptions.SslProtocols = SslProtocols.Tls | SslProtocols.Tls11 | SslProtocols.Tls12;
+            httpsOptions.SslProtocols = SslProtocols.None;
             m_hostBuilder.UseKestrel(options => {
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
                     // listenOptions.NoDelay = true;
@@ -342,7 +343,11 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
+#if NETSTANDARD2_1
+                await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
+#else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
+#endif
             }
             catch (Exception e)
             {
