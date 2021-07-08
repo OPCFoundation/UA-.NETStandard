@@ -84,16 +84,6 @@ namespace Opc.Ua.PubSub.Encoding
 
             m_jsonNetworkMessageType = JSONNetworkMessageType.DataSetMetaData;
         }
-
-        /// <summary>
-        /// Create new instance of <see cref="JsonNetworkMessage"/>
-        /// </summary>
-        public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
-            : base(writerGroupConfiguration, metadata)
-        {
-            MessageType = kMetaDataMessageType;
-            DataSetClassId = string.Empty;
-        }
         #endregion
 
         #region Properties
