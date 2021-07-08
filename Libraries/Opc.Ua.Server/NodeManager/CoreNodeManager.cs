@@ -607,26 +607,6 @@ namespace Opc.Ua.Server
                     metadata.DefaultUserRolePermissions = namespaceMetadataState.DefaultUserRolePermissions.Value;
                 }
 
-                #if LEGACY_NODEMANAGER
-                // check if a source is defined for the node.
-                SourceHandle handle = target.Handle as SourceHandle;
-
-                if (handle != null)
-                {
-                    // check if the metadata needs to be updated by the source.
-                    IReadMetadataSource source = handle.Source as IReadMetadataSource;
-
-                    if (source != null)
-                    {
-                        source.ReadMetadata(
-                            context,
-                            handle.Handle,
-                            resultMask,
-                            metadata);
-                    }
-                }
-                #endif
-
                 // return metadata.
                 return metadata;
             }
@@ -2515,11 +2495,6 @@ namespace Opc.Ua.Server
                     m_server.TypeTree.Remove(node.NodeId);
                 }
 
-                // delete sources.
-                #if LEGACY_NODEMANAGER
-                DeleteRegisteredSources(node);
-                #endif
-                
                 // remove any references to the node.
                 foreach (IReference reference in node.References)
                 {
@@ -3104,103 +3079,8 @@ namespace Opc.Ua.Server
 
                 return GetLocalNode(nodeId) as ILocalNode;
             }
-        }        
-
-        #if LEGACY_CORENODEMANAGER
-        /// <summary>
-        /// Checks if the operation needs to be handled by an external source.
-        /// </summary>
-        private static bool CheckSourceHandle(ILocalNode node, Type sourceType, int index, IDictionary sources)
-        {            
-            // check if a source is defined for the node.
-            SourceHandle handle = node.Handle as SourceHandle;
-
-            if (handle == null)
-            {
-                return false;
-            }
-
-            // check if the source type is valid.
-            if (!sourceType.IsInstanceOfType(handle.Source))
-            {
-                return false;
-            }
-
-            // find list of handles for the source.
-            List<RequestHandle> handles = null;
-
-            if (!sources.Contains(handle.Source))
-            {
-                sources[handle.Source] = handles = new List<RequestHandle>();
-            }
-            else
-            {
-                handles = (List<RequestHandle>)sources[handle.Source];
-            }
-
-            // add node to list of values to process by the source.
-            handles.Add(new RequestHandle(handle.Handle, index));
-
-            return true;
         }
 
-        /// <summary>
-        /// Recursively subscribes to events for the notifiers in the tree.
-        /// </summary>
-        private void SubscribeToEvents(
-            OperationContext    context,
-            ILocalNode          node,
-            uint                subscriptionId,
-            IEventMonitoredItem monitoredItem,
-            bool                unsubscribe)
-        {
-            // find handle associated with the node.
-            IEventSource eventSource = node as IEventSource;
-            SourceHandle handle = node.Handle as SourceHandle;
-
-            if (handle != null)
-            {
-                eventSource = handle.Source as IEventSource;            
-            }
-            
-            if (eventSource != null)
-            {
-                try
-                {
-                    eventSource.SubscribeToEvents(context, (handle != null)?handle.Handle:null, subscriptionId, monitoredItem, unsubscribe);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Unexpected error calling SubscribeToEvents on an EventSource.");
-                }
-            }
-    
-            // find the child notifiers.
-            IList<IReference> references = node.References.Find(ReferenceTypes.HasNotifier, false, true, m_server.TypeTree);
-
-            for (int ii = 0; ii < references.Count; ii++)
-            {
-                if (!references[ii].TargetId.IsAbsolute)
-                {
-                    ILocalNode target = GetManagerHandle(references[ii].TargetId) as ILocalNode;
-
-                    if (target == null)
-                    {
-                        continue;
-                    }
-                    
-                    // only object or views can produce events.
-                    if ((target.NodeClass & (NodeClass.Object | NodeClass.View)) == 0)
-                    {
-                        continue;
-                    }
-
-                    SubscribeToEvents(context, target, subscriptionId, monitoredItem, unsubscribe);
-                }
-            }       
-        }
-        #endif
-        
         /// <summary>
         /// Reads the EU Range for a variable.
         /// </summary>
@@ -3304,11 +3184,6 @@ namespace Opc.Ua.Server
         private long m_lastId;
         private SamplingGroupManager m_samplingGroupManager;
         private Dictionary<uint, MonitoredItem> m_monitoredItems;
-        
-        #if LEGACY_CORENODEMANAGER
-        private Dictionary<object,IEventSource> m_eventSources;
-        #endif
-        
         private double m_defaultMinimumSamplingInterval;
         private List<string> m_namespaceUris;
         private ushort m_dynamicNamespaceIndex;

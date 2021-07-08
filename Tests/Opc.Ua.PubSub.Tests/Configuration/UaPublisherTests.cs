@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             s_publishTimes.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
             mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
+
             mockConnection.Setup(x => x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>(), It.IsAny<WriterGroupPublishState>()))
                 .Callback(()=>s_publishTimes.Add(DateTime.Now));
 

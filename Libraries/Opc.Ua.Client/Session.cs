@@ -915,7 +915,7 @@ namespace Opc.Ua.Client
             {
                 connection = await reverseConnectManager.WaitForConnection(
                     endpoint.EndpointUrl,
-                    endpoint.ReverseConnect.ServerUri,
+                    endpoint.ReverseConnect?.ServerUri,
                     ct).ConfigureAwait(false);
 
                 if (updateBeforeConnect)
@@ -1293,12 +1293,12 @@ namespace Opc.Ua.Client
         /// <returns>The list of loaded subscriptions</returns>
         public IEnumerable<Subscription> Load(string filePath)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-
-            settings.DtdProcessing = DtdProcessing.Prohibit;
-            settings.XmlResolver = null;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.CloseInput = true;
+            XmlReaderSettings settings = new XmlReaderSettings {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document,
+                CloseInput = true
+            };
 
             XmlReader reader = XmlReader.Create(filePath, settings);
 

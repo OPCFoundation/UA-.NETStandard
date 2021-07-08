@@ -827,7 +827,7 @@ namespace Opc.Ua
 
         #region Private Fields
         internal TransportChannelSettings m_settings;
-        internal ServiceMessageContext m_messageContext;
+        internal IServiceMessageContext m_messageContext;
         internal ITransportChannel m_uaBypassChannel;
         internal int m_operationTimeout;
         internal IChannelBase m_channel;

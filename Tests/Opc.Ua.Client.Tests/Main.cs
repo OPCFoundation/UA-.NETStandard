@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,19 +28,31 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Runtime.InteropServices;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Environments;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Running;
 
-namespace Quickstarts.ReferenceServer
+namespace Opc.Ua.Client.Tests
 {
-    /// <summary>
-    /// Defines constants for namespaces used by the application.
-    /// </summary>
-    public static partial class Namespaces
+    static class Program
     {
-        /// <summary>
-        /// The namespace for the nodes provided by the server.
-        /// </summary>
-        public const string ReferenceApplications = "http://opcfoundation.org/Quickstarts/ReferenceApplications";
+        // Main Method 
+        static public void Main(String[] args)
+        {
+            var config = ManualConfig
+                    .Create(DefaultConfig.Instance)
+                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
+                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
+                    // need this option because of reference to nunit.framework
+                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
+                    ;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
+            }
+            _ = BenchmarkRunner.Run<ClientTest>(config);
+        }
     }
 }

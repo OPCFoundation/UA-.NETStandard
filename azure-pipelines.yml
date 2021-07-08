@@ -47,13 +47,7 @@ stages:
     parameters:
       configuration: Release
       framework: netcoreapp3.1
-      agents: '@{ windows = "windows-2019"; mac = "macOS-10.15" }'
       jobnamesuffix: core3
-  - template: .azurepipelines/testcc.yml
-    parameters:
-      configuration: Release
-      poolImage: 'ubuntu-18.04'
-      jobnamesuffix: netcore31
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
@@ -62,3 +56,12 @@ stages:
     parameters:
       framework: netcoreapp3.1
       configuration: Debug
+- stage: coverage
+  dependsOn: [testdebug,testrelease]
+  displayName: 'Code Coverage'
+  jobs:
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      poolImage: 'ubuntu-18.04'
+      jobnamesuffix: netcore31
