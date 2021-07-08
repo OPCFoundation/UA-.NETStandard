@@ -27,28 +27,57 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Reflection;
-using System.Collections.Generic;
+using System.Runtime.Serialization;
+using Quickstarts.Servers;
 
-namespace Opc.Ua.Server
-{    
-#if LEGACY_CORENODEMANAGER
+namespace Quickstarts.ReferenceServer
+{
     /// <summary>
-    /// An interface to an object manages one or more views.
+    /// Stores the configuration the data access node manager.
     /// </summary>
-    [Obsolete("The IViewManager interface is obsolete and is not supported. See Opc.Ua.Server.CustomNodeManager for a replacement.")]
-    public interface IViewManager
-    {                
+    [DataContract(Namespace = Namespaces.ReferenceServer)]
+    public class ReferenceServerConfiguration
+    {
+        #region Constructors
         /// <summary>
-        /// Determines whether a node is in a view.
+        /// The default constructor.
         /// </summary>
-        bool IsNodeInView(ViewDescription description, NodeId nodeId);
-        
+        public ReferenceServerConfiguration()
+        {
+            Initialize();
+        }
+
         /// <summary>
-        /// Determines whether a reference is in a view.
+        /// Initializes the object during deserialization.
         /// </summary>
-        bool IsReferenceInView(ViewDescription description, ReferenceDescription reference);
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Whether the user dialog for accepting invalid certificates should be displayed.
+        /// </summary>
+        [DataMember(Order = 1)]
+        public bool ShowCertificateValidationDialog
+        {
+            get { return m_showCertificateValidationDialog; }
+            set { m_showCertificateValidationDialog = value; }
+        }
+        #endregion
+
+        #region Private Members
+        private bool m_showCertificateValidationDialog;
+        #endregion
     }
-#endif
 }

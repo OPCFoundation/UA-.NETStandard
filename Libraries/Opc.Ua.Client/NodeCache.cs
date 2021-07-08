@@ -34,58 +34,6 @@ using System.Reflection;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A client side cache of the server's type model.
-    /// </summary>
-    public interface INodeCache : INodeTable, ITypeTable
-    {
-        /// <summary>
-        /// Loads the UA defined types into the cache.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        void LoadUaDefinedTypes(ISystemContext context);
-
-        /// <summary>
-        /// Removes all nodes from the cache.
-        /// </summary>
-        void Clear();
-
-        /// <summary>
-        /// Fetches a node from the server and updates the cache.
-        /// </summary>
-        Node FetchNode(ExpandedNodeId nodeId);
-
-        /// <summary>
-        /// Adds the supertypes of the node to the cache.
-        /// </summary>
-        void FetchSuperTypes(ExpandedNodeId nodeId);
-
-        /// <summary>
-        /// Returns the references of the specified node that meet the criteria specified.
-        /// </summary>
-        IList<INode> FindReferences(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
-
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
-        string GetDisplayText(INode node);
-
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
-        string GetDisplayText(ExpandedNodeId nodeId);
-
-        /// <summary>
-        /// Returns a display name for the target of a reference.
-        /// </summary>
-        string GetDisplayText(ReferenceDescription reference);
-
-        /// <summary>
-        /// Builds the relative path from a type to a node.
-        /// </summary>
-        NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
-    }
-
-    /// <summary>
     /// An implementation of a client side nodecache.
     /// </summary>
     public class NodeCache : INodeCache

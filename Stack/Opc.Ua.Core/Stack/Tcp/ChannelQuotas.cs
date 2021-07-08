@@ -35,7 +35,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The context to use when encoding/decoding messages.
         /// </summary>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -171,7 +171,7 @@ namespace Opc.Ua.Bindings
         private int m_maxBufferSize;
         private int m_channelLifetime;
         private int m_securityTokenLifetime;
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private ICertificateValidator m_certificateValidator;
         #endregion
     }

@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public override byte[] Encode()
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext {
+            IServiceMessageContext messageContext = new ServiceMessageContext {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -279,7 +279,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="messageContext">The system context.</param>
         /// <param name="writer">The stream to use.</param>
-        public override void Encode(ServiceMessageContext messageContext, StreamWriter writer)
+        public override void Encode(IServiceMessageContext messageContext, StreamWriter writer)
         {
             using (BinaryEncoder encoder = new BinaryEncoder(writer.BaseStream, messageContext))
             {
@@ -299,7 +299,7 @@ namespace Opc.Ua.PubSub.Encoding
                 return;
             }
 
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            IServiceMessageContext messageContext = new ServiceMessageContext();
 
             using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
             {

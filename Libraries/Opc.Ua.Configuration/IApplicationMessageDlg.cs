@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,59 +28,27 @@
  * ======================================================================*/
 
 using System;
-using System.ServiceModel;
-using System.Runtime.Serialization;
-using System.Collections.Generic;
-using Opc.Ua.Server;
+using System.Threading.Tasks;
 
-namespace Quickstarts.ReferenceServer
+namespace Opc.Ua.Configuration
 {
+
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// Interface to create application callbacks.
     /// </summary>
-    [DataContract(Namespace=Namespaces.ReferenceApplications)]
-    public class ReferenceServerConfiguration
+    public abstract class IApplicationMessageDlg
     {
-        #region Constructors
         /// <summary>
-        /// The default constructor.
+        /// The application message.
         /// </summary>
-        public ReferenceServerConfiguration()
-        {
-            Initialize();
-        }
+        /// <param name="text">The text of the message.</param>
+        /// <param name="ask">If the application should ask the user.</param>
+        public abstract void Message(string text, Boolean ask = false);
 
         /// <summary>
-        /// Initializes the object during deserialization.
+        /// Show the message and return result.
         /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// Whether the user dialog for accepting invalid certificates should be displayed.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
-        {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private bool m_showCertificateValidationDialog;
-        #endregion
+        public abstract Task<bool> ShowAsync();
     }
 }
+

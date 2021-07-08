@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public XmlDecoder(ServiceMessageContext context)
+        public XmlDecoder(IServiceMessageContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with an XML element to parse.
         /// </summary>
-        public XmlDecoder(XmlElement element, ServiceMessageContext context)
+        public XmlDecoder(XmlElement element, IServiceMessageContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
@@ -51,7 +51,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a XML reader.
         /// </summary>
-        public XmlDecoder(System.Type systemType, XmlReader reader, ServiceMessageContext context)
+        public XmlDecoder(System.Type systemType, XmlReader reader, IServiceMessageContext context)
         {
             Initialize();
 
@@ -605,7 +605,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -3075,7 +3075,7 @@ namespace Opc.Ua
         #region Private Fields
         private XmlReader m_reader;
         private Stack<string> m_namespaces;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

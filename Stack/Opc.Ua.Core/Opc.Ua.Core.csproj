@@ -3,13 +3,11 @@
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Core</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
     <IsPackable>true</IsPackable>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

@@ -157,7 +157,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="messageContext">The context.</param>
         /// <param name="writer">The stream to use.</param>
-        public abstract void Encode(ServiceMessageContext messageContext, StreamWriter writer);
+        public abstract void Encode(IServiceMessageContext messageContext, StreamWriter writer);
 
         /// <summary>
         /// Decodes the message
