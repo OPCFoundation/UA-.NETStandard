@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30517.126
@@ -34,7 +34,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Tests\coverlet.runsettings.xml = Tests\coverlet.runsettings.xml
 		Directory.Build.props = Directory.Build.props
 		lgtm.yml = lgtm.yml
-		Stack\Opc.Ua.Types\Opc.Ua.Tests.csproj = Stack\Opc.Ua.Types\Opc.Ua.Tests.csproj
 		targets.props = targets.props
 		version.json = version.json
 		version.props = version.props
@@ -70,9 +69,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificate
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.PubSub.Tests", "Tests\Opc.Ua.PubSub.Tests\Opc.Ua.PubSub.Tests.csproj", "{223B581D-8D1E-4ED5-B99B-D6775C41838D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server.Tests", "Tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj", "{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Configuration.Tests", "Tests\Opc.Ua.Configuration.Tests\Opc.Ua.Configuration.Tests.csproj", "{707A1C12-9C29-40A1-8091-2891E0FE0907}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server.Tests", "Tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj", "{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Client.Tests", "Tests\Opc.Ua.Client.Tests\Opc.Ua.Client.Tests.csproj", "{FC588507-282A-426E-8BC9-940860C76610}"
 EndProject
@@ -152,14 +151,14 @@ Global
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{707A1C12-9C29-40A1-8091-2891E0FE0907}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FC588507-282A-426E-8BC9-940860C76610}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FC588507-282A-426E-8BC9-940860C76610}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC588507-282A-426E-8BC9-940860C76610}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -190,8 +189,8 @@ Global
 		{484FB34A-4DCF-4F63-976B-C00F0230BE28} = {4D6FF413-CA8A-4A1F-87B0-4A95FC3894D3}
 		{A727180B-4AA8-4182-B35F-5B6D6CB79593} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{223B581D-8D1E-4ED5-B99B-D6775C41838D} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
-		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{707A1C12-9C29-40A1-8091-2891E0FE0907} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
+		{D9985EA3-0A0F-4552-8BFA-65E282EFC6EA} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{FC588507-282A-426E-8BC9-940860C76610} = {DDDC86D8-79F7-488B-B445-AD176FAE1603}
 		{9FC5C47D-5070-4222-B4F4-94EB495AEE4C} = {EE37EB25-F581-4794-9CAC-F15BF13D520C}
 	EndGlobalSection
