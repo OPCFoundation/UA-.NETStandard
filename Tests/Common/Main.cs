@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -32,30 +32,37 @@ using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Environments;
 using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Running;
-using Opc.Ua.Core.Tests.Types.Encoders;
+using CommandLine;
 
-namespace Opc.Ua.Core.Tests
+static class Program
 {
-    static class Program
+    public class Options
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-            var config = ManualConfig
-                    .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
+        [Option('r', "runtimes", Required = false, HelpText = "Run with all supported runtimes.")]
+        public bool Runtimes { get; set; }
+    }
+
+    // Main Method 
+    static public void Main(String[] args)
+    {
+        Parser.Default.ParseArguments<Options>(args)
+            .WithParsed<Options>(o => {
+                var config = ManualConfig.Create(DefaultConfig.Instance)
                     // need this option because of reference to nunit.framework
                     .WithOptions(ConfigOptions.DisableOptimizationsValidator)
                     ;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
-            }
+                if (o.Runtimes)
+                {
+                    config.AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
+                        .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31));
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
+                    }
+                }
 
-            _ = BenchmarkRunner.Run<JsonEncoderTests>(config);
-        }
+                Benchmarks.RunBenchmarks(config);
+            });
     }
 }
 
