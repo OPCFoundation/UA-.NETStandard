@@ -25,6 +25,7 @@ namespace Opc.Ua
     public class JsonEncoder : IEncoder, IDisposable
     {
         #region Private Fields
+        private const int kStreamWriterBufferSize = 8192;
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -76,12 +77,12 @@ namespace Opc.Ua
             if (m_stream == null)
             {
                 m_memoryStream = new MemoryStream();
-                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false));
+                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), kStreamWriterBufferSize, false);
                 m_leaveOpen = false;
             }
             else
             {
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), 4096, m_leaveOpen);
+                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize, m_leaveOpen);
             }
 
             InitializeWriter();
@@ -107,7 +108,7 @@ namespace Opc.Ua
             if (m_writer == null)
             {
                 m_stream = new MemoryStream();
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false));
+                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize);
             }
 
             InitializeWriter();

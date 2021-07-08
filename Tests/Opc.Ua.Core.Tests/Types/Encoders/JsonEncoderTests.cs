@@ -361,7 +361,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// keep the steam open for more encodings.
         /// </summary>
         [Test]
-        public void Constructor_Streamwriter()
+        public void Constructor_Stream()
         {
             var context = new ServiceMessageContext();
             var memoryStream = new MemoryStream();
