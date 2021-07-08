@@ -40,6 +40,7 @@ namespace Opc.Ua.PubSub
     {
         #region Fields
         protected object m_lock = new object();
+        protected IServiceMessageContext m_context;
         private bool m_isRunning;
         private List<IUaPublisher> m_publishers;
         private PubSubConnectionDataType m_pubSubConnectionDataType;
@@ -53,6 +54,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
+            m_context = new ServiceMessageContext();
+
             if (parentUaPubSubApplication == null)
             {
                 throw new ArgumentNullException(nameof(parentUaPubSubApplication));

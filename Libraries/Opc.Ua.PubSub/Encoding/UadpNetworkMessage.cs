@@ -267,9 +267,8 @@ namespace Opc.Ua.PubSub.Encoding
             };
 
             using (MemoryStream stream = new MemoryStream())
-            using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
             {
-                Encode(messageContext, writer);
+                Encode(messageContext, stream);
                 return stream.ToArray();
             }
         }
@@ -278,10 +277,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encodes the object in the specified stream.
         /// </summary>
         /// <param name="messageContext">The system context.</param>
-        /// <param name="writer">The stream to use.</param>
-        public override void Encode(IServiceMessageContext messageContext, StreamWriter writer)
+        /// <param name="stream">The stream to use.</param>
+        public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            using (BinaryEncoder encoder = new BinaryEncoder(writer.BaseStream, messageContext))
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, messageContext))
             {
                 Encode(encoder);
             }
@@ -290,24 +289,22 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decodes the message 
         /// </summary>
+        /// <param name="context"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public override void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
                 return;
             }
 
-            IServiceMessageContext messageContext = new ServiceMessageContext();
-
-            using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
+            using (BinaryDecoder decoder = new BinaryDecoder(message, context))
             {
                 //decode bytes using dataset reader information
                 DecodeSubscribedDataSets(decoder, dataSetReaders);
             }
         }
-
         #endregion
 
         #region Private Methods - Encoding

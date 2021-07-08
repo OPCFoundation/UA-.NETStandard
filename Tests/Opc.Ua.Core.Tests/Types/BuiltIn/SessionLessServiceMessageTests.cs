@@ -21,10 +21,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
             var expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
-            var memoryStream = new MemoryStream();
             var context = new ServiceMessageContext { NamespaceUris = namespaceTable, ServerUris = serverUris };
             string result;
-            using (var jsonEncoder = new JsonEncoder(context, true, new StreamWriter(memoryStream, new UTF8Encoding(false))))
+            using (var jsonEncoder = new JsonEncoder(context, true))
             {
                 var envelope = new SessionLessServiceMessage {
                     NamespaceUris = context.NamespaceUris,
