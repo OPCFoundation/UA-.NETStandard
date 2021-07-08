@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Act  
             m_udpPublisherConnection.ResetSequenceNumber();
 
-            var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0);
+            var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -174,8 +174,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 //Create network message
 
-                var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0);
-                Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+                var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
                 Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
                 UadpNetworkMessage networkMessage = networkMessages[0] as UadpNetworkMessage;

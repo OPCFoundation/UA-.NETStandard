@@ -364,7 +364,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.DataSetFieldContentMask = (uint)fieldContentMask;
             }
 
-            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup);
+            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 

@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
 
-                IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+                IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
 
                 Assert.IsNotNull(networkMessages, "CreateNetworkMessages returned null");
 

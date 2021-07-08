@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
 
-            System.Collections.Generic.IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+            System.Collections.Generic.IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
@@ -153,7 +153,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
@@ -220,7 +220,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // prepare a network message
             WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
-            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0);
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
