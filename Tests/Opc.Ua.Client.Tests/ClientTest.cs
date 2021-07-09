@@ -94,9 +94,9 @@ namespace Opc.Ua.Client.Tests
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            await m_clientFixture.LoadClientConfiguration();
+            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256);
+            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -108,8 +108,8 @@ namespace Opc.Ua.Client.Tests
             m_session.Close();
             m_session.Dispose();
             m_session = null;
-            await m_serverFixture.StopAsync();
-            await Task.Delay(1000);
+            await m_serverFixture.StopAsync().ConfigureAwait(false);
+            await Task.Delay(1000).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests
 
             using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
             {
-                m_endpoints = await client.GetEndpointsAsync(null);
+                m_endpoints = await client.GetEndpointsAsync(null).ConfigureAwait(false);
             }
         }
 
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(200)]
         public async Task Connect(string securityPolicy)
         {
-            var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints);
+            var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
             var result = session.Close();
             Assert.NotNull(result);
@@ -290,7 +290,7 @@ namespace Opc.Ua.Client.Tests
             Session session;
             if (securityPolicy != null)
             {
-                session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints);
+                session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
             }
             else
             {
@@ -310,7 +310,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(410)]
         public async Task ReadDisplayNames()
         {
-            if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null); }
+            if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
             var nodeIds = m_referenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, m_session.NamespaceUris)).ToList();
             if (m_operationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > m_operationLimits.MaxNodesPerRead)
@@ -415,7 +415,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_referenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null);
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
             foreach (var reference in m_referenceDescriptions.Take(MaxReferences))
@@ -445,7 +445,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_referenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null);
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
             foreach (var reference in m_referenceDescriptions.Take(MaxReferences))
@@ -475,13 +475,15 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(700)]
         public async Task LoadDataTypeSystem()
         {
-            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => { var t = await m_session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson); });
+            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
+                var t = await m_session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
+            });
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
-            var typeSystem = await m_session.LoadDataTypeSystem();
+            var typeSystem = await m_session.LoadDataTypeSystem().ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem);
+            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem);
+            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
         #endregion

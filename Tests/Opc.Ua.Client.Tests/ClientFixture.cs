@@ -168,7 +168,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task<Session> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null)
         {
-            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints));
+            return await ConnectAsync(await GetEndpointAsync(url, securityProfile, endpoints).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
 
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {
-                return await client.GetEndpointsAsync(null);
+                return await client.GetEndpointsAsync(null).ConfigureAwait(false);
             }
         }
         #endregion
