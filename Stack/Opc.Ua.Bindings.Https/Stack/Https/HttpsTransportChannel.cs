@@ -16,6 +16,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -115,34 +116,46 @@ namespace Opc.Ua.Bindings
                 // send client certificate for servers that require TLS client authentication
                 if (m_settings.ClientCertificate != null)
                 {
-                    handler.ClientCertificates.Add(m_settings.ClientCertificate);
+                    var propertyInfo = handler.GetType().GetProperty("ClientCertificates");
+                    if (propertyInfo != null)
+                    {
+                        X509CertificateCollection clientCertificates = (X509CertificateCollection)propertyInfo.GetValue(handler);
+                        clientCertificates?.Add(m_settings.ClientCertificate);
+                    }
                 }
 
                 // OSX platform cannot auto validate certs and throws
                 // on PostAsync, do not set validation handler
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    try
+                    var propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
+                    if (propertyInfo != null)
                     {
-                        handler.ServerCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) => {
-                                try
-                                {
-                                    m_quotas.CertificateValidator?.Validate(cert);
-                                    return true;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Utils.Trace("HTTPS: Failed to validate server cert: " + cert.Subject);
-                                    Utils.Trace("HTTPS: Exception:" + ex.Message);
-                                }
-                                return false;
-                            };
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // client may throw if not supported (e.g. UWP)
-                        handler.ServerCertificateCustomValidationCallback = null;
+                        Func<HttpRequestMessage, X509Certificate2, X509Chain, System.Net.Security.SslPolicyErrors, bool>
+                            serverCertificateCustomValidationCallback = (Func<HttpRequestMessage, X509Certificate2, X509Chain, System.Net.Security.SslPolicyErrors, bool>)propertyInfo.GetValue(handler);
+
+                        try
+                        {
+                            serverCertificateCustomValidationCallback =
+                                (httpRequestMessage, cert, chain, policyErrors) => {
+                                    try
+                                    {
+                                        m_quotas.CertificateValidator?.Validate(cert);
+                                        return true;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Utils.Trace("HTTPS: Failed to validate server cert: " + cert.Subject);
+                                        Utils.Trace("HTTPS: Exception:" + ex.Message);
+                                    }
+                                    return false;
+                                };
+                        }
+                        catch (PlatformNotSupportedException)
+                        {
+                            // client may throw if not supported (e.g. UWP)
+                            serverCertificateCustomValidationCallback = null;
+                        }
                     }
                 }
 

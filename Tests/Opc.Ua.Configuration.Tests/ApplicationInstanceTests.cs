@@ -53,58 +53,6 @@ namespace Opc.Ua.Configuration.Tests
         #endregion
 
         #region Test Methods
-        [Test]
-        public bool HttpHandler()
-        {
-
-            // auto validate server cert, if supported
-            // if unsupported, the TLS server cert must be trusted by a root CA
-            var handler = new HttpClientHandler();
-            handler.ClientCertificateOptions = ClientCertificateOption.Manual;
-            // send client certificate for servers that require TLS client authentication
-            X509Certificate2 clientCertificate = new X509Certificate2();
-            var propertyInfo = handler.GetType().GetProperty("ClientCertificates");
-            X509CertificateCollection clientCertificates = (X509CertificateCollection)propertyInfo.GetValue(handler);
-            clientCertificates.Add(clientCertificate);
-
-            propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
-            Func<HttpRequestMessage, X509Certificate2, X509Chain, System.Net.Security.SslPolicyErrors, bool>
-                serverCertificateCustomValidationCallback = (Func<HttpRequestMessage, X509Certificate2, X509Chain, System.Net.Security.SslPolicyErrors, bool>)propertyInfo.GetValue(handler);
-
-
-
-            // OSX platform cannot auto validate certs and throws
-            // on PostAsync, do not set validation handler
-            //if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-
-                try
-                    {
-                        serverCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) => {
-                                try
-                                {
-                                    //m_quotas.CertificateValidator?.Validate(cert);
-                                    return true;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Utils.Trace("HTTPS: Failed to validate server cert: " + cert.Subject);
-                                    Utils.Trace("HTTPS: Exception:" + ex.Message);
-                                }
-                                return false;
-                            };
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // client may throw if not supported (e.g. UWP)
-                        handler.ServerCertificateCustomValidationCallback = null;
-                    }
-
-            }
-            return false;
-        }
-
         /// <summary>
         /// Load a file configuration.
         /// </summary>

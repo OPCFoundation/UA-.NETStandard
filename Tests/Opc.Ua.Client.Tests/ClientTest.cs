@@ -150,7 +150,6 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
         [Test, Order(100)]
-        [Benchmark]
         public async Task GetEndpoints()
         {
             var endpointConfiguration = EndpointConfiguration.Create();

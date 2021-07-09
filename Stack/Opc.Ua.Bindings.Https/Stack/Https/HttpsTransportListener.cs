@@ -343,7 +343,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1_OR_GREATER || NET5_0
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
@@ -382,7 +382,7 @@ namespace Opc.Ua.Bindings
             Start();
         }
 
-        private async Task<byte[]> ReadBodyAsync(HttpRequest req)
+        private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
         {
             using (var memory = new MemoryStream())
             using (var reader = new StreamReader(req.Body))
