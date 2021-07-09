@@ -43,6 +43,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         
         private const string MqttAddressUrl = "mqtt://localhost:1883";
 
+        private IServiceMessageContext m_context;
+
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -51,6 +53,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/DI/");
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/ADI/");
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/IA/");
+
+            m_context = new ServiceMessageContext() {
+                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+            };
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
@@ -764,7 +771,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = jsonNetworkMessage.Encode();
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
-            uaNetworkMessageDecoded.Decode(bytes, dataSetReaders);
+            uaNetworkMessageDecoded.Decode(m_context, bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             CompareData(jsonNetworkMessage, uaNetworkMessageDecoded);

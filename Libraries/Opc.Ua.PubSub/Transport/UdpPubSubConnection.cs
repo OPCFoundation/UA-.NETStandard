@@ -46,7 +46,6 @@ namespace Opc.Ua.PubSub.Transport
         #region Private Fields
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
         private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
-
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
@@ -63,6 +62,7 @@ namespace Opc.Ua.PubSub.Transport
         public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
+
             m_transportProtocol = TransportProtocol.UADP;
 
             Utils.Trace("UdpPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
@@ -302,7 +302,7 @@ namespace Opc.Ua.PubSub.Transport
             Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
-            networkMessage.Decode(message, GetOperationalDataSetReaders());
+            networkMessage.Decode(m_context, message, GetOperationalDataSetReaders());
 
             // Raise rhe DataReceived event 
             RaiseNetworkMessageDataReceivedEvent(networkMessage, source.ToString());

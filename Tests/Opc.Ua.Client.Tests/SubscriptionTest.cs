@@ -83,9 +83,9 @@ namespace Opc.Ua.Client.Tests
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            await m_clientFixture.LoadClientConfiguration();
+            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256);
+            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -97,8 +97,8 @@ namespace Opc.Ua.Client.Tests
             m_session.Close();
             m_session.Dispose();
             m_session = null;
-            await m_serverFixture.StopAsync();
-            await Task.Delay(1000);
+            await m_serverFixture.StopAsync().ConfigureAwait(false);
+            await Task.Delay(1000).ConfigureAwait(false);
         }
 
         /// <summary>

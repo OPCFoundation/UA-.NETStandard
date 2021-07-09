@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,32 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Environments;
-using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 
-namespace Opc.Ua.Client.Tests
+internal static class Benchmarks
 {
-    static class Program
+    public static void RunBenchmarks(ManualConfig config)
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-            var config = ManualConfig
-                    .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
-                    // need this option because of reference to nunit.framework
-                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-                    ;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
-            }
-            _ = BenchmarkRunner.Run<ClientTest>(config);
-        }
+        _ = BenchmarkRunner.Run<Opc.Ua.Core.Tests.Types.Encoders.JsonEncoderTests>(config);
     }
 }
+

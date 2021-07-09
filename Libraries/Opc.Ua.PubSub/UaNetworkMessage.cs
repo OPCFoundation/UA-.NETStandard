@@ -149,22 +149,22 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        /// <returns></returns>
         public abstract byte[] Encode();
 
         /// <summary>
         /// Encodes the object in the specified stream.
         /// </summary>
         /// <param name="messageContext">The context.</param>
-        /// <param name="writer">The stream to use.</param>
-        public abstract void Encode(IServiceMessageContext messageContext, StreamWriter writer);
+        /// <param name="stream">The stream to use.</param>
+        public abstract void Encode(IServiceMessageContext messageContext, Stream stream);
 
         /// <summary>
         /// Decodes the message
         /// </summary>
+        /// <param name="messageContext"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
+        public abstract void Decode(IServiceMessageContext messageContext, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
         #endregion
     }
 }

@@ -632,7 +632,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (dataSetReaders.Count > 0)
             {
-                // iniaialize the expected NetworkMessage
+                // initialize the expected NetworkMessage
                 UaNetworkMessage networkMessage = null;
                 if (m_messageMapping == MessageMapping.Uadp)
                 {
@@ -645,7 +645,7 @@ namespace Opc.Ua.PubSub.Transport
                 // trigger message decoding
                 if (networkMessage != null)
                 {
-                    networkMessage.Decode(eventArgs.ApplicationMessage.Payload, dataSetReaders);
+                    networkMessage.Decode(m_context, eventArgs.ApplicationMessage.Payload, dataSetReaders);
 
                     // Raise the DataReceived event 
                     RaiseNetworkMessageDataReceivedEvent(networkMessage, topic);

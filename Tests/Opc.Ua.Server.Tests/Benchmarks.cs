@@ -27,17 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
 
-#if NETFRAMEWORK
-namespace Opc.Ua.Core.Tests
+internal static class Benchmarks
 {
-    static class Program
+    public static void RunBenchmarks(ManualConfig config)
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-        }
+        _ = BenchmarkRunner.Run<Opc.Ua.Server.Tests.ReferenceServerTests>(config);
     }
 }
-#endif
+

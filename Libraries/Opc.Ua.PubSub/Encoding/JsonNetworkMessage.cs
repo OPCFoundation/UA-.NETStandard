@@ -185,9 +185,8 @@ namespace Opc.Ua.PubSub.Encoding
             };
 
             using (MemoryStream stream = new MemoryStream())
-            using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
             {
-                Encode(messageContext, writer);
+                Encode(messageContext, stream);
                 return stream.ToArray();
             }
         }
@@ -196,12 +195,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encodes the object in the specified stream.
         /// </summary>
         /// <param name="messageContext">The context.</param>
-        /// <param name="writer">The stream to use.</param>
-        public override void Encode(IServiceMessageContext messageContext, StreamWriter writer)
+        /// <param name="stream">The stream to use.</param>
+        public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
-            using (JsonEncoder encoder = new JsonEncoder(messageContext, true, writer, topLevelIsArray))
+            using (JsonEncoder encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
             {
                 if (IsMetaDataMessage)
                 {
@@ -261,22 +260,18 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decodes the message
         /// </summary>
+        /// <param name="context"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public override void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
                 return;
             }
 
-            IServiceMessageContext messageContext = new ServiceMessageContext() {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
-
             string json = System.Text.Encoding.ASCII.GetString(message);
-            using (JsonDecoder decoder = new JsonDecoder(json, messageContext))
+            using (JsonDecoder decoder = new JsonDecoder(json, context))
             {
                 //decode bytes using dataset reader information
                 DecodeSubscribedDataSets(decoder, dataSetReaders);

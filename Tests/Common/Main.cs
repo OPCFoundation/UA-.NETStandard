@@ -32,29 +32,37 @@ using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Environments;
 using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Running;
+using CommandLine;
 
-namespace Opc.Ua.Security.Certificates.Tests
+static class Program
 {
-    static class Program
+    public class Options
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-            var config = ManualConfig
-                    .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
+        [Option('r', "runtimes", Required = false, HelpText = "Run with all supported runtimes.")]
+        public bool Runtimes { get; set; }
+    }
+
+    // Main Method 
+    static public void Main(String[] args)
+    {
+        Parser.Default.ParseArguments<Options>(args)
+            .WithParsed<Options>(o => {
+                var config = ManualConfig.Create(DefaultConfig.Instance)
                     // need this option because of reference to nunit.framework
                     .WithOptions(ConfigOptions.DisableOptimizationsValidator)
                     ;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
-            }
+                if (o.Runtimes)
+                {
+                    config.AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
+                        .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31));
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
+                    }
+                }
 
-            _ = BenchmarkRunner.Run<Benchmarks>(config);
-        }
+                Benchmarks.RunBenchmarks(config);
+            });
     }
 }
 
