@@ -304,8 +304,8 @@ namespace Opc.Ua.PubSub.Transport
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
             networkMessage.Decode(m_context, message, GetOperationalDataSetReaders());
 
-            // Raise rhe DataReceived event 
-            RaiseNetworkMessageDataReceivedEvent(networkMessage, source.ToString());
+            // Process the decoded network message 
+            ProcessDecodedNetworkMessage(networkMessage, source.ToString());
         }
 
         /// <summary>

@@ -197,7 +197,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             Dictionary<string, object> payload = token as Dictionary<string, object>;
 
-            if (payload != null)
+            if (payload != null && dataSetReader.DataSetMetaData != null)
             {
                 if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
                 {

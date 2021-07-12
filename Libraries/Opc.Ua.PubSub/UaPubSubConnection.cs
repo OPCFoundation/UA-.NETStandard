@@ -56,6 +56,8 @@ namespace Opc.Ua.PubSub
         public UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
             m_context = new ServiceMessageContext();
+            ((ServiceMessageContext)m_context).NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
+            ((ServiceMessageContext)m_context).ServerUris = ServiceMessageContext.GlobalContext.ServerUris;
 
             if (parentUaPubSubApplication == null)
             {
@@ -236,7 +238,7 @@ namespace Opc.Ua.PubSub
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>
-        /// Get current list of dataset readers available in this UaSubscriber component
+        /// Get current list of Operational DataSetReaders available in this UaSubscriber component
         /// </summary>
         public List<DataSetReaderDataType> GetOperationalDataSetReaders()
         {
@@ -251,13 +253,7 @@ namespace Opc.Ua.PubSub
                 {
                     foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
                     {
-                        // check if reader is properlly configuread to receive data
-                        if (reader.DataSetMetaData == null
-                            || reader.DataSetMetaData.Fields == null
-                            || reader.DataSetMetaData.Fields.Count == 0)
-                        {
-                            continue;
-                        }
+                        // check if the reader is properly configured to receive data
                         if (Application.UaPubSubConfigurator.FindStateForObject(reader) == PubSubState.Operational)
                         {
                             readersList.Add(reader);
@@ -281,14 +277,48 @@ namespace Opc.Ua.PubSub
         protected abstract Task InternalStop();
 
         /// <summary>
-        /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.
+        /// Processes the decoded <see cref="UaNetworkMessage"/> and
+        /// raises the <see cref="UaPubSubApplication.DataReceived"/> or <see cref="UaPubSubApplication.MetaDataReceived"/> event.
         /// </summary>
         /// <param name="networkMessage">The network message that was received.</param>
         /// <param name="source">The source of the received event.</param>
-        protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
+        protected void ProcessDecodedNetworkMessage(UaNetworkMessage networkMessage, string source)
         {
             if (networkMessage.IsMetaDataMessage)
             {
+                // update configuration of the coresponding reader objects found in this connection configuration
+                List<DataSetReaderDataType> allReaders = GetAllDataSetReaders();
+                foreach (DataSetReaderDataType reader in allReaders)
+                {
+                    // check if reader's MetaData shall be updated
+                    if (reader.DataSetWriterId != 0
+                        && reader.DataSetWriterId == networkMessage.DataSetWriterId
+                        && (reader.DataSetMetaData == null
+                        || !Utils.IsEqual(reader.DataSetMetaData.ConfigurationVersion, networkMessage.DataSetMetaData.ConfigurationVersion)))
+                    {
+                        // raise event
+                        MetaDataUpdatedEventArgs metaDataUpdatedEventArgs = new MetaDataUpdatedEventArgs() {
+                            DataSetReader = reader,
+                            NewDataSetMetaData = networkMessage.DataSetMetaData,
+                            OldDataSetMetaData = reader.DataSetMetaData,
+                            IsMetaDataUpdated = m_uaPubSubApplication.AutoUpdateMetaDataInConfiguration
+                        };
+
+                        if (m_uaPubSubApplication.AutoUpdateMetaDataInConfiguration)
+                        {
+                            Utils.Trace("Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
+                                    source, reader.Name, networkMessage.DataSetWriterId);
+
+                            lock (m_lock)
+                            {
+                                reader.DataSetMetaData = networkMessage.DataSetMetaData;
+                            }
+                        }
+
+                        m_uaPubSubApplication.RaiseMetaDataUpdatedEvent(metaDataUpdatedEventArgs);
+                    }
+                }
+
                 SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
                     NetworkMessage = networkMessage,
                     Source = source

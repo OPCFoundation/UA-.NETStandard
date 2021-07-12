@@ -33,6 +33,7 @@ using System.Threading;
 using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
@@ -43,6 +44,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
     {
         public const ushort NamespaceIndexSimple = 2;
         public const ushort NamespaceIndexAllTypes = 3;
+
+        // constant DateTime that represents the initial time when the metadata for the configuration was created
+        private static DateTime kTimeOfConfiguration = new DateTime(2021, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        private const string kDisplaySeparator = "------------------------------------------------";
 
         private static object m_lock = new object();
 
@@ -130,6 +135,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     // Subscribte to MetaDataReceived event
                     uaPubSubApplication.MetaDataReceived += UaPubSubApplication_MetaDataDataReceived;
 
+                    uaPubSubApplication.MetaDataUpdated += UaPubSubApplication_MetaDataUpdated;
                     // Start the publisher
                     uaPubSubApplication.Start();
 
@@ -173,13 +179,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             {
                 if (e.NetworkMessage is UadpNetworkMessage)
                 {
-                    Console.WriteLine("UADP Network message was received from Source={0}, SequenceNumber={1}, DataSet count={2}",
-                            e.Source, ((UadpNetworkMessage)e.NetworkMessage).SequenceNumber, e.NetworkMessage.DataSetMessages.Count);
+                    Console.WriteLine("UADP Network DataSetMessage ({0} DataSets): Source={1}, SequenceNumber={2}",
+                            e.NetworkMessage.DataSetMessages.Count, e.Source, ((UadpNetworkMessage)e.NetworkMessage).SequenceNumber);
                 }
                 else if (e.NetworkMessage is JsonNetworkMessage)
                 {
-                    Console.WriteLine("JSON Network message was received from Source={0}, MessageId={1}, DataSet count={2}",
-                            e.Source, ((JsonNetworkMessage)e.NetworkMessage).MessageId, e.NetworkMessage.DataSetMessages.Count);
+                    Console.WriteLine("JSON Network DataSetMessage ({0} DataSets): Source={1}, MessageId={2}",
+                            e.NetworkMessage.DataSetMessages.Count, e.Source, ((JsonNetworkMessage)e.NetworkMessage).MessageId);
                 }
 
                 foreach (UaDataSetMessage dataSetMessage in e.NetworkMessage.DataSetMessages)
@@ -193,7 +199,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                             dataSet.Fields[i].TargetNodeId, dataSet.Fields[i].TargetAttribute, dataSetMessage.DataSet.Fields[i].Value);
                     }
                 }
-                Console.WriteLine("------------------------------------------------");
+                Console.WriteLine(kDisplaySeparator);
             }
         }
 
@@ -208,7 +214,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             {
                 if (e.NetworkMessage is JsonNetworkMessage)
                 {
-                    Console.WriteLine("JSON Network metadata message was received from Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}",
+                    Console.WriteLine("JSON Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",
                          e.Source,
                          ((JsonNetworkMessage)e.NetworkMessage).PublisherId,
                          ((JsonNetworkMessage)e.NetworkMessage).DataSetWriterId,
@@ -222,10 +228,22 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
                 foreach (FieldMetaData metaDataField in e.NetworkMessage.DataSetMetaData.Fields)
                 {
-                    Console.WriteLine("\t\tName:{0}", metaDataField.Name);
+                    Console.WriteLine("\t\t{0, -20} DataType:{1, 10}, ValueRank:{2, 5}", metaDataField.Name, metaDataField.DataType, metaDataField.ValueRank);
                 }
-                Console.WriteLine("------------------------------------------------");
+                Console.WriteLine(kDisplaySeparator);
             }
+        }
+
+        /// <summary>
+        /// Handler for <see cref="UaPubSubApplication.MetaDataUpdated"/>
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void UaPubSubApplication_MetaDataUpdated(object sender, MetaDataUpdatedEventArgs e)
+        {
+            Console.WriteLine("The UaPubSubApplication.MetaDataUpdated event was triggered for DataSetReader: {0}, With Metadata: {1}, AutoUpdated: {2}",
+                e.DataSetReader.Name, e.NewDataSetMetaData.Name, e.IsMetaDataUpdated);
+            Console.WriteLine(kDisplaySeparator);
         }
 
         /// <summary>
@@ -383,12 +401,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
             pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
 
-            //  Define "Simple" MetaData
-            DataSetMetaDataType simpleMetaData = CreateDataSetMetaDataSimple();
-
-            // Define "AllTypes" Metadata
-            DataSetMetaDataType allTypesMetaData = CreateDataSetMetaDataAllTypes();
-
             string brokerQueueName = "Json_WriterGroup_1";
             string brokerMetaData = "$Metadata";
 
@@ -400,8 +412,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
             readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
-            #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)3, DataSetWriterId = 1
-            
+            #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)2, DataSetWriterId = 1
+
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
             dataSetReaderSimple.Name = "Reader 1 MQTT JSON Variant Encoding";
             dataSetReaderSimple.PublisherId = (UInt16)2;
@@ -410,7 +422,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.Enabled = true;
             dataSetReaderSimple.DataSetFieldContentMask = 0;// Variant encoding;
             dataSetReaderSimple.KeyFrameCount = 1;
-            dataSetReaderSimple.DataSetMetaData = simpleMetaData;
 
             BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
                 QueueName = brokerQueueName,
@@ -431,39 +442,21 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | JsonDataSetMessageContentMask.Status
                         | JsonDataSetMessageContentMask.Timestamp),
             };
-            dataSetReaderSimple.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
-            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in simpleMetaData.Fields)
-            {
-                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
-                    DataSetFieldId = fieldMetaData.DataSetFieldId,
-                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
-                    AttributeId = Attributes.Value,
-                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
-                });
-            }
 
-            dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            dataSetReaderSimple.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
-            #region Define DataSetReader2 'AllTypes' for PublisherId = (UInt16)2, DataSetWriterId = 1
+            #region Define DataSetReader2 'AllTypes' for PublisherId = (UInt16)2, DataSetWriterId = 2
             DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
             dataSetReaderAllTypes.Name = "Reader 2 MQTT JSON RawData Encoding";
             dataSetReaderAllTypes.PublisherId = (UInt16)2;
-            dataSetReaderAllTypes.WriterGroupId =1;
+            dataSetReaderAllTypes.WriterGroupId = 1;
             dataSetReaderAllTypes.DataSetWriterId = 2;
             dataSetReaderAllTypes.Enabled = true;
             dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderAllTypes.KeyFrameCount = 1;
-            dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
-            brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = brokerQueueName,
-                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-            };
-
             dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
 
             jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
@@ -479,20 +472,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | JsonDataSetMessageContentMask.Timestamp),
             };
             dataSetReaderAllTypes.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
-            subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in allTypesMetaData.Fields)
-            {
-                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
-                    DataSetFieldId = fieldMetaData.DataSetFieldId,
-                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
-                    AttributeId = Attributes.Value,
-                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
-                });
-            }
 
-            dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 
@@ -553,9 +533,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         ValueRank = ValueRanks.Scalar
                     },
                 };
+            // set the ConfigurationVersion relative to kTimeOfConfiguration constant
             simpleMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
-                MajorVersion = 1
+                MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
+                MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration)
             };
 
             return simpleMetaData;
@@ -693,9 +674,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         ValueRank = ValueRanks.OneDimension
                     },
                 };
+            // set the ConfigurationVersion relative to kTimeOfConfiguration constant
             allTypesMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
-                MajorVersion = 1
+                MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
+                MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration)
             };
 
             return allTypesMetaData;

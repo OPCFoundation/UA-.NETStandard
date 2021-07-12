@@ -290,6 +290,9 @@ namespace Opc.Ua.PubSub.Transport
                     if ((jsonNetworkMessage.NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0)
                     {
                         jsonNetworkMessage.DataSetClassId = dataSetMessagesToUse[0].DataSet?.DataSetMetaData?.DataSetClassId.ToString();
+
+                        // set the DataSetWriterId for single dataset network messages - TODO investigate if this is reaLLY NECESSARY???
+                        jsonNetworkMessage.DataSetWriterId = dataSetMessagesToUse[0].DataSetWriterId;
                     }
 
                     networkMessages.Add(jsonNetworkMessage);
@@ -326,6 +329,7 @@ namespace Opc.Ua.PubSub.Transport
                             string queueName = null;
                             BrokerTransportQualityOfService qos = BrokerTransportQualityOfService.AtLeastOnce;
 
+                            // the network messages that have DataSetWriterId are either metaData messages or SingleDataSet messages and 
                             if (networkMessage.DataSetWriterId != null)
                             {
                                 var dataSetWriter = networkMessage.WriterGroupConfiguration.DataSetWriters
@@ -353,7 +357,7 @@ namespace Opc.Ua.PubSub.Transport
                                  }
                             }
 
-                            if (queueName == null)
+                            if (queueName == null || qos == BrokerTransportQualityOfService.NotSpecified)
                             {
                                 var transportSettings = ExtensionObject.ToEncodeable(
                                     networkMessage.WriterGroupConfiguration.TransportSettings)
@@ -361,8 +365,15 @@ namespace Opc.Ua.PubSub.Transport
 
                                 if (transportSettings != null)
                                 {
-                                    queueName = transportSettings.QueueName;
-                                    qos = transportSettings.RequestedDeliveryGuarantee;
+                                    if (queueName == null)
+                                    {
+                                        queueName = transportSettings.QueueName;
+                                    }
+                                    // if the value is not specified and the value of the parent object shall be used
+                                    if (qos == BrokerTransportQualityOfService.NotSpecified)
+                                    {
+                                        qos = transportSettings.RequestedDeliveryGuarantee;
+                                    }
                                 }
                             }
 
@@ -647,8 +658,8 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     networkMessage.Decode(m_context, eventArgs.ApplicationMessage.Payload, dataSetReaders);
 
-                    // Raise the DataReceived event 
-                    RaiseNetworkMessageDataReceivedEvent(networkMessage, topic);
+                    // Hanndle the decoded message and raise the necessary event on UaPubSubApplication 
+                    ProcessDecodedNetworkMessage(networkMessage, topic);
                 }
             }
             else

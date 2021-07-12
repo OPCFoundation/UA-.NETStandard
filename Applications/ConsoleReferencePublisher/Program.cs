@@ -33,12 +33,16 @@ using System.Threading;
 using Mono.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
     public static class Program
     {
+        // constant DateTime that represents the initial time when the metadata for the configuration was created
+        private static DateTime kTimeOfConfiguration = new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+
         public static void Main(string[] args)
         {
             Console.WriteLine("OPC UA Console Reference Publisher");
@@ -424,9 +428,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                         ValueRank = ValueRanks.Scalar
                     },
                 };
+
+            // set the ConfigurationVersion relative to kTimeOfConfiguration constant
             publishedDataSetSimple.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
-                MajorVersion = 1
+                MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
+                MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration)
             };
 
             PublishedDataItemsDataType publishedDataSetSimpleSource = new PublishedDataItemsDataType();
@@ -582,9 +588,10 @@ namespace Quickstarts.ConsoleReferencePublisher
                     },
                 };
 
+            // set the ConfigurationVersion relative to kTimeOfConfiguration constant
             publishedDataSetAllTypes.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType() {
-                MinorVersion = 1,
-                MajorVersion = 1
+                MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
+                MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration)
             };
             PublishedDataItemsDataType publishedDataSetAllTypesSource = new PublishedDataItemsDataType();
 

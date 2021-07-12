@@ -762,7 +762,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = jsonNetworkMessage.Encode();
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
-            uaNetworkMessageDecoded.Decode(bytes, dataSetReaders);
+            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             CompareData(jsonNetworkMessage, uaNetworkMessageDecoded);

@@ -58,6 +58,13 @@ namespace Opc.Ua.PubSub
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
+
+        /// <summary>
+        /// Event that is triggered when a Metadata message is received and the MetaData shall be updated in the configuration of the DatasetReaders that use it
+        /// The event is triggered all the time,
+        /// even if the <see cref="UaPubSubApplication.AutoUpdateMetaDataInConfiguration"/> is set on true and the MetaData is updated in the configuration.
+        /// </summary>
+        public event EventHandler<MetaDataUpdatedEventArgs> MetaDataUpdated;
         #endregion
 
         #region Event Callbacks
@@ -106,6 +113,8 @@ namespace Opc.Ua.PubSub
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
 
+            AutoUpdateMetaDataInConfiguration = true;
+
             Utils.Trace("An instance of UaPubSubApplication was created.");
         }
 
@@ -137,6 +146,12 @@ namespace Opc.Ua.PubSub
         /// Get reference to current DataStore. Write here all node values needed to be published by this PubSubApplication
         /// </summary>
         public IUaPubSubDataStore DataStore { get { return m_dataStore; } }
+
+        /// <summary>
+        /// Flag that indicates if the DataSetReader configuration is updated when a newer MetaData message is decoded and matches the DataSetReader identification.
+        /// Default value is true.
+        /// </summary>
+        public bool AutoUpdateMetaDataInConfiguration { get; set; }
         #endregion
 
         #region Internal Properties
@@ -277,6 +292,25 @@ namespace Opc.Ua.PubSub
             catch (Exception ex)
             {
                 Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise MetaDataUpdated event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseMetaDataUpdatedEvent(MetaDataUpdatedEventArgs e)
+        {
+            try
+            {
+                if (MetaDataUpdated != null)
+                {
+                    MetaDataUpdated(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataUpdatedEvent");
             }
         }
         #endregion
