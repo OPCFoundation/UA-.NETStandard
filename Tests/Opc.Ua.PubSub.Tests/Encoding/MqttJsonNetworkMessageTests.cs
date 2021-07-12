@@ -213,6 +213,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp|JsonDataSetMessageContentMask.Status)]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
+
+
+            /*The DataSetClassId associated with the DataSets in the NetworkMessage.
+            This value is optional. The presence of the value depends on the setting in the JsonNetworkMessageContentMask.
+            If specified, all DataSetMessages in the NetworkMessage shall have the same DataSetClassId.
+            The source is the DataSetClassId on the PublishedDataSet (see 6.2.2.2) associated with the DataSetWriters that produced the DataSetMessages.*/
+
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetClassId;
