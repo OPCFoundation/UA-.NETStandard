@@ -43,8 +43,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         
         private const string MqttAddressUrl = "mqtt://localhost:1883";
 
-        private IServiceMessageContext m_context;
-
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -53,11 +51,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/DI/");
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/ADI/");
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/IA/");
-
-            m_context = new ServiceMessageContext() {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
@@ -127,7 +120,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration first writer group of first connection should not be null");
-
             var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
@@ -252,7 +244,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-
             var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
@@ -261,9 +252,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             // set DataSetClassId
+            string dataSetClassId = Guid.NewGuid().ToString();
             foreach (JsonNetworkMessage uaNetworkMessage in uaNetworkMessages)
             {
-                uaNetworkMessage.DataSetClassId = Guid.NewGuid().ToString();
+                uaNetworkMessage.DataSetClassId = dataSetClassId;
             }
 
             List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
@@ -371,7 +363,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-
             var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
@@ -771,7 +762,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = jsonNetworkMessage.Encode();
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
-            uaNetworkMessageDecoded.Decode(m_context, bytes, dataSetReaders);
+            uaNetworkMessageDecoded.Decode(bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             CompareData(jsonNetworkMessage, uaNetworkMessageDecoded);
