@@ -279,12 +279,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
-            //  Define "Simple" MetaData
-            DataSetMetaDataType simpleMetaData = CreateDataSetMetaDataSimple();
-
-            // Define "AllTypes" Metadata
-            DataSetMetaDataType allTypesMetaData = CreateDataSetMetaDataAllTypes();
-
             #region Define ReaderGroup1
             ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
             readerGroup1.Name = "ReaderGroup 1";
@@ -298,11 +292,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.Name = "Reader 1 UDP UADP";
             dataSetReaderSimple.PublisherId = (UInt16)1;
             dataSetReaderSimple.WriterGroupId = 0;
-            dataSetReaderSimple.DataSetWriterId = 0;
+            dataSetReaderSimple.DataSetWriterId = 1;
             dataSetReaderSimple.Enabled = true;
             dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderSimple.KeyFrameCount = 1;
-            dataSetReaderSimple.DataSetMetaData = simpleMetaData;
             dataSetReaderSimple.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
@@ -317,21 +310,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | UadpNetworkMessageContentMask.SequenceNumber),
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
-            dataSetReaderSimple.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
-            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in simpleMetaData.Fields)
-            {
-                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
-                    DataSetFieldId = fieldMetaData.DataSetFieldId,
-                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
-                    AttributeId = Attributes.Value,
-                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
-                });
-            }
-
-            dataSetReaderSimple.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
+            dataSetReaderSimple.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);            
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
@@ -340,11 +319,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.Name = "Reader 2 UDP UADP";
             dataSetReaderAllTypes.PublisherId = (UInt16)1;
             dataSetReaderAllTypes.WriterGroupId = 0;
-            dataSetReaderAllTypes.DataSetWriterId = 0;
+            dataSetReaderAllTypes.DataSetWriterId = 2;
             dataSetReaderAllTypes.Enabled = true;
             dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetReaderAllTypes.KeyFrameCount = 1;
-            dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
             dataSetReaderAllTypes.TransportSettings = new ExtensionObject(new DataSetReaderTransportDataType());
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
@@ -360,20 +338,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
             dataSetReaderAllTypes.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
-            subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in allTypesMetaData.Fields)
-            {
-                subscribedDataSet.TargetVariables.Add(new FieldTargetDataType() {
-                    DataSetFieldId = fieldMetaData.DataSetFieldId,
-                    TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
-                    AttributeId = Attributes.Value,
-                    OverrideValueHandling = OverrideValueHandling.OverrideValue,
-                    OverrideValue = new Variant(TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar))
-                });
-            }
-
-            dataSetReaderAllTypes.SubscribedDataSet = new ExtensionObject(subscribedDataSet);
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 

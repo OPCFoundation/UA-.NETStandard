@@ -166,5 +166,19 @@ namespace Opc.Ua.PubSub
         /// <param name="dataSetReaders"></param>
         public abstract void Decode(IServiceMessageContext messageContext, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
         #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// Create and return the default <see cref="IServiceMessageContext"/> to be used for encode/decode
+        /// </summary>
+        /// <returns></returns>
+        protected IServiceMessageContext GetServiceMessageContext()
+        {
+            return new ServiceMessageContext {
+                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+            };
+        }
+        #endregion
     }
 }

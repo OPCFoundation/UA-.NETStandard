@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 //detect the port used for binding
                 int port = 0;
-                if (pubSubContext == UsedInContext.Subscriber)
+                if (pubSubContext == UsedInContext.Subscriber || pubSubContext == UsedInContext.Discovery)
                 {
                     port = configuredEndpoint.Port;
                 }
@@ -205,7 +205,7 @@ namespace Opc.Ua.PubSub.Transport
                     //instantiate unicast UdpClient depending on publisher/subscriber usage context
                     udpClient = new UdpClientUnicast(localAddress, port);
                 }
-                if (pubSubContext == UsedInContext.Publisher)
+                if (pubSubContext == UsedInContext.Publisher || pubSubContext == UsedInContext.Discovery)
                 {
                     //try to send 1 byte for target IP
                     udpClient.Send(new byte[] { 0 }, 1, configuredEndpoint);

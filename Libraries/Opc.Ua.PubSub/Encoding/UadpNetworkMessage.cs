@@ -314,10 +314,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <returns></returns>
         public override byte[] Encode()
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
+            IServiceMessageContext messageContext = GetServiceMessageContext();
 
             using (MemoryStream stream = new MemoryStream())
             {

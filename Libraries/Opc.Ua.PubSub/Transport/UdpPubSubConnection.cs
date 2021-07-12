@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -43,9 +44,13 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpPubSubConnection : UaPubSubConnection
     {
+        private const string kDefalulDiscoveryUrl = "opc.udp://224.0.2.14:4840";
+
         #region Private Fields
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
         private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
+        private List<UdpClient> m_discoveryUdpClients = new List<UdpClient>();
+
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
@@ -62,7 +67,7 @@ namespace Opc.Ua.PubSub.Transport
         public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
-
+            DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(kDefalulDiscoveryUrl);
             m_transportProtocol = TransportProtocol.UADP;
 
             Utils.Trace("UdpPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
@@ -84,6 +89,11 @@ namespace Opc.Ua.PubSub.Transport
         /// Get the port from configured <see cref="PubSubConnectionDataType"/>.Address
         /// </summary>
         public int Port { get; private set; }
+
+        /// <summary>
+        /// Get the Discovery <see cref="IPEndPoint"/>.
+        /// </summary>
+        public IPEndPoint DiscoveryNetworkAddressEndPoint { get; private set; }
         #endregion
 
         #region UaPubSubConnection - Overrides
@@ -114,11 +124,29 @@ namespace Opc.Ua.PubSub.Transport
                               this.PubSubConnectionConfiguration.Name, networkAddressUrlState.Url);
                     return Task.FromResult<object>(null);
                 }
+                // initialize Discovery channels
+                m_discoveryUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Discovery, networkAddressUrlState, DiscoveryNetworkAddressEndPoint);
 
                 //publisher initialization    
                 if (Publishers.Count > 0)
                 {
                     m_publisherUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState, NetworkAddressEndPoint);
+
+                    if (m_discoveryUdpClients != null)
+                    {
+                        foreach (UdpClient discoveryUdpClient in m_discoveryUdpClients)
+                        {
+                            try
+                            {
+                                discoveryUdpClient.BeginReceive(new AsyncCallback(OnUadpDiscoveryReceive), discoveryUdpClient);
+                            }
+                            catch (Exception ex)
+                            {
+                                Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
+                                  discoveryUdpClient.Client.LocalEndPoint, ex.Message);
+                            }
+                        }
+                    }
                 }
 
                 //subscriber initialization   
@@ -130,12 +158,33 @@ namespace Opc.Ua.PubSub.Transport
                     {
                         try
                         {
-                            subscriberUdpClient.BeginReceive(new AsyncCallback(OnUadpReceive), subscriberUdpClient);
+                            subscriberUdpClient.BeginReceive(new AsyncCallback(OnUadpSubscriberReceive), subscriberUdpClient);
                         }
                         catch (Exception ex)
                         {
                             Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
                               subscriberUdpClient.Client.LocalEndPoint, ex.Message);
+                        }
+                    }
+
+                    UadpNetworkMessage networkMessage = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.DataSetMetaData);
+                    networkMessage.PublisherId = GetSubscribedPublisherIds();
+                    networkMessage.DataSetWriterIds = GetSubscribedDataSetWriterIds();
+                    byte[] bytes = networkMessage.Encode();
+
+                    if (m_discoveryUdpClients != null)
+                    {
+                        foreach (UdpClient udpClient in m_discoveryUdpClients)
+                        {
+                            try
+                            {
+                                udpClient.Send(bytes, bytes.Length, DiscoveryNetworkAddressEndPoint);
+                            }
+                            catch (Exception ex)
+                            {
+                                Utils.Trace(Utils.TraceMasks.Information, "UdpClient '{0}' Cannot receive data. Exception: {1}",
+                                  udpClient.Client.LocalEndPoint, ex.Message);
+                            }
                         }
                     }
                 }
@@ -150,24 +199,17 @@ namespace Opc.Ua.PubSub.Transport
         {
             lock (m_lock)
             {
-                if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
+                foreach (var list in new List<List<UdpClient>>() { m_publisherUdpClients, m_subscriberUdpClients, m_discoveryUdpClients })
                 {
-                    foreach (var udpClient in m_publisherUdpClients)
+                    if (list != null && list.Count > 0)
                     {
-                        udpClient.Close();
-                        udpClient.Dispose();
+                        foreach (var udpClient in list)
+                        {
+                            udpClient.Close();
+                            udpClient.Dispose();
+                        }
+                        list.Clear();
                     }
-                    m_publisherUdpClients.Clear();
-                }
-
-                if (m_subscriberUdpClients != null && m_subscriberUdpClients.Count > 0)
-                {
-                    foreach (var udpClient in m_subscriberUdpClients)
-                    {
-                        udpClient.Close();
-                        udpClient.Dispose();
-                    }
-                    m_subscriberUdpClients.Clear();
                 }
             }
             return Task.FromResult<object>(null);
@@ -293,14 +335,14 @@ namespace Opc.Ua.PubSub.Transport
 
         #region Private methods
         /// <summary>
-        /// Process the bytes received from UADP channel
+        /// Process the bytes received from UADP channel as Subscriber
         /// </summary>
         /// <param name="message"></param>
         /// <param name="source"></param>
-        private void ProcessReceivedMessage(byte[] message, IPEndPoint source)
+        private void ProcessSubscriberReceivedMessage(byte[] message, IPEndPoint source)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
-
+            Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessSubscriberReceivedMessage from source={0}", source);
+            // TODO  filter readers per source
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
             networkMessage.Decode(m_context, message, GetOperationalDataSetReaders());
 
@@ -309,10 +351,30 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Handle Receive event for an UADP channel
+        /// Process the bytes received from UADP channel from publisher side
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="source"></param>
+        private void ProcessDiscovereyReceivedMessage(byte[] message, IPEndPoint source)
+        {
+            Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessDiscovereyReceivedMessage from source={0}", source);
+
+            UadpNetworkMessage networkMessage = new UadpNetworkMessage();
+            networkMessage.Decode(m_context, message, null);
+
+            // TODO handle UDP specfic message 
+
+
+            // Raise rhe DataReceived event 
+            RaiseNetworkMessageDataReceivedEvent(networkMessage, source.ToString());
+        }
+
+
+        /// <summary>
+        /// Handle Receive event for an UADP channel on Subscriber Side
         /// </summary>
         /// <param name="result"></param>
-        private void OnUadpReceive(IAsyncResult result)
+        private void OnUadpSubscriberReceive(IAsyncResult result)
         {
             lock (m_lock)
             {
@@ -345,34 +407,95 @@ namespace Opc.Ua.PubSub.Transport
                                 SourceEndPoint = source
                             });
 
-                    Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);
+                    Utils.Trace(Utils.TraceMasks.Information, "OnUadpSubscriberReceive received message with length {0} from {1}", message.Length, source.Address);
 
                     if (message.Length > 1)
                     {
                         // call on a new thread
                         Task.Run(() => {
-                            ProcessReceivedMessage(message, source);
+                            ProcessSubscriberReceivedMessage(message, source);
                         });
                     }
                 }
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "OnUadpReceive from {0}", source.Address);
+                Utils.Trace(ex, "OnUadpSubscriberReceive from {0}", source.Address);
             }
 
             try
             {
                 // schedule the next receive operation once reading is done:
-                socket.BeginReceive(new AsyncCallback(OnUadpReceive), socket);
+                socket.BeginReceive(new AsyncCallback(OnUadpSubscriberReceive), socket);
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive BeginReceive throwed Exception {0}", ex.Message);
+                Utils.Trace(Utils.TraceMasks.Information, "OnUadpSubscriberReceive BeginReceive throwed Exception {0}", ex.Message);
 
                 lock (m_lock)
                 {
-                    Renew(socket);
+                    Renew(socket, m_subscriberUdpClients);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handle Receive event for an UADP channel on Publisher Side
+        /// </summary>
+        /// <param name="result"></param>
+        private void OnUadpDiscoveryReceive(IAsyncResult result)
+        {
+            // this is what had been passed into BeginReceive as the second parameter:
+            UdpClient socket = result.AsyncState as UdpClient;
+
+            if (socket == null)
+            {
+                return;
+            }
+
+            // points towards whoever had sent the message:
+            IPEndPoint source = new IPEndPoint(0, 0);
+            // get the actual message and fill out the source:
+            try
+            {
+                byte[] message = socket.EndReceive(result, ref source);
+
+                if (message != null)
+                {
+                    RaiseUadpDataReceivedEvent(
+                            new UadpDataEventArgs() {
+                                Message = message,
+                                SourceEndPoint = source
+                            });
+
+                    Utils.Trace(Utils.TraceMasks.Information, "OnUadpDiscoveryReceive received message with length {0} from {1}", message.Length, source.Address);
+
+                    if (message.Length > 1)
+                    {
+                        // call on a new thread
+                        Task.Run(() => {
+                            ProcessDiscovereyReceivedMessage(message, source);
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "OnUadpDiscoveryReceive from {0}", source.Address);
+            }
+
+            try
+            {
+                // schedule the next receive operation once reading is done:
+                socket.BeginReceive(new AsyncCallback(OnUadpDiscoveryReceive), socket);
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(Utils.TraceMasks.Information, "OnUadpDiscoveryReceive BeginReceive throwed Exception {0}", ex.Message);
+
+                lock (m_lock)
+                {
+                    //Renew(socket, m_publisherFromSubscriberUdpClients);
                 }
             }
         }
@@ -381,7 +504,8 @@ namespace Opc.Ua.PubSub.Transport
         /// Re initializes the socket 
         /// </summary>
         /// <param name="socket">The socket which should be reinitialized</param>
-        private void Renew(UdpClient socket)
+        /// <param name="theList">The list where the socket shall be replaced</param>
+        private void Renew(UdpClient socket, List<UdpClient> theList)
         {
             UdpClient newsocket = null;
 
@@ -397,14 +521,15 @@ namespace Opc.Ua.PubSub.Transport
             {
                 newsocket = new UdpClientUnicast(ucastSocket.Address, ucastSocket.Port);
             }
-            m_subscriberUdpClients.Remove(socket);
-            m_subscriberUdpClients.Add(newsocket);
+            theList.Remove(socket);
+            theList.Add(newsocket);
             socket.Close();
             socket.Dispose();
 
             if (newsocket != null)
             {
-                newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
+                // TODO refactor 
+                newsocket.BeginReceive(new AsyncCallback(OnUadpSubscriberReceive), newsocket);
             }
         }
 
@@ -434,6 +559,25 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_sequenceNumber = 0;
             m_dataSetSequenceNumber = 0;
+        }
+
+
+        /// <summary>
+        /// BGet the list of DataSetWriteerIds neede by the subscriber
+        /// </summary>
+        /// <returns></returns>
+        private UInt16[] GetSubscribedDataSetWriterIds()
+        {
+            List<DataSetReaderDataType> readers = GetAllDataSetReaders();
+
+            return readers.Select(r => r.DataSetWriterId).Distinct().ToArray();
+        }
+
+        private object GetSubscribedPublisherIds()
+        {
+            List<DataSetReaderDataType> readers = GetAllDataSetReaders();
+
+            return readers.Select(r => r.PublisherId.Value).First();
         }
         #endregion
     }
