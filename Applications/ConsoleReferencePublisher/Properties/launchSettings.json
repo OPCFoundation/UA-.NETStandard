@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ConsoleReferencePublisher": {
+      "commandName": "Project",
+      "commandLineArgs": "-p"
+    }
+  }
+}

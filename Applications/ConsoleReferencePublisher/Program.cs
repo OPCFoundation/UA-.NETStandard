@@ -50,12 +50,14 @@ namespace Quickstarts.ConsoleReferencePublisher
             // command line options
             bool showHelp = false;
             bool useMqttJson = true;
+            bool useMqttUadp = false;
             bool useUdpUadp = false;
             string publisherUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                     { "h|help", "Show usage information", v => showHelp = v != null },
                     { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
+                    { "p|mqtt_uadp", "Use MQTT with UADP encoding Profile.", v => useMqttUadp = v != null },
                     { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
                     { "url|publisher_url=", "Publisher Url Address", v => publisherUrl = v},
                 };
@@ -103,7 +105,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
                     // Create configuration using UDP protocol and UADP Encoding
                     pubSubConfiguration = CreatePublisherConfiguration_UdpUadp(publisherUrl);
-                    Console.WriteLine("The Pubsub Connection was initialized using UDP & UADP Profile.");
+                    Console.WriteLine("The PubSub Connection was initialized using UDP & UADP Profile.");
                 }
                 else
                 {
@@ -113,9 +115,18 @@ namespace Quickstarts.ConsoleReferencePublisher
                         publisherUrl = "mqtt://localhost:1883";
                     }
 
-                    // Create configuration using MQTT protocol and JSON Encoding
-                    pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl);
-                    Console.WriteLine("The Pubsub Connection was initialized using MQTT & JSON Profile.");
+                    if (useMqttUadp)
+                    {
+                        // Create configuration using MQTT protocol and UADP Encoding
+                        pubSubConfiguration = CreatePublisherConfiguration_MqttUadp(publisherUrl);
+                        Console.WriteLine("The PubSub Connection was initialized using MQTT & UADP Profile.");
+                    }
+                    else
+                    {
+                        // Create configuration using MQTT protocol and JSON Encoding
+                        pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl);
+                        Console.WriteLine("The PubSub Connection was initialized using MQTT & JSON Profile.");
+                    }                    
                 }
 
                 // Create the UA Publisher application using configuration file
@@ -362,6 +373,129 @@ namespace Quickstarts.ConsoleReferencePublisher
             #endregion
 
             // Define PublishedDataSet Simple
+            PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
+
+            // Define PublishedDataSet AllTypes
+            PublishedDataSetDataType publishedDataSetAllTypes = CreatePublishedDataSetAllTypes();
+
+            //create  the PubSub configuration root object
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection1
+                };
+            pubSubConfiguration.PublishedDataSets = new PublishedDataSetDataTypeCollection()
+                {
+                    publishedDataSetSimple, publishedDataSetAllTypes
+                };
+
+            return pubSubConfiguration;
+        }
+
+        /// <summary>
+        /// Creates a PubSubConfiguration object for MQTT & UADP programmatically.
+        /// </summary>
+        /// <returns></returns>
+        private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttUadp(string urlAddress)
+        {
+            // Define a PubSub connection with PublisherId 1
+            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
+            pubSubConnection1.Name = "Publisher Connection1 MQTT UADP";
+            pubSubConnection1.Enabled = true;
+            pubSubConnection1.PublisherId = (UInt16)3;
+            pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;
+            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
+            // Specify the local Network interface name to be used
+            // e.g. address.NetworkInterface = "Ethernet";
+            // Leave empty to publish on all available local interfaces.
+            address.NetworkInterface = String.Empty;
+            address.Url = urlAddress;
+            pubSubConnection1.Address = new ExtensionObject(address);
+
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
+
+            string brokerQueueName = "Uadp_WriterGroup_1";
+            string brokerMetaData = "$Metadata";
+
+            #region Define WriterGroup1
+            WriterGroupDataType writerGroup1 = new WriterGroupDataType();
+            writerGroup1.Name = "WriterGroup 1";
+            writerGroup1.Enabled = true;
+            writerGroup1.WriterGroupId = 1;
+            writerGroup1.PublishingInterval = 5000;
+            writerGroup1.KeepAliveTime = 5000;
+            writerGroup1.MaxNetworkMessageSize = 1500;
+            writerGroup1.HeaderLayoutUri = "UADP-Cyclic-Fixed";
+            UadpWriterGroupMessageDataType uadpMessageSettings = new UadpWriterGroupMessageDataType() {
+                DataSetOrdering = DataSetOrderingType.AscendingWriterId,
+                GroupVersion = 0,
+                NetworkMessageContentMask = (uint)(UadpNetworkMessageContentMask.PublisherId
+                        | UadpNetworkMessageContentMask.GroupHeader
+                        | UadpNetworkMessageContentMask.WriterGroupId
+                        | UadpNetworkMessageContentMask.PayloadHeader
+                        | UadpNetworkMessageContentMask.GroupVersion
+                        | UadpNetworkMessageContentMask.NetworkMessageNumber
+                        | UadpNetworkMessageContentMask.SequenceNumber)
+            };
+
+            writerGroup1.MessageSettings = new ExtensionObject(uadpMessageSettings);
+            // initialize Broker transport settings
+            writerGroup1.TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType() {
+                QueueName = brokerQueueName,
+            });
+
+            // Define DataSetWriter 'Simple'
+            DataSetWriterDataType dataSetWriter1 = new DataSetWriterDataType();
+            dataSetWriter1.Name = "Writer 1";
+            dataSetWriter1.DataSetWriterId = 1;
+            dataSetWriter1.Enabled = true;
+            dataSetWriter1.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetWriter1.DataSetName = "Simple";
+            dataSetWriter1.KeyFrameCount = 1;
+            UadpDataSetWriterMessageDataType uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
+                ConfiguredSize = 32,
+                DataSetOffset = 15,
+                NetworkMessageNumber = 1,
+                DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
+            };
+
+            dataSetWriter1.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
+            BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
+                QueueName = brokerQueueName,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
+                MetaDataUpdateTime = 10000
+            };
+            dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
+
+
+            writerGroup1.DataSetWriters.Add(dataSetWriter1);
+
+            // Define DataSetWriter 'AllTypes'
+            DataSetWriterDataType dataSetWriter2 = new DataSetWriterDataType();
+            dataSetWriter2.Name = "Writer 2";
+            dataSetWriter2.DataSetWriterId = 2;
+            dataSetWriter2.Enabled = true;
+            dataSetWriter2.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetWriter2.DataSetName = "AllTypes";
+            dataSetWriter2.KeyFrameCount = 1;
+            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
+                ConfiguredSize = 32,
+                DataSetOffset = 47,
+                NetworkMessageNumber = 1,
+                DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
+            };
+
+            dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
+
+            dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
+            writerGroup1.DataSetWriters.Add(dataSetWriter2);
+
+            pubSubConnection1.WriterGroups.Add(writerGroup1);
+            #endregion
+
+            //  Define PublishedDataSet Simple
             PublishedDataSetDataType publishedDataSetSimple = CreatePublishedDataSetSimple();
 
             // Define PublishedDataSet AllTypes

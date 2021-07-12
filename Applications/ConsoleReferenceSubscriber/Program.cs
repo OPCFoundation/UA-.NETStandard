@@ -58,12 +58,14 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             // command line options
             bool showHelp = false;
             bool useMqttJson = true;
+            bool useMqttUadp = false;
             bool useUdpUadp = false;
             string subscriberUrl = null;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                     { "h|help", "Show usage information", v => showHelp = v != null },
                     { "m|mqtt_json", "Use MQTT with Json encoding Profile. This is the default option.", v => useMqttJson = v != null },
+                    { "p|mqtt_uadp", "Use MQTT with UADP encoding Profile.", v => useMqttUadp = v != null },
                     { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
                     { "url|subscriber_url=", "Subscriber Url Address", v => subscriberUrl = v},
                 };
@@ -121,9 +123,20 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         subscriberUrl = "mqtt://localhost:1883";
                     }
 
-                    // Create configuration using MQTT protocol and JSON Encoding
-                    pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
-                    Console.WriteLine("The Pubsub Connection was initialized using MQTT & JSON Profile.");
+                    if (useMqttUadp)
+                    {
+                        // Create configuration using MQTT protocol and UADP Encoding
+                        pubSubConfiguration = CreateSubscriberConfiguration_MqttUadp(subscriberUrl);
+                        Console.WriteLine("The PubSub Connection was initialized using MQTT & UADP Profile.");
+                    }
+                    else
+                    {
+                        // Create configuration using MQTT protocol and JSON Encoding
+                        pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
+                        Console.WriteLine("The PubSub Connection was initialized using MQTT & JSON Profile.");
+                    }
+
+                   
                 }
 
                 // Create the UA Publisher application
@@ -473,6 +486,115 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             };
             dataSetReaderAllTypes.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
 
+            #endregion
+            readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
+
+            #endregion
+            pubSubConnection1.ReaderGroups.Add(readerGroup1);
+
+            //create  pub sub configuration root object
+            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
+            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection()
+                {
+                    pubSubConnection1
+                };
+
+            return pubSubConfiguration;
+        }
+
+        /// <summary>
+        /// Creates a Subscriber PubSubConfiguration object for UDP & UADP programmatically.
+        /// </summary>
+        /// <returns></returns>
+        private static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttUadp(string urlAddress)
+        {
+            // Define a PubSub connection with PublisherId 1
+            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
+            pubSubConnection1.Name = "Subscriber Connection1 MQTT UADP";
+            pubSubConnection1.Enabled = true;
+            pubSubConnection1.PublisherId = (UInt16)3;
+            pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;
+            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
+            // Specify the local Network interface name to be used
+            // e.g. address.NetworkInterface = "Ethernet";
+            // Leave empty to subscribe on all available local interfaces.
+            address.NetworkInterface = String.Empty;
+            address.Url = urlAddress;
+            pubSubConnection1.Address = new ExtensionObject(address);
+
+            // Configure the mqtt specific configuration with the MQTTbroker
+            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
+            pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
+
+            string brokerQueueName = "Uadp_WriterGroup_1";
+            string brokerMetaData = "$Metadata";
+
+            #region Define ReaderGroup1
+            ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
+            readerGroup1.Name = "ReaderGroup 1";
+            readerGroup1.Enabled = true;
+            readerGroup1.MaxNetworkMessageSize = 1500;
+            readerGroup1.MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType());
+            readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
+
+            #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
+            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
+            dataSetReaderSimple.Name = "Reader 1 MQTT UADP";
+            dataSetReaderSimple.PublisherId = (UInt16)3;
+            dataSetReaderSimple.WriterGroupId = 0;
+            dataSetReaderSimple.DataSetWriterId = 1;
+            dataSetReaderSimple.Enabled = true;
+            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderSimple.KeyFrameCount = 1;
+            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = brokerQueueName,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
+            };
+
+            dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
+                GroupVersion = 0,
+                NetworkMessageNumber = 0,
+                NetworkMessageContentMask = (uint)(uint)(UadpNetworkMessageContentMask.PublisherId
+                        | UadpNetworkMessageContentMask.GroupHeader
+                        | UadpNetworkMessageContentMask.WriterGroupId
+                        | UadpNetworkMessageContentMask.PayloadHeader
+                        | UadpNetworkMessageContentMask.GroupVersion
+                        | UadpNetworkMessageContentMask.NetworkMessageNumber
+                        | UadpNetworkMessageContentMask.SequenceNumber),
+                DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
+            };
+            dataSetReaderSimple.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
+
+            #endregion
+            readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
+
+            #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)1, DataSetWriterId = 2
+            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
+            dataSetReaderAllTypes.Name = "Reader 2 MQTT UADP";
+            dataSetReaderAllTypes.PublisherId = (UInt16)3;
+            dataSetReaderAllTypes.WriterGroupId = 0;
+            dataSetReaderAllTypes.DataSetWriterId = 2;
+            dataSetReaderAllTypes.Enabled = true;
+            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderAllTypes.KeyFrameCount = 1;
+
+            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
+
+            uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
+                GroupVersion = 0,
+                NetworkMessageNumber = 0,
+                NetworkMessageContentMask = (uint)(uint)(UadpNetworkMessageContentMask.PublisherId
+                        | UadpNetworkMessageContentMask.GroupHeader
+                        | UadpNetworkMessageContentMask.WriterGroupId
+                        | UadpNetworkMessageContentMask.PayloadHeader
+                        | UadpNetworkMessageContentMask.GroupVersion
+                        | UadpNetworkMessageContentMask.NetworkMessageNumber
+                        | UadpNetworkMessageContentMask.SequenceNumber),
+                DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
+            };
+            dataSetReaderAllTypes.MessageSettings = new ExtensionObject(uadpDataSetReaderMessage);
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
 

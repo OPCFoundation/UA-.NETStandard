@@ -55,9 +55,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
-            m_context = new ServiceMessageContext();
-            ((ServiceMessageContext)m_context).NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
-            ((ServiceMessageContext)m_context).ServerUris = ServiceMessageContext.GlobalContext.ServerUris;
+            m_context = new ServiceMessageContext {
+                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+            };
 
             if (parentUaPubSubApplication == null)
             {

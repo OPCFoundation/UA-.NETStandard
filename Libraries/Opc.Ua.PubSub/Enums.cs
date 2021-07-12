@@ -158,6 +158,26 @@ namespace Opc.Ua.PubSub
     }
 
     /// <summary>
+    /// The possible types of UADP network discovery response types
+    /// </summary>
+    [Flags]
+    public enum UADPNetworkMessageDiscoveryType
+    {
+        /// <summary>
+        /// Discovery Response message - PublisherEndpoint
+        /// </summary>
+        PublisherEndpoint = 2,
+        /// <summary>
+        /// Discovery Response message - MetaData
+        /// </summary>
+        DataSetMetaData = 4,
+        /// <summary>
+        /// Discovery Response message - MetaData
+        /// </summary>
+        DataSetWriterConfiguration = 8
+    }
+
+    /// <summary>
     /// The possible values for the NetworkMessage ExtendedFlags1 encoding byte.
     /// </summary>
     [Flags]
@@ -381,7 +401,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Subscriber context call
         /// </summary>
-        Subscriber
+        Subscriber,
+        /// <summary>
+        /// Discovery context call
+        /// </summary>
+        Discovery,
     };
 
     /// <summary>
@@ -408,7 +432,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The JSON message is invalid
         /// </summary>
-        Invalid = 0, 
+        Invalid = 0,
         /// <summary>
         /// DataSet message
         /// </summary>
@@ -418,5 +442,5 @@ namespace Opc.Ua.PubSub
         /// </summary>
         DataSetMetaData = 2,
     }
- 
+
 }

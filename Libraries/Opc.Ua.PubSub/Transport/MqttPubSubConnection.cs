@@ -174,11 +174,22 @@ namespace Opc.Ua.PubSub.Transport
 
                         if (hasMetaDataChanged)
                         {
-                            networkMessages.Add(new JsonNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData)
+                            if (m_messageMapping == MessageMapping.Uadp)
                             {
-                                PublisherId = PubSubConnectionConfiguration.PublisherId.ToString(),
-                                DataSetWriterId = dataSetWriter.DataSetWriterId
-                            });
+                                // add UADP metadata network message
+                                networkMessages.Add(new UadpNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData) {
+                                    PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
+                                    DataSetWriterId = dataSetWriter.DataSetWriterId
+                                });
+                            }
+                            else if (m_messageMapping == MessageMapping.Json)
+                            {
+                                // add JSON metadata network message
+                                networkMessages.Add(new JsonNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData) {
+                                    PublisherId = PubSubConnectionConfiguration.PublisherId.ToString(),
+                                    DataSetWriterId = dataSetWriter.DataSetWriterId
+                                });
+                            }
                         }
 
                         UaDataSetMessage uaDataSetMessage = null;
@@ -239,7 +250,7 @@ namespace Opc.Ua.PubSub.Transport
                 // cancel send if no dataset message
                 if (uadpDataSetMessages.Count == 0)
                 {
-                    return null;
+                    return networkMessages;
                 }
 
                 UadpNetworkMessage uadpNetworkMessage = new UadpNetworkMessage(writerGroupConfiguration, uadpDataSetMessages);
@@ -253,14 +264,16 @@ namespace Opc.Ua.PubSub.Transport
                 uadpNetworkMessage.GroupVersion = uadpMessageSettings.GroupVersion;
                 uadpNetworkMessage.NetworkMessageNumber = 1; //only one network message per publish
 
-                return new List<UaNetworkMessage>() { uadpNetworkMessage };
+                networkMessages.Add(uadpNetworkMessage);
+
+                return networkMessages;
             }
             else if (m_messageMapping == MessageMapping.Json)
             {
                 //cancel send if no dataset message
                 if (jsonDataSetMessages.Count == 0)
                 {
-                    return null;
+                    return networkMessages;
                 }
 
                 // each entry of this list will generate a network message
