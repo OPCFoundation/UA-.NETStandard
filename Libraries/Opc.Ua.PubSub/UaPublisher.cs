@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub
         /// Periodically checks if there is data to publish.
         /// </summary>
         private async Task PublishData()
-    {
+        {
             do
             {
                 int sleepCycle = 0;
@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub
                 IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration, m_writerGroupPublishState);
                 if (networkMessages != null)
                 {
-                    foreach(UaNetworkMessage uaNetworkMessage in networkMessages)
+                    foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
                     {
                         if (uaNetworkMessage != null)
                         {

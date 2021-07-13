@@ -508,7 +508,13 @@ namespace Opc.Ua.PubSub.Encoding
                     dataFields.Add(dataField);
                 }
 
+                if (dataFields.Count == 0)
+                {
+                    return null; //the dataset cannot be decoded
+                }
+
                 DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+                dataSet.DataSetMetaData = dataSetMetaData;
                 dataSet.Fields = dataFields.ToArray();
                 dataSet.DataSetWriterId = DataSetWriterId;
                 dataSet.SequenceNumber = SequenceNumber;

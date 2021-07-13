@@ -236,6 +236,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private DataSet DecodePayloadContent(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
+            // todo check for null metadata, it shall not return a decoded message if no metadata
             TargetVariablesDataType targetVariablesData =
                 ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                     as TargetVariablesDataType;
@@ -370,6 +371,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // build the dataset object
             DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+            dataSet.DataSetMetaData = dataSetMetaData;
             dataSet.Fields = dataFields.ToArray();
             dataSet.DataSetWriterId = DataSetWriterId;
             dataSet.SequenceNumber = SequenceNumber;

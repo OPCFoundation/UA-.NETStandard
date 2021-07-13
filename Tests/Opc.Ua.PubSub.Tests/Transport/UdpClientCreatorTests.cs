@@ -156,7 +156,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint configuredEndPoint1 = UdpClientCreator.GetEndPoint(networkAddressUrlState1.Url);
             Assert.IsNotNull(configuredEndPoint1, "configuredEndPoint1 is null");
 
-            List<UdpClient> udpClients1 =  UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState1, configuredEndPoint1);
+            List<UdpClient> udpClients1 =  UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState1.NetworkInterface, configuredEndPoint1);
             Assert.IsNotNull(udpClients1, "udpClients1 is null");
             Assert.IsNotEmpty(udpClients1, "udpClients1 is empty");
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint configuredEndPoint2 = UdpClientCreator.GetEndPoint(networkAddressUrlState2.Url);
             Assert.IsNotNull(configuredEndPoint2, "configuredEndPoint2 is null");
 
-            List<UdpClient> udpClients2 = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState2, configuredEndPoint2);
+            List<UdpClient> udpClients2 = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState2.NetworkInterface, configuredEndPoint2);
             Assert.IsNotNull(udpClients2, "udpClients2 is null");
             Assert.IsNotEmpty(udpClients2, "udpClients2 is empty");
 

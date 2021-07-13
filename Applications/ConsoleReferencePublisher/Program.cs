@@ -188,6 +188,19 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
+            // configure custoom DicoveryAddress for Dicovery messages
+            pubSubConnection1.TransportSettings = new ExtensionObject() {
+                Body = new DatagramConnectionTransportDataType() {
+                    DiscoveryAddress = new ExtensionObject() {
+                        Body = new NetworkAddressUrlDataType() {
+                            Url = "opc.udp://224.0.2.15:4840"
+                        }
+                    }
+                }
+            };
+
+
+
             #region Define WriterGroup1
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
             writerGroup1.Name = "WriterGroup 1";
@@ -202,6 +215,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 GroupVersion = 0,
                 NetworkMessageContentMask = (uint)(UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader
+                        | UadpNetworkMessageContentMask.PayloadHeader // needed to be able to decode the DataSetWriterId
                         | UadpNetworkMessageContentMask.WriterGroupId
                         | UadpNetworkMessageContentMask.GroupVersion
                         | UadpNetworkMessageContentMask.NetworkMessageNumber
@@ -220,9 +234,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter1.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetWriter1.DataSetName = "Simple";
             dataSetWriter1.KeyFrameCount = 1;
-            UadpDataSetWriterMessageDataType uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
-                ConfiguredSize = 32,
-                DataSetOffset = 15,
+            UadpDataSetWriterMessageDataType uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {               
                 NetworkMessageNumber = 1,
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };
@@ -238,9 +250,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter2.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
             dataSetWriter2.DataSetName = "AllTypes";
             dataSetWriter2.KeyFrameCount = 1;
-            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {
-                ConfiguredSize = 32,
-                DataSetOffset = 47,
+            uadpDataSetWriterMessage = new UadpDataSetWriterMessageDataType() {               
                 NetworkMessageNumber = 1,
                 DataSetMessageContentMask = (uint)(UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber),
             };

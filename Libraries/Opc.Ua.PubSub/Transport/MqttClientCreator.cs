@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Transport
 
             while (mqttClient.IsConnected == false)
             {
-                Connect(reconnectInterval, mqttClientOptions, mqttClient);
+                await Connect(reconnectInterval, mqttClientOptions, mqttClient);
                 await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
             }
 
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Transport
                         mqttClient?.Options?.ClientId,
                         e.Reason,
                         e.ClientWasConnected);
-                    Connect(reconnectInterval, mqttClientOptions, mqttClient);
+                    await Connect(reconnectInterval, mqttClientOptions, mqttClient);
                 }
                 catch (Exception excOnDisconnect)
                 {
@@ -131,7 +131,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="reconnectInterval"></param>
         /// <param name="mqttClientOptions"></param>
         /// <param name="mqttClient"></param>
-        private static async void Connect(int reconnectInterval, IMqttClientOptions mqttClientOptions, IMqttClient mqttClient)
+        private static async Task Connect(int reconnectInterval, IMqttClientOptions mqttClientOptions, IMqttClient mqttClient)
         {
             try
             {

@@ -418,11 +418,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         protected List<DataSetReaderDataType> GetAllDataSetReaders()
         {
-            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();
-            if (Application.UaPubSubConfigurator.FindStateForObject(m_pubSubConnectionDataType) != PubSubState.Operational)
-            {
-                return readersList;
-            }
+            List<DataSetReaderDataType> readersList = new List<DataSetReaderDataType>();            
             foreach (ReaderGroupDataType readerGroup in m_pubSubConnectionDataType.ReaderGroups)
             {
                 foreach (DataSetReaderDataType reader in readerGroup.DataSetReaders)
@@ -431,6 +427,23 @@ namespace Opc.Ua.PubSub
                 }
             }
             return readersList;
+        }
+
+        /// <summary>
+        /// Get all dataset writers defined for this UaPublisher component
+        /// </summary>
+        protected List<DataSetWriterDataType> GetAllDataSetWriters()
+        {
+            List<DataSetWriterDataType> writerList = new List<DataSetWriterDataType>();
+            
+            foreach (WriterGroupDataType writerGroup in m_pubSubConnectionDataType.WriterGroups)
+            {
+                foreach (DataSetWriterDataType writer in writerGroup.DataSetWriters)
+                {
+                    writerList.Add(writer);
+                }
+            }
+            return writerList;
         }
 
         /// <summary>

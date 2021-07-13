@@ -279,6 +279,17 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
+            // configure custoom DicoveryAddress for Dicovery messages
+            pubSubConnection1.TransportSettings = new ExtensionObject() {
+                Body = new DatagramConnectionTransportDataType() {
+                    DiscoveryAddress = new ExtensionObject() {
+                        Body = new NetworkAddressUrlDataType() {
+                            Url = "opc.udp://224.0.2.15:4840"
+                        }
+                    }
+                }
+            };
+
             #region Define ReaderGroup1
             ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
             readerGroup1.Name = "ReaderGroup 1";
@@ -300,7 +311,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
-                DataSetOffset = 15,
                 NetworkMessageNumber = 0,
                 NetworkMessageContentMask = (uint)(uint)(UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader
@@ -327,7 +337,6 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType() {
                 GroupVersion = 0,
-                DataSetOffset = 47,
                 NetworkMessageNumber = 0,
                 NetworkMessageContentMask = (uint)(uint)(UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader

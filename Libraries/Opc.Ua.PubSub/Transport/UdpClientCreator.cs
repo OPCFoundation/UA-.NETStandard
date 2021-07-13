@@ -101,21 +101,20 @@ namespace Opc.Ua.PubSub.Transport
         /// Creates and returns a list of <see cref="UdpClient"/> created based on configuration options
         /// </summary>
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
-        /// <param name="networkAddressUrl">The configuration object <see cref="NetworkAddressUrlDataType"/>.</param>
+        /// <param name="networkInterface">The configured network interface name.</param>
         /// <param name="configuredEndpoint">The configured <see cref="IPEndPoint"/> that will be used for data exchange.</param>
         /// <returns></returns>
-        internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, NetworkAddressUrlDataType networkAddressUrl, IPEndPoint configuredEndpoint)
+        internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
         {
             StringBuilder buffer = new StringBuilder();
-            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkAddressUrl != null ? networkAddressUrl.NetworkInterface : "null");
-            buffer.AppendFormat("networkAddressUrl.Url = {0} \n", networkAddressUrl?.Url != null ? networkAddressUrl?.Url : "null");
+            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkInterface != null ? networkInterface : "null");            
             buffer.AppendFormat("configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 
             List<UdpClient> udpClients = new List<UdpClient>();
             //validate input parameters
-            if (networkAddressUrl == null || configuredEndpoint == null)
+            if (configuredEndpoint == null)
             {
                 //log warning?
                 return udpClients;
@@ -123,7 +122,7 @@ namespace Opc.Ua.PubSub.Transport
             //detect the list on network interfaces that will be used for creating the UdpClient s
             List<NetworkInterface> usableNetworkInterfaces = new List<NetworkInterface>();
             var interfaces = NetworkInterface.GetAllNetworkInterfaces();
-            if (string.IsNullOrEmpty(networkAddressUrl.NetworkInterface))
+            if (string.IsNullOrEmpty(networkInterface))
             {
                 Utils.Trace(Utils.TraceMasks.Information, "No NetworkInterface name was provided. Use all available NICs.");
                 usableNetworkInterfaces.AddRange(interfaces);
@@ -133,14 +132,14 @@ namespace Opc.Ua.PubSub.Transport
                 //the configuration contains a NetworkInterface name, try to locate it
                 foreach (NetworkInterface nic in interfaces)
                 {
-                    if (nic.Name.Equals(networkAddressUrl.NetworkInterface, StringComparison.OrdinalIgnoreCase))
+                    if (nic.Name.Equals(networkInterface, StringComparison.OrdinalIgnoreCase))
                     {
                         usableNetworkInterfaces.Add(nic);
                     }
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkAddressUrl.NetworkInterface);
+                    Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
                 }
             }

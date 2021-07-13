@@ -46,7 +46,6 @@ namespace Opc.Ua.PubSub.Encoding
         private const byte kPublishedIdTypeUsedBits = 0x07;
         private const byte kUADPVersionBitMask = 0x0F;
         private const byte kPublishedIdResetMask = 0xFC;
-        private const byte kUADPMessageTypeMask = 0x1C;
 
         private byte m_uadpVersion;
         private object m_publisherId;
@@ -119,6 +118,25 @@ namespace Opc.Ua.PubSub.Encoding
         /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage  
         /// </summary>
         public UadpNetworkMessageContentMask NetworkMessageContentMask { get; private set; }
+
+        /// <summary>
+        /// Get the UADP network message type
+        /// </summary>
+        public UADPNetworkMessageType UADPNetworkMessageType
+        {
+            get
+            {
+                return m_uadpNetworkMessageType;
+            }
+        }
+
+        /// <summary>
+        /// Get the UADP network message discovery type 
+        /// </summary>
+        public UADPNetworkMessageDiscoveryType UADPDiscoveryType
+        {
+            get { return m_discoveryType;}
+        }
 
         /// <summary>
         /// Get/Set the DataSetWriterIds
@@ -717,6 +735,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         uadpDataSetMessages.Add(new UadpDataSetMessage());
                     }
+
                     // 6.2 Decode payload into DataSets 
                     // Restore the encoded fields (into dataset for now) for each possible dataset reader
                     foreach (UadpDataSetMessage uadpDataSetMessage in uadpDataSetMessages)
@@ -725,6 +744,7 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             continue; // this dataset message was already decoded
                         }
+
                         if (dataSetReader.DataSetWriterId == 0 || uadpDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId)
                         {
                             //atempt to decode dataset message using the reader
@@ -742,6 +762,21 @@ namespace Opc.Ua.PubSub.Encoding
                     // set the list of dataset messages to the network message
                     m_uaDataSetMessages.AddRange(dataSetMessages);
                 }
+                else
+                {
+                    dataSetMessages = new List<UaDataSetMessage>();
+                    // check if DataSets are decoded into the existing dataSetMessages
+                    foreach (var dataSetMessage in m_uaDataSetMessages)
+                    {
+                        if (dataSetMessage.DataSet != null)
+                        {
+                            dataSetMessages.Add(dataSetMessage);
+                        }
+                    }
+                    m_uaDataSetMessages.Clear();
+                    m_uaDataSetMessages.AddRange(dataSetMessages);
+                }
+                
             }
             catch (Exception ex)
             {
@@ -820,7 +855,6 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 encoder.WriteGuid("DataSetClassId", DataSetClassId);
             }
-
         }
 
         /// <summary>
