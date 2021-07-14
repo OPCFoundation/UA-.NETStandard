@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Transport
                     && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData)
                 {
                     // create the respinse data SetMetaData messages
-                    IList<UaNetworkMessage> responseMessages = m_udpConnection.CreateNetworkMessageDataSetMetaData(networkMessage.DataSetWriterIds);
+                    IList<UaNetworkMessage> responseMessages = m_udpConnection.CreateDataSetMetaDataNetworkMessages(networkMessage.DataSetWriterIds);
                     // todo clarify where sgall be the respnse messages be sent. For now they are sent on the normal communication channel not on the discovery address                   
 
                     foreach (UaNetworkMessage message in responseMessages)

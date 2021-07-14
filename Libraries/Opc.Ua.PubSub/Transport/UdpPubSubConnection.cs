@@ -269,7 +269,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>
-        public IList<UaNetworkMessage> CreateNetworkMessageDataSetMetaData(UInt16[] dataSetWriterIds)
+        public IList<UaNetworkMessage> CreateDataSetMetaDataNetworkMessages(UInt16[] dataSetWriterIds)
         {
             List<UaNetworkMessage> networkMessages = new List<UaNetworkMessage>();
             var writers = GetAllDataSetWriters();
