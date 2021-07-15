@@ -344,7 +344,7 @@ namespace Opc.Ua.PubSub
         /// <param name="source">The source of the received event.</param>
         protected void ProcessDecodedNetworkMessage(UaNetworkMessage networkMessage, string source)
         {
-            if (networkMessage.IsMetaDataMessage)
+            if (networkMessage.IsMetaDataMessage) 
             {
                 // update configuration of the coresponding reader objects found in this connection configuration
                 List<DataSetReaderDataType> allReaders = GetAllDataSetReaders();
@@ -357,14 +357,17 @@ namespace Opc.Ua.PubSub
                         || !Utils.IsEqual(reader.DataSetMetaData.ConfigurationVersion, networkMessage.DataSetMetaData.ConfigurationVersion)))
                     {
                         // raise event
-                        MetaDataUpdatedEventArgs metaDataUpdatedEventArgs = new MetaDataUpdatedEventArgs() {
-                            DataSetReader = reader,
-                            NewDataSetMetaData = networkMessage.DataSetMetaData,
-                            OldDataSetMetaData = reader.DataSetMetaData,
-                            IsMetaDataUpdated = m_uaPubSubApplication.AutoUpdateMetaDataInConfiguration
+                        ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
+                            ChangedProperty = ChangedProperty.DataSetMetaData,
+                            Parent = reader,
+                            NewValue = networkMessage.DataSetMetaData,
+                            Cancel = false
                         };
 
-                        if (m_uaPubSubApplication.AutoUpdateMetaDataInConfiguration)
+                        // raise the ConfigurationUpdating event and see if configuration shall be changed
+                        m_uaPubSubApplication.RaiseOnConfigurationUpdatingEvent(metaDataUpdatedEventArgs);
+
+                        if (!metaDataUpdatedEventArgs.Cancel)
                         {
                             Utils.Trace("Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
                                     source, reader.Name, networkMessage.DataSetWriterId);
@@ -374,8 +377,6 @@ namespace Opc.Ua.PubSub
                                 reader.DataSetMetaData = networkMessage.DataSetMetaData;
                             }
                         }
-
-                        m_uaPubSubApplication.RaiseMetaDataUpdatedEvent(metaDataUpdatedEventArgs);
                     }
                 }
 

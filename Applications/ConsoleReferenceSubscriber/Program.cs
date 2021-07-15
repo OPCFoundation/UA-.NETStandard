@@ -148,7 +148,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     // Subscribte to MetaDataReceived event
                     uaPubSubApplication.MetaDataReceived += UaPubSubApplication_MetaDataDataReceived;
 
-                    uaPubSubApplication.MetaDataUpdated += UaPubSubApplication_MetaDataUpdated;
+                    uaPubSubApplication.OnConfigurationUpdating += UaPubSubApplication_OnConfigurationUpdating;
                     // Start the publisher
                     uaPubSubApplication.Start();
 
@@ -248,14 +248,14 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubApplication.MetaDataUpdated"/>
+        /// Handler for <see cref="UaPubSubApplication.OnConfigurationUpdating"/>
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private static void UaPubSubApplication_MetaDataUpdated(object sender, MetaDataUpdatedEventArgs e)
+        private static void UaPubSubApplication_OnConfigurationUpdating(object sender, ConfigurationUpdatingEventArgs e)
         {
-            Console.WriteLine("The UaPubSubApplication.MetaDataUpdated event was triggered for DataSetReader: {0}, With Metadata: {1}, AutoUpdated: {2}",
-                e.DataSetReader.Name, e.NewDataSetMetaData.Name, e.IsMetaDataUpdated);
+            Console.WriteLine("The UaPubSubApplication.OnConfigurationUpdating event was triggered for part: {0} for {1}, With new value: {2}",
+                e.ChangedProperty, e.Parent.GetType().Name, e.NewValue.GetType().Name);
             Console.WriteLine(kDisplaySeparator);
         }
 

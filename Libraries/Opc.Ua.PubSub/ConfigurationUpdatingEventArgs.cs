@@ -28,43 +28,39 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Class that contains data related to MetaDataUpdated event 
+    /// Class that contains data related to ConfigurationUpdating event 
     /// </summary>
-    public class MetaDataUpdatedEventArgs : EventArgs
+    public class ConfigurationUpdatingEventArgs : EventArgs
     {
         /// <summary>
-        /// Create new instance of <see cref="MetaDataUpdatedEventArgs"/>
+        /// Create new instance of <see cref="ConfigurationUpdatingEventArgs"/>
         /// </summary>
-        public MetaDataUpdatedEventArgs()
+        public ConfigurationUpdatingEventArgs()
         {
         }
 
         /// <summary>
-        /// The DataSetReader whose MetaData was updated in the publoisher
+        /// The Property of <see cref="Parent"/> 
         /// </summary>
-        public DataSetReaderDataType DataSetReader { get; set; }
+        public ChangedProperty ChangedProperty { get; set; }
 
         /// <summary>
-        /// The new DataSetMetaData
+        /// The the configuration object that is trhe parent of the changed object.
         /// </summary>
-        public DataSetMetaDataType NewDataSetMetaData { get; set; }
+        public object Parent { get; set; }
 
         /// <summary>
-        /// The old DataSetMetaData
+        /// The new value that shall be set to the <see cref="Parent"/> in <see cref="ChangedProperty"/> property.
         /// </summary>
-        public DataSetMetaDataType OldDataSetMetaData { get; set; }
+        public object NewValue { get; set; }
 
         /// <summary>
-        /// Flag that indicates if the DataSetReader metadata was updadted
+        /// Flag that indicates if the Configuration update should be canceled.
         /// </summary>
-        public bool IsMetaDataUpdated { get; set; }
+        public bool Cancel { get; set; }
     }
 }

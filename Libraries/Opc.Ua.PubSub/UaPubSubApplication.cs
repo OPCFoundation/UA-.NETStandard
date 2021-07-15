@@ -60,11 +60,10 @@ namespace Opc.Ua.PubSub
         public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
 
         /// <summary>
-        /// Event that is triggered when a Metadata message is received and the MetaData shall be updated in the configuration of the DatasetReaders that use it
-        /// The event is triggered all the time,
-        /// even if the <see cref="UaPubSubApplication.AutoUpdateMetaDataInConfiguration"/> is set on true and the MetaData is updated in the configuration.
+        /// Event that is triggered before the configuration is updated with a new MetaData 
+        /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
         /// </summary>
-        public event EventHandler<MetaDataUpdatedEventArgs> MetaDataUpdated;
+        public event EventHandler<ConfigurationUpdatingEventArgs> OnConfigurationUpdating;
         #endregion
 
         #region Event Callbacks
@@ -113,8 +112,6 @@ namespace Opc.Ua.PubSub
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
 
-            AutoUpdateMetaDataInConfiguration = true;
-
             Utils.Trace("An instance of UaPubSubApplication was created.");
         }
 
@@ -147,11 +144,6 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public IUaPubSubDataStore DataStore { get { return m_dataStore; } }
 
-        /// <summary>
-        /// Flag that indicates if the DataSetReader configuration is updated when a newer MetaData message is decoded and matches the DataSetReader identification.
-        /// Default value is true.
-        /// </summary>
-        public bool AutoUpdateMetaDataInConfiguration { get; set; }
         #endregion
 
         #region Internal Properties
@@ -296,21 +288,21 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Raise MetaDataUpdated event
+        /// Raise OnConfigurationUpdating event
         /// </summary>
         /// <param name="e"></param>
-        internal void RaiseMetaDataUpdatedEvent(MetaDataUpdatedEventArgs e)
+        internal void RaiseOnConfigurationUpdatingEvent(ConfigurationUpdatingEventArgs e)
         {
             try
             {
-                if (MetaDataUpdated != null)
+                if (OnConfigurationUpdating != null)
                 {
-                    MetaDataUpdated(this, e);
+                    OnConfigurationUpdating(this, e);
                 }
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataUpdatedEvent");
+                Utils.Trace(ex, "UaPubSubApplication.RaisOnConfigurationUpdatingEvent");
             }
         }
         #endregion

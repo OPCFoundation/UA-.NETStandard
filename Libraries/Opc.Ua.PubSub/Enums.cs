@@ -443,4 +443,19 @@ namespace Opc.Ua.PubSub
         DataSetMetaData = 2,
     }
 
+    /// <summary>
+    /// Enumeration that represents the possible Properties of an object from the <see cref="PubSubConfigurationDataType"/> that can be changed during runtime
+    /// </summary>
+    public enum ChangedProperty
+    {
+        /// <summary>
+        /// None
+        /// </summary>
+        None,
+        /// <summary>
+        /// DataSetMetaData
+        /// </summary>
+        DataSetMetaData, 
+    }
+
 }
