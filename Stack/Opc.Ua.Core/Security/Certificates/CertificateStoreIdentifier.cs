@@ -149,7 +149,7 @@ namespace Opc.Ua
 
                 default:
                 {
-                    throw new ArgumentException($"Invalid store type {storeType}");
+                    throw new ArgumentException($"Invalid store type name: {storeType}", nameof(storeType));
                 }
             }
             return store;
