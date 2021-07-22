@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Transport
     internal class UdpDiscoverySubscriber : UdpDiscovery
     {
         private Timer m_sendRequestsTimer;
-        private int m_requestInterval = 5000;
+        private int m_requestInterval = 10000;
 
         #region Constructor
         /// <summary>

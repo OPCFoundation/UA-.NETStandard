@@ -444,9 +444,9 @@ namespace Opc.Ua.PubSub
     }
 
     /// <summary>
-    /// Enumeration that represents the possible Properties of an object from the <see cref="PubSubConfigurationDataType"/> that can be changed during runtime
+    /// Enumeration that represents the possible Properties of an object from the <see cref="PubSubConfigurationDataType"/> that can be changed during runtime.
     /// </summary>
-    public enum ChangedProperty
+    public enum ConfigurationProperty
     {
         /// <summary>
         /// None
@@ -455,7 +455,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSetMetaData
         /// </summary>
-        DataSetMetaData, 
+        DataSetMetaData,
+        /// <summary>
+        /// ConfigurationVersion
+        /// </summary>
+        ConfigurationVersion,
     }
 
 }

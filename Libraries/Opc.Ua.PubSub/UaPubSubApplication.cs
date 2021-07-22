@@ -63,7 +63,7 @@ namespace Opc.Ua.PubSub
         /// Event that is triggered before the configuration is updated with a new MetaData 
         /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
         /// </summary>
-        public event EventHandler<ConfigurationUpdatingEventArgs> OnConfigurationUpdating;
+        public event EventHandler<ConfigurationUpdatingEventArgs> ConfigurationUpdating;
         #endregion
 
         #region Event Callbacks
@@ -288,21 +288,21 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Raise OnConfigurationUpdating event
+        /// Raise <see cref="ConfigurationUpdating"/> event
         /// </summary>
         /// <param name="e"></param>
-        internal void RaiseOnConfigurationUpdatingEvent(ConfigurationUpdatingEventArgs e)
+        internal void RaiseConfigurationUpdatingEvent(ConfigurationUpdatingEventArgs e)
         {
             try
             {
-                if (OnConfigurationUpdating != null)
+                if (ConfigurationUpdating != null)
                 {
-                    OnConfigurationUpdating(this, e);
+                    ConfigurationUpdating(this, e);
                 }
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaisOnConfigurationUpdatingEvent");
+                Utils.Trace(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
             }
         }
         #endregion

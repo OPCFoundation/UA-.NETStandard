@@ -358,14 +358,14 @@ namespace Opc.Ua.PubSub
                     {
                         // raise event
                         ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
-                            ChangedProperty = ChangedProperty.DataSetMetaData,
+                            ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
                             Cancel = false
                         };
 
                         // raise the ConfigurationUpdating event and see if configuration shall be changed
-                        m_uaPubSubApplication.RaiseOnConfigurationUpdatingEvent(metaDataUpdatedEventArgs);
+                        m_uaPubSubApplication.RaiseConfigurationUpdatingEvent(metaDataUpdatedEventArgs);
 
                         if (!metaDataUpdatedEventArgs.Cancel)
                         {

@@ -2,7 +2,7 @@
   "profiles": {
     "ConsoleReferencePublisher": {
       "commandName": "Project",
-      "commandLineArgs": "-u"
+      "commandLineArgs": "-p"
     }
   }
 }

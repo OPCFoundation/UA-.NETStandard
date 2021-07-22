@@ -44,12 +44,12 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// The Property of <see cref="Parent"/> 
+        /// The Property of <see cref="Parent"/> that should receive <see cref="NewValue"/>.
         /// </summary>
-        public ChangedProperty ChangedProperty { get; set; }
+        public ConfigurationProperty ChangedProperty { get; set; }
 
         /// <summary>
-        /// The the configuration object that is trhe parent of the changed object.
+        /// The the configuration object that should receive a <see cref="NewValue"/> in its <see cref="ChangedProperty"/>.
         /// </summary>
         public object Parent { get; set; }
 
