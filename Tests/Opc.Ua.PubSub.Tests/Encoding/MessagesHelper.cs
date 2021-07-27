@@ -453,6 +453,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         {
                             DataSetMessageContentMask = dataSetMessageContentMask
                         };
+                        BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport2 = new BrokerDataSetWriterTransportDataType() {
+                            QueueName = writerGroup1.Name,
+                            MetaDataQueueName = $"{writerGroup1.Name}/{brokerMetaData}",
+                            MetaDataUpdateTime = metaDataUpdateTime
+                        };
+                        dataSetWriter.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport2);
                         break;
                     case Profiles.PubSubMqttJsonTransport:
                         dataSetWriterMessage = new JsonDataSetWriterMessageDataType()

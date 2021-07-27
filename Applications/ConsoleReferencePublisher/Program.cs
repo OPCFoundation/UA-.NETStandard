@@ -339,7 +339,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             dataSetWriter1.Enabled = true;
             dataSetWriter1.DataSetFieldContentMask = 0;// Variant encoding;
             dataSetWriter1.DataSetName = "Simple";
-            dataSetWriter1.KeyFrameCount = 1;
+            dataSetWriter1.KeyFrameCount = 3;
 
             JsonDataSetWriterMessageDataType jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId

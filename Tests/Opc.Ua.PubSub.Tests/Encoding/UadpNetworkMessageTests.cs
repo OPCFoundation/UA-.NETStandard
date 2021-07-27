@@ -532,6 +532,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }            
 
             var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
+            // filter out the metadata message
+            networkMessages = (from m in networkMessages
+                               where !m.IsMetaDataMessage
+                               select m).ToList();
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 

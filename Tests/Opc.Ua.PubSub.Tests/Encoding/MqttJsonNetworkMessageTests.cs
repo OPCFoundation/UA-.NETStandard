@@ -769,7 +769,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] bytes = jsonNetworkMessage.Encode();
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
-            uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, dataSetReaders);
+            uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, dataSetReaders);
 
             // compare uaNetworkMessage with uaNetworkMessageDecoded
             CompareData(jsonNetworkMessage, uaNetworkMessageDecoded);

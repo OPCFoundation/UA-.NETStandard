@@ -44,8 +44,8 @@ namespace Opc.Ua.PubSub
         private DateTime m_nextPublishTime = DateTime.MinValue;
         private const int kMinPublishingInterval = 10;
         private object m_lock = new object();
-        // event used to trigger publish 
 
+        // event used to trigger publish 
         private CancellationTokenSource m_cancellationToken = new CancellationTokenSource();
 
         private IUaPubSubConnection m_pubSubConnection;

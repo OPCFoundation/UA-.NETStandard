@@ -232,7 +232,7 @@ namespace Opc.Ua.PubSub.Transport
                             uaDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
                             uaDataSetMessage.SequenceNumber = dataSet.SequenceNumber;
 
-                            state.MessagePublished(dataSetWriter, dataSet);
+                            state.OnMessagePublished(dataSetWriter, dataSet);
 
                             if (publishedDataSet.DataSetMetaData != null)
                             {

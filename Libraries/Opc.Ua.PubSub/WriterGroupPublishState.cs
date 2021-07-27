@@ -29,9 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
@@ -41,6 +38,9 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public class WriterGroupPublishState
     {
+        /// <summary>
+        /// Hold the DataSet State
+        /// </summary>
         private class DataSetState
         {
             public uint MessageCount;
@@ -50,36 +50,27 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
+        /// The DataSetStates indexed by dataset writer group id.
+        /// </summary>
+        private Dictionary<ushort, DataSetState> m_dataSetStates;
+
+        #region Constructor
+        /// <summary>
         /// Creates a new instance.
         /// </summary>
         public WriterGroupPublishState()
         {
-            DataSets = new Dictionary<ushort, DataSetState>();
+            m_dataSetStates = new Dictionary<ushort, DataSetState>();
         }
+        #endregion
 
-        /// <summary>
-        /// The last DataSet indexed by dataset writer group id.
-        /// </summary>
-        private Dictionary<ushort, DataSetState> DataSets { get; }
-
-        private DataSetState GetState(DataSetWriterDataType writer)
-        {
-            DataSetState state;
-
-            if (!DataSets.TryGetValue(writer.DataSetWriterId, out state))
-            {
-                DataSets[writer.DataSetWriterId] = state = new DataSetState();
-            }
-
-            return state;
-        }
-
+        #region Public Methods
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
         /// </summary>
         public bool IsDeltaFrame(DataSetWriterDataType writer, out uint sequenceNumber)
         {
-            lock (DataSets)
+            lock (m_dataSetStates)
             {
                 DataSetState state = GetState(writer);
                 sequenceNumber = state.MessageCount + 1;
@@ -103,7 +94,7 @@ namespace Opc.Ua.PubSub
                 return false;
             }
 
-            lock (DataSets)
+            lock (m_dataSetStates)
             {
                 DataSetState state = GetState(writer);
 
@@ -136,35 +127,13 @@ namespace Opc.Ua.PubSub
 
             return false;
         }
-
-        private DataSet Copy(DataSet dataset)
-        {
-            DataSet lastDataSet = new DataSet() {
-                DataSetWriterId = dataset.DataSetWriterId,
-                Name = dataset.Name,
-                SequenceNumber = dataset.SequenceNumber,
-                Fields = new Field[dataset.Fields.Length]
-            };
-
-            for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
-            {
-                var field = dataset.Fields[ii];
-
-                if (field != null)
-                {
-                    lastDataSet.Fields[ii] = field;
-                }
-            }
-
-            return lastDataSet;
-        }
-
+             
         /// <summary>
         /// Checks if the DataSet has changed and null
         /// </summary>
         public DataSet ExcludeUnchangedFields(DataSetWriterDataType writer, DataSet dataset)
         {
-            lock (DataSets)
+            lock (m_dataSetStates)
             {
                 DataSetState state = GetState(writer);
 
@@ -172,7 +141,7 @@ namespace Opc.Ua.PubSub
 
                 if (lastDataSet == null)
                 {
-                    state.LastDataSet = Copy(dataset);
+                    state.LastDataSet = dataset.MemberwiseClone() as DataSet;
                     return dataset;
                 }
 
@@ -216,19 +185,19 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Increments the message counter.
         /// </summary>
-        public void MessagePublished(DataSetWriterDataType writer, DataSet dataset)
+        public void OnMessagePublished(DataSetWriterDataType writer, DataSet dataset)
         {
             if (writer.KeyFrameCount > 1)
             {
-                lock (DataSets)
+                lock (m_dataSetStates)
                 {
                     DataSetState state = GetState(writer);
                     state.MessageCount++;
-                    state.ConfigurationVersion = dataset.DataSetMetaData.ConfigurationVersion;
+                    state.ConfigurationVersion = dataset.DataSetMetaData.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
                     {
-                        state.LastDataSet = Copy(dataset);
+                        state.LastDataSet = dataset.MemberwiseClone() as DataSet;
                         return;
                     }
 
@@ -238,11 +207,28 @@ namespace Opc.Ua.PubSub
 
                         if (field != null)
                         {
-                            state.LastDataSet.Fields[ii] = field;
+                            state.LastDataSet.Fields[ii] = field.MemberwiseClone() as Field;
                         }
                     }
                 }
             }
         }
+        #endregion
+
+        #region Private Methods
+
+
+        private DataSetState GetState(DataSetWriterDataType writer)
+        {
+            DataSetState state;
+
+            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out state))
+            {
+                m_dataSetStates[writer.DataSetWriterId] = state = new DataSetState();
+            }
+
+            return state;
+        }
+        #endregion
     }
 }

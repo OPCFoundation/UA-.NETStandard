@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Configuration
                     for (int i = 0; i < oldMetaData.Fields.Count; i++)
                     {
                         /*If at least one Property value of a DataSetMetaData field changes, the MajorVersion shall be updated.*/
-                        if (!Utils.IsEqual(oldMetaData.Fields[i], newMetaData.Fields[1]))
+                        if (!Utils.IsEqual(oldMetaData.Fields[i].Properties, newMetaData.Fields[1].Properties))
                         {
                             hasMajorVersionChange = true;
                             break;

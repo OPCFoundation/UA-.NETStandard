@@ -53,5 +53,25 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Get configured <see cref="FieldMetaData"/> object for this <see cref="Field"/> instance.
         /// </summary>
         public FieldMetaData FieldMetaData { get; internal set; }
+
+        #region MemberwiseClone method
+        /// <summary>
+        /// Create a deep copy of current DataSet
+        /// </summary>
+        public new object MemberwiseClone()
+        {
+            Field copy = base.MemberwiseClone() as Field;
+            if (Value != null)
+            {
+                copy.Value = Value.MemberwiseClone() as DataValue;
+            }
+
+            if (FieldMetaData != null)
+            {
+                copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;               
+            }
+            return copy;
+        }
+        #endregion
     }
 }

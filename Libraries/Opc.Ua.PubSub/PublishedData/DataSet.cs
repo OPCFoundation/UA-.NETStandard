@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.PubSub.PublishedData
 {
     /// <summary>
@@ -70,6 +72,30 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Get/Set data set fields for this data set
         /// </summary>
         public Field[] Fields { get; set; }
+        #endregion
+
+        #region MemberwiseClone method
+        /// <summary>
+        /// Create a deep copy of current DataSet
+        /// </summary>
+        public new object MemberwiseClone()
+        {
+            DataSet copy = base.MemberwiseClone() as DataSet;
+            if (DataSetMetaData != null)
+            {
+                copy.DataSetMetaData = DataSetMetaData.MemberwiseClone() as DataSetMetaDataType;
+            }
+
+            if (Fields != null)
+            {
+                copy.Fields = new Field[Fields.Length];
+                for (int i = 0; i < Fields.Length; i++)
+                {
+                    copy.Fields[i] = Fields[i].MemberwiseClone() as Field;
+                }
+            }
+            return copy;
+        }
         #endregion
     }
 }
