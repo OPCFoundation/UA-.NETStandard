@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
         }
 
-        [Ignore("Temporary disabled due to changes in DataSetClassId handling on NetworkMessage")]
+       // [Ignore("Temporary disabled due to changes in DataSetClassId handling on NetworkMessage")]
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
         public void ValidateMessageHeaderAndDataSetClassIdWithParameters(
            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
-                | JsonNetworkMessageContentMask.DataSetClassId;
+                | JsonNetworkMessageContentMask.DataSetClassId | JsonNetworkMessageContentMask.SingleDataSetMessage;     // add SingledataSetMessage flag because of the special implementation od DataSetClassId that is written only in this case
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
              {
@@ -252,23 +252,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
             var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
-            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
-
+                   
             List<JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             // set DataSetClassId
-            string dataSetClassId = Guid.NewGuid().ToString();
+            Guid dataSetClassId = Guid.NewGuid();
             foreach (JsonNetworkMessage uaNetworkMessage in uaNetworkMessages)
             {
-                uaNetworkMessage.DataSetClassId = dataSetClassId;
+                uaNetworkMessage.DataSetClassId =  dataSetClassId.ToString();
+                uaNetworkMessage.DataSetMessages[0].DataSet.DataSetMetaData.DataSetClassId = (Uuid) dataSetClassId;
             }
-
-            List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
-            Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
-            // DataSetMetaData does not include a definition for DataSetClassId - skip to set that field
-           
+                                  
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                 && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
 
@@ -289,14 +284,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
-            foreach (JsonNetworkMessage uaNetworkMessage in uaNetworkMessages)
+            // check first consitency of ua-data network messages
+            List<JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
+            int index = 0;
+            foreach (var uaDataNetworkMessage in uaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+                CompareEncodeDecode(uaDataNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
             }
-            foreach (JsonNetworkMessage uaNetworkMessage in uaMetaDataNetworkMessages)
-            {
-                CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
-            }
+            
         }             
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader without PublisherId parameter")]
