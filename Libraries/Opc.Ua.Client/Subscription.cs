@@ -101,6 +101,7 @@ namespace Opc.Ua.Client
                 m_priority = template.m_priority;
                 m_timestampsToReturn = template.m_timestampsToReturn;
                 m_maxMessageCount = template.m_maxMessageCount;
+                m_maxMessageWorkers = template.m_maxMessageWorkers;
                 m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
                 m_defaultItem = template.m_defaultItem;
                 m_handle = template.m_handle;
@@ -150,6 +151,7 @@ namespace Opc.Ua.Client
             m_timestampsToReturn = TimestampsToReturn.Both;
             m_maxMessageCount = 10;
             m_outstandingMessageWorkers = 0;
+            m_maxMessageWorkers = 0; //Unlimited
             m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
@@ -177,10 +179,13 @@ namespace Opc.Ua.Client
         /// An overrideable version of the Dispose.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_publishTimer")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = nameof(m_messageWorkersSemaphore))]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
+                Utils.SilentDispose(m_messageWorkersSemaphore);
+                m_messageWorkersSemaphore = null;
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
             }
@@ -364,6 +369,22 @@ namespace Opc.Ua.Client
         {
             get { return m_disableMonitoredItemCache; }
             set { m_disableMonitoredItemCache = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum number of worker threads used to handle incoming messages.
+        /// </summary>
+        /// <value>
+        /// 0 or negative values mean no limit on number of worker threads. Positive values limit the number of worker threads to that number.
+        /// </value>
+        /// <remarks>
+        /// Setting this to <c>1</c> will mean sequential handling of publish responses, barring any out-of-order caused by network communication and the Republish mechanism.
+        /// </remarks>
+        [DataMember(Order = 13)]
+        public int MaxMessageWorkers
+        {
+            get { return m_maxMessageWorkers; }
+            set { m_maxMessageWorkers = value; }
         }
 
         /// <summary>
@@ -755,6 +776,12 @@ namespace Opc.Ua.Client
             uint revisedLifetimeCounter = m_lifetimeCount;
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
+
+            //Create semaphore if needed to limit message workers
+            m_messageWorkersSemaphore?.Dispose();
+            m_messageWorkersSemaphore = m_maxMessageWorkers > 0
+                ? new SemaphoreSlim(m_maxMessageWorkers)
+                : null;
 
             m_session.CreateSubscription(
                 null,
@@ -1553,10 +1580,7 @@ namespace Opc.Ua.Client
                 }
 
                 // process messages.
-                Task.Run(() => {
-                    Interlocked.Increment(ref m_outstandingMessageWorkers);
-                    OnMessageReceived(null);
-                });
+                Task.Run(OnMessageReceived);
             }
 
             // send notification that publishing has recovered.
@@ -1576,10 +1600,27 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the incoming messages.
         /// </summary>
-        private void OnMessageReceived(object state)
+        private async Task OnMessageReceived()
         {
+            var semaphore = m_messageWorkersSemaphore; //Avoid semaphore being replaced for this instance while running, retain reference locally.
+            var needSemaphore = semaphore != null; //Later used to know if releasing the semaphore is needed. Assumed taken if needed.
+            if (needSemaphore)
+            {
+                try
+                {
+                    await(semaphore?.WaitAsync() ?? Task.CompletedTask); //In case needSemaphore is changed to not just be a null-check
+                }
+                catch (ObjectDisposedException)
+                {
+                    //Disposed, do not process messages
+                    //TODO: Trace message here?
+                    //Previous implementation would have it handle the messages either way.
+                    return;
+                }
+            }
             try
             {
+                Interlocked.Increment(ref m_outstandingMessageWorkers);
                 Session session = null;
                 uint subscriptionId = 0;
                 EventHandler callback = null;
@@ -1735,6 +1776,27 @@ namespace Opc.Ua.Client
             finally
             {
                 Interlocked.Decrement(ref m_outstandingMessageWorkers);
+                if (needSemaphore)
+                {
+                    //Release semaphore taken earlier
+                    try
+                    {
+                        semaphore?.Release(); //Release the right semaphore
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        //Ignore, disposed and handling finished
+                        //TODO: Trace here?
+                    }
+                    catch (SemaphoreFullException e)
+                    {
+                        Utils.Trace(e, "Released semaphore too many times"); //TODO: Different message?
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.Trace(e, "Error while finishing processing of incoming messages."); //TODO: Different message?
+                    }
+                }
             }
         }
 
@@ -2015,6 +2077,8 @@ namespace Opc.Ua.Client
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;
         private int m_outstandingMessageWorkers;
+        private int m_maxMessageWorkers;
+        private SemaphoreSlim m_messageWorkersSemaphore;
 
         /// <summary>
         /// A message received from the server cached until is processed or discarded.
