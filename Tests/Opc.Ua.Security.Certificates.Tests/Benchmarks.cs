@@ -31,7 +31,16 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
+
+internal static class Benchmarks
+{
+    public static void RunBenchmarks(ManualConfig config)
+    {
+        _ = BenchmarkRunner.Run<Opc.Ua.Security.Certificates.Tests.Benchmarks>(config);
+    }
+}
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
@@ -39,11 +48,11 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// Benchmarks for the CertificateFactory class.
     /// </summary>
     [MemoryDiagnoser]
-    [SimpleJob(RuntimeMoniker.Net462, baseline: true)]
-    [SimpleJob(RuntimeMoniker.NetCoreApp31)]
-    [SimpleJob(RuntimeMoniker.NetCoreApp21)]
     public class Benchmarks
     {
+        X509Certificate2 m_issuerCert;
+        IX509CRL m_issuerCrl;
+        X509CRL m_x509Crl;
         X509Certificate2 m_certificate;
         byte[] m_randomByteArray;
         byte[] m_encryptedByteArray;
@@ -57,11 +66,25 @@ namespace Opc.Ua.Security.Certificates.Tests
         [GlobalSetup]
         public void GlobalSetup()
         {
+            m_issuerCert = CertificateBuilder.Create("CN=Root CA")
+                            .SetCAConstraint()
+                            .CreateForRSA();
             m_certificate = CertificateBuilder.Create("CN=TestCert")
                 .SetNotBefore(DateTime.Today.AddDays(-1))
                 .AddExtension(
-                    new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }))
+                    new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc",
+                    new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" }))
                 .CreateForRSA();
+
+            var crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                           .SetThisUpdate(DateTime.UtcNow.Date)
+                           .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
+            var revokedarray = new RevokedCertificate(m_certificate.SerialNumber);
+            crlBuilder.RevokedCertificates.Add(revokedarray);
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1));
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            m_issuerCrl = crlBuilder.CreateForRSA(m_issuerCert);
+            m_x509Crl = new X509CRL(m_issuerCrl.RawData);
 
             var random = new Random();
             m_rsaPrivateKey = m_certificate.GetRSAPrivateKey();
@@ -82,10 +105,12 @@ namespace Opc.Ua.Security.Certificates.Tests
         [GlobalCleanup]
         public void GlobalCleanup()
         {
+            m_issuerCert?.Dispose();
             m_certificate?.Dispose();
             m_rsaPrivateKey?.Dispose();
             m_rsaPublicKey?.Dispose();
         }
+
 
         /// <summary>
         /// Create a certificate and dispose.
@@ -177,12 +202,77 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         /// <summary>
+        /// Verify a self signed signature.
+        /// </summary>
+        [Benchmark]
+        public void VerifySignature()
+        {
+            var signature = new X509Signature(m_certificate.RawData);
+            _ = signature.Verify(m_certificate);
+        }
+
+        /// <summary>
+        /// Create a CRL.
+        /// </summary>
+        [Benchmark]
+        public void CreateCRL()
+        {
+            // little endian byte array as serial number?
+            byte[] serial = new byte[] { 1, 2, 3 };
+            var revokedarray = new RevokedCertificate(serial);
+
+            var crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                .SetThisUpdate(DateTime.UtcNow.Date)
+                .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
+            crlBuilder.RevokedCertificates.Add(revokedarray);
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1));
+            crlBuilder.CrlExtensions.Add(X509Extensions.BuildAuthorityKeyIdentifier(m_issuerCert));
+            _ = crlBuilder.CreateForRSA(m_issuerCert);
+        }
+
+        /// <summary>
+        /// Decode a CRL.
+        /// </summary>
+        [Benchmark]
+        public void DecodeCRLSignature()
+        {
+            _ = new X509CRL(m_issuerCrl.RawData);
+        }
+
+        /// <summary>
+        /// Verify signature of a CRL.
+        /// </summary>
+        [Benchmark]
+        public void VerifyCRLSignature()
+        {
+            _ = m_x509Crl.VerifySignature(m_issuerCert, true);
+        }
+
+        /// <summary>
         /// Find a specific cert extension.
         /// </summary>
         [Benchmark]
         public void FindExtension()
         {
             _ = X509Extensions.FindExtension<X509BasicConstraintsExtension>(m_certificate.Extensions);
+        }
+
+        /// <summary>
+        /// Export certificate as PEM.
+        /// </summary>
+        [Benchmark]
+        public void ExportCertificateAsPEM()
+        {
+            _ = PEMWriter.ExportCertificateAsPEM(m_certificate);
+        }
+
+        /// <summary>
+        /// Export private key as PEM.
+        /// </summary>
+        [Benchmark]
+        public void ExportPrivateKeyAsPEM()
+        {
+            _ = PEMWriter.ExportPrivateKeyAsPEM(m_certificate);
         }
     }
 }

@@ -406,17 +406,17 @@ namespace Opc.Ua.PubSub
     public enum JSONNetworkMessageType
     {
         /// <summary>
+        /// The JSON message is invalid
+        /// </summary>
+        Invalid = 0, 
+        /// <summary>
         /// DataSet message
         /// </summary>
-        DataSetMessage = 0,
+        DataSetMessage = 1,
         /// <summary>
-        /// Discovery Request message
+        /// DataSetMetaData message
         /// </summary>
-        DiscoveryRequest = 4,
-        /// <summary>
-        /// Discovery Response message
-        /// </summary>
-        DiscoveryResponse = 8
+        DataSetMetaData = 2,
     }
  
 }

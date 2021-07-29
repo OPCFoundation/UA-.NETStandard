@@ -114,9 +114,9 @@ namespace Opc.Ua.Server
                 // start thread to monitor sessions.
                 m_shutdownEvent.Reset();
 
-                Task.Run(() => {
+                Task.Factory.StartNew(() => {
                     MonitorSessions(m_minSessionTimeout);
-                });
+                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -424,8 +424,8 @@ namespace Opc.Ua.Server
         /// Validates request header and returns a request context.
         /// </summary>
         /// <remarks>
-        /// This method verifies that the session id valid and that it uses secure channel id
-        /// associated with with current thread. It also verifies that the timestamp is not too 
+        /// This method verifies that the session id is valid and that it uses secure channel id
+        /// associated with current thread. It also verifies that the timestamp is not too 
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
         public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)

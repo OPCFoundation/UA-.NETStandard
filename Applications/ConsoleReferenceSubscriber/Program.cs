@@ -127,6 +127,9 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     // Subscribte to DataReceived event
                     uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;
 
+                    // Subscribte to MetaDataReceived event
+                    uaPubSubApplication.MetaDataReceived += UaPubSubApplication_MetaDataDataReceived;
+
                     // Start the publisher
                     uaPubSubApplication.Start();
 
@@ -193,7 +196,38 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 Console.WriteLine("------------------------------------------------");
             }
         }
-        
+
+        /// <summary>
+        /// Handler for <see cref="UaPubSubApplication.MetaDataDataReceived" /> event.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void UaPubSubApplication_MetaDataDataReceived(object sender, SubscribedDataEventArgs e)
+        {
+            lock (m_lock)
+            {
+                if (e.NetworkMessage is JsonNetworkMessage)
+                {
+                    Console.WriteLine("JSON Network metadata message was received from Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}",
+                         e.Source,
+                         ((JsonNetworkMessage)e.NetworkMessage).PublisherId,
+                         ((JsonNetworkMessage)e.NetworkMessage).DataSetWriterId,
+                         e.NetworkMessage.DataSetMetaData.Fields.Count);
+                }
+
+                Console.WriteLine("\tMetaData.Name={0}, MajorVersion={1} MinorVersion={2}",
+                    e.NetworkMessage.DataSetMetaData.Name,
+                    e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion,
+                    e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion);
+
+                foreach (FieldMetaData metaDataField in e.NetworkMessage.DataSetMetaData.Fields)
+                {
+                    Console.WriteLine("\t\tName:{0}", metaDataField.Name);
+                }
+                Console.WriteLine("------------------------------------------------");
+            }
+        }
+
         /// <summary>
         /// Creates a Subscriber PubSubConfiguration object for UDP & UADP programmatically.
         /// </summary>
@@ -355,6 +389,9 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             // Define "AllTypes" Metadata
             DataSetMetaDataType allTypesMetaData = CreateDataSetMetaDataAllTypes();
 
+            string brokerQueueName = "Json_WriterGroup_1";
+            string brokerMetaData = "$Metadata";
+
             #region Define ReaderGroup1
             ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
             readerGroup1.Name = "ReaderGroup 1";
@@ -364,6 +401,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.TransportSettings = new ExtensionObject(new ReaderGroupTransportDataType());
 
             #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)3, DataSetWriterId = 1
+            
             DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
             dataSetReaderSimple.Name = "Reader 1 MQTT JSON Variant Encoding";
             dataSetReaderSimple.PublisherId = (UInt16)2;
@@ -373,8 +411,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.DataSetFieldContentMask = 0;// Variant encoding;
             dataSetReaderSimple.KeyFrameCount = 1;
             dataSetReaderSimple.DataSetMetaData = simpleMetaData;
+
             BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "Json_WriterGroup_1",
+                QueueName = brokerQueueName,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
             };
 
             dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
@@ -420,7 +460,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.KeyFrameCount = 1;
             dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
             brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = "Json_WriterGroup_1",
+                QueueName = brokerQueueName,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
             };
 
             dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);

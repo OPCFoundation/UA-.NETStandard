@@ -337,8 +337,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     var xmlWriter = XmlWriter.Create(stream);
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
-                    var streamWriter = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
-                    return new JsonEncoder(context, useReversibleEncoding, streamWriter, topLevelIsArray) {
+                    return new JsonEncoder(context, useReversibleEncoding, topLevelIsArray, stream) {
                         IncludeDefaultValues = includeDefaultValues,
                         IncludeDefaultNumberValues = includeDefaultNumbers
                     };
@@ -361,7 +360,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case EncodingType.Binary:
                     return new BinaryDecoder(stream, context);
                 case EncodingType.Xml:
-                    var xmlReader = XmlReader.Create(stream);
+                    var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
                     var jsonTextReader = new JsonTextReader(new StreamReader(stream));

@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 
 
@@ -316,11 +317,10 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        const int MaxPort = 64000;
         const int MinPort = Opc.Ua.Utils.UaTcpDefaultPort;
         public static void PatchBaseAddressesPorts(ApplicationConfiguration config, int basePort)
         {
-            if (basePort >= MinPort && basePort <= MaxPort)
+            if (basePort >= MinPort && basePort <= ServerFixtureUtils.MaxTestPort)
             {
                 StringCollection newBaseAddresses = new StringCollection();
                 foreach (var baseAddress in config.ServerConfiguration.BaseAddresses)
@@ -335,7 +335,7 @@ namespace Opc.Ua.Gds.Tests
 
         public static string PatchOnlyGDSEndpointUrlPort(string url, int port)
         {
-            if (port >= MinPort && port <= MaxPort)
+            if (port >= MinPort && port <= ServerFixtureUtils.MaxTestPort)
             {
                 UriBuilder newUrl = new UriBuilder(url);
                 if (newUrl.Path.Contains("GlobalDiscoveryTestServer"))
@@ -350,21 +350,20 @@ namespace Opc.Ua.Gds.Tests
         public static async Task<GlobalDiscoveryTestServer> StartGDS(bool clean)
         {
             GlobalDiscoveryTestServer server = null;
-            int testPort;
+            int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
-            int serverStartRetries = 10;
+            int serverStartRetries = 25;
             do
             {
                 try
                 {
-                    // work around travis issue by selecting different ports on every run
-                    testPort = m_random.Next(50000, MaxPort);
                     server = new GlobalDiscoveryTestServer(true);
                     await server.StartServer(clean, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {
                     serverStartRetries--;
+                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     if (serverStartRetries == 0 ||
                         sre.StatusCode != StatusCodes.BadNoCommunication)
                     {

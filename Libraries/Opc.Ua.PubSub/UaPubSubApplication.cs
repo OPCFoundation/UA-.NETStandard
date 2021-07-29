@@ -53,6 +53,11 @@ namespace Opc.Ua.PubSub
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> DataReceived;
+
+        /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
+        /// </summary>
+        public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
         #endregion
 
         #region Event Callbacks
@@ -71,9 +76,11 @@ namespace Opc.Ua.PubSub
         ///  Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
         /// </summary>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
-        private UaPubSubApplication(IUaPubSubDataStore dataStore = null)
+        /// <param name="applicationId"> The application id for instance.</param>
+        private UaPubSubApplication(IUaPubSubDataStore dataStore = null, string applicationId = null)
         {
             m_uaPubSubConnections = new List<IUaPubSubConnection>();
+
             if (dataStore != null)
             {
                 m_dataStore = dataStore;
@@ -82,6 +89,16 @@ namespace Opc.Ua.PubSub
             {
                 m_dataStore = new UaPubSubDataStore();
             }
+
+            if (!String.IsNullOrEmpty(applicationId))
+            {
+                ApplicationId = applicationId;
+            }
+            else
+            {
+                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next().ToString("D10")}";
+            }
+
             m_dataCollector = new DataCollector(m_dataStore);
             m_uaPubSubConfigurator = new UaPubSubConfigurator();
             m_uaPubSubConfigurator.ConnectionAdded += UaPubSubConfigurator_ConnectionAdded;
@@ -95,6 +112,11 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Public Properties
+        /// <summary>
+        /// The application id associated with the UA
+        /// </summary>
+        public string ApplicationId { get; set; }
+
         /// <summary>
         /// Get the list of SupportedTransportProfiles
         /// </summary>
@@ -220,7 +242,6 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Internal Methods
-
         /// <summary>
         /// Raise DataReceived event
         /// </summary>
@@ -237,6 +258,25 @@ namespace Opc.Ua.PubSub
             catch (Exception ex)
             {
                 Utils.Trace(ex, "UaPubSubApplication.RaiseSubscriptionRecievedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise MetaDataReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseMetaDataReceivedEvent(SubscribedDataEventArgs e)
+        {
+            try
+            {
+                if (MetaDataReceived != null)
+                {
+                    MetaDataReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
             }
         }
         #endregion

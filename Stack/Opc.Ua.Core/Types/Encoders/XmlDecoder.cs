@@ -43,7 +43,7 @@ namespace Opc.Ua
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
-            m_reader = XmlReader.Create(new StringReader(element.OuterXml));
+            m_reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
             m_context = context;
             m_nestingLevel = 0;
         }

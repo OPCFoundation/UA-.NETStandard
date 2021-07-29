@@ -27,28 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Reflection;
-using System.Collections.Generic;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
 
-namespace Opc.Ua.Server
-{    
-#if LEGACY_CORENODEMANAGER
-    /// <summary>
-    /// An interface to an object manages one or more views.
-    /// </summary>
-    [Obsolete("The IViewManager interface is obsolete and is not supported. See Opc.Ua.Server.CustomNodeManager for a replacement.")]
-    public interface IViewManager
-    {                
-        /// <summary>
-        /// Determines whether a node is in a view.
-        /// </summary>
-        bool IsNodeInView(ViewDescription description, NodeId nodeId);
-        
-        /// <summary>
-        /// Determines whether a reference is in a view.
-        /// </summary>
-        bool IsReferenceInView(ViewDescription description, ReferenceDescription reference);
+internal static class Benchmarks
+{
+    public static void RunBenchmarks(ManualConfig config)
+    {
+        _ = BenchmarkRunner.Run<Opc.Ua.Core.Tests.Types.Encoders.JsonEncoderTests>(config);
     }
-#endif
 }
+

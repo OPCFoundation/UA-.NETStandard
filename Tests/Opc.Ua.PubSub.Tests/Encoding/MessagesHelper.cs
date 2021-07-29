@@ -28,13 +28,25 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Xml;
 using Opc.Ua.PubSub.Transport;
+using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
     public class MessagesHelper
     {
+        /// <summary>
+        /// Ua data message type
+        /// </summary>
+        private const string UaDataMessageType = "ua-data";
+        /// <summary>
+        ///  Ua metadata message type
+        /// </summary>
+        private const string UaMetaDataMessageType = "ua-metadata";
+
         /// <summary>
         /// Create PubSub connection
         /// </summary>
@@ -298,6 +310,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
+        /// Get Json ua-data entry
+        /// </summary>
+        /// <param name="networkMessages"></param>
+        /// <returns></returns>
+        public static List<JsonNetworkMessage> GetJsonUaDataNetworkMessages(IList<JsonNetworkMessage> networkMessages)
+        {
+            if (networkMessages != null)
+            {
+                return networkMessages.Where(x => x.MessageType == UaDataMessageType).ToList();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get Json ua-data entries
+        /// </summary>
+        /// <param name="networkMessages"></param>
+        /// <returns></returns>
+        public static List<JsonNetworkMessage> GetJsonUaMetaDataNetworkMessages(IList<JsonNetworkMessage> networkMessages)
+        {
+            if (networkMessages != null)
+            {
+                return networkMessages.Where(x => x.MessageType == UaMetaDataMessageType).ToList();
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Create a Publisher with the specified parameters
         /// </summary>
         /// <param name="transportProfileUri"></param>
@@ -311,12 +351,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="nameSpaceIndexForData"></param>
         /// <returns></returns>
         private static PubSubConfigurationDataType CreatePublisherConfiguration(
-            string transportProfileUri, string addressUrl,
-            object publisherId, ushort writerGroupId,
-            UInt32 networkMessageContentMask,
-            UInt32 dataSetMessageContentMask,
-            DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+        string transportProfileUri, string addressUrl,
+        object publisherId, ushort writerGroupId,
+        UInt32 networkMessageContentMask,
+        UInt32 dataSetMessageContentMask,
+        DataSetFieldContentMask dataSetFieldContentMask,
+        DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
+        double metaDataUpdateTime=0)
         {
 
             // Define a PubSub connection with PublisherId 100
@@ -333,6 +374,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             address.NetworkInterface = String.Empty;
             address.Url = addressUrl;
             pubSubConnection1.Address = new ExtensionObject(address);
+
+            string brokerMetaData = "$Metadata";
 
             #region Define WriterGroup1            
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -416,6 +459,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         {
                             DataSetMessageContentMask = dataSetMessageContentMask
                         };
+                        BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType()
+                        {
+                            QueueName = writerGroup1.Name,
+                            MetaDataQueueName = $"{writerGroup1.Name}/{brokerMetaData}",
+                            MetaDataUpdateTime = metaDataUpdateTime
+                        };
+                        dataSetWriter.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
                         break;
 
                 }
@@ -484,7 +534,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
+            double metaDataUpdateTime = 0)
         {
             return CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
@@ -492,7 +543,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)jsonNetworkMessageContentMask,
                 (UInt32)jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData);
+                dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime);
         }
 
         /// <summary>
@@ -694,6 +745,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             address.Url = addressUrl;
             pubSubConnection1.Address = new ExtensionObject(address);
 
+            string brokerQueueName = $"WriterGroup id:{writerGroupId}";
+            string brokerMetaData = "$Metadata";
+
             #region Define ReaderGroup1
             ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
             readerGroup1.Name = "ReaderGroup 1";
@@ -743,7 +797,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         };
                         dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType()
                         {
-                            QueueName = "WriterGroup id:" + writerGroupId,
+                            QueueName = brokerQueueName,
                         };
                         break;
                     case Profiles.PubSubMqttJsonTransport:
@@ -754,7 +808,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         };
                         dataSetReaderTransportSettings = new BrokerDataSetReaderTransportDataType()
                         {
-                            QueueName = "WriterGroup id:" + writerGroupId,
+                            QueueName = brokerQueueName,
+                            MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
                         };
                         break;
                 }
@@ -1728,14 +1783,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 //    DataType = DataTypeIds.DataValue,
                 //    ValueRank = ValueRanks.Scalar
                 //},
-                new FieldMetaData()
-                {
-                    Name = "Variant",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)BuiltInType.Variant,
-                    DataType = DataTypeIds.DataValue,
-                    ValueRank = ValueRanks.Scalar
-                },
+                //new FieldMetaData()
+                //{
+                //    Name = "Variant",
+                //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                //    BuiltInType = (byte)BuiltInType.Variant,
+                //    DataType = DataTypeIds.DataValue,
+                //    ValueRank = ValueRanks.Scalar
+                //},
                 new FieldMetaData()
                 {
                     Name = "DiagnosticInfo",
@@ -1914,14 +1969,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataType = DataTypeIds.LocalizedText,
                     ValueRank = ValueRanks.OneDimension
                 },
-                new FieldMetaData()
-                {
-                    Name = "StructureArray",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)BuiltInType.ExtensionObject,
-                    DataType = DataTypeIds.Structure,
-                    ValueRank = ValueRanks.OneDimension
-                },
+                //new FieldMetaData()
+                //{
+                //    Name = "StructureArray",
+                //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                //    BuiltInType = (byte)BuiltInType.ExtensionObject,
+                //    DataType = DataTypeIds.Structure,
+                //    ValueRank = ValueRanks.OneDimension
+                //},
                 //new FieldMetaData()
                 //{
                 //    Name = "DataValueArray",
@@ -1930,14 +1985,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 //    DataType = DataTypeIds.DataValue,
                 //    ValueRank = ValueRanks.OneDimension
                 //},
-                new FieldMetaData()
-                {
-                    Name = "VariantArray",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)BuiltInType.Variant,
-                    DataType = DataTypeIds.DataValue,
-                    ValueRank = ValueRanks.OneDimension
-                },
+                //new FieldMetaData()
+                //{
+                //    Name = "VariantArray",
+                //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                //    BuiltInType = (byte)BuiltInType.Variant,
+                //    DataType = DataTypeIds.DataValue,
+                //    ValueRank = ValueRanks.OneDimension
+                //},
                 new FieldMetaData()
                 {
                     Name = "DiagnosticInfoArray",
@@ -2115,14 +2170,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataType = DataTypeIds.LocalizedText,
                     ValueRank = ValueRanks.TwoDimensions
                 },
-                new FieldMetaData()
-                {
-                    Name = "StructureMatrix",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)BuiltInType.ExtensionObject,
-                    DataType = DataTypeIds.Structure,
-                    ValueRank = ValueRanks.TwoDimensions
-                },
+                //new FieldMetaData()
+                //{
+                //    Name = "StructureMatrix",
+                //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                //    BuiltInType = (byte)BuiltInType.ExtensionObject,
+                //    DataType = DataTypeIds.Structure,
+                //    ValueRank = ValueRanks.TwoDimensions
+                //},
                 //new FieldMetaData()
                 //{
                 //    Name = "DataValueMatrix",
@@ -2131,14 +2186,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 //    DataType = DataTypeIds.DataValue,
                 //    ValueRank = ValueRanks.TwoDimensions
                 //},
-                new FieldMetaData()
-                {
-                    Name = "VariantMatrix",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)BuiltInType.Variant,
-                    DataType = DataTypeIds.DataValue,
-                    ValueRank = ValueRanks.TwoDimensions
-                },
+                //new FieldMetaData()
+                //{
+                //    Name = "VariantMatrix",
+                //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                //    BuiltInType = (byte)BuiltInType.Variant,
+                //    DataType = DataTypeIds.DataValue,
+                //    ValueRank = ValueRanks.TwoDimensions
+                //},
                 new FieldMetaData()
                 {
                     Name = "DiagnosticInfoMatrix",
