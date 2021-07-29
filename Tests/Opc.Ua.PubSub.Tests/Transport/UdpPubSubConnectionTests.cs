@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 as UadpWriterGroupMessageDataType;
 
             //Act  
-            m_udpPublisherConnection.ResetSequenceNumber();
+           // m_udpPublisherConnection.ResetSequenceNumber();
 
             var networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");

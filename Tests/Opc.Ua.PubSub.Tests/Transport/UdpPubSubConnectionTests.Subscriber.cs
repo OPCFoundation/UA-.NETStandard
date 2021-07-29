@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
-            subscriberConnection.UadpMessageReceived += DataReceived;
+            subscriberApplication.RawDataReceived += RawDataReceived;
 
             configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
-            subscriberConnection.UadpMessageReceived += DataReceived;
+            subscriberApplication.RawDataReceived += RawDataReceived;
 
             configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
@@ -209,7 +209,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             UdpPubSubConnection subscriberConnection = subscriberApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(subscriberConnection, "subscriberConnection is null");
 
-            subscriberConnection.UadpMessageReceived += DataReceived;
+            subscriberApplication.RawDataReceived += RawDataReceived;
 
             configurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
             PubSubConfigurationDataType publisherConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void DataReceived(object sender, UadpDataEventArgs e)
+        private void RawDataReceived(object sender, RawDataReceivedEventArgs e)
         {
             lock (m_lock)
             {
@@ -262,8 +262,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Assert.IsNotNull(localhost, "localhost is null");
                 Assert.IsNotNull(localhost.Address, "localhost.Address is null");
 
-                Assert.IsNotNull(e.SourceEndPoint.Address, "Udp address received should not be null");
-                if (localhost.Address.ToString() != e.SourceEndPoint.Address.ToString())
+                Assert.IsNotNull(e.Source, "Udp address received should not be null");
+                if (localhost.Address.ToString() != e.Source)
                 {
                     // the message comes from the network but was not initiated by test
                     return;

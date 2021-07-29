@@ -52,11 +52,7 @@ namespace Opc.Ua.PubSub.Transport
 
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
-
-        /// <summary>
-        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
-        /// </summary>
-        internal event EventHandler<UadpDataEventArgs> UadpMessageReceived;
+       
         #endregion
 
         #region Constructor
@@ -417,16 +413,29 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (message != null)
                 {
-                    RaiseUadpDataReceivedEvent(
-                            new UadpDataEventArgs() {
-                                Message = message,
-                                SourceEndPoint = source
-                            });
-
-                    Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);
+                    Utils.Trace("OnUadpReceive received message with length {0} from {1}", message.Length, source.Address);       
 
                     if (message.Length > 1)
                     {
+                        // raise RawData received event
+                        RawDataReceivedEventArgs rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
+                            Message = message,
+                            Source = source.Address.ToString(),
+                            TransportProtocol = this.TransportProtocol,
+                            MessageMapping = MessageMapping.Uadp,
+                            PubSubConnectionConfiguration = PubSubConnectionConfiguration
+                        };
+
+                        // trigger notification for received raw data
+                        Application.RaiseRawDataReceivedEvent(rawDataReceivedEventArgs);
+
+                        // check if the RawData message is marked as handled
+                        if (rawDataReceivedEventArgs.Handled)
+                        {
+                            Utils.Trace("UdpConnection message from source={0} is marked as handled and will not be decoded.", rawDataReceivedEventArgs.Source);
+                            return;
+                        }
+
                         // call on a new thread
                         Task.Run(() => {
                             ProcessReceivedMessage(message, source);
@@ -484,26 +493,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
             }
-        }
-
-        /// <summary>
-        /// Raise DataReceived event
-        /// </summary>
-        /// <param name="e"></param>
-        internal void RaiseUadpDataReceivedEvent(UadpDataEventArgs e)
-        {
-            try
-            {
-                if (UadpMessageReceived != null)
-                {
-                    UadpMessageReceived(this, e);
-                }
-            }
-            catch (Exception ex)
-            {
-                Utils.Trace(ex, "UaPubSubConnection.RaiseSubscriptionReceivedEvent");
-            }
-        }
+        }       
 
         /// <summary>
         /// Resets SequenceNumber 
@@ -514,24 +504,6 @@ namespace Opc.Ua.PubSub.Transport
             m_dataSetSequenceNumber = 0;
         }
 
-
-        /// <summary>
-        /// BGet the list of DataSetWriteerIds neede by the subscriber
-        /// </summary>
-        /// <returns></returns>
-        private UInt16[] GetSubscribedDataSetWriterIds()
-        {
-            List<DataSetReaderDataType> readers = GetAllDataSetReaders();
-
-            return readers.Select(r => r.DataSetWriterId).Distinct().ToArray();
-        }
-
-        private object GetSubscribedPublisherIds()
-        {
-            List<DataSetReaderDataType> readers = GetAllDataSetReaders();
-
-            return readers.Select(r => r.PublisherId.Value).First();
-        }
         #endregion
     }
 }

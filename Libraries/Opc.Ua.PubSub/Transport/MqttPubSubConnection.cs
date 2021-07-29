@@ -621,7 +621,8 @@ namespace Opc.Ua.PubSub.Transport
         private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             string topic = eventArgs.ApplicationMessage.Topic;
-            Utils.Trace("Connection '{0}' - ProcessMqttMessage() received from topic={0}", topic);
+
+            Utils.Trace("MQTTConnection - ProcessMqttMessage() received from topic={0}", topic);
 
             // get the datasetreaders for received message topic
             List<DataSetReaderDataType> dataSetReaders = new List<DataSetReaderDataType>();
@@ -656,6 +657,25 @@ namespace Opc.Ua.PubSub.Transport
 
             if (dataSetReaders.Count > 0)
             {
+                // raise RawData received event
+                RawDataReceivedEventArgs rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
+                    Message = eventArgs.ApplicationMessage.Payload,
+                    Source = topic,
+                    TransportProtocol = this.TransportProtocol,
+                    MessageMapping = m_messageMapping,
+                    PubSubConnectionConfiguration = PubSubConnectionConfiguration
+                };
+
+                // trigger notification for received raw data
+                Application.RaiseRawDataReceivedEvent(rawDataReceivedEventArgs);
+
+                // check if the RawData message is marked as handled
+                if (rawDataReceivedEventArgs.Handled)
+                {
+                    Utils.Trace("MqttConnection message from topic={0} is marked as handled and will not be decoded.", topic);
+                    return;
+                }
+
                 // initialize the expected NetworkMessage
                 UaNetworkMessage networkMessage = null;
                 if (m_messageMapping == MessageMapping.Uadp)
@@ -677,7 +697,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Utils.Trace("Connection '{0}' - ProcessMqttMessage() No DataSetReader is registered for topic={0}.", topic);
+                Utils.Trace("MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={0}.", topic);
             }
         }
 

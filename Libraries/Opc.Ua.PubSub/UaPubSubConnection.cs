@@ -367,6 +367,7 @@ namespace Opc.Ua.PubSub
                         // raise the ConfigurationUpdating event and see if configuration shall be changed
                         m_uaPubSubApplication.RaiseConfigurationUpdatingEvent(metaDataUpdatedEventArgs);
 
+                        // check to see if the event handler canceled the save of new MetaData
                         if (!metaDataUpdatedEventArgs.Cancel)
                         {
                             Utils.Trace("Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
@@ -385,7 +386,7 @@ namespace Opc.Ua.PubSub
                     Source = source
                 };
 
-                // trigger notification for received subscribed data set
+                // trigger notification for received DataSet MetaData
                 Application.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
 
                 Utils.Trace(
@@ -400,7 +401,7 @@ namespace Opc.Ua.PubSub
                     Source = source
                 };
 
-                //trigger notification for received subscribed data set
+                //trigger notification for received subscribed DataSet
                 Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
 
                 Utils.Trace(

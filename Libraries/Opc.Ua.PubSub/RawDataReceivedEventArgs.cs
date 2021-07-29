@@ -28,23 +28,42 @@
  * ======================================================================*/
 
 using System;
-using System.Net;
 
-namespace Opc.Ua.PubSub.Encoding
+namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// EventArgs class for UadpMessage received
+    /// EventArgs class for RawData message received event
     /// </summary>
-    internal class UadpDataEventArgs : EventArgs
+    public class RawDataReceivedEventArgs : EventArgs
     {
         /// <summary>
-        /// Uadp message bytes
+        /// Get/Set flag that indicates if the RawData message is handled and shall not be decooded by the PubSub library
         /// </summary>
-        internal byte[] Message { get; set; }
+        public bool Handled { get; set; }
 
         /// <summary>
-        /// Get the Source EndPoint
+        /// Get/Set the message bytes
         /// </summary>
-        internal IPEndPoint SourceEndPoint { get; set; }
+        public byte[] Message { get; set; }
+
+        /// <summary>
+        /// Get/Set the message Source
+        /// </summary>
+        public string Source { get; set; }
+
+        /// <summary>
+        /// Get/Set the TransportProtocol for the message that was received
+        /// </summary>
+        public TransportProtocol TransportProtocol { get; set; }
+
+        /// <summary>
+        /// Get/Set the current MessageMapping for the message that was received
+        /// </summary>
+        public MessageMapping MessageMapping { get; set; }
+
+        /// <summary>
+        /// Get/Set the PubSubConnection Configuration object for the connection that received this message
+        /// </summary>
+        public PubSubConnectionDataType PubSubConnectionConfiguration { get; set; }
     }
 }

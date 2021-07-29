@@ -143,6 +143,9 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
                     // Subscribte to DataReceived event
+                    uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
+
+                    // Subscribte to DataReceived event
                     uaPubSubApplication.DataReceived += UaPubSubApplication_DataReceived;
 
                     // Subscribte to MetaDataReceived event
@@ -180,7 +183,25 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             }
         }
 
+
+
         #region Private Methods
+        /// <summary>
+        /// Handler for <see cref="UaPubSubApplication.RawDataReceived" /> event.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void UaPubSubApplication_RawDataReceived(object sender, RawDataReceivedEventArgs e)
+        {
+            lock (m_lock)
+            {
+                Console.WriteLine("RawDataReceived bytes:{0}, Source:{1}, TransportProtocol:{2}, MessageMapping:{3}",
+                    e.Message.Length, e.Source, e.TransportProtocol, e.MessageMapping);
+
+                Console.WriteLine(kDisplaySeparator);
+            }
+        }
+
         /// <summary>
         /// Handler for <see cref="UaPubSubApplication.DataReceived" /> event.
         /// </summary>

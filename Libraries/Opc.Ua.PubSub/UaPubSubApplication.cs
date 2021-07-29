@@ -50,6 +50,11 @@ namespace Opc.Ua.PubSub
 
         #region Events
         /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
+        /// </summary>
+        public event EventHandler<RawDataReceivedEventArgs> RawDataReceived;
+
+        /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> DataReceived;
@@ -249,6 +254,25 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Internal Methods
+        /// <summary>
+        /// Raise <see cref="RawDataReceived"/> event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseRawDataReceivedEvent(RawDataReceivedEventArgs e)
+        {
+            try
+            {
+                if (RawDataReceived != null)
+                {
+                    RawDataReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
+            }
+        }
+
         /// <summary>
         /// Raise DataReceived event
         /// </summary>
