@@ -1747,9 +1747,15 @@ namespace Opc.Ua.Server
 
             try
             {
-                ValidateOperationLimits(linksToAdd, OperationLimits.MaxMonitoredItemsPerCall);
-                ValidateOperationLimits(linksToRemove, OperationLimits.MaxMonitoredItemsPerCall);
-                ValidateOperationLimits(linksToAdd.Count + linksToRemove.Count, OperationLimits.MaxMonitoredItemsPerCall);
+                if ((linksToAdd == null || linksToAdd.Count == 0) && (linksToRemove == null || linksToRemove.Count == 0))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNothingToDo);
+                }
+
+                int monitoredItemsCount = 0;
+                monitoredItemsCount += (linksToAdd?.Count) ?? 0;
+                monitoredItemsCount += (linksToRemove?.Count) ?? 0;
+                ValidateOperationLimits(monitoredItemsCount, OperationLimits.MaxMonitoredItemsPerCall);
 
                 ServerInternal.SubscriptionManager.SetTriggering(
                     context,
