@@ -137,15 +137,20 @@ namespace Opc.Ua
             switch (storeType)
             {
                 case CertificateStoreType.X509Store:
-                    {
-                        store = new X509CertificateStore();
-                        break;
-                    }
+                {
+                    store = new X509CertificateStore();
+                    break;
+                }
                 case CertificateStoreType.Directory:
-                    {
-                        store = new DirectoryCertificateStore();
-                        break;
-                    }
+                {
+                    store = new DirectoryCertificateStore();
+                    break;
+                }
+
+                default:
+                {
+                    throw new ArgumentException($"Invalid store type name: {storeType}", nameof(storeType));
+                }
             }
             return store;
         }
