@@ -28,10 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.InteropServices;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Environments;
-using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Running;
 using CommandLine;
 
 static class Program
@@ -45,24 +43,11 @@ static class Program
     // Main Method 
     static public void Main(String[] args)
     {
-        Parser.Default.ParseArguments<Options>(args)
-            .WithParsed<Options>(o => {
-                var config = ManualConfig.Create(DefaultConfig.Instance)
-                    // need this option because of reference to nunit.framework
-                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-                    ;
-                if (o.Runtimes)
-                {
-                    config.AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                        .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31));
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
-                    }
-                }
-
-                Benchmarks.RunBenchmarks(config);
-            });
+        var config = ManualConfig.Create(DefaultConfig.Instance)
+            // need this option because of reference to nunit.framework
+            .WithOptions(ConfigOptions.DisableOptimizationsValidator)
+            ;
+        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
     }
 }
 

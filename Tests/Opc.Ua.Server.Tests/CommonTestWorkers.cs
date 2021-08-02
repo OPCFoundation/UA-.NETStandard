@@ -74,12 +74,14 @@ namespace Opc.Ua.Server.Tests
             bool verifyMaxNodesPerBrowse = operationLimits.MaxNodesPerBrowse > 0;
             var referenceDescriptions = new ReferenceDescriptionCollection();
 
-            // Test if server responds with BadTooManyOperations
-            var sre = Assert.Throws<ServiceResultException>(() =>
-                _ = services.Browse(requestHeader, null,
-                    0, browseDescriptionCollection.Take(0).ToArray(),
-                    out var results, out var infos));
-            Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+            // Test if server responds with BadNothingToDo
+            {
+                var sre = Assert.Throws<ServiceResultException>(() =>
+                    _ = services.Browse(requestHeader, null,
+                        0, browseDescriptionCollection.Take(0).ToArray(),
+                        out var results, out var infos));
+                Assert.AreEqual(StatusCodes.BadNothingToDo, sre.StatusCode);
+            }
 
             while (browseDescriptionCollection.Any())
             {
@@ -89,7 +91,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    sre = Assert.Throws<ServiceResultException>(() =>
+                    var sre = Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(requestHeader, null,
                             0, browseDescriptionCollection,
                             out var results, out var infos));
@@ -104,25 +106,51 @@ namespace Opc.Ua.Server.Tests
                     Assert.AreEqual(StatusCodes.BadTooManyOperations, sre.StatusCode);
                 }
 
-                var browseCollection = (operationLimits.MaxNodesPerBrowse == 0) ?
-                    browseDescriptionCollection :
-                    browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse).ToArray();
+                bool repeatBrowse;
+                var maxNodesPerBrowse = operationLimits.MaxNodesPerBrowse;
+                BrowseResultCollection browseResultCollection = new BrowseResultCollection();
+                DiagnosticInfoCollection diagnosticsInfoCollection;
+                do
+                {
+                    var browseCollection = (maxNodesPerBrowse == 0) ?
+                        browseDescriptionCollection :
+                        browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
+                    repeatBrowse = false;
+                    try
+                    {
+                        requestHeader.Timestamp = DateTime.UtcNow;
+                        response = services.Browse(requestHeader, null,
+                            requestedMaxReferencesPerNode, browseCollection,
+                            out browseResultCollection, out diagnosticsInfoCollection);
+                        ServerFixtureUtils.ValidateResponse(response);
+                        ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
 
-                requestHeader.Timestamp = DateTime.UtcNow;
-                response = services.Browse(requestHeader, null,
-                    requestedMaxReferencesPerNode, browseCollection,
-                    out var browseResultCollection, out var diagnosticsInfoCollection);
-                ServerFixtureUtils.ValidateResponse(response);
-                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticsInfoCollection, browseCollection);
+                        allResults.AddRange(browseResultCollection);
+                    }
+                    catch (ServiceResultException sre)
+                    {
+                        if (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
+                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
+                        {
+                            // try to address by overriding operation limit
+                            maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
+                                (uint)browseCollection.Count / 2 : maxNodesPerBrowse / 2;
+                            repeatBrowse = true;
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                } while (repeatBrowse);
 
-                allResults.AddRange(browseResultCollection);
-                if (operationLimits.MaxNodesPerBrowse == 0)
+                if (maxNodesPerBrowse == 0)
                 {
                     browseDescriptionCollection.Clear();
                 }
                 else
                 {
-                    browseDescriptionCollection = browseDescriptionCollection.Skip((int)operationLimits.MaxNodesPerBrowse).ToArray();
+                    browseDescriptionCollection = browseDescriptionCollection.Skip((int)maxNodesPerBrowse).ToArray();
                 }
 
                 // Browse next
@@ -138,7 +166,7 @@ namespace Opc.Ua.Server.Tests
                     continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseNextResultCollection);
                 }
 
-                // build browse request for next level
+                // Build browse request for next level
                 var browseTable = new NodeIdCollection();
                 foreach (var result in allResults)
                 {
@@ -150,6 +178,8 @@ namespace Opc.Ua.Server.Tests
                 }
                 browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(browseTable, browseTemplate);
             }
+
+            referenceDescriptions.Sort((x, y) => (x.NodeId.CompareTo(y.NodeId)));
 
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             foreach (var reference in referenceDescriptions)
@@ -363,6 +393,6 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
         }
-#endregion
+        #endregion
     }
 }

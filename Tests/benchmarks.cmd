@@ -13,11 +13,11 @@ set framework=net462
 cd %build_root%
 
 cd Tests\Opc.Ua.Security.Certificates.Tests\
-dotnet run -v n --configuration Release  --framework %framework% -- -r
+dotnet run -v n --configuration Release  --framework %framework% -- 
 cd ..\Opc.Ua.Core.Tests
-dotnet run -v n --configuration Release  --framework %framework% -- -r
+dotnet run -v n --configuration Release  --framework %framework% -- 
 cd ..\Opc.Ua.Server.Tests
-dotnet run -v n --configuration Release  --framework %framework% -- -r
+dotnet run -v n --configuration Release  --framework %framework% -- 
 cd ..\Opc.Ua.Client.Tests
-dotnet run -v n --configuration Release  --framework %framework% -- -r
+dotnet run -v n --configuration Release  --framework %framework% -- 
 cd ..
