@@ -30,20 +30,13 @@
 using System;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
-using CommandLine;
 
 static class Program
 {
-    public class Options
-    {
-        [Option('r', "runtimes", Required = false, HelpText = "Run with all supported runtimes.")]
-        public bool Runtimes { get; set; }
-    }
-
     // Main Method 
     static public void Main(String[] args)
     {
-        var config = ManualConfig.Create(DefaultConfig.Instance)
+        IConfig config = ManualConfig.Create(DefaultConfig.Instance)
             // need this option because of reference to nunit.framework
             .WithOptions(ConfigOptions.DisableOptimizationsValidator)
             ;

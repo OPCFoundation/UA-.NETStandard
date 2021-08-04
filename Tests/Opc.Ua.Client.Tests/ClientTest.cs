@@ -95,6 +95,8 @@ namespace Opc.Ua.Client.Tests
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
+            m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
@@ -218,18 +220,18 @@ namespace Opc.Ua.Client.Tests
         public void OperationLimits()
         {
             var operationLimits = new OperationLimits() {
-                MaxNodesPerRead = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead).Value,
-                MaxNodesPerHistoryReadData = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData).Value,
-                MaxNodesPerHistoryReadEvents = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents).Value,
-                MaxNodesPerWrite = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite).Value,
-                MaxNodesPerHistoryUpdateData = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData).Value,
-                MaxNodesPerHistoryUpdateEvents = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents).Value,
-                MaxNodesPerBrowse = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse).Value,
-                MaxMonitoredItemsPerCall = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall).Value,
-                MaxNodesPerNodeManagement = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement).Value,
-                MaxNodesPerRegisterNodes = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes).Value,
-                MaxNodesPerTranslateBrowsePathsToNodeIds = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds).Value,
-                MaxNodesPerMethodCall = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall).Value
+                MaxNodesPerRead = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead),
+                MaxNodesPerHistoryReadData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData),
+                MaxNodesPerHistoryReadEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents),
+                MaxNodesPerWrite = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite),
+                MaxNodesPerHistoryUpdateData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData),
+                MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents),
+                MaxNodesPerBrowse = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse),
+                MaxMonitoredItemsPerCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall),
+                MaxNodesPerNodeManagement = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement),
+                MaxNodesPerRegisterNodes = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes),
+                MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds),
+                MaxNodesPerMethodCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
             };
             m_operationLimits = operationLimits;
         }
@@ -510,6 +512,22 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
+
+        private uint GetOperationLimitValue(NodeId nodeId)
+        {
+            try
+            {
+                return (uint)m_session.ReadValue(nodeId).Value;
+            }
+            catch (ServiceResultException sre)
+            {
+                if (sre.StatusCode == StatusCodes.BadNodeIdUnknown)
+                {
+                    return 0;
+                }
+                throw;
+            }
+        }
         #endregion
     }
 }

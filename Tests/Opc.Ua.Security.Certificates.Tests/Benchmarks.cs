@@ -31,8 +31,6 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Running;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
