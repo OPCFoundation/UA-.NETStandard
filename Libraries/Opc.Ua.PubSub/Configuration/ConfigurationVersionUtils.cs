@@ -133,5 +133,24 @@ namespace Opc.Ua.PubSub.Configuration
             The value 0 is used to indicate that no version information is available.*/
             return (uint)timeOfConfiguration.Subtract(kEpochDate).TotalSeconds;
         }
+
+        /// <summary>
+        /// Check if the DataSetMetDdata is ussable foor decoding.
+        /// It shall be not null and have the Fields collection defined and also the ConfigurationVersion shall be not null or Empty
+        /// </summary>
+        /// <param name="dataSetMetaData"></param>
+        /// <returns></returns>
+        public static bool IsUsable(DataSetMetaDataType dataSetMetaData)
+        {
+            if (dataSetMetaData == null) return false;
+            if (dataSetMetaData.Fields == null) return false;
+            if (dataSetMetaData.Fields.Count == 0) return false;
+
+            if (dataSetMetaData.ConfigurationVersion == null) return false;
+            if (dataSetMetaData.ConfigurationVersion.MajorVersion == 0) return false;
+            if (dataSetMetaData.ConfigurationVersion.MinorVersion == 0) return false;
+
+            return true;
+        }
     }
 }

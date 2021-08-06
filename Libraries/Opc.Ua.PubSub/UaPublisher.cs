@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            Task.Run(() => PublishData());
+            Task.Run(() => PublishData()).ConfigureAwait(false);
             Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
         }
 

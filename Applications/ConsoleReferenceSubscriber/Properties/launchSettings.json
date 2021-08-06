@@ -2,7 +2,7 @@
   "profiles": {
     "ConsoleReferenceSubscriber": {
       "commandName": "Project",
-      "commandLineArgs": "-p"
+      "commandLineArgs": "-u"
     }
   }
 }

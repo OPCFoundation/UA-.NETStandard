@@ -350,12 +350,22 @@ namespace Opc.Ua.PubSub
                 List<DataSetReaderDataType> allReaders = GetAllDataSetReaders();
                 foreach (DataSetReaderDataType reader in allReaders)
                 {
-                    // check if reader's MetaData shall be updated
-                    if (reader.DataSetWriterId != 0
-                        && reader.DataSetWriterId == networkMessage.DataSetWriterId
-                        && (reader.DataSetMetaData == null
-                        || !Utils.IsEqual(reader.DataSetMetaData.ConfigurationVersion, networkMessage.DataSetMetaData.ConfigurationVersion)))
+                    bool raiseChangedEvent = false;
+
+                    lock (m_lock)
                     {
+                        // check if reader's MetaData shall be updated
+                        if (reader.DataSetWriterId != 0
+                            && reader.DataSetWriterId == networkMessage.DataSetWriterId
+                            && (reader.DataSetMetaData == null
+                            || !Utils.IsEqual(reader.DataSetMetaData.ConfigurationVersion, networkMessage.DataSetMetaData.ConfigurationVersion)))
+                        {
+                            raiseChangedEvent = true;
+                        }
+                    }
+
+                    if (raiseChangedEvent)
+                    { 
                         // raise event
                         ConfigurationUpdatingEventArgs metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,

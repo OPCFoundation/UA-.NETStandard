@@ -211,6 +211,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         {
             lock (m_lock)
             {
+                Console.WriteLine("DataReceived event:");
+
                 if (e.NetworkMessage is UadpNetworkMessage)
                 {
                     Console.WriteLine("UADP Network DataSetMessage ({0} DataSets): Source={1}, SequenceNumber={2}",
@@ -246,6 +248,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         {
             lock (m_lock)
             {
+                Console.WriteLine("MetaDataDataReceived event:");
                 if (e.NetworkMessage is JsonNetworkMessage)
                 {
                     Console.WriteLine("JSON Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",

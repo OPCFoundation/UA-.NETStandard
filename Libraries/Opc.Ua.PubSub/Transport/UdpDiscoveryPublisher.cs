@@ -29,22 +29,24 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
-    /// Class responsible to manage the UDP Discovery Request/Response messages for a <see cref="UdpPubSubConnection"/> entity as a publisher.
-    ///
-    /// TODO timer based triggering mechanism shall be implemented
+    /// Class responsible to manage the UDP Discovery Request/Response messages for a <see cref="UdpPubSubConnection"/> entity as a publisher. 
     /// </summary>
     internal class UdpDiscoveryPublisher : UdpDiscovery
     {
+        private const int kMinimumReponseInterval = 500;
+
+        // The list that will store the WriterIds that shall be set as DataSetMetaData Response message
+        private List<UInt16> m_metadataWriterIdsToSend;
+        private DateTime m_lastResponseTime;
+        private int m_responseInterval = kMinimumReponseInterval;
 
         #region Constructor
         /// <summary>
@@ -53,10 +55,11 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="udpConnection"></param>
         public UdpDiscoveryPublisher(UdpPubSubConnection udpConnection) : base(udpConnection)
         {
-
+            m_metadataWriterIdsToSend = new List<ushort>();
         }
         #endregion
 
+        #region Public Methods
         /// <summary>
         /// Implementation of StartAsync for the Publisher Discovery
         /// </summary>
@@ -83,6 +86,9 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
+        #endregion
+
+        #region Private Methods
         /// <summary>
         /// Handle Receive event for an UADP channel on Discovery channel
         /// </summary>
@@ -154,21 +160,48 @@ namespace Opc.Ua.PubSub.Transport
 
             networkMessage.Decode(context, messageBytes, null);
 
-            // process Decoded Message
-            if (m_discoveryUdpClients != null)
+            Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
+                String.Join(", ", networkMessage.DataSetWriterIds), source.Address);
+
+            if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
+                    && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData
+                    && networkMessage.DataSetWriterIds != null)
             {
-                if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
-                    && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData)
+                foreach (UInt16 dataSetWriterId in networkMessage.DataSetWriterIds)
                 {
-                    // create the respinse data SetMetaData messages
-                    IList<UaNetworkMessage> responseMessages = m_udpConnection.CreateDataSetMetaDataNetworkMessages(networkMessage.DataSetWriterIds);
-                    // todo clarify where sgall be the respnse messages be sent. For now they are sent on the normal communication channel not on the discovery address                   
+                    lock (m_lock)
+                    {
+                        if (!m_metadataWriterIdsToSend.Contains(dataSetWriterId))
+                        {
+                            // collect requested ids
+                            m_metadataWriterIdsToSend.Add(dataSetWriterId);
+                        }
+                    }
+                }
+
+                Task.Run(SendResponseDataSetMetaData).ConfigureAwait(false);
+            }
+        }
+
+        private async Task SendResponseDataSetMetaData()
+        {
+            await Task.Delay(m_responseInterval);
+
+            lock (m_lock)
+            {
+                if (m_metadataWriterIdsToSend.Count > 0)
+                {
+                    IList<UaNetworkMessage> responseMessages = m_udpConnection.CreateDataSetMetaDataNetworkMessages(m_metadataWriterIdsToSend.ToArray());
 
                     foreach (UaNetworkMessage message in responseMessages)
                     {
+                        Utils.Trace("UdpDiscoveryPublisher.SendResponseDataSetMetaData Before sending message for DataSetWriterId:{0}", message.DataSetWriterId);
+
                         m_udpConnection.PublishNetworkMessage(message);
                     }
+                    m_metadataWriterIdsToSend.Clear();
                 }
+                m_lastResponseTime = DateTime.UtcNow;
             }
         }
 
@@ -202,5 +235,6 @@ namespace Opc.Ua.PubSub.Transport
                 newsocket.BeginReceive(new AsyncCallback(OnUadpDiscoveryReceive), newsocket);
             }
         }
+        #endregion
     }
 }

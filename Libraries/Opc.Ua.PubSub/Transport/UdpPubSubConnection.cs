@@ -34,6 +34,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -138,8 +139,11 @@ namespace Opc.Ua.PubSub.Transport
                 // initialize the discovery channel
                 m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(this);
                 await m_udpDiscoverySubscriber.StartAsync();
+
+                // add handler to metaDataReceived event
+                this.Application.MetaDataReceived += Application_MetaDataReceived;
             }
-        }
+        }       
 
         /// <summary>
         /// Perform specific Stop tasks
@@ -170,6 +174,9 @@ namespace Opc.Ua.PubSub.Transport
             if (m_udpDiscoverySubscriber != null)
             {
                 await m_udpDiscoverySubscriber.StopAsync();
+
+                // remove handler to metaDataReceived event
+                this.Application.MetaDataReceived -= Application_MetaDataReceived;               
             }
         }
 
@@ -318,6 +325,8 @@ namespace Opc.Ua.PubSub.Transport
                             try
                             {
                                 udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
+
+                                Utils.Trace("UdpPubSubConnection.PublishNetworkMessage bytes:{0}, endpoint:{1}", bytes.Length, NetworkAddressEndPoint);
                             }
                             catch (Exception ex)
                             {
@@ -372,15 +381,33 @@ namespace Opc.Ua.PubSub.Transport
         private void ProcessReceivedMessage(byte[] message, IPEndPoint source)
         {
             Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
-                       
-            // TODO  filter readers per source
+
+            List<DataSetReaderDataType> dataSetReaders = GetOperationalDataSetReaders();
+            List<DataSetReaderDataType> dataSetReadersToDecode = new List<DataSetReaderDataType>();
+            
+            foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
+            {
+                // check if dataSetReaders have metadata information
+                if (!ConfigurationVersionUtils.IsUsable(dataSetReader.DataSetMetaData)) 
+                {
+                    // check if it is possible to request the metadata information
+                    if (dataSetReader.DataSetWriterId != 0)
+                    {
+                        m_udpDiscoverySubscriber.AddWriterIdForDataSetMetadata(dataSetReader.DataSetWriterId);                       
+                    }
+                }
+                else
+                {
+                    dataSetReadersToDecode.Add(dataSetReader);
+                }
+            }          
+
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
-            networkMessage.Decode(m_context, message, GetOperationalDataSetReaders());
+            networkMessage.Decode(m_context, message, dataSetReadersToDecode);
 
             // Process the decoded network message 
             ProcessDecodedNetworkMessage(networkMessage, source.ToString());
         }
-
         
         /// <summary>
         /// Handle Receive event for an UADP channel on Subscriber Side
@@ -504,6 +531,18 @@ namespace Opc.Ua.PubSub.Transport
             m_dataSetSequenceNumber = 0;
         }
 
+        /// <summary>
+        /// Handle <see cref="UaPubSubApplication.MetaDataReceived"/> event.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Application_MetaDataReceived(object sender, SubscribedDataEventArgs e)
+        {           
+            if (m_udpDiscoverySubscriber != null && e.NetworkMessage.DataSetWriterId != null)
+            {
+                m_udpDiscoverySubscriber.RemoveWriterIdForDataSetMetadata(e.NetworkMessage.DataSetWriterId.Value);
+            }
+        }
         #endregion
     }
 }
