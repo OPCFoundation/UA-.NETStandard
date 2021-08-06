@@ -147,16 +147,24 @@ namespace Opc.Ua.PubSub.Transport
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
                 Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') attempts to create instance of UdpClient.", nic.Name);
-                //ignore loop-back interface
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                //ignore tunnel interface
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                if ((nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) ||
+                    (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) ||
+                    (nic.OperationalStatus != OperationalStatus.Up))
+                {
+                    //ignore loop-back interface
+                    //ignore tunnel interface
+                    //ignore not operational interface
+                    continue;
+                }
+
                 UdpClient udpClient = CreateUdpClientForNetworkInterface(pubSubContext, nic, configuredEndpoint);
                 if (udpClient == null) continue;
                 //store UdpClient
                 udpClients.Add(udpClient);
                 Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') UdpClient successfully created.", nic.Name);
             }
+
             return udpClients;
         }
 
