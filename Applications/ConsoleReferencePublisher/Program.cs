@@ -36,6 +36,8 @@ using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
 
+
+
 namespace Quickstarts.ConsoleReferencePublisher
 {
     public static class Program
