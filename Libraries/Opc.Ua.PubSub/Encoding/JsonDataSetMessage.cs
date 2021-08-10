@@ -146,6 +146,7 @@ namespace Opc.Ua.PubSub.Encoding
                 bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader?.DataSetMetaData?.ConfigurationVersion);
                 if (!isValidMetadataVersion)
                 {
+                    DecodeErrorReason = DataSetDecodeErrorReason.MetadataVersion;
                     return;
                 }
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
@@ -169,6 +170,7 @@ namespace Opc.Ua.PubSub.Encoding
                             // the dataset was decoded
                             return;
                         }
+                       
                     }
                 }
             }
@@ -211,6 +213,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     // filter out payload that has more fields than the searched datasetMetadata or
                     // doesn't pass metadata version
+                    DecodeErrorReason = DataSetDecodeErrorReason.MetadataVersion;
                     return;
                 }
                 // check also the field names from reader, if any extra field names then the payload is not matching 

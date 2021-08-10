@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public UaDataSetMessage()
         {
+            DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
             MetaDataVersion = new ConfigurationVersionDataType() {
                 MajorVersion = ConfigMajorVersion,
@@ -103,9 +104,9 @@ namespace Opc.Ua.PubSub
         public StatusCode Status { get; set; }
 
         /// <summary>
-        /// Get and Set the event handler triggered on an error encountered while decoding 
+        /// Get and Set the reason that an error encountered while decoding occured
         /// </summary>
-        public EventHandler DecodeError { get; set; }
+        public DataSetDecodeErrorReason DecodeErrorReason { get; set; }
         #endregion
 
         #region Methods
