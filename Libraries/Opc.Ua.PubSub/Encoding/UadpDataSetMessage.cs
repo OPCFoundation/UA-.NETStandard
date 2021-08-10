@@ -278,7 +278,10 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 DataSet = DecodeFieldMessageData(binaryDecoder, dataSetReader);
             }
-
+            else
+            {
+                DecodeErrorReason = DataSetDecodeErrorReason.MetadataVersion;
+            }
 
         }
         #endregion

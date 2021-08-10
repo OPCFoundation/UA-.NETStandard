@@ -590,6 +590,10 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             m_uaDataSetMessages.Add(jsonDataSetMessage);
                         }
+                        else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
+                        {
+                            OnDataSetDecodeErrorOccured(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
+                        }
                     }
                 }
             }

@@ -268,7 +268,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Create and return tthe list of DataSetMetaData response messages 
+        /// Create and return the list of DataSetMetaData response messages 
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>
@@ -403,12 +403,15 @@ namespace Opc.Ua.PubSub.Transport
             }          
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
+            networkMessage.DataSetDecodeErrorOccured += NetworkMessage_DataSetDecodeErrorOccured;
             networkMessage.Decode(m_context, message, dataSetReadersToDecode);
+            networkMessage.DataSetDecodeErrorOccured -= NetworkMessage_DataSetDecodeErrorOccured;
 
             // Process the decoded network message 
             ProcessDecodedNetworkMessage(networkMessage, source.ToString());
         }
-        
+
+
         /// <summary>
         /// Handle Receive event for an UADP channel on Subscriber Side
         /// </summary>
@@ -541,6 +544,24 @@ namespace Opc.Ua.PubSub.Transport
             if (m_udpDiscoverySubscriber != null && e.NetworkMessage.DataSetWriterId != null)
             {
                 m_udpDiscoverySubscriber.RemoveWriterIdForDataSetMetadata(e.NetworkMessage.DataSetWriterId.Value);
+            }
+        }
+
+        /// <summary>
+        /// Handle <see cref="UaNetworkMessage.DataSetDecodeErrorOccured"/> event.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void NetworkMessage_DataSetDecodeErrorOccured(object sender, DataSetDecodeErrorEventArgs e)
+        {
+            if (e.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
+            {
+                // Resend metadata request
+                // check if it is possible to request the metadata information
+                if (e.DataSetReader.DataSetWriterId != 0)
+                {
+                    m_udpDiscoverySubscriber.AddWriterIdForDataSetMetadata(e.DataSetReader.DataSetWriterId);
+                }
             }
         }
         #endregion

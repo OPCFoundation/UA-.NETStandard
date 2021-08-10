@@ -753,6 +753,10 @@ namespace Opc.Ua.PubSub.Encoding
                             {
                                 dataSetMessages.Add(uadpDataSetMessage);
                             }
+                            else if (uadpDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
+                            {
+                                OnDataSetDecodeErrorOccured(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
+                            }
                         }
                     }
                 }

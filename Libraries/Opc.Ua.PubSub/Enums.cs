@@ -409,6 +409,21 @@ namespace Opc.Ua.PubSub
     };
 
     /// <summary>
+    /// The reason an error has been detected while decoding a DataSet
+    /// </summary>
+    public enum DataSetDecodeErrorReason
+    {
+        /// <summary>
+        /// There is no error detected
+        /// </summary>
+        NoError,
+        /// <summary>
+        /// The MetadataVersion is different
+        /// </summary>
+        MetadataVersion,
+    }
+
+    /// <summary>
     /// Enum that specifies the message mapping for a UaPubSub connection
     /// </summary>
     public enum MessageMapping
