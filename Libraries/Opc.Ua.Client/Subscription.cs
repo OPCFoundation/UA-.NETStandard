@@ -102,6 +102,7 @@ namespace Opc.Ua.Client
                 m_timestampsToReturn = template.m_timestampsToReturn;
                 m_maxMessageCount = template.m_maxMessageCount;
                 m_maxMessageWorkers = template.m_maxMessageWorkers;
+                m_sequentialPublishing = template.m_sequentialPublishing;
                 m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
                 m_defaultItem = template.m_defaultItem;
                 m_handle = template.m_handle;
@@ -152,6 +153,8 @@ namespace Opc.Ua.Client
             m_maxMessageCount = 10;
             m_outstandingMessageWorkers = 0;
             m_maxMessageWorkers = 0; //Unlimited
+            m_sequentialPublishing = false; 
+            m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
@@ -375,16 +378,32 @@ namespace Opc.Ua.Client
         /// Gets or sets the maximum number of worker threads used to handle incoming messages.
         /// </summary>
         /// <value>
-        /// 0 or negative values mean no limit on number of worker threads. Positive values limit the number of worker threads to that number.
+        /// <c>1</c> if messages are processed synchronously; <c>0</c> or negative if number of workers is unlimited; otherwise limited to <paramref name="value"/>.
         /// </value>
         /// <remarks>
-        /// Setting this to <c>1</c> will mean sequential handling of publish responses, barring any out-of-order caused by network communication and the Republish mechanism.
+        /// To ensure sequential handling of incoming messages, it is necessary to set <see cref="MaxMessageWorkers"/> to <c>1</c> and <see cref="SequentialPublishing"/> to <c>true</c>.
         /// </remarks>
         [DataMember(Order = 13)]
         public int MaxMessageWorkers
         {
             get { return m_maxMessageWorkers; }
             set { m_maxMessageWorkers = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the behavior of waiting for sequential order for handling incoming messages.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
+        /// </value>
+        /// <remarks>
+        /// To ensure sequential handling of incoming messages, it is necessary to set <see cref="MaxMessageWorkers"/> to <c>1</c> and <see cref="SequentialPublishing"/> to <c>true</c>.
+        /// </remarks>
+        [DataMember(Order = 14)]
+        public bool SequentialPublishing
+        {
+            get { return m_sequentialPublishing; }
+            set { m_sequentialPublishing = value; }
         }
 
         /// <summary>
@@ -1573,6 +1592,14 @@ namespace Opc.Ua.Client
 
                     if (next != null)
                     {
+                        //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
+                        if (node.Value.SequenceNumber == m_lastSequenceNumberProcessed + 1)
+                        {
+                            if (!node.Value.Processed)
+                                Utils.Trace($"Subscription {Id} skipping PublishResponse Sequence Number {node.Value.SequenceNumber}");
+                            m_lastSequenceNumberProcessed = node.Value.SequenceNumber;
+                        }
+
                         m_incomingMessages.Remove(node);
                     }
 
@@ -1636,7 +1663,8 @@ namespace Opc.Ua.Client
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
                         // update monitored items with unprocessed messages.
-                        if (ii.Value.Message != null && !ii.Value.Processed)
+                        if (ii.Value.Message != null && !ii.Value.Processed &&
+                            (!m_sequentialPublishing || ii.Value.SequenceNumber == m_lastSequenceNumberProcessed + 1))
                         {
                             if (messagesToProcess == null)
                             {
@@ -1653,6 +1681,7 @@ namespace Opc.Ua.Client
 
                             m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
+                            m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                         }
 
                         // check for missing messages.
@@ -2079,6 +2108,8 @@ namespace Opc.Ua.Client
         private int m_outstandingMessageWorkers;
         private int m_maxMessageWorkers;
         private SemaphoreSlim m_messageWorkersSemaphore;
+        private bool m_sequentialPublishing;
+        private uint m_lastSequenceNumberProcessed;
 
         /// <summary>
         /// A message received from the server cached until is processed or discarded.
