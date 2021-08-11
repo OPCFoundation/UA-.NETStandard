@@ -373,6 +373,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             jsonDataSetWriterMessage = new JsonDataSetWriterMessageDataType() {
                 DataSetMessageContentMask = (uint)(JsonDataSetMessageContentMask.DataSetWriterId
+                | JsonDataSetMessageContentMask.MetaDataVersion
                 | JsonDataSetMessageContentMask.SequenceNumber
                 | JsonDataSetMessageContentMask.Status
                 | JsonDataSetMessageContentMask.Timestamp),
