@@ -1595,9 +1595,9 @@ namespace Opc.Ua.Client
                         //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
                         if (node.Value.SequenceNumber == m_lastSequenceNumberProcessed + 1)
                         {
-                            if (!node.Value.Processed)
-                                Utils.Trace($"Subscription {Id} skipping PublishResponse Sequence Number {node.Value.SequenceNumber}");
-                            m_lastSequenceNumberProcessed = node.Value.SequenceNumber;
+                            if (!entry.Processed)
+                                Utils.Trace("Subscription {0} skipping PublishResponse Sequence Number {1} - not received", Id, entry.SequenceNumber);
+                            m_lastSequenceNumberProcessed = entry.SequenceNumber;
                         }
 
                         m_incomingMessages.Remove(node);
@@ -1637,12 +1637,10 @@ namespace Opc.Ua.Client
                 {
                     await(semaphore?.WaitAsync() ?? Task.CompletedTask); //In case needSemaphore is changed to not just be a null-check
                 }
-                catch (ObjectDisposedException)
+                catch (Exception e)
                 {
-                    //Disposed, do not process messages
-                    //TODO: Trace message here?
-                    //Previous implementation would have it handle the messages either way.
-                    return;
+                    Utils.Trace(e, "Error obtaining semaphore for message worker - proceeding without it");
+                    needSemaphore = false;
                 }
             }
             try
@@ -1815,15 +1813,14 @@ namespace Opc.Ua.Client
                     catch (ObjectDisposedException)
                     {
                         //Ignore, disposed and handling finished
-                        //TODO: Trace here?
                     }
                     catch (SemaphoreFullException e)
                     {
-                        Utils.Trace(e, "Released semaphore too many times"); //TODO: Different message?
+                        Utils.Trace(e, "Released semaphore too many times");
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Error while finishing processing of incoming messages."); //TODO: Different message?
+                        Utils.Trace(e, "Error while finishing processing of incoming messages.");
                     }
                 }
             }
