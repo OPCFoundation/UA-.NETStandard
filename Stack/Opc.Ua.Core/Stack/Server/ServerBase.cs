@@ -954,7 +954,7 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.DnsSafeHost == endpointUrl.DnsSafeHost)
                         {
-                            accessibleAddresses.Add(baseAddress);
+                            accessibleAddresses.Add(new BaseAddress() { Url = alternateUrl, ProfileUri = baseAddress.ProfileUri, DiscoveryUrl = alternateUrl });
                             break;
                         }
                     }
