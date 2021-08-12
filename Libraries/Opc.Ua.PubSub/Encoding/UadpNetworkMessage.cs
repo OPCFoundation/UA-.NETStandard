@@ -186,7 +186,33 @@ namespace Opc.Ua.PubSub.Encoding
             get { return m_publisherId; }
             set
             {
-                m_publisherId = value;
+                // Just in case value is a positive signed Integer 
+                // Try to bring it to an accepted type (will overflow if value doesn't fit)
+
+                object adjustedValue = value;
+                switch (value)
+                {
+                    case Int16 int16Value:
+                        if (int16Value > 0)
+                        {
+                            adjustedValue = (UInt16)int16Value;
+                        }
+                        break;
+                    case Int32 int32Value:
+                        if (int32Value > 0)
+                        {
+                            adjustedValue = (UInt32)int32Value;
+                        }
+                        break;
+                    case Int64 int64Value:
+                        if (int64Value > 0)
+                        {
+                            adjustedValue = (UInt64)int64Value;
+                        }
+                        break;
+                }
+
+                m_publisherId = adjustedValue;
 
                 // Remove previous PublisherId data type
                 ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
@@ -1081,9 +1107,6 @@ namespace Opc.Ua.PubSub.Encoding
                         m_publisherId = decoder.ReadString("PublisherId");
                         break;
                     case PublisherIdTypeEncodingMask.Byte:
-                    default:
-                        // 000 The PublisherId is of DataType Byte
-                        // This is the default value if ExtendedFlags1 is omitted
                         m_publisherId = decoder.ReadByte("PublisherId");
                         break;
                 }
