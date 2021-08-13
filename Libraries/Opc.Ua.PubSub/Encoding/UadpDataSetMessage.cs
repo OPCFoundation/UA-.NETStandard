@@ -272,15 +272,11 @@ namespace Opc.Ua.PubSub.Encoding
             binaryDecoder.BaseStream.Position = StartPositionInStream;
             DecodeDataSetMessageHeader(binaryDecoder);
 
-            bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
+            DecodeErrorReason = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
 
-            if (isValidMetadataVersion)
+            if (!OnDecodeErrorMetadataMajorVersionChange)
             {
                 DataSet = DecodeFieldMessageData(binaryDecoder, dataSetReader);
-            }
-            else
-            {
-                DecodeErrorReason = DataSetDecodeErrorReason.MetadataVersion;
             }
 
         }

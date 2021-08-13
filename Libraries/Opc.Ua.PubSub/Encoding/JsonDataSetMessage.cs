@@ -143,10 +143,9 @@ namespace Opc.Ua.PubSub.Encoding
                     jsonDecoder.PushStructure(kFieldPayload);
                 }
 
-                bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader?.DataSetMetaData?.ConfigurationVersion);
-                if (!isValidMetadataVersion)
+                DecodeErrorReason = ValidateMetadataVersion(dataSetReader?.DataSetMetaData?.ConfigurationVersion);
+                if (OnDecodeErrorMetadataMajorVersionChange)
                 {
-                    DecodeErrorReason = DataSetDecodeErrorReason.MetadataVersion;
                     return;
                 }
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
@@ -175,6 +174,8 @@ namespace Opc.Ua.PubSub.Encoding
                 }
             }
         }
+
+
 
         /// <summary>
         /// Atempt to decode dataset from the KeyValue pairs
@@ -206,14 +207,13 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (payload != null && dataSetReader.DataSetMetaData != null)
             {
-                bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
+                DecodeErrorReason = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
 
                 if ( (payload.Count > dataSetReader.DataSetMetaData.Fields.Count) ||
-                     !isValidMetadataVersion)
+                     OnDecodeErrorMetadataMajorVersionChange)
                 {
                     // filter out payload that has more fields than the searched datasetMetadata or
                     // doesn't pass metadata version
-                    DecodeErrorReason = DataSetDecodeErrorReason.MetadataVersion;
                     return;
                 }
                 // check also the field names from reader, if any extra field names then the payload is not matching 

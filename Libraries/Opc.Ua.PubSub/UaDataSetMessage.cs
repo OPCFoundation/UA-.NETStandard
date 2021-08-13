@@ -107,6 +107,18 @@ namespace Opc.Ua.PubSub
         /// Get and Set the reason that an error encountered while decoding occured
         /// </summary>
         public DataSetDecodeErrorReason DecodeErrorReason { get; set; }
+
+        /// <summary>
+        /// Checks if the MetadataMajorVersion has changed depending on the value of DataSetDecodeErrorReason
+        /// </summary>
+        public bool OnDecodeErrorMetadataMajorVersionChange
+        {
+            get
+            {
+                return (DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion) ||
+                    (DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion);
+            }
+        }
         #endregion
 
         #region Methods
@@ -121,23 +133,28 @@ namespace Opc.Ua.PubSub
         /// Validates the MetadataVersion against a given ConfigurationVersionDataType
         /// </summary>
         /// <param name="configurationVersionDataType">The value to validate MetadataVersion against</param>
-        /// <returns>true if validation passes or false if not</returns>
-        protected bool ValidateMetadataVersion(ConfigurationVersionDataType configurationVersionDataType)
+        /// <returns>NoError if validation passes or the cause of the failure</returns>
+        protected DataSetDecodeErrorReason ValidateMetadataVersion(ConfigurationVersionDataType configurationVersionDataType)
         {
-            bool validMetadataVersion;
             if (MetaDataVersion.MajorVersion != ConfigMajorVersion ||
                 MetaDataVersion.MinorVersion != ConfigMinorVersion)
             {
-                validMetadataVersion = (MetaDataVersion.MajorVersion == configurationVersionDataType.MajorVersion) &&
-                    (MetaDataVersion.MinorVersion == configurationVersionDataType.MinorVersion);
-            }
-            else
-            {
-                validMetadataVersion = MetaDataVersion.MajorVersion == ConfigMajorVersion &&
-                    MetaDataVersion.MinorVersion == ConfigMinorVersion;
+                if ((MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion) &&
+                    (MetaDataVersion.MinorVersion != configurationVersionDataType.MinorVersion))
+                {
+                    return DataSetDecodeErrorReason.MetadataVersion;
+                }
+                else if (MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion)
+                {
+                    return DataSetDecodeErrorReason.MetadataMajorVersion;
+                }
+                else if (MetaDataVersion.MinorVersion != configurationVersionDataType.MinorVersion)
+                {
+                    return DataSetDecodeErrorReason.MetadataMinorVersion;
+                }
             }
 
-            return validMetadataVersion;
+            return DataSetDecodeErrorReason.NoError;
         }
     }
 }

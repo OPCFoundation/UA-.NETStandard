@@ -418,7 +418,15 @@ namespace Opc.Ua.PubSub
         /// </summary>
         NoError,
         /// <summary>
-        /// The MetadataVersion is different
+        /// The MetadataMajorVersion is different
+        /// </summary>
+        MetadataMajorVersion,
+        /// <summary>
+        /// The MetadataMinorVersion is different
+        /// </summary>
+        MetadataMinorVersion,
+        /// <summary>
+        /// Both MetadataMinorVersion and MetadataMinorVersion are different
         /// </summary>
         MetadataVersion,
     }
