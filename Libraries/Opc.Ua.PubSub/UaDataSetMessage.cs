@@ -102,6 +102,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public StatusCode Status { get; set; }
 
+        /// <summary>
+        /// Get and Set the event handler triggered on an error encountered while decoding 
+        /// </summary>
+        public EventHandler DecodeError { get; set; }
         #endregion
 
         #region Methods
@@ -111,5 +115,28 @@ namespace Opc.Ua.PubSub
         /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
         public abstract void SetFieldContentMask(DataSetFieldContentMask fieldContentMask);
         #endregion
+
+        /// <summary>
+        /// Validates the MetadataVersion against a given ConfigurationVersionDataType
+        /// </summary>
+        /// <param name="configurationVersionDataType">The value to validate MetadataVersion against</param>
+        /// <returns>true if validation passes or false if not</returns>
+        protected bool ValidateMetadataVersion(ConfigurationVersionDataType configurationVersionDataType)
+        {
+            bool validMetadataVersion;
+            if (MetaDataVersion.MajorVersion != ConfigMajorVersion ||
+                MetaDataVersion.MinorVersion != ConfigMinorVersion)
+            {
+                validMetadataVersion = (MetaDataVersion.MajorVersion == configurationVersionDataType.MajorVersion) &&
+                    (MetaDataVersion.MinorVersion == configurationVersionDataType.MinorVersion);
+            }
+            else
+            {
+                validMetadataVersion = MetaDataVersion.MajorVersion == ConfigMajorVersion &&
+                    MetaDataVersion.MinorVersion == ConfigMinorVersion;
+            }
+
+            return validMetadataVersion;
+        }
     }
 }

@@ -271,7 +271,15 @@ namespace Opc.Ua.PubSub.Encoding
             }
             binaryDecoder.BaseStream.Position = StartPositionInStream;
             DecodeDataSetMessageHeader(binaryDecoder);
-            DataSet = DecodeFieldMessageData(binaryDecoder, dataSetReader);
+
+            bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
+
+            if (isValidMetadataVersion)
+            {
+                DataSet = DecodeFieldMessageData(binaryDecoder, dataSetReader);
+            }
+
+
         }
         #endregion
 
