@@ -218,8 +218,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        [Test(Description = "Validate MajorVersion")]
-        public void ValidateMajorVersion(
+        [Test(Description = "Validate MajorVersion and MinorVersion with Equal values")]
+        public void ValidateMajorVersionEqMinorVersionEq(
             [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
             DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
@@ -236,19 +236,49 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
             DataSetFieldContentMask dataSetFieldContentMask)
         {
+            const int VersionValue = 2;
+
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion);
-            uadpDataSetMessage.MetaDataVersion.MajorVersion = 2;
+            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+
+            IServiceMessageContext messageContextEncode = new ServiceMessageContext();
+            byte[] bytes;
+            var memoryStream = new MemoryStream();
+            using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
+            {
+                uadpDataSetMessage.Encode(encoder);
+                _ = encoder.Close();
+                bytes = ReadBytes(memoryStream);
+            }
+
+            UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
+            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+
+            // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
+            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = VersionValue;
+            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = VersionValue * 10;
+
+            // workaround
+            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            decoder.Dispose();
 
             // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
+            Assert.AreEqual(DataSetDecodeErrorReason.NoError, uaDataSetMessageDecoded.DecodeErrorReason);
+            Assert.AreEqual(false, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
+            // compare uadpDataSetMessage with uaDataSetMessageDecoded
+            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
         }
 
-        [Test(Description = "Validate MinorVersion")]
-        public void ValidateMinorVersion(
+        [Test(Description = "Validate MajorVersion equal and MinorVersion differ")]
+        public void ValidateMajorVersionEqMinorVersionDiffer(
             [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
             DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
             DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
@@ -265,15 +295,160 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             )]
             DataSetFieldContentMask dataSetFieldContentMask)
         {
+            const int VersionValue = 2;
+
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act  
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.MetaDataVersion.MinorVersion = 101;
+            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+
+            IServiceMessageContext messageContextEncode = new ServiceMessageContext();
+            byte[] bytes;
+            var memoryStream = new MemoryStream();
+            using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
+            {
+                uadpDataSetMessage.Encode(encoder);
+                _ = encoder.Close();
+                bytes = ReadBytes(memoryStream);
+            }
+
+            UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
+            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+
+            // Make sure the reader MajorVersion is same with the ones on the dataset message
+            // and MinorVersion differ
+            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion;
+            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
+
+            // workaround
+            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            decoder.Dispose();
 
             // Assert
-            CompareEncodeDecode(uadpDataSetMessage);
+            Assert.AreEqual(DataSetDecodeErrorReason.MetadataMinorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
+            Assert.AreEqual(false, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
+            // compare uadpDataSetMessage with uaDataSetMessageDecoded
+            CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
+        }
+
+        [Test(Description = "Validate MajorVersion differ and MinorVersion are equal")]
+        public void ValidateMajorVersionDiffMinorVersionEq(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
+        {
+            const int VersionValue = 2;
+
+            // Arrange
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
+
+            // Act  
+            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+
+            IServiceMessageContext messageContextEncode = new ServiceMessageContext();
+            byte[] bytes;
+            var memoryStream = new MemoryStream();
+            using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
+            {
+                uadpDataSetMessage.Encode(encoder);
+                _ = encoder.Close();
+                bytes = ReadBytes(memoryStream);
+            }
+
+            UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
+            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+
+            // Make sure the reader MajorVersion differ and MinorVersion are equal
+            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
+            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion;
+
+            // workaround
+            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            decoder.Dispose();
+
+            // Assert
+            Assert.AreEqual(DataSetDecodeErrorReason.MetadataMajorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
+            Assert.AreEqual(true, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreEqual(null, uaDataSetMessageDecoded.DataSet);
+        }
+
+        [Test(Description = "Validate MajorVersion differ and MinorVersion differ")]
+        public void ValidateMajorVersionDiffMinorVersionDiff(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            )]
+            DataSetFieldContentMask dataSetFieldContentMask)
+        {
+            const int VersionValue = 2;
+
+            // Arrange
+            UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
+
+            // Act  
+            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+
+            IServiceMessageContext messageContextEncode = new ServiceMessageContext();
+            byte[] bytes;
+            var memoryStream = new MemoryStream();
+            using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
+            {
+                uadpDataSetMessage.Encode(encoder);
+                _ = encoder.Close();
+                bytes = ReadBytes(memoryStream);
+            }
+
+            UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
+            BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);
+
+            // Make sure the reader MajorVersion differ and MinorVersion differ
+            DataSetReaderDataType reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
+            reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
+            reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
+
+            // workaround
+            uaDataSetMessageDecoded.DataSetWriterId = TestDataSetWriterId;
+            uaDataSetMessageDecoded.DecodePossibleDataSetReader(decoder, reader);
+            decoder.Dispose();
+
+            // Assert
+            Assert.AreEqual(DataSetDecodeErrorReason.MetadataVersion, uaDataSetMessageDecoded.DecodeErrorReason);
+            Assert.AreEqual(true, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreEqual(null, uaDataSetMessageDecoded.DataSet);
         }
 
         [Test(Description = "Validate SequenceNumber")]
