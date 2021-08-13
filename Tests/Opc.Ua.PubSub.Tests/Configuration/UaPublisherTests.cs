@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description ="Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
 #if !CUSTOM_TESTS
-       // [Ignore("This test should be executed locally")]
+        [Ignore("This test should be executed locally")]
 #endif
         public void ValidateUaPublisherPublishIntervalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
