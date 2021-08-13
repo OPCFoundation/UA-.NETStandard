@@ -288,7 +288,7 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseSubscriptionRecievedEvent");
+                Utils.Trace(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
             }
         }
 
@@ -333,7 +333,7 @@ namespace Opc.Ua.PubSub
 
         #region Private Methods - UaPubSubConfigurator event handlers
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetAdded"/> event
+        /// Handler for PublishedDataSetAdded event
         /// </summary>
         private void UaPubSubConfigurator_PublishedDataSetAdded(object sender, PublishedDataSetEventArgs e)
         {
@@ -341,7 +341,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetRemoved"/> event
+        /// Handler for PublishedDataSetRemoved event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -351,7 +351,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.ConnectionRemoved"/> event
+        /// Handler for ConnectionRemoved event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -374,7 +374,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.ConnectionAdded"/> event
+        /// Handler for ConnectionAdded event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

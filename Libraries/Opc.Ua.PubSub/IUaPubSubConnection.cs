@@ -29,12 +29,11 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Interface for an UaPubsubConnection
+    /// Interface for an UaPubSubConnection
     /// </summary>
     public interface IUaPubSubConnection : IDisposable
     {

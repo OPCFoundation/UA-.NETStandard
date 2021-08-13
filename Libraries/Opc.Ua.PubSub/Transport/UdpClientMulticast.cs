@@ -96,7 +96,7 @@ namespace Opc.Ua.PubSub.Transport
         internal IPAddress Address { get; }
 
         /// <summary>
-        /// The Multiuicast address
+        /// The Multicast address
         /// </summary>
         internal IPAddress MulticastAddress { get; }
 

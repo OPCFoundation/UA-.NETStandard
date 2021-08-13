@@ -38,8 +38,8 @@ namespace Opc.Ua.PubSub.PublishedData
     public class DataCollector
     {
         #region Private Fields
-        private Dictionary<string, PublishedDataSetDataType> m_publishedDataSetsByName;
-        private IUaPubSubDataStore m_dataStore;
+        private readonly Dictionary<string, PublishedDataSetDataType> m_publishedDataSetsByName;
+        private readonly IUaPubSubDataStore m_dataStore;
         #endregion
 
         #region Constructor

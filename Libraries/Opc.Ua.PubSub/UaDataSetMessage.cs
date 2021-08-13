@@ -104,7 +104,7 @@ namespace Opc.Ua.PubSub
         public StatusCode Status { get; set; }
 
         /// <summary>
-        /// Get and Set the reason that an error encountered while decoding occured
+        /// Get and Set the reason that an error encountered while decoding occurred
         /// </summary>
         public DataSetDecodeErrorReason DecodeErrorReason { get; set; }
 

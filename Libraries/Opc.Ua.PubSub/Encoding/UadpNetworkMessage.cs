@@ -780,7 +780,7 @@ namespace Opc.Ua.PubSub.Encoding
                             }
                             else if (uadpDataSetMessage.OnDecodeErrorMetadataMajorVersionChange)
                             {
-                                OnDataSetDecodeErrorOccured(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
+                                OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
                             }
                         }
                     }

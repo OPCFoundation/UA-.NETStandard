@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -403,9 +402,9 @@ namespace Opc.Ua.PubSub.Transport
             }          
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
-            networkMessage.DataSetDecodeErrorOccured += NetworkMessage_DataSetDecodeErrorOccured;
+            networkMessage.DataSetDecodeErrorOccurred += NetworkMessage_DataSetDecodeErrorOccurred;
             networkMessage.Decode(m_context, message, dataSetReadersToDecode);
-            networkMessage.DataSetDecodeErrorOccured -= NetworkMessage_DataSetDecodeErrorOccured;
+            networkMessage.DataSetDecodeErrorOccurred -= NetworkMessage_DataSetDecodeErrorOccurred;
 
             // Process the decoded network message 
             ProcessDecodedNetworkMessage(networkMessage, source.ToString());
@@ -485,7 +484,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive BeginReceive throwed Exception {0}", ex.Message);
+                Utils.Trace(Utils.TraceMasks.Information, "OnUadpReceive BeginReceive threw Exception {0}", ex.Message);
 
                 lock (m_lock)
                 {
@@ -548,11 +547,11 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Handle <see cref="UaNetworkMessage.DataSetDecodeErrorOccured"/> event.
+        /// Handle <see cref="UaNetworkMessage.DataSetDecodeErrorOccurred"/> event.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void NetworkMessage_DataSetDecodeErrorOccured(object sender, DataSetDecodeErrorEventArgs e)
+        private void NetworkMessage_DataSetDecodeErrorOccurred(object sender, DataSetDecodeErrorEventArgs e)
         {
             if (e.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
             {

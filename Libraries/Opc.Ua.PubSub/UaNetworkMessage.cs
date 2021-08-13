@@ -181,12 +181,12 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// The DataSetDecodeErrorOccured event handler
+        /// The DataSetDecodeErrorOccurred event handler
         /// </summary>
         /// <param name="e"></param>
-        protected virtual void OnDataSetDecodeErrorOccured(DataSetDecodeErrorEventArgs e)
+        protected virtual void OnDataSetDecodeErrorOccurred(DataSetDecodeErrorEventArgs e)
         {
-            DataSetDecodeErrorOccured?.Invoke(this, e);
+            DataSetDecodeErrorOccurred?.Invoke(this, e);
         }
         #endregion
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The Default event for an error encountered during decoding the dataset messages
         /// </summary>
-        public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccured;
+        public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
 
         #endregion
     }

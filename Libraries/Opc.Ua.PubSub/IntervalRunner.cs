@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Start()
         {
-            Task.Run(() => Process()).ConfigureAwait(false);
+            Task.Run(Process).ConfigureAwait(false);
             Utils.Trace("IntervalRunner with id: {0} was started.", Id);
         }
 

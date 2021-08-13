@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Encoding;
 
@@ -40,7 +39,7 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpDiscoverySubscriber : UdpDiscovery
     {
-        private const int kInitiaRequestInterval = 5000;
+        private const int kInitialRequestInterval = 5000;
 
         // The list that will store the WriterIds that shall be included in a DataSetMetaData Request message
         private readonly List<UInt16> m_metadataWriterIdsToSend;
@@ -58,7 +57,7 @@ namespace Opc.Ua.PubSub.Transport
             m_metadataWriterIdsToSend = new List<ushort>();
 
             m_intervalRunner = new IntervalRunner(udpConnection.PubSubConnectionConfiguration.Name,
-                kInitiaRequestInterval, CanPublish, SendDiscoveryRequestDataSetMetaData);
+                kInitialRequestInterval, CanPublish, SendDiscoveryRequestDataSetMetaData);
 
         }
         #endregion
@@ -133,7 +132,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (m_metadataWriterIdsToSend.Count == 0)
                 {
                     // reset the interval for publisher if there is nothing to send
-                    m_intervalRunner.Interval = kInitiaRequestInterval;
+                    m_intervalRunner.Interval = kInitialRequestInterval;
                 }
 
                 return m_metadataWriterIdsToSend.Count > 0;

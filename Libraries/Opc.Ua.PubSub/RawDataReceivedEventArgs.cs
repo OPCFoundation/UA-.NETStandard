@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub
     public class RawDataReceivedEventArgs : EventArgs
     {
         /// <summary>
-        /// Get/Set flag that indicates if the RawData message is handled and shall not be decooded by the PubSub library
+        /// Get/Set flag that indicates if the RawData message is handled and shall not be decoded by the PubSub library
         /// </summary>
         public bool Handled { get; set; }
 

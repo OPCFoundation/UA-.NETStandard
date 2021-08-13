@@ -27,14 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
-using Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -44,7 +40,7 @@ namespace Opc.Ua.PubSub.Transport
     internal abstract class UdpDiscovery
     {
         #region Fields
-        private const string kDefalulDiscoveryUrl = "opc.udp://224.0.2.14:4840";
+        private const string kDefaultDiscoveryUrl = "opc.udp://224.0.2.14:4840";
 
         protected object m_lock = new object();
         protected UdpPubSubConnection m_udpConnection;
@@ -56,7 +52,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Create new instance of <see cref="UdpDiscovery"/>
         /// </summary>
         /// <param name="udpConnection"></param>
-        public UdpDiscovery(UdpPubSubConnection udpConnection)
+        protected UdpDiscovery(UdpPubSubConnection udpConnection)
         {
             m_udpConnection = udpConnection;
 
@@ -82,7 +78,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Start the UdpDiscovery process
         /// </summary>
         /// <returns></returns>
-        public async virtual Task StartAsync()
+        public virtual async Task StartAsync()
         {
             await Task.Run(() => {
 
@@ -98,7 +94,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Start the UdpDiscovery process
         /// </summary>
         /// <returns></returns>
-        public async virtual Task StopAsync()
+        public virtual async Task StopAsync()
         {
             lock (m_lock)
             {
@@ -120,7 +116,7 @@ namespace Opc.Ua.PubSub.Transport
 
         #region Private Methods
         /// <summary>
-        /// Initialize Conection properties from connection configuration object
+        /// Initialize Connection properties from connection configuration object
         /// </summary>
         private void Initialize()
         {
@@ -145,9 +141,9 @@ namespace Opc.Ua.PubSub.Transport
             if (DiscoveryNetworkAddressEndPoint == null)
             {
                 Utils.Trace(Utils.TraceMasks.Information, "The configuration for connection {0} will use the default DiscoveryAddress: {1}.",
-                              pubSubConnectionConfiguration.Name, kDefalulDiscoveryUrl);
+                              pubSubConnectionConfiguration.Name, kDefaultDiscoveryUrl);
 
-                DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(kDefalulDiscoveryUrl);
+                DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(kDefaultDiscoveryUrl);
             }
         }
 

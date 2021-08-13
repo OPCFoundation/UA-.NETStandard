@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub
     {
         #region Private Fields
         private readonly object m_lock = new object();
-        private Dictionary<NodeId, Dictionary<uint, DataValue>> m_store;
+        private readonly Dictionary<NodeId, Dictionary<uint, DataValue>> m_store;
         #endregion
 
         #region Constructor

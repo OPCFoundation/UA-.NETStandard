@@ -37,13 +37,6 @@ namespace Opc.Ua.PubSub
     public class ConfigurationUpdatingEventArgs : EventArgs
     {
         /// <summary>
-        /// Create new instance of <see cref="ConfigurationUpdatingEventArgs"/>
-        /// </summary>
-        public ConfigurationUpdatingEventArgs()
-        {
-        }
-
-        /// <summary>
         /// The Property of <see cref="Parent"/> that should receive <see cref="NewValue"/>.
         /// </summary>
         public ConfigurationProperty ChangedProperty { get; set; }

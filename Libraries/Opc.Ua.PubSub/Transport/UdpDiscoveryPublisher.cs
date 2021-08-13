@@ -41,12 +41,11 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpDiscoveryPublisher : UdpDiscovery
     {
-        private const int kMinimumReponseInterval = 500;
+        private const int kMinimumResponseInterval = 500;
 
         // The list that will store the WriterIds that shall be set as DataSetMetaData Response message
-        private List<UInt16> m_metadataWriterIdsToSend;
-        private DateTime m_lastResponseTime;
-        private int m_responseInterval = kMinimumReponseInterval;
+        private readonly List<UInt16> m_metadataWriterIdsToSend;
+        private int m_responseInterval = kMinimumResponseInterval;
 
         #region Constructor
         /// <summary>
@@ -75,7 +74,7 @@ namespace Opc.Ua.PubSub.Transport
                     try
                     {
                         // attach callback for receiving messages
-                        discoveryUdpClient.BeginReceive(new AsyncCallback(OnUadpDiscoveryReceive), discoveryUdpClient);
+                        discoveryUdpClient.BeginReceive(OnUadpDiscoveryReceive, discoveryUdpClient);
                     }
                     catch (Exception ex)
                     {
@@ -131,11 +130,11 @@ namespace Opc.Ua.PubSub.Transport
             try
             {
                 // schedule the next receive operation once reading is done:
-                socket.BeginReceive(new AsyncCallback(OnUadpDiscoveryReceive), socket);
+                socket.BeginReceive(OnUadpDiscoveryReceive, socket);
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "OnUadpDiscoveryReceive BeginReceive throwed Exception {0}", ex.Message);
+                Utils.Trace(Utils.TraceMasks.Information, "OnUadpDiscoveryReceive BeginReceive threw Exception {0}", ex.Message);
 
                 lock (m_lock)
                 {
@@ -201,7 +200,6 @@ namespace Opc.Ua.PubSub.Transport
                     }
                     m_metadataWriterIdsToSend.Clear();
                 }
-                m_lastResponseTime = DateTime.UtcNow;
             }
         }
 
@@ -232,7 +230,7 @@ namespace Opc.Ua.PubSub.Transport
 
             if (newsocket != null)
             {
-                newsocket.BeginReceive(new AsyncCallback(OnUadpDiscoveryReceive), newsocket);
+                newsocket.BeginReceive(OnUadpDiscoveryReceive, newsocket);
             }
         }
         #endregion

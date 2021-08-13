@@ -33,7 +33,7 @@ using Opc.Ua.PubSub.Encoding;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Class that contains data related to DataSetDecodeErrorOccured event 
+    /// Class that contains data related to DataSetDecodeErrorOccurred event 
     /// </summary>
     public class DataSetDecodeErrorEventArgs : EventArgs
     {
@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub
 
         #region Public Properties
         /// <summary>
-        /// The reason for trigerring the DataSetDecodeErrorOccured event
+        /// The reason for triggering the DataSetDecodeErrorOccurred event
         /// </summary>
         public DataSetDecodeErrorReason DecodeErrorReason
         {

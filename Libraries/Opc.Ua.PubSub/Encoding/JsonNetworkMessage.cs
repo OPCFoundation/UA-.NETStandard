@@ -591,7 +591,7 @@ namespace Opc.Ua.PubSub.Encoding
                         }
                         else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
                         {
-                            OnDataSetDecodeErrorOccured(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
+                            OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
                         }
                     }
                 }
