@@ -40,13 +40,13 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpDiscoverySubscriber : UdpDiscovery
     {
-        private DateTime m_nextPublishTime = DateTime.MinValue;
-        // event used to trigger publish 
-        private CancellationTokenSource m_cancellationToken = new CancellationTokenSource();       
-        private int m_requestDelay = 5000;
+        private const int kInitiaRequestInterval = 5000;
 
         // The list that will store the WriterIds that shall be included in a DataSetMetaData Request message
-        private List<UInt16> m_metadataWriterIdsToSend;
+        private readonly List<UInt16> m_metadataWriterIdsToSend;
+
+        // the component that triggers the publish request messages
+        private readonly IntervalRunner m_intervalRunner;
 
         #region Constructor
         /// <summary>
@@ -56,6 +56,10 @@ namespace Opc.Ua.PubSub.Transport
         public UdpDiscoverySubscriber(UdpPubSubConnection udpConnection) : base(udpConnection)
         {
             m_metadataWriterIdsToSend = new List<ushort>();
+
+            m_intervalRunner = new IntervalRunner(udpConnection.PubSubConnectionConfiguration.Name,
+                kInitiaRequestInterval, CanPublish, SendDiscoveryRequestDataSetMetaData);
+
         }
         #endregion
 
@@ -65,25 +69,22 @@ namespace Opc.Ua.PubSub.Transport
         /// Start the UdpDiscovery process for subscriber
         /// </summary>
         /// <returns></returns>
-        public async override Task StartAsync()
+        public override async Task StartAsync()
         {
             await base.StartAsync();
 
-            _ = PublishData();
+            m_intervalRunner.Start();
         }
 
         /// <summary>
         /// Stop the UdpDiscovery process for Subscriber
         /// </summary>
         /// <returns></returns>
-        public async override Task StopAsync()
+        public override async Task StopAsync()
         {
             await base.StopAsync();
 
-            lock (m_lock)
-            {
-                m_cancellationToken?.Cancel();
-            }
+            m_intervalRunner.Stop();
         }
         #endregion
 
@@ -120,47 +121,25 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Private Methods
+        
         /// <summary>
-        /// Periodically checks if there is data to publish.
+        /// Decide if there is anything to publish
         /// </summary>
-        private async Task PublishData()
+        /// <returns></returns>
+        private bool CanPublish()
         {
-            do
+            lock (m_lock)
             {
-                int sleepCycle = 0;
-                DateTime now = DateTime.UtcNow;
-                DateTime nextPublishTime = DateTime.MinValue;
-
-                lock (m_lock)
-                {                   
-                    nextPublishTime = m_nextPublishTime;
-                }
-
-                if (nextPublishTime > now)
+                if (m_metadataWriterIdsToSend.Count == 0)
                 {
-                    sleepCycle = (int)Math.Min((nextPublishTime - now).TotalMilliseconds, sleepCycle);
-                    sleepCycle = (int)Math.Max(m_requestDelay, sleepCycle);
-                    await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token).ConfigureAwait(false);
+                    // reset the interval for publisher if there is nothing to send
+                    m_intervalRunner.Interval = kInitiaRequestInterval;
                 }
 
-                lock (m_lock)
-                {
-                    var nextCycle = m_requestDelay;
-                    m_nextPublishTime = DateTime.UtcNow.AddMilliseconds(nextCycle);
-
-                    if (m_metadataWriterIdsToSend.Count > 0)
-                    {
-                        // call on a new thread
-                        Task.Run(() => {
-                            SendDiscoveryRequestDataSetMetaData();
-                        });
-                        // double the time between requests
-                        m_requestDelay = m_requestDelay * 2;
-                    }
-                }
+                return m_metadataWriterIdsToSend.Count > 0;
             }
-            while (true);
-        }        
+        }
+
 
         /// <summary>
         /// Create and Send the DiscoveryRequest messages for DataSetMetaData
@@ -201,7 +180,10 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(ex, "UdpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData");
                 }
-            }           
+            }
+
+            // double the time between requests
+            m_intervalRunner.Interval = m_intervalRunner.Interval * 2;
         }
         #endregion
     }

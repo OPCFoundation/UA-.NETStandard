@@ -36,14 +36,12 @@ using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Transport;
 
-
-
 namespace Quickstarts.ConsoleReferencePublisher
 {
     public static class Program
     {
         // constant DateTime that represents the initial time when the metadata for the configuration was created
-        private static DateTime kTimeOfConfiguration = new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        private static readonly DateTime kTimeOfConfiguration = new DateTime(2021, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public static void Main(string[] args)
         {
@@ -63,11 +61,10 @@ namespace Quickstarts.ConsoleReferencePublisher
                     { "u|udp_uadp", "Use UDP with UADP encoding Profile", v => useUdpUadp = v != null },
                     { "url|publisher_url=", "Publisher Url Address", v => publisherUrl = v},
                 };
-
-            IList<string> extraArgs = null;
+            
             try
             {
-                extraArgs = options.Parse(args);
+                IList<string> extraArgs = options.Parse(args);
                 if (extraArgs.Count > 0)
                 {
                     foreach (string extraArg in extraArgs)
@@ -99,7 +96,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                 PubSubConfigurationDataType pubSubConfiguration = null;
                 if (useUdpUadp)
                 {
-                    // set default UDP Publisher Url to local multicast if not sent in args.
+                    // set default UDP Publisher Url to local multi-cast if not sent in args.
                     if (string.IsNullOrEmpty(publisherUrl))
                     {
                         publisherUrl = "opc.udp://239.0.0.1:4840";
@@ -144,16 +141,11 @@ namespace Quickstarts.ConsoleReferencePublisher
                     Console.WriteLine("Publisher Started. Press Ctrl-C to exit...");
 
                     ManualResetEvent quitEvent = new ManualResetEvent(false);
-                    try
-                    {
-                        Console.CancelKeyPress += (sender, eArgs) => {
-                            quitEvent.Set();
-                            eArgs.Cancel = true;
-                        };
-                    }
-                    catch
-                    {
-                    }
+
+                    Console.CancelKeyPress += (sender, eArgs) => {
+                        quitEvent.Set();
+                        eArgs.Cancel = true;
+                    };
 
                     // wait for timeout or Ctrl-C
                     quitEvent.WaitOne();
@@ -190,7 +182,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
-            // configure custoom DicoveryAddress for Dicovery messages
+            // configure custom DiscoveryAddress for Discovery messages
             pubSubConnection1.TransportSettings = new ExtensionObject() {
                 Body = new DatagramConnectionTransportDataType() {
                     DiscoveryAddress = new ExtensionObject() {
@@ -200,8 +192,6 @@ namespace Quickstarts.ConsoleReferencePublisher
                     }
                 }
             };
-
-
 
             #region Define WriterGroup1
             WriterGroupDataType writerGroup1 = new WriterGroupDataType();
@@ -303,7 +293,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             address.Url = urlAddress;
             pubSubConnection1.Address = new ExtensionObject(address);
 
-            // Configure the mqtt specific configuration with the MQTTbroker
+            // Configure the mqtt specific configuration with the MQTT broker
             ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
             pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
 
@@ -356,7 +346,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
                 QueueName = brokerQueueName,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 60000
+                MetaDataUpdateTime = 10000
             };
             dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
 
@@ -379,6 +369,12 @@ namespace Quickstarts.ConsoleReferencePublisher
                 | JsonDataSetMessageContentMask.Timestamp),
             };
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
+            jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType()
+            {
+                QueueName = brokerQueueName,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
+                MetaDataUpdateTime = 45000
+            };
             dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 

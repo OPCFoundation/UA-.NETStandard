@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -60,7 +59,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/> as a DataSet message
         /// </summary>
-        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param>
+        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
         public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<JsonDataSetMessage> jsonDataSetMessages)
             : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
@@ -415,7 +414,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 MessageType = jsonDecoder.ReadString(nameof(MessageType));
 
-                // detect the jsont network message type
+                // detect the json network message type
                 if (MessageType == kDataSetMessageType)
                 {
                     m_jsonNetworkMessageType = JSONNetworkMessageType.DataSetMessage;
@@ -539,7 +538,7 @@ namespace Opc.Ua.PubSub.Encoding
                     messagesList = messagesToken as List<object>;
                     if (messagesList == null)
                     {
-                        // this is a SingleDataSetMessage encoded as the conteten of Messages 
+                        // this is a SingleDataSetMessage encoded as the content of Messages 
                         jsonDecoder.PushStructure(kFieldMessages);
                         messagesList = new List<object>();
                     }
@@ -555,7 +554,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    // this is a SingleDataSetMessage encoded as the conteten of json 
+                    // this is a SingleDataSetMessage encoded as the content json 
                     messagesList = new List<object>();
                 }
                 if (messagesList != null)
@@ -567,14 +566,14 @@ namespace Opc.Ua.PubSub.Encoding
                            as JsonDataSetReaderMessageDataType;
                         if (jsonMessageSettings == null)
                         {
-                            // The reader MessageSettings is not set up corectly 
+                            // The reader MessageSettings is not set up correctly 
                             continue;
                         }
                         JsonNetworkMessageContentMask networkMessageContentMask =
                             (JsonNetworkMessageContentMask)jsonMessageSettings.NetworkMessageContentMask;
                         if ((networkMessageContentMask & NetworkMessageContentMask) != NetworkMessageContentMask)
                         {
-                            // The reader MessageSettings.NetworkMessageContentMask is not set up corectly 
+                            // The reader MessageSettings.NetworkMessageContentMask is not set up correctly 
                             continue;
                         }
 

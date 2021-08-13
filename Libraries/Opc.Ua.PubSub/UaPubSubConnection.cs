@@ -43,9 +43,9 @@ namespace Opc.Ua.PubSub
         protected object m_lock = new object();
         protected IServiceMessageContext m_context;
         private bool m_isRunning;
-        private List<IUaPublisher> m_publishers;
-        private PubSubConnectionDataType m_pubSubConnectionDataType;
-        private UaPubSubApplication m_uaPubSubApplication;
+        private readonly List<IUaPublisher> m_publishers;
+        private readonly PubSubConnectionDataType m_pubSubConnectionDataType;
+        private readonly UaPubSubApplication m_uaPubSubApplication;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
         #endregion
 
@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create new instance of UaPubSubConnection with PubSubConnectionDataType configuration data
         /// </summary>
-        public UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
+        internal UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
             m_context = new ServiceMessageContext {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
@@ -235,7 +235,7 @@ namespace Opc.Ua.PubSub
         /// Publish the network message
         /// </summary>
         /// <param name="networkMessage">The network message that needs to be published.</param>
-        /// <returns>True if send was successfull.</returns>
+        /// <returns>True if send was successful.</returns>
         public abstract bool PublishNetworkMessage(UaNetworkMessage networkMessage);
 
         /// <summary>
@@ -276,66 +276,7 @@ namespace Opc.Ua.PubSub
         /// Perform specific Stop tasks
         /// </summary>
         protected abstract Task InternalStop();
-
-        /// <summary>
-        /// Raises the <see cref="UaPubSubApplication.DataReceived"/> event.
-        /// </summary>
-        /// <param name="networkMessage">The network message that was received.</param>
-        /// <param name="source">The source of the received event.</param>
-        protected void RaiseNetworkMessageDataReceivedEvent(UaNetworkMessage networkMessage, string source)
-        {
-            if (networkMessage.IsMetaDataMessage)
-            {
-                // update configuration of the coresponding reader objects found in this connection configuration
-                List<DataSetReaderDataType> allReaders = GetAllDataSetReaders();
-                foreach (DataSetReaderDataType reader in allReaders)
-                {
-                    // check if reader's MetaData shall be updated
-                    if (reader.DataSetWriterId != 0
-                        && reader.DataSetWriterId == networkMessage.DataSetWriterId)
-                    {
-                        // TODO raise event
-                        lock (m_lock)
-                        {
-                            reader.DataSetMetaData = networkMessage.DataSetMetaData;
-                        }
-                    }
-                }
-
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
-                    NetworkMessage = networkMessage,
-                    Source = source
-                };
-
-                // trigger notification for received subscribed data set
-                Application.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
-
-                Utils.Trace(
-                    "Connection '{0}' - RaiseMetaDataReceivedEvent() from source={0}",
-                    source,
-                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
-            }
-            else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
-            {
-                SubscribedDataEventArgs subscribedDataEventArgs = new SubscribedDataEventArgs() {
-                    NetworkMessage = networkMessage,
-                    Source = source
-                };
-
-                //trigger notification for received subscribed data set
-                Application.RaiseDataReceivedEvent(subscribedDataEventArgs);
-
-                Utils.Trace(
-                    "Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
-                    source,
-                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
-            }
-            else
-            {
-                Utils.Trace("Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() message from source={0} cannot be decoded.", source);
-            }
-        }
-
+        
         /// <summary>
         /// Processes the decoded <see cref="UaNetworkMessage"/> and
         /// raises the <see cref="UaPubSubApplication.DataReceived"/> or <see cref="UaPubSubApplication.MetaDataReceived"/> event.
@@ -346,7 +287,7 @@ namespace Opc.Ua.PubSub
         {
             if (networkMessage.IsMetaDataMessage) 
             {
-                // update configuration of the coresponding reader objects found in this connection configuration
+                // update configuration of the corresponding reader objects found in this connection configuration
                 List<DataSetReaderDataType> allReaders = GetAllDataSetReaders();
                 foreach (DataSetReaderDataType reader in allReaders)
                 {

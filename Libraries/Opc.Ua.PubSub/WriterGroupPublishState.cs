@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
         /// </summary>
-        public bool HasMetaDataChanged(DataSetWriterDataType writer, DataSetMetaDataType metadata, double updateTime)
+        public bool HasMetaDataChanged(DataSetWriterDataType writer, DataSetMetaDataType metadata)
         {
             if (metadata == null)
             {
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub
                 DataSetState state = GetState(writer);
 
                 ConfigurationVersionDataType version = state.ConfigurationVersion;
-
+                // no matter what the TransportSettings.MetaDataUpdateTime is the ConfigurationVersion is checked
                 if (version == null)
                 {
                     state.ConfigurationVersion = metadata.ConfigurationVersion;
@@ -113,15 +113,6 @@ namespace Opc.Ua.PubSub
                     state.ConfigurationVersion = metadata.ConfigurationVersion;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
-                }
-
-                if (updateTime > 0)
-                {
-                    if (state.LastMetaDataUpdate.AddMilliseconds(updateTime) <= DateTime.UtcNow)
-                    {
-                        state.LastMetaDataUpdate = DateTime.UtcNow;
-                        return true;
-                    }
                 }
             }
 

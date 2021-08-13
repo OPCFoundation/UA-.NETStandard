@@ -137,6 +137,7 @@ namespace Opc.Ua.PubSub
         /// <returns></returns>
         public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, bool deltaFrame = false)
         {
+            // todo find out why the deltaFrame parameter is not used
             if (nodeId == null)
             {
                 throw new ArgumentException(nameof(nodeId));

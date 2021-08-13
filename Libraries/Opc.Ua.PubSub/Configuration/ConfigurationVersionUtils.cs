@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Configuration
         }
 
         /// <summary>
-        /// Check if the DataSetMetDdata is ussable foor decoding.
+        /// Check if the DataSetMetData is usable for decoding.
         /// It shall be not null and have the Fields collection defined and also the ConfigurationVersion shall be not null or Empty
         /// </summary>
         /// <param name="dataSetMetaData"></param>

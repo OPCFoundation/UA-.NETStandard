@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.PubSub.Encoding
@@ -66,7 +65,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of UadpNetworkMessage
         /// </summary>
-        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param> 
+        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> conflagration object that produced this message.</param> 
         /// <param name="uadpDataSetMessages"><see cref="UadpDataSetMessage"/> list as input</param>
         public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UadpDataSetMessage> uadpDataSetMessages)
             : base(writerGroupConfiguration, uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())

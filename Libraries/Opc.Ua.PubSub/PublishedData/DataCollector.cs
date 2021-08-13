@@ -129,6 +129,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <returns></returns>
         public DataSet CollectData(string dataSetName, bool isDeltaFrame)
         {
+            // todo find out why isDeltaFrame parameter is not used
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
 
             if (publishedDataSet != null)
@@ -287,7 +288,6 @@ namespace Opc.Ua.PubSub.PublishedData
                         }
                         return dataSet;
                     }
-
                 }
             }
             return null;

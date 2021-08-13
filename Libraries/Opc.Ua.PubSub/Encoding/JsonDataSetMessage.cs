@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode dataset from the provided json decoder using the provided <see cref="DataSetReaderDataType"/>.
         /// </summary>
-        /// <param name="jsonDecoder">The json decoder trhat contains the json stream.</param>
+        /// <param name="jsonDecoder">The json decoder that contains the json stream.</param>
         /// <param name="messagesCount">Number of Messages found in current jsonDecoder. If 0 then there is SingleDataSetMessage</param>
         /// <param name="messagesListName">The name of the Messages list</param>
         /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>
@@ -170,7 +170,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <summary>
-        /// Atempt to decode dataset from the Keyvalue pairs
+        /// Atempt to decode dataset from the KeyValue pairs
         /// </summary>
         private void DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
@@ -448,7 +448,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             Variant valueToEncode = field.Value.WrappedValue;
 
-            // The StatusCode.Good value is not encoded cor3ectly then it shall be ommited
+            // The StatusCode.Good value is not encoded correctly then it shall be committed
             if (valueToEncode == StatusCodes.Good && m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {
                 valueToEncode = Variant.Null;

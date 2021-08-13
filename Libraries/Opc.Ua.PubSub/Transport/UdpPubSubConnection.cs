@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub.Transport
 
                     if (dataSet != null)
                     {
-                        bool hasMetaDataChanged =  state.HasMetaDataChanged(dataSetWriter, dataSet.DataSetMetaData, 0);
+                        bool hasMetaDataChanged =  state.HasMetaDataChanged(dataSetWriter, dataSet.DataSetMetaData);
 
                         if (hasMetaDataChanged)
                         {
@@ -268,7 +268,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Create and return tthe list of DataSetMetaData response messages 
+        /// Create and return the list of DataSetMetaData response messages 
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>
