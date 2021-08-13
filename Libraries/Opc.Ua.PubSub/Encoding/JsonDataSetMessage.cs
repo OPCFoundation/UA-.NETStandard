@@ -143,6 +143,11 @@ namespace Opc.Ua.PubSub.Encoding
                     jsonDecoder.PushStructure(kFieldPayload);
                 }
 
+                bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader?.DataSetMetaData?.ConfigurationVersion);
+                if (!isValidMetadataVersion)
+                {
+                    return;
+                }
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
                 DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
             }
@@ -199,9 +204,13 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (payload != null && dataSetReader.DataSetMetaData != null)
             {
-                if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
+                bool isValidMetadataVersion = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
+
+                if ( (payload.Count > dataSetReader.DataSetMetaData.Fields.Count) ||
+                     !isValidMetadataVersion)
                 {
-                    // filter out payload that has more fields than the searched datasetMetadata
+                    // filter out payload that has more fields than the searched datasetMetadata or
+                    // doesn't pass metadata version
                     return;
                 }
                 // check also the field names from reader, if any extra field names then the payload is not matching 

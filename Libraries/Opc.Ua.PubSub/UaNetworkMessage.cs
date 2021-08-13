@@ -179,6 +179,16 @@ namespace Opc.Ua.PubSub
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
         }
+
+        /// <summary>
+        /// The Default event handler for an error ecountered during decoding the dataset messages
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        protected void OnDataSetDecodeError(object sender, EventArgs e)
+        {
+
+        }
         #endregion
     }
 }

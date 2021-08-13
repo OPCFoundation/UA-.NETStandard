@@ -145,7 +145,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Process the bytes received from UADP discuvery channel 
+        /// Process the bytes received from UADP discovery channel 
         /// </summary>
         private void ProcessReceivedMessageDiscovery(byte[] messageBytes, IPEndPoint source)
         {
