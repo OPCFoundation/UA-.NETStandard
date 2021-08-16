@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
-                MessagesHelper.CreateDataSetMetaDataMatrixes("Matrixes")
+                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices")
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
@@ -231,7 +231,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
-                MessagesHelper.CreateDataSetMetaDataMatrixes("Matrixes"),
+                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
                 MessagesHelper.CreateDataSetMetaData3("DataSet3")
@@ -310,7 +310,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaDataArrays("DataSet1"),
-                MessagesHelper.CreateDataSetMetaDataMatrixes("DataSet2"),
+                MessagesHelper.CreateDataSetMetaDataMatrices("DataSet2"),
               //  MessagesHelper.CreateDataSetMetaData3("DataSet3")
             };
 
@@ -911,8 +911,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
-        /// <param name="uadpNetworkMessageEncode"></param>
-        /// <param name="uadpNetworkMessageDecoded"></param>
+        /// <param name="uadpNetworkMessage"></param>
+        /// <param name="dataSetReaders"></param>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = uadpNetworkMessage.Encode();

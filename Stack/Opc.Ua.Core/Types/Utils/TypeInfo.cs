@@ -1095,7 +1095,7 @@ namespace Opc.Ua
 
             TypeInfo typeInfo = Construct(value.GetType());
 
-            // check for instances of matrixes.
+            // check for instances of matrices.
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
                 Matrix matrix = value as Matrix;

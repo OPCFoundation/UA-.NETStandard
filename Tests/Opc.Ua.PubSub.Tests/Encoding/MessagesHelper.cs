@@ -990,11 +990,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create version of datasetmetadata matrixes
+        /// Create version of datasetmetadata matrices
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
-        public static DataSetMetaDataType CreateDataSetMetaDataMatrixes(string dataSetName)
+        public static DataSetMetaDataType CreateDataSetMetaDataMatrices(string dataSetName)
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
