@@ -127,7 +127,6 @@ namespace Opc.Ua.Client.Tests
             m_session.Dispose();
             m_session = null;
             await m_serverFixture.StopAsync().ConfigureAwait(false);
-            await Task.Delay(1000).ConfigureAwait(false);
         }
 
         /// <summary>
