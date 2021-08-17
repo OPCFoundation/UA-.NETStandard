@@ -47,17 +47,26 @@ namespace Opc.Ua.Server.Tests
         public bool OperationLimits { get; set; }
         public int ReverseConnectTimeout { get; set; }
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+        public bool SecurityNone { get; set; } = false;
+        public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
 
         /// <summary>
-        /// Start server fixture on random port.
+        /// Start server fixture on random or fixed port.
         /// </summary>
-        public async Task<T> StartAsync(TextWriter writer)
+        public async Task<T> StartAsync(TextWriter writer, int port = 0)
         {
             Random m_random = new Random();
             bool retryStartServer = false;
-            int serverStartRetries = 25;
-            int testPort = ServerFixtureUtils.GetNextFreeIPPort();
+            int testPort = port;
+            int serverStartRetries = 1;
+
+            if (port <= 0)
+            {
+                testPort = ServerFixtureUtils.GetNextFreeIPPort();
+                serverStartRetries = 25;
+            }
+
             do
             {
                 try
@@ -66,12 +75,12 @@ namespace Opc.Ua.Server.Tests
                 }
                 catch (ServiceResultException sre)
                 {
-                    serverStartRetries--;
-                    if (serverStartRetries == 0 ||
+                    if (serverStartRetries <= 0 ||
                         sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
                         throw;
                     }
+                    serverStartRetries--;
                     testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     retryStartServer = true;
                 }
@@ -93,22 +102,36 @@ namespace Opc.Ua.Server.Tests
 
             // create the application configuration. Use temp path for cert stores.
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-            var endpointUrl = $"opc.tcp://localhost:{port}/" + typeof(T).Name;
+            var endpointUrl = $"{UriScheme}://localhost:{port}/" + typeof(T).Name;
             var serverConfig = application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
                 "uri:opcfoundation.org:" + typeof(T).Name)
                 .AsServer(
                     new string[] {
                     endpointUrl
-                })
-                .AddUnsecurePolicyNone()
-                // add deprecated policies for tests
-                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
-                .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
-                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
-                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
-                .AddSignPolicies()
-                .AddSignAndEncryptPolicies();
+                });
+
+            if (SecurityNone)
+            {
+                serverConfig.AddUnsecurePolicyNone();
+            }
+#if mist
+            if (endpointUrl.StartsWith(Utils.UriSchemeHttps, StringComparison.InvariantCultureIgnoreCase))
+            {
+                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
+            }
+            else if(endpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.InvariantCultureIgnoreCase))
+#endif
+            {
+                // add deprecated policies for opc.tcp tests
+                serverConfig.AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
+                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
+                    .AddSignPolicies()
+                    .AddSignAndEncryptPolicies();
+            }
+
             if (OperationLimits)
             {
                 serverConfig.SetOperationLimits(new OperationLimits() {
@@ -120,6 +143,7 @@ namespace Opc.Ua.Server.Tests
                     MaxNodesPerTranslateBrowsePathsToNodeIds = 1000
                 });
             }
+
             if (ReverseConnectTimeout != 0)
             {
                 serverConfig.SetReverseConnect(new ReverseConnectServerConfiguration() {

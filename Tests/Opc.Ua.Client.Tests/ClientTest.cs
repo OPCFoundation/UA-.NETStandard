@@ -46,11 +46,17 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest
     {
+        static object[] FixtureArgs = {
+            new object [] { Utils.UriSchemeOpcTcp},
+            new object [] { Utils.UriSchemeHttps}
+        };
+
         const int MaxReferences = 100;
         const int MaxTimeout = 10000;
         ServerFixture<ReferenceServer> m_serverFixture;
@@ -60,7 +66,13 @@ namespace Opc.Ua.Client.Tests
         ReferenceDescriptionCollection m_referenceDescriptions;
         Session m_session;
         OperationLimits m_operationLimits;
+        string m_uriScheme;
         Uri m_url;
+
+        public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp)
+        {
+            m_uriScheme = uriScheme;
+        }
 
         #region DataPointSources
         [DatapointSource]
@@ -85,19 +97,23 @@ namespace Opc.Ua.Client.Tests
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>();
-            m_clientFixture = new ClientFixture();
-            m_serverFixture.AutoAccept = true;
-            m_serverFixture.OperationLimits = true;
+            m_serverFixture = new ServerFixture<ReferenceServer> {
+                UriScheme = m_uriScheme,
+                SecurityNone = true,
+                AutoAccept = true,
+                OperationLimits = true
+            };
             if (writer != null)
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+
+            m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
+            m_clientFixture.Config.TransportQuotas.MaxMessageSize =
             m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
-            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
+            m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
 
@@ -155,7 +171,7 @@ namespace Opc.Ua.Client.Tests
         public async Task GetEndpoints()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = 1000;
+            endpointConfiguration.OperationTimeout = 10000;
 
             using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
             {

@@ -65,7 +65,14 @@ namespace Opc.Ua.Server.Tests
         {
             // Find TCP endpoint
             var endpoints = server.GetEndpoints();
-            var endpoint = endpoints.FirstOrDefault(e => e.TransportProfileUri == Profiles.UaTcpTransport);
+            var endpoint = endpoints.FirstOrDefault(e =>
+                e.TransportProfileUri.Equals(Profiles.UaTcpTransport) ||
+                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport));
+
+            if (endpoint == null)
+            {
+                throw new System.Exception("Unsupported transport profile.");
+            }
 
             // no security
             endpoint.SecurityMode = MessageSecurityMode.None;

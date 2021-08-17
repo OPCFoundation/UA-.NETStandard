@@ -15,6 +15,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Security;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -78,8 +79,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public int OperationTimeout
         {
-            get { return m_operationTimeout; }
-            set { m_operationTimeout = value; }
+            get => m_operationTimeout;
+            set => m_operationTimeout = value;
         }
 
         /// <inheritdoc/>
@@ -131,8 +132,8 @@ namespace Opc.Ua.Bindings
                     var propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
                     if (propertyInfo != null)
                     {
-                        Func<HttpRequestMessage, X509Certificate2, X509Chain, System.Net.Security.SslPolicyErrors, bool>
-                            serverCertificateCustomValidationCallback = (Func<HttpRequestMessage, X509Certificate2, X509Chain, System.Net.Security.SslPolicyErrors, bool>)propertyInfo.GetValue(handler);
+                        Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>
+                            serverCertificateCustomValidationCallback;
 
                         try
                         {
@@ -150,6 +151,7 @@ namespace Opc.Ua.Bindings
                                     }
                                     return false;
                                 };
+                            propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
                         }
                         catch (PlatformNotSupportedException)
                         {
@@ -171,10 +173,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Close()
         {
-            if (m_client != null)
-            {
-                m_client.Dispose();
-            }
+            m_client?.Dispose();
         }
 
         /// <summary>
