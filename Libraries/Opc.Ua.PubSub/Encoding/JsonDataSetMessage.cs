@@ -144,7 +144,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 DecodeErrorReason = ValidateMetadataVersion(dataSetReader?.DataSetMetaData?.ConfigurationVersion);
-                if (OnDecodeErrorMetadataMajorVersionChange)
+                if (IsMetadataMajorVersionChange)
                 {
                     return;
                 }
@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Encoding
                 DecodeErrorReason = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
 
                 if ( (payload.Count > dataSetReader.DataSetMetaData.Fields.Count) ||
-                     OnDecodeErrorMetadataMajorVersionChange)
+                     IsMetadataMajorVersionChange)
                 {
                     // filter out payload that has more fields than the searched datasetMetadata or
                     // doesn't pass metadata version

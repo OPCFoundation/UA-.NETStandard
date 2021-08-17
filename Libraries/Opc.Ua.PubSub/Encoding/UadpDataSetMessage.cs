@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             DecodeErrorReason = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
 
-            if (!OnDecodeErrorMetadataMajorVersionChange)
+            if (!IsMetadataMajorVersionChange)
             {
                 DataSet = DecodeFieldMessageData(binaryDecoder, dataSetReader);
             }
@@ -415,8 +415,8 @@ namespace Opc.Ua.PubSub.Encoding
                 Status = ((uint)code) << 16;
             }
 
-            uint minorVersion = ConfigMinorVersion;
-            uint majorVersion = ConfigMajorVersion;
+            uint minorVersion = kDefaultConfigMinorVersion;
+            uint majorVersion = kDefaultConfigMajorVersion;
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion) != 0)
             {
                 majorVersion = decoder.ReadUInt32("ConfigurationMajorVersion");

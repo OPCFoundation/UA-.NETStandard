@@ -271,7 +271,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Assert
             Assert.AreEqual(DataSetDecodeErrorReason.NoError, uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(false, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreEqual(false, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
             Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
@@ -330,8 +330,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decoder.Dispose();
 
             // Assert
-            Assert.AreEqual(DataSetDecodeErrorReason.MetadataMinorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(false, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreEqual(DataSetDecodeErrorReason.NoError, uaDataSetMessageDecoded.DecodeErrorReason);
+            Assert.AreEqual(false, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
             Assert.AreNotEqual(null, uaDataSetMessageDecoded.DataSet);
             // compare uadpDataSetMessage with uaDataSetMessageDecoded
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
@@ -390,7 +390,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // Assert
             Assert.AreEqual(DataSetDecodeErrorReason.MetadataMajorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(true, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreEqual(true, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
             Assert.AreEqual(null, uaDataSetMessageDecoded.DataSet);
         }
 
@@ -446,8 +446,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             decoder.Dispose();
 
             // Assert
-            Assert.AreEqual(DataSetDecodeErrorReason.MetadataVersion, uaDataSetMessageDecoded.DecodeErrorReason);
-            Assert.AreEqual(true, uaDataSetMessageDecoded.OnDecodeErrorMetadataMajorVersionChange);
+            Assert.AreEqual(DataSetDecodeErrorReason.MetadataMajorVersion, uaDataSetMessageDecoded.DecodeErrorReason);
+            Assert.AreEqual(true, uaDataSetMessageDecoded.IsMetadataMajorVersionChange);
             Assert.AreEqual(null, uaDataSetMessageDecoded.DataSet);
         }
 

@@ -589,9 +589,9 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             m_uaDataSetMessages.Add(jsonDataSetMessage);
                         }
-                        else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
+                        else if (jsonDataSetMessage.DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
                         {
-                            OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
+                            OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataMajorVersion, this, dataSetReader));
                         }
                     }
                 }

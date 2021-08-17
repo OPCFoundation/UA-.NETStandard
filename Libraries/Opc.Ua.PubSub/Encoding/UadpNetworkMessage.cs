@@ -778,9 +778,9 @@ namespace Opc.Ua.PubSub.Encoding
                             {
                                 dataSetMessages.Add(uadpDataSetMessage);
                             }
-                            else if (uadpDataSetMessage.OnDecodeErrorMetadataMajorVersionChange)
+                            else if (uadpDataSetMessage.IsMetadataMajorVersionChange)
                             {
-                                OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataVersion, this, dataSetReader));
+                                OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataMajorVersion, this, dataSetReader));
                             }
                         }
                     }

@@ -41,6 +41,15 @@ namespace Opc.Ua.PubSub
     {
         private ushort m_dataSetWriterId;
 
+        #region Public Events
+
+        /// <summary>
+        /// The Default event for an error encountered during decoding the dataset messages
+        /// </summary>
+        public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
+
+        #endregion
+
         #region Protected Fields
         /// <summary>
         /// The DataSetMetaData
@@ -190,13 +199,5 @@ namespace Opc.Ua.PubSub
         }
         #endregion
 
-        #region Public Events
-
-        /// <summary>
-        /// The Default event for an error encountered during decoding the dataset messages
-        /// </summary>
-        public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
-
-        #endregion
     }
 }

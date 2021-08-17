@@ -553,7 +553,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="e"></param>
         private void NetworkMessage_DataSetDecodeErrorOccurred(object sender, DataSetDecodeErrorEventArgs e)
         {
-            if (e.DecodeErrorReason == DataSetDecodeErrorReason.MetadataVersion)
+            if (e.DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion)
             {
                 // Resend metadata request
                 // check if it is possible to request the metadata information
