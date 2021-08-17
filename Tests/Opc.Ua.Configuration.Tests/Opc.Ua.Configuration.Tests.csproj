@@ -26,7 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
@@ -36,4 +36,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+</Project>
 
