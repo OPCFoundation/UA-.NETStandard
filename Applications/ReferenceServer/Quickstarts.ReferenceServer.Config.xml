@@ -258,10 +258,10 @@
     <OperationLimits>
       <MaxNodesPerRead>1000</MaxNodesPerRead>
       <MaxNodesPerWrite>1000</MaxNodesPerWrite>
-      <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
-      <MaxMonitoredItemsPerCall>500</MaxMonitoredItemsPerCall>
       <MaxNodesPerMethodCall>250</MaxNodesPerMethodCall>
+      <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
       <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
     </OperationLimits>
   </ServerConfiguration>
 
