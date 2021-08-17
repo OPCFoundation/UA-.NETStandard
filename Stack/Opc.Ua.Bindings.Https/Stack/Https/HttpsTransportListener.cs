@@ -236,8 +236,12 @@ namespace Opc.Ua.Bindings
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
             // note: although security tools recommend 'None' here,
-            // it only works on all platforms if Tls12 is used
+            // it only works on .NET 4.6 if Tls12 is used
+#if NET462
             httpsOptions.SslProtocols = SslProtocols.Tls12;
+#else
+            httpsOptions.SslProtocols = SslProtocols.None;
+#endif
             m_hostBuilder.UseKestrel(options => {
                 options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
                     // listenOptions.NoDelay = true;
