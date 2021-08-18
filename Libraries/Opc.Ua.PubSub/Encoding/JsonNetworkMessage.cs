@@ -261,11 +261,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="dataSetReaders"></param>
         public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
-            if (dataSetReaders == null || dataSetReaders.Count == 0)
-            {
-                return;
-            }
-
             string json = System.Text.Encoding.ASCII.GetString(message);  
 
             using (JsonDecoder jsonDecoder = new JsonDecoder(json, context))
@@ -485,8 +480,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        private void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IEnumerable<DataSetReaderDataType> dataSetReaders)
+        private void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IList<DataSetReaderDataType> dataSetReaders)
         {
+            if (dataSetReaders == null || dataSetReaders.Count == 0)
+            {
+                return;
+            }
             try
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();

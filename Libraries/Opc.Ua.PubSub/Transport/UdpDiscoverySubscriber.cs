@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Transport
 
         #region Public Methods
         /// <summary>
-        /// Enqueues the specfoed DataSetWriterId for DataSetInformation to be requested 
+        /// Enqueue the specified DataSetWriterId for DataSetInformation to be requested 
         /// </summary>
         /// <param name="writerId"></param>
         public void AddWriterIdForDataSetMetadata(UInt16 writerId)

@@ -346,7 +346,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
                 QueueName = brokerQueueName,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 10000
+                MetaDataUpdateTime = 0
             };
             dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
 
@@ -373,7 +373,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             {
                 QueueName = brokerQueueName,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 45000
+                MetaDataUpdateTime = 0
             };
             dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);

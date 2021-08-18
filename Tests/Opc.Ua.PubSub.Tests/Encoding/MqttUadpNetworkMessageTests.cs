@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
-                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices")
+                //MessagesHelper.CreateDataSetMetaDataMatrices("Matrices")
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(

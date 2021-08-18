@@ -168,11 +168,6 @@ namespace Opc.Ua.PubSub.Transport
                         dataSet = state.ExcludeUnchangedFields(dataSetWriter, dataSet);
                     }
                 }
-
-                if (dataSet != null)
-                {
-                    state.OnMessagePublished(dataSetWriter, dataSet);
-                }
             }
 
             return dataSet;
@@ -926,7 +921,7 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 networkMessages.Add(CreateDataSetMetaDataNetworkMessage(writerGroupConfiguration, dataSetWriter.DataSetWriterId, dataSet.DataSetMetaData));
                             }
-
+                           
                             JsonDataSetWriterMessageDataType jsonDataSetMessageSettings =
                                 ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) as JsonDataSetWriterMessageDataType;
                             if (jsonDataSetMessageSettings != null)
@@ -944,6 +939,8 @@ namespace Opc.Ua.PubSub.Transport
                                 jsonDataSetMessage.Status = StatusCodes.Good;
 
                                 jsonDataSetMessages.Add(jsonDataSetMessage);
+
+                                state.OnMessagePublished(dataSetWriter, dataSet);
                             }
                         }
                     }
@@ -1084,6 +1081,8 @@ namespace Opc.Ua.PubSub.Transport
                                 uadpDataSetMessage.Status = StatusCodes.Good;
 
                                 uadpDataSetMessages.Add(uadpDataSetMessage);
+
+                                state.OnMessagePublished(dataSetWriter, dataSet);
                             }
                         }
                     }

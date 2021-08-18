@@ -45,7 +45,12 @@ namespace Opc.Ua.PubSub
         {
             public uint MessageCount;
             public DataSet LastDataSet;
-            public ConfigurationVersionDataType ConfigurationVersion;
+
+            public ConfigurationVersionDataType ConfigurationVersion
+            {
+                get;
+                set;
+            }
             public DateTime LastMetaDataUpdate;
         }
 
