@@ -107,14 +107,21 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, 62540).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize =
             m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            try
+            {
+                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+            }
         }
 
         /// <summary>
@@ -123,9 +130,12 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            m_session.Close();
-            m_session.Dispose();
-            m_session = null;
+            if (m_session != null)
+            {
+                m_session.Close();
+                m_session.Dispose();
+                m_session = null;
+            }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
         }
 
