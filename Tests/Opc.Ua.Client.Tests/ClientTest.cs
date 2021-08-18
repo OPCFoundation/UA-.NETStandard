@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, 62540).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
