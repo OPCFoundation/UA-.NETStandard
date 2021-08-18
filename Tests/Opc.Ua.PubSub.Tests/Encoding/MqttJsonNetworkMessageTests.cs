@@ -30,9 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.PubSub.Tests.Transport;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -42,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private const UInt16 NamespaceIndexAllTypes = 3;
         
         private const string MqttAddressUrl = "mqtt://localhost:1883";
-
+        static IList<DateTime> s_publishTimes = new List<DateTime>();
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -51,6 +55,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/DI/");
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/ADI/");
             ServiceMessageContext.GlobalContext.NamespaceUris.Append("http://opcfoundation.org/UA/IA/");
+        }
+
+        [SetUp()]
+        public void TestSetup()
+        {
+            s_publishTimes.Clear();
         }
 
         [Test(Description = "Validate NetworkMessageHeader & PublisherId with PublisherId as parameter")]
@@ -872,10 +882,73 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.Fail("Not implemented");
         }
 
+        
+       
         [Test(Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Json publisher")]
-        public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically()
+        public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically([Values(100, 1000, 2000)] double metaDataUpdateTime,
+            [Values(30, 40)] double maxDeviation,
+            [Values(10)] int publishTimeInSeconds)
         {
-            Assert.Fail("Not implemented");
+            s_publishTimes.Clear();
+            // arrange
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("MetaData1"),
+            };
+            // create the publisher configuration
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl, publisherId: 1, writerGroupId: 1,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, 0);
+
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // create the mock IMqttPubSubConnection that will bje used to monitor hpw often the metadata will be sent
+            var mockConnection = new Mock<IMqttPubSubConnection>();
+            
+            mockConnection.Setup(x
+                => x.CanPublishMetaData(It.IsAny<WriterGroupDataType>(), It.IsAny<DataSetWriterDataType>())).Returns(true);
+
+            mockConnection.Setup(x => x.CreateDataSetMetaDataNetworkMessage(It.IsAny<WriterGroupDataType>(), It.IsAny<DataSetWriterDataType>()))
+                .Callback(() => s_publishTimes.Add(DateTime.Now));
+
+            WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections[0].WriterGroups[0];
+
+            //Act 
+            MqttMetadataPublisher mqttMetaDataPublisher = new MqttMetadataPublisher(mockConnection.Object, writerGroupDataType,
+                writerGroupDataType.DataSetWriters[0], metaDataUpdateTime);
+            mqttMetaDataPublisher.Start();
+
+            //wait so many seconds
+            Thread.Sleep(publishTimeInSeconds * 1000);
+            mqttMetaDataPublisher.Stop();
+            int faultIndex = -1;
+            double faultDeviation = 0;
+
+            s_publishTimes = (from t in s_publishTimes
+                orderby t
+                select t).ToList();
+
+            //Assert
+            for (int i = 1; i < s_publishTimes.Count; i++)
+            {
+                double interval = s_publishTimes[i].Subtract(s_publishTimes[i - 1]).TotalMilliseconds;
+                double deviation = Math.Abs(metaDataUpdateTime - interval);
+                if (deviation >= maxDeviation && deviation > faultDeviation)
+                {
+                    faultIndex = i;
+                    faultDeviation = deviation;
+                }
+            }
+
+            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", metaDataUpdateTime, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
         }
 
 

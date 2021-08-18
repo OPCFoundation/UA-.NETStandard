@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// MQTT implementation of <see cref="UaPubSubConnection"/> class.
     /// </summary>
-    internal class MqttPubSubConnection : UaPubSubConnection
+    internal class MqttPubSubConnection : UaPubSubConnection, IMqttPubSubConnection
     {
         #region Private Fields
         private readonly string m_applicationId;
@@ -120,6 +120,23 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Public Methods
+
+        /// <summary>
+        /// Determine if the connection can publish metadata for specified writer group and data set writer
+        /// </summary>
+        public bool CanPublishMetaData(WriterGroupDataType writerGroupConfiguration,
+            DataSetWriterDataType dataSetWriter)
+        {
+            if (!CanPublish(writerGroupConfiguration)) return false;
+
+            if (Application.UaPubSubConfigurator.FindStateForObject(dataSetWriter) != PubSubState.Operational)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Create the list of network messages built from the provided writerGroupConfiguration
         /// </summary>
@@ -142,35 +159,6 @@ namespace Opc.Ua.PubSub.Transport
 
             // no other encoding is implemented
             return null;
-        }
-
-        /// <summary>
-        /// Create and return the current Dataset for the provided dataSetWriter according to current WriterGroupPublishState
-        /// </summary>
-        /// <returns></returns>
-        private DataSet CreateDataSet(DataSetWriterDataType dataSetWriter, WriterGroupPublishState state)
-        {
-            DataSet dataSet = null;
-            //check if dataSetWriter enabled
-            if (dataSetWriter.Enabled)
-            {
-                uint sequenceNumber = 0;
-                bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
-
-                dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, isDeltaFrame);
-
-                if (dataSet != null)
-                {
-                    dataSet.SequenceNumber = sequenceNumber;
-
-                    if (isDeltaFrame)
-                    {
-                        dataSet = state.ExcludeUnchangedFields(dataSetWriter, dataSet);
-                    }
-                }
-            }
-
-            return dataSet;
         }
         
         /// <summary> 
@@ -828,6 +816,35 @@ namespace Opc.Ua.PubSub.Transport
             {
                 Utils.Trace(ex, "MqttPubSubConnection.CertificateValidation error.");
             }
+        }
+
+        /// <summary>
+        /// Create and return the current Dataset for the provided dataSetWriter according to current WriterGroupPublishState
+        /// </summary>
+        /// <returns></returns>
+        private DataSet CreateDataSet(DataSetWriterDataType dataSetWriter, WriterGroupPublishState state)
+        {
+            DataSet dataSet = null;
+            //check if dataSetWriter enabled
+            if (dataSetWriter.Enabled)
+            {
+                uint sequenceNumber = 0;
+                bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
+
+                dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, isDeltaFrame);
+
+                if (dataSet != null)
+                {
+                    dataSet.SequenceNumber = sequenceNumber;
+
+                    if (isDeltaFrame)
+                    {
+                        dataSet = state.ExcludeUnchangedFields(dataSetWriter, dataSet);
+                    }
+                }
+            }
+
+            return dataSet;
         }
         #endregion Private methods
 

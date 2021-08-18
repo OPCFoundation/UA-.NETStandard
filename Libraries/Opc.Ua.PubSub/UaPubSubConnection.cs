@@ -209,14 +209,16 @@ namespace Opc.Ua.PubSub
                 return false;
             }
 
-            if (writerGroupConfiguration.Enabled)
+            if (Application.UaPubSubConfigurator.FindStateForObject(writerGroupConfiguration) != PubSubState.Operational)
             {
-                foreach (DataSetWriterDataType writer in writerGroupConfiguration.DataSetWriters)
+                return false;
+            }
+
+            foreach (DataSetWriterDataType writer in writerGroupConfiguration.DataSetWriters)
+            {
+                if (writer.Enabled)
                 {
-                    if (writer.Enabled)
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
 

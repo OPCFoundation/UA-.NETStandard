@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Transport
     public class MqttMetadataPublisher
     {
         #region Private Fields
-        private readonly MqttPubSubConnection m_parentConnection;
+        private readonly IMqttPubSubConnection m_parentConnection;
         private readonly WriterGroupDataType m_writerGroup;
         private readonly DataSetWriterDataType m_dataSetWriter;
 
@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="MqttMetadataPublisher"/>.
         /// </summary>
-        internal MqttMetadataPublisher(MqttPubSubConnection parentConnection, WriterGroupDataType writerGroup, DataSetWriterDataType dataSetWriter,
+        internal MqttMetadataPublisher(IMqttPubSubConnection parentConnection, WriterGroupDataType writerGroup, DataSetWriterDataType dataSetWriter,
             double metaDataUpdateTime)
         {
             m_parentConnection = parentConnection;
@@ -91,8 +91,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         private bool CanPublish()
         {
-            return m_parentConnection.Application.UaPubSubConfigurator.FindStateForObject(m_dataSetWriter) ==
-                   PubSubState.Operational;
+            return m_parentConnection.CanPublishMetaData(m_writerGroup, m_dataSetWriter);
         }
 
         /// <summary>
