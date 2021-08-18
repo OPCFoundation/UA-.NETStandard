@@ -753,7 +753,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
         }
 
-        [Test(Description = "Validate that metadata is sent at startup for a MQTT Json publisher")]
+        [Test(Description = "Validate that metadata is encoded/decoded correctly")]
         public void ValidateMetaDataIsEncodedCorrectly()
         {
             // arrange
@@ -805,9 +805,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
             }
         }
-
-        [Test(Description = "Validate that metadata is sent at startup for a MQTT Json publisher")]
-        public void ValidateMetaDataIsSentAtStartUp()
+        
+        [Test(Description = "Validate that metadata with update time 0 is sent at startup for a MQTT Json publisher")]
+        public void ValidateMetaDataUpdateTimeZeroSentAtStartup()
         {
             // arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
@@ -816,7 +816,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
+                MessagesHelper.CreateDataSetMetaData1("MetaData1"),
+                MessagesHelper.CreateDataSetMetaData2("MetaData2"),
+                MessagesHelper.CreateDataSetMetaData3("MetaData3"),
                 MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
+                MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
+                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices"),
             };
 
             PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
@@ -825,7 +830,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                 dataSetFieldContentMask: dataSetFieldContentMask,
-                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, 0);
 
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
@@ -847,12 +852,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
-
+            
+            // check if there are as many metadata messages as metadata were created in ARRAY
+            Assert.AreEqual(dataSetMetaDataArray.Length, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count is different from the number of metadata in publisher!");
+            int index = 0;
             foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
-                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                // compare the initial metadata with the one from the messages
+                Assert.IsTrue(Utils.IsEqual(dataSetMetaDataArray[index], uaMetaDataNetworkMessage.DataSetMetaData),
+                    "Metadata from network message is different from the original one for name " + dataSetMetaDataArray[index].Name);
+
+                index++;
             }
         }
+
+        [Test(Description = "Validate that metadata with update time 0 is sent when the metadata changes for a MQTT Json publisher")]
+        public void ValidateMetaDataUpdateTimeZeroSentAtMetaDataChange()
+        {
+            Assert.Fail("Not implemented");
+        }
+
+        [Test(Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Json publisher")]
+        public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically()
+        {
+            Assert.Fail("Not implemented");
+        }
+
 
         #region Private methods
 
