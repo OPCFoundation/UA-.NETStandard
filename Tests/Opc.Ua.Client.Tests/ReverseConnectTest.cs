@@ -75,13 +75,16 @@ namespace Opc.Ua.Client.Tests
             }
 
             // start ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>();
-            m_clientFixture = new ClientFixture();
-            m_serverFixture.AutoAccept = true;
-            m_serverFixture.ReverseConnectTimeout = MaxTimeout;
-            m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+            m_serverFixture = new ServerFixture<ReferenceServer> {
+                AutoAccept = true,
+                SecurityNone = true,
+                ReverseConnectTimeout = MaxTimeout,
+                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
+            };
             m_server = await m_serverFixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+
             // create client
+            m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
             await m_clientFixture.StartReverseConnectHost().ConfigureAwait(false);
             m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + m_serverFixture.Port.ToString()));

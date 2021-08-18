@@ -45,6 +45,8 @@ namespace Opc.Ua.Client.Tests
         public string EndpointUrl { get; private set; }
         public string ReverseConnectUri { get; private set; }
         public ReverseConnectManager ReverseConnectManager { get; private set; }
+        public uint SessionTimeout { get; set; } = 10000;
+        public int OperationTimeout { get; set; } = 10000;
         public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
 
         #region Public Methods
@@ -188,7 +190,7 @@ namespace Opc.Ua.Client.Tests
 
             var session = await Session.Create(
                 Config, endpoint, false, false,
-                Config.ApplicationName, 10000, null, null).ConfigureAwait(false);
+                Config.ApplicationName, SessionTimeout, null, null).ConfigureAwait(false);
 
             Endpoint = session.ConfiguredEndpoint;
 
@@ -221,6 +223,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.Ignore("The endpoint is not supported by the server.");
             }
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
+            endpointConfiguration.OperationTimeout = OperationTimeout;
             return new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
         }
 
@@ -269,10 +272,10 @@ namespace Opc.Ua.Client.Tests
         /// Get endpoints from discovery endpoint.
         /// </summary>
         /// <param name="url">The url of the discovery endpoint.</param>
-        public static async Task<EndpointDescriptionCollection> GetEndpoints(Uri url)
+        public async Task<EndpointDescriptionCollection> GetEndpoints(Uri url)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = 1000;
+            endpointConfiguration.OperationTimeout = OperationTimeout;
 
             using (var client = DiscoveryClient.Create(url, endpointConfiguration))
             {

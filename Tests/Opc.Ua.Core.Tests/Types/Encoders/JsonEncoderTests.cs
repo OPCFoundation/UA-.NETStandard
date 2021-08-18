@@ -28,15 +28,13 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
-using NUnit.Framework;
-using System.Threading;
-using BenchmarkDotNet.Attributes;
-using System.Text;
 using System.IO;
+using System.Linq;
+using System.Text;
+using BenchmarkDotNet.Attributes;
+using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -121,10 +119,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.UInt32, UInt32.MinValue, UInt32.MinValue.ToString(), null, true },
             {   BuiltInType.UInt32, UInt32.MaxValue, UInt32.MaxValue.ToString(), null },
 
-            {   BuiltInType.Int32, (Int32)0, null, null },
-            {   BuiltInType.Int32, (Int32)0, "0", null, true },
-            {   BuiltInType.Int32, (Int32)(-12345678), "-12345678", null },
-            {   BuiltInType.Int32, (Int32)12345678, "12345678", null },
+            {   BuiltInType.Int32, 0, null, null },
+            {   BuiltInType.Int32, 0, "0", null, true },
+            {   BuiltInType.Int32, -12345678, "-12345678", null },
+            {   BuiltInType.Int32, 12345678, "12345678", null },
             {   BuiltInType.Int32, Int32.MaxValue, Int32.MaxValue.ToString(), null },
             {   BuiltInType.Int32, Int32.MinValue, Int32.MinValue.ToString(), null },
 
@@ -258,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Variant, Variant.Null, "", null},
             {   BuiltInType.Variant, new Variant((SByte)123), $"{{\"Type\":{BuiltInType.SByte.ToString("d")}, \"Body\":123}}", "123"},
             {   BuiltInType.Variant, new Variant((Int16)12345), $"{{\"Type\":{BuiltInType.Int16.ToString("d")}, \"Body\":12345}}", "12345"},
-            {   BuiltInType.Variant, new Variant((Int32)1234567), $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567"},
+            {   BuiltInType.Variant, new Variant(1234567), $"{{\"Type\":{BuiltInType.Int32.ToString("d")}, \"Body\":1234567}}", "1234567"},
             {   BuiltInType.Variant, new Variant((Int64)123456789), $"{{\"Type\":{BuiltInType.Int64.ToString("d")}, \"Body\":\"123456789\"}}", "\"123456789\""},
             {   BuiltInType.Variant, new Variant((Byte)123), $"{{\"Type\":{BuiltInType.Byte.ToString("d")}, \"Body\":123}}", "123"},
             {   BuiltInType.Variant, new Variant((UInt16)12345), $"{{\"Type\":{BuiltInType.UInt16.ToString("d")}, \"Body\":12345}}", "12345"},
@@ -273,10 +271,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {   BuiltInType.Enumeration, TestEnumType.Ten, $"{TestEnumType.Ten.ToString("d")}", $"\"{TestEnumType.Ten.ToString()}_{TestEnumType.Ten.ToString("d")}\""},
             {   BuiltInType.Enumeration, (TestEnumType) 11, "11", "\"11\""},
 
-            {   BuiltInType.Enumeration, (Int32) 1, "1", "\"1\""},
+            {   BuiltInType.Enumeration,  1, "1", "\"1\""},
             {   BuiltInType.Enumeration, (Int32)TestEnumType.Two, TestEnumType.Two.ToString("d"), $"\"{TestEnumType.Two.ToString("d")}\""},
             {   BuiltInType.Enumeration, (Int32)TestEnumType.Hundred, $"{TestEnumType.Hundred.ToString("d")}", $"\"{TestEnumType.Hundred.ToString("d")}\""},
-            {   BuiltInType.Enumeration, (Int32) 22, "22", "\"22\""},
+            {   BuiltInType.Enumeration,  22, "22", "\"22\""},
 
             // arrays
             {   BuiltInType.Enumeration, TestEnumArray, "[1,2,100]", "[\"One_1\",\"Two_2\",\"Hundred_100\"]"},
@@ -287,7 +285,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }.ToArray();
         #endregion
 
-        #region Setup
+        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -768,6 +766,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         /// <summary>
+        /// Benchmark overhead to create MemoryStream.
+        /// </summary>
+        [Benchmark]
+        [Test]
+        public void MemoryStream()
+        {
+            using (var test = new MemoryStream())
+                _ = test.Length;
+        }
+
+        /// <summary>
         /// Benchmark encoding with internal memory stream.
         /// </summary>
         [Benchmark]
@@ -780,47 +789,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 _ = jsonEncoder.CloseAndReturnText();
             }
         }
-
-        /// <summary>
-        /// Benchmark encoding with memory stream kept open.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void JsonEncoder_Constructor_Streamwriter()
-        {
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, m_memoryStream, true))
-            {
-                TestEncoding(jsonEncoder);
-                int length = jsonEncoder.Close();
-                var result = Encoding.UTF8.GetString(m_memoryStream.ToArray());
-            }
-        }
-
-        /// <summary>
-        /// Benchmark encoding with memory stream kept open,
-        /// use internal reflection to get string from memory stream.
-        /// </summary>
-        [Benchmark]
-        [Test]
-        public void JsonEncoder_Constructor_Streamwriter_Reflection()
-        {
-            using (var jsonEncoder = new JsonEncoder(m_context, false, false, m_memoryStream, true))
-            {
-                TestEncoding(jsonEncoder);
-                var result = jsonEncoder.CloseAndReturnText();
-            }
-        }
         #endregion
 
         #region Private Methods
-        private void TestEncoding(IEncoder encoder, bool topLevelIsArray = false)
+        protected void TestEncoding(IEncoder encoder, bool topLevelIsArray = false)
         {
             if (topLevelIsArray)
             {
-                encoder.WriteNodeId(null, new NodeId(1234, 0));
-                encoder.WriteNodeId(null, new NodeId(1234, 1));
-                encoder.WriteNodeId(null, new NodeId(1234, 2));
-                encoder.WriteNodeId(null, new NodeId(1234, 3));
+                encoder.WriteNodeId(null, new NodeId(10000, 0));
+                encoder.WriteNodeId(null, new NodeId(20000, 1));
+                encoder.WriteNodeId(null, new NodeId(30000, 2));
+                encoder.WriteNodeId(null, new NodeId(40000, 3));
             }
             else
             {

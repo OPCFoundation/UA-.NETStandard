@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,17 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using System.Threading.Tasks;
+using NUnit.Framework;
 
-#if NETFRAMEWORK
-namespace Opc.Ua.PubSub.Tests
+namespace Opc.Ua.Server.Tests
 {
-    static class Program
+    /// <summary>
+    /// Test Standard Server stratup.
+    /// </summary>
+    [TestFixture, Category("Server")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
+    [Parallelizable]
+    public class ServerStartupTests
     {
-        // Main Method 
-        static public void Main(String[] args)
+        const double MaxAge = 10000;
+        const uint TimeoutHint = 10000;
+
+        [DatapointSource]
+        public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps };
+
+        #region Test Methods
+        /// <summary>
+        /// Start a server fixture with different uri schemes.
+        /// </summary>
+        [Theory]
+        public async Task StartServerAsync(
+            string uriScheme
+            )
         {
+            var fixture = new ServerFixture<StandardServer>();
+            Assert.NotNull(fixture);
+            fixture.UriScheme = uriScheme;
+
+            var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            fixture.SetTraceOutput(TestContext.Out);
+            Assert.NotNull(server);
+            await Task.Delay(1000);
+            await fixture.StopAsync().ConfigureAwait(false);
         }
+        #endregion
     }
 }
-#endif

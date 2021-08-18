@@ -25,7 +25,7 @@ namespace Opc.Ua
     public class JsonEncoder : IEncoder, IDisposable
     {
         #region Private Fields
-        private const int kStreamWriterBufferSize = 8192;
+        private const int kStreamWriterBufferSize = 1024;
         private Stream m_stream;
         private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
@@ -63,7 +63,8 @@ namespace Opc.Ua
             bool useReversibleEncoding,
             bool topLevelIsArray = false,
             Stream stream = null,
-            bool leaveOpen = false
+            bool leaveOpen = false,
+            int streamSize = kStreamWriterBufferSize
             )
         {
             Initialize();
@@ -77,12 +78,12 @@ namespace Opc.Ua
             if (m_stream == null)
             {
                 m_memoryStream = new MemoryStream();
-                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), kStreamWriterBufferSize, false);
+                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), streamSize, false);
                 m_leaveOpen = false;
             }
             else
             {
-                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize, m_leaveOpen);
+                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), streamSize, m_leaveOpen);
             }
 
             InitializeWriter();
@@ -91,7 +92,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        [Obsolete("Use Constructor with Stream parameter instead.")]
         public JsonEncoder(
             IServiceMessageContext context,
             bool useReversibleEncoding,
@@ -470,8 +470,8 @@ namespace Opc.Ua
             m_nestingLevel--;
         }
 
-        private readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
-        private readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
+        private static readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
 
         private void EscapeString(string value)
         {

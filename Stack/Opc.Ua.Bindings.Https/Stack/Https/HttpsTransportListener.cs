@@ -235,10 +235,15 @@ namespace Opc.Ua.Bindings
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
+            // note: although security tools recommend 'None' here,
+            // it only works on .NET 4.6 if Tls12 is used
+#if NET462
+            httpsOptions.SslProtocols = SslProtocols.Tls12;
+#else
             httpsOptions.SslProtocols = SslProtocols.None;
+#endif
             m_hostBuilder.UseKestrel(options => {
-                options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
-                    // listenOptions.NoDelay = true;
+                options.ListenAnyIP(m_uri.Port, listenOptions => {
                     listenOptions.UseHttps(httpsOptions);
                 });
             });
@@ -343,7 +348,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1_OR_GREATER || NET5_0
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
@@ -382,7 +387,7 @@ namespace Opc.Ua.Bindings
             Start();
         }
 
-        private async Task<byte[]> ReadBodyAsync(HttpRequest req)
+        private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
         {
             using (var memory = new MemoryStream())
             using (var reader = new StreamReader(req.Body))
