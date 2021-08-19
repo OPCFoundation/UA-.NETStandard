@@ -887,8 +887,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
             Assert.AreEqual(0, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count shall be zero for the second time when create messages is called!");
-
-
         }
 
         [Test(Description = "Validate that metadata with update time 0 is sent when the metadata changes for a MQTT Json publisher")]
@@ -1060,7 +1058,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
 
-        // todo tests for encoding metadata of jsonNetworkMessage - test all mandatory parameters
+        // todo: tests for encoding metadata of jsonNetworkMessage - test all mandatory parameters
+
+
 
         #region Private methods
 

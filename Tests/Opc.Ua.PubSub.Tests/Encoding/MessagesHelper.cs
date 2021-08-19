@@ -325,7 +325,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Get Json ua-data entries
+        /// Get Json ua-metadata entries
         /// </summary>
         /// <param name="networkMessages"></param>
         /// <returns></returns>
@@ -339,6 +339,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
+        /// Get Uadp ua-metadata entries
+        /// </summary>
+        /// <param name="networkMessages"></param>
+        /// <returns></returns>
+        public static List<UadpNetworkMessage> GetUadpUaMetaDataNetworkMessages(IList<UadpNetworkMessage> networkMessages)
+        {
+            if (networkMessages != null)
+            {
+                return networkMessages.Where(x =>x.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse && x.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData).ToList();
+            }
+            return null;
+        }
+                /// <summary>
         /// Create a Publisher with the specified parameters
         /// </summary>
         /// <param name="transportProfileUri"></param>
@@ -991,7 +1004,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create version of datasetmetadata matrices
+        /// Create version of DataSetMetaData matrices
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1190,7 +1203,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create version of datasetmetadata arrays
+        /// Create version of DataSetMetaData arrays
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1389,7 +1402,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create version 1 of datasetmetadata
+        /// Create version 1 of DataSetMetaData
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1439,7 +1452,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create version 2 of dataset metadata
+        /// Create version 2 of DataSetMetaData
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1489,7 +1502,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create version 3 of datasetMetadata
+        /// Create version 3 of DataSetMetaData
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>
@@ -1539,7 +1552,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create Metadata for all types
+        /// Create DataSetMetaData for all types
         /// </summary>
         /// <param name="dataSetName"></param>
         /// <returns></returns>

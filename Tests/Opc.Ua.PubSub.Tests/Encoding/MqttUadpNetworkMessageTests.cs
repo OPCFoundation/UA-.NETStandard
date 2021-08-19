@@ -908,6 +908,163 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
         }
 
+
+        [Test(Description = "Validate that Uadp metadata is encoded/decoded correctly")]
+        public void ValidateMetaDataIsEncodedCorrectly(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        {
+            // Arrange
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+           
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("MetaData1"),
+                MessagesHelper.CreateDataSetMetaData2("MetaData2"),
+                MessagesHelper.CreateDataSetMetaData3("MetaData3"),
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
+                MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
+                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices"),
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            WriterGroupPublishState publishState = new WriterGroupPublishState();
+
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+
+            List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Uadp ua-metadata entries are missing from configuration!");
+
+            foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
+            {
+                CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+            }
+        }
+
+        [Test(Description = "Validate that metadata with update time 0 is sent at startup for a MQTT Uadp publisher")]
+        public void ValidateMetaDataUpdateTimeZeroSentAtStartup(
+            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData,
+            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                DataSetFieldContentMask dataSetFieldContentMask,
+            [Values((byte)1, (UInt16)1, (UInt32)1, (UInt64)1, "abc")] object publisherId)
+        {
+            // arrange
+            UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
+            UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
+            
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("MetaData1"),
+                MessagesHelper.CreateDataSetMetaData2("MetaData2"),
+                MessagesHelper.CreateDataSetMetaData3("MetaData3"),
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
+                MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
+                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices"),
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttUadpTransport,
+                MqttAddressUrl, publisherId: publisherId, writerGroupId: 1,
+                uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
+                uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes);
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            WriterGroupPublishState publishState = new WriterGroupPublishState();
+
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
+
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+
+            List<UadpNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
+
+            // check if there are as many metadata messages as metadata were created in ARRAY
+            Assert.AreEqual(dataSetMetaDataArray.Length, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count is different from the number of metadata in publisher!");
+            int index = 0;
+            foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
+            {
+                // compare the initial metadata with the one from the messages
+                Assert.IsTrue(Utils.IsEqual(dataSetMetaDataArray[index], uaMetaDataNetworkMessage.DataSetMetaData),
+                    "Metadata from network message is different from the original one for name " + dataSetMetaDataArray[index].Name);
+
+                index++;
+            }
+
+            // get the messages again and see if there are any metadata messages
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+
+            uaMetaDataNetworkMessages = MessagesHelper.GetUadpUaMetaDataNetworkMessages(networkMessages.Cast<UadpNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Uadp ua-metadata entries are missing from configuration!");
+
+            // check if there are any metadata messages. second time around there shall be no metadata messages
+            Assert.AreEqual(0, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count shall be zero for the second time when create messages is called!");
+        }
+
+        /// <summary>
+        /// Compare encoded/decoded network messages
+        /// </summary>
+        /// <param name="uadpNetworkMessage">the message to encode</param>
+        private void CompareEncodeDecodeMetaData(UadpNetworkMessage uadpNetworkMessage)
+        {
+            Assert.IsTrue(uadpNetworkMessage.IsMetaDataMessage, "The received message is not a metadata message");
+
+            byte[] bytes = uadpNetworkMessage.Encode();
+
+            UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
+            uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
+
+            Assert.IsTrue(uaNetworkMessageDecoded.IsMetaDataMessage, "The Decode message is not a metadata message");
+
+            Assert.AreEqual(uadpNetworkMessage.WriterGroupId, uaNetworkMessageDecoded.WriterGroupId, "The Decoded WriterId does not match encoded value");
+
+            Assert.IsTrue(Utils.IsEqual(uadpNetworkMessage.DataSetMetaData, uaNetworkMessageDecoded.DataSetMetaData), uadpNetworkMessage.DataSetMetaData.Name + " Decoded metadata is not equal ");
+
+        }
+
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
