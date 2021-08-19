@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Tests.Transport;
@@ -856,6 +857,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Act  
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
             Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
+
             var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
@@ -874,16 +876,122 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                 index++;
             }
+
+            // get the messages again and see if there are any metadata messages
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+
+            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
+
+            // check if there are any metadata messages. second time around there shall be no metadata messages
+            Assert.AreEqual(0, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count shall be zero for the second time when create messages is called!");
+
+
         }
 
         [Test(Description = "Validate that metadata with update time 0 is sent when the metadata changes for a MQTT Json publisher")]
         public void ValidateMetaDataUpdateTimeZeroSentAtMetaDataChange()
         {
-            Assert.Fail("Not implemented");
+            // arrange
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("MetaData1"),
+                MessagesHelper.CreateDataSetMetaData2("MetaData2"),
+                MessagesHelper.CreateDataSetMetaData3("MetaData3"),
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
+                MessagesHelper.CreateDataSetMetaDataArrays("Arrays"),
+                MessagesHelper.CreateDataSetMetaDataMatrices("Matrices"),
+            };
+
+            PubSubConfigurationDataType publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
+                Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl, publisherId: 1, writerGroupId: 1,
+                jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
+                dataSetFieldContentMask: dataSetFieldContentMask,
+                dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes, 0);
+
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
+
+            // Create publisher application for multiple datasets
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            WriterGroupPublishState publishState = new WriterGroupPublishState();
+
+            // Act  
+            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            var networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+
+            List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
+
+            // check if there are as many metadata messages as metadata were created in ARRAY
+            Assert.AreEqual(dataSetMetaDataArray.Length, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count is different from the number of metadata in publisher!");
+            int index = 0;
+            foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
+            {
+                // compare the initial metadata with the one from the messages
+                Assert.IsTrue(Utils.IsEqual(dataSetMetaDataArray[index], uaMetaDataNetworkMessage.DataSetMetaData),
+                    "Metadata from network message is different from the original one for name " + dataSetMetaDataArray[index].Name);
+
+                index++;
+            }
+
+            // get the messages again and see if there are any metadata messages
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+
+            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
+
+            // check if there are any metadata messages. second time around there shall be no metadata messages
+            Assert.AreEqual(0, uaMetaDataNetworkMessages.Count, "The ua-metadata messages count shall be zero for the second time when create messages is called!");
+
+            // change the metadata version
+            DateTime currentDateTime = DateTime.UtcNow;
+            foreach (DataSetMetaDataType dataSetMetaData in dataSetMetaDataArray)
+            {
+                dataSetMetaData.ConfigurationVersion.MajorVersion =
+                    ConfigurationVersionUtils.CalculateVersionTime(currentDateTime);
+                dataSetMetaData.ConfigurationVersion.MinorVersion = dataSetMetaData.ConfigurationVersion.MajorVersion;
+            }
+
+            // get the messages again and see if there are any metadata messages
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(networkMessages, "After MetaDataVersion change - connection.CreateNetworkMessages shall not return null");
+            Assert.GreaterOrEqual(networkMessages.Count, 1, "After MetaDataVersion change - connection.CreateNetworkMessages shall have at least one network message");
+
+            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "After MetaDataVersion change - Json ua-metadata entries are missing from configuration!");
+
+            // check if there are any metadata messages. second time around there shall be no metadata messages
+            Assert.AreEqual(dataSetMetaDataArray.Length, uaMetaDataNetworkMessages.Count, "After MetaDataVersion change - The ua-metadata messages count shall be equal to number of dataSetMetaData!");
+
+            index = 0;
+            foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
+            {
+                // compare the initial metadata with the one from the messages
+                Assert.IsTrue(Utils.IsEqual(dataSetMetaDataArray[index], uaMetaDataNetworkMessage.DataSetMetaData),
+                    "After MetaDataVersion change - Metadata from network message is different from the original one for name " + dataSetMetaDataArray[index].Name);
+
+                index++;
+            }
         }
 
-        
-       
         [Test(Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Json publisher")]
         public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically([Values(100, 1000, 2000)] double metaDataUpdateTime,
             [Values(30, 40)] double maxDeviation,
@@ -951,6 +1059,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", metaDataUpdateTime, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
         }
 
+
+        // todo tests for encoding metadata of jsonNetworkMessage - test all mandatory parameters
 
         #region Private methods
 

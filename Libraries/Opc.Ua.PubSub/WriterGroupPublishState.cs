@@ -46,11 +46,7 @@ namespace Opc.Ua.PubSub
             public uint MessageCount;
             public DataSet LastDataSet;
 
-            public ConfigurationVersionDataType ConfigurationVersion
-            {
-                get;
-                set;
-            }
+            public ConfigurationVersionDataType ConfigurationVersion;
             public DateTime LastMetaDataUpdate;
         }
 
@@ -107,7 +103,8 @@ namespace Opc.Ua.PubSub
                 // no matter what the TransportSettings.MetaDataUpdateTime is the ConfigurationVersion is checked
                 if (version == null)
                 {
-                    state.ConfigurationVersion = metadata.ConfigurationVersion;
+                    // keep a copy of ConfigurationVersion
+                    state.ConfigurationVersion = metadata.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
@@ -115,7 +112,8 @@ namespace Opc.Ua.PubSub
                 if (version.MajorVersion != metadata.ConfigurationVersion.MajorVersion ||
                     version.MinorVersion != metadata.ConfigurationVersion.MinorVersion)
                 {
-                    state.ConfigurationVersion = metadata.ConfigurationVersion;
+                    // keep a copy of ConfigurationVersion
+                    state.ConfigurationVersion = metadata.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
                     state.LastMetaDataUpdate = DateTime.UtcNow;
                     return true;
                 }
