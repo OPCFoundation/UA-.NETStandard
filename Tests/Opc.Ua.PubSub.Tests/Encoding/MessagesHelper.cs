@@ -681,7 +681,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpNetworkMessageContentMask uadpNetworkMessageContentMask,
             UadpDataSetMessageContentMask uadpDataSetMessageContentMask,
             DataSetFieldContentMask dataSetFieldContentMask,
-            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData)
+            DataSetMetaDataType[] dataSetMetaDataArray, ushort nameSpaceIndexForData,
+            double metaDataUpdateTime = 0)
         {
             return CreatePublisherConfiguration(
                 transportProfileUri, addressUrl,
@@ -689,7 +690,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 (UInt32)uadpNetworkMessageContentMask,
                 (UInt32)uadpDataSetMessageContentMask,
                 dataSetFieldContentMask,
-                dataSetMetaDataArray, nameSpaceIndexForData);
+                dataSetMetaDataArray, nameSpaceIndexForData, metaDataUpdateTime);
         }
 
         /// <summary>
