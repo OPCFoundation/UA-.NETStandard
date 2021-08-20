@@ -207,6 +207,11 @@ namespace Opc.Ua.Bindings
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = m_mediaTypeHeaderValue;
+                if (EndpointDescription?.SecurityPolicyUri != null &&
+                    string.Compare(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None) != 0)
+                {
+                    content.Headers.Add("OPCUA-SecurityPolicy", EndpointDescription.SecurityPolicyUri);
+                }
 
                 var result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, null);
                 Task.Run(async () => {

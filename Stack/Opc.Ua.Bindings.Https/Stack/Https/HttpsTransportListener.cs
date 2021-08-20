@@ -30,6 +30,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 
 
@@ -230,13 +231,13 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
+
             // note: although security tools recommend 'None' here,
-            // it only works on .NET 4.6 if Tls12 is used
+            // it only works on .NET 4.6.2 if Tls12 is used
 #if NET462
             httpsOptions.SslProtocols = SslProtocols.Tls12;
 #else
@@ -324,15 +325,38 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                EndpointDescription endpoint = null;
+                if (!context.Request.Headers.TryGetValue("OPCUA-SecurityPolicy", out var header))
+                {
+                    header = SecurityPolicies.None;
+                }
 
+                EndpointDescription endpoint = null;
                 foreach (var ep in m_descriptions)
                 {
                     if (ep.EndpointUrl.StartsWith(Utils.UriSchemeHttps))
                     {
+                        if (!string.IsNullOrEmpty(header))
+                        {
+                            if (string.Compare(ep.SecurityPolicyUri, header) != 0)
+                            {
+                                continue;
+                            }
+                        }
+
                         endpoint = ep;
                         break;
                     }
+                }
+
+                if (endpoint == null &&
+                    input.TypeId != DataTypeIds.GetEndpointsRequest)
+                {
+                    var message = "Connection refused, invalid security policy.";
+                    Utils.Trace(Utils.TraceMasks.Error, message);
+                    context.Response.ContentLength = message.Length;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                    await context.Response.WriteAsync(message).ConfigureAwait(false);
                 }
 
                 result = m_callback.BeginProcessRequest(
