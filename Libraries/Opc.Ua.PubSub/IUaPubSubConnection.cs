@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
@@ -75,7 +76,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
-        IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
+        IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state);
 
         /// <summary>
         /// Publish the network message
@@ -86,5 +87,215 @@ namespace Opc.Ua.PubSub
         /// Get current list of dataset readers available in this UaSubscriber component
         /// </summary>
         List<DataSetReaderDataType> GetOperationalDataSetReaders();
+    }
+
+    /// <summary>
+    /// The publishing state for a writer group.
+    /// </summary>
+    public class WriterGroupPublishState
+    {
+        private class DataSetState
+        {
+            public uint MessageCount;
+            public DataSet LastDataSet;
+            public ConfigurationVersionDataType ConfigurationVersion;
+            public DateTime LastMetaDataUpdate;
+        }
+
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        public WriterGroupPublishState()
+        {
+            DataSets = new Dictionary<ushort, DataSetState>();
+        }
+
+        /// <summary>
+        /// The last DataSet indexed by dataset writer group id.
+        /// </summary>
+        private Dictionary<ushort, DataSetState> DataSets { get; }
+
+        private DataSetState GetState(DataSetWriterDataType writer)
+        {
+            DataSetState state;
+
+            if (!DataSets.TryGetValue(writer.DataSetWriterId, out state))
+            {
+                DataSets[writer.DataSetWriterId] = state = new DataSetState();
+            }
+
+            return state;
+        }
+
+        /// <summary>
+        /// Returns TRUE if the next DataSetMessage is a delta frame.
+        /// </summary>
+        public bool IsDeltaFrame(DataSetWriterDataType writer, out uint sequenceNumber)
+        {
+            lock (DataSets)
+            {
+                DataSetState state = GetState(writer);
+                sequenceNumber = state.MessageCount + 1;
+
+                if (state.MessageCount % writer.KeyFrameCount != 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns TRUE if the next DataSetMessage is a delta frame.
+        /// </summary>
+        public bool HasMetaDataChanged(DataSetWriterDataType writer, DataSetMetaDataType metadata, double updateTime)
+        {
+            if (metadata == null)
+            {
+                return false;
+            }
+
+            lock (DataSets)
+            {
+                DataSetState state = GetState(writer);
+
+                ConfigurationVersionDataType version = state.ConfigurationVersion;
+
+                if (version == null)
+                {
+                    state.ConfigurationVersion = metadata.ConfigurationVersion;
+                    state.LastMetaDataUpdate = DateTime.UtcNow;
+                    return true;
+                }
+
+                if (version.MajorVersion != metadata.ConfigurationVersion.MajorVersion ||
+                    version.MinorVersion != metadata.ConfigurationVersion.MinorVersion)
+                {
+                    state.ConfigurationVersion = metadata.ConfigurationVersion;
+                    state.LastMetaDataUpdate = DateTime.UtcNow;
+                    return true;
+                }
+
+                if (updateTime > 0)
+                {
+                    if (state.LastMetaDataUpdate.AddMilliseconds(updateTime) <= DateTime.UtcNow)
+                    {
+                        state.LastMetaDataUpdate = DateTime.UtcNow;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private DataSet Copy(DataSet dataset)
+        {
+            DataSet lastDataSet = new DataSet() {
+                DataSetWriterId = dataset.DataSetWriterId,
+                Name = dataset.Name,
+                SequenceNumber = dataset.SequenceNumber,
+                Fields = new Field[dataset.Fields.Length]
+            };
+
+            for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
+            {
+                var field = dataset.Fields[ii];
+
+                if (field != null)
+                {
+                    lastDataSet.Fields[ii] = field;
+                }
+            }
+
+            return lastDataSet;
+        }
+
+        /// <summary>
+        /// Checks if the DataSet has changed and null
+        /// </summary>
+        public DataSet ExcludeUnchangedFields(DataSetWriterDataType writer, DataSet dataset)
+        {
+            lock (DataSets)
+            {
+                DataSetState state = GetState(writer);
+
+                DataSet lastDataSet = state.LastDataSet;
+
+                if (lastDataSet == null)
+                {
+                    state.LastDataSet = Copy(dataset);
+                    return dataset;
+                }
+
+                bool changed = false;
+
+                for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
+                {
+                    var field1 = dataset.Fields[ii];
+                    var field2 = lastDataSet.Fields[ii];
+
+                    if (field1 == null || field2 == null)
+                    {
+                        changed = true;
+                        continue;
+                    }
+
+                    if (field1.Value.StatusCode != field2.Value.StatusCode)
+                    {
+                        changed = true;
+                        continue;
+                    }
+
+                    if (!Utils.IsEqual(field1.Value.WrappedValue, field2.Value.WrappedValue))
+                    {
+                        changed = true;
+                        continue;
+                    }
+
+                    dataset.Fields[ii] = null;
+                }
+
+                if (!changed)
+                {
+                    return null;
+                }
+            }
+
+            return dataset;
+        }
+
+        /// <summary>
+        /// Increments the message counter.
+        /// </summary>
+        public void MessagePublished(DataSetWriterDataType writer, DataSet dataset)
+        {
+            if (writer.KeyFrameCount > 1)
+            {
+                lock (DataSets)
+                {
+                    DataSetState state = GetState(writer);
+                    state.MessageCount++;
+                    state.ConfigurationVersion = dataset.DataSetMetaData.ConfigurationVersion;
+
+                    if (state.LastDataSet == null)
+                    {
+                        state.LastDataSet = Copy(dataset);
+                        return;
+                    }
+
+                    for (int ii = 0; ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length; ii++)
+                    {
+                        var field = dataset.Fields[ii];
+
+                        if (field != null)
+                        {
+                            state.LastDataSet.Fields[ii] = field;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

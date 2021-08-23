@@ -237,7 +237,9 @@ namespace Opc.Ua.PubSub.Encoding
         private DataSet DecodePayloadContent(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
             TargetVariablesDataType targetVariablesData =
-                            ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) as TargetVariablesDataType;
+                ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
+                    as TargetVariablesDataType;
+
             DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
 
             object token;
@@ -418,10 +420,15 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 jsonEncoder.PushStructure(kFieldPayload);
             }
+
             foreach (var field in DataSet.Fields)
             {
-                EncodeField(jsonEncoder, field);
+                if (field != null)
+                {
+                    EncodeField(jsonEncoder, field);
+                }
             }
+
             if (pushStructure)
             {
                 jsonEncoder.PopStructure();
@@ -438,11 +445,18 @@ namespace Opc.Ua.PubSub.Encoding
             string fieldName = field.FieldMetaData.Name;
 
             Variant valueToEncode = field.Value.WrappedValue;
+
             // The StatusCode.Good value is not encoded cor3ectly then it shall be ommited
             if (valueToEncode == StatusCodes.Good && m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {
                 valueToEncode = Variant.Null;
             }
+
+            if (m_fieldTypeEncoding != FieldTypeEncodingMask.DataValue && StatusCode.IsBad(field.Value.StatusCode))
+            {
+                valueToEncode = field.Value.StatusCode;
+            }
+
             switch (m_fieldTypeEncoding)
             {
                 case FieldTypeEncodingMask.Variant:

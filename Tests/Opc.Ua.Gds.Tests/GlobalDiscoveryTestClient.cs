@@ -34,13 +34,12 @@ using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
-
 namespace Opc.Ua.Gds.Tests
 {
 
     public class GlobalDiscoveryTestClient
     {
-        public GlobalDiscoveryServerClient GDSClient => _client;
+        public GlobalDiscoveryServerClient GDSClient => m_client;
         public static bool AutoAccept = false;
 
         public GlobalDiscoveryTestClient(bool autoAccept)
@@ -100,7 +99,7 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
+            m_client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
@@ -118,10 +117,10 @@ namespace Opc.Ua.Gds.Tests
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (_client != null)
+            if (m_client != null)
             {
-                GlobalDiscoveryServerClient gdsClient = _client;
-                _client = null;
+                GlobalDiscoveryServerClient gdsClient = m_client;
+                m_client = null;
                 gdsClient.Disconnect();
             }
         }
@@ -147,7 +146,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private GlobalDiscoveryServerClient _client;
+        private GlobalDiscoveryServerClient m_client;
 
     }
 

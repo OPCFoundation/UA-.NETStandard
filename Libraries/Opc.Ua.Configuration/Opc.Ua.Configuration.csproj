@@ -3,12 +3,10 @@
   <PropertyGroup>
     <AssemblyName>Opc.Ua.Configuration</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <LangVersion>6</LangVersion>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Configuration</PackageId>
     <RootNamespace>Opc.Ua.Configuration</RootNamespace>
     <Description>OPC UA Configuration Class Library</Description>
     <IsPackable>true</IsPackable>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -17,20 +15,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Properties\**" />
+    <EmbeddedResource Remove="Properties\**" />
+    <None Remove="Properties\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-  
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <Reference Include="System.IdentityModel" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
   
   <Target Name="GetPackagingOutputs" />
 

@@ -46,7 +46,6 @@ namespace Opc.Ua.PubSub.Transport
         #region Private Fields
         private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
         private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
-
         private static int m_sequenceNumber = 0;
         private static int m_dataSetSequenceNumber = 0;
 
@@ -63,6 +62,7 @@ namespace Opc.Ua.PubSub.Transport
         public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
+
             m_transportProtocol = TransportProtocol.UADP;
 
             Utils.Trace("UdpPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
@@ -90,7 +90,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
-        protected override void InternalStart()
+        protected override Task InternalStart()
         {
             lock (m_lock)
             {
@@ -103,7 +103,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
                               this.PubSubConnectionConfiguration.Name);
-                    return;
+                    return Task.FromResult<object>(null);
                 }
                 NetworkInterfaceName = networkAddressUrlState.NetworkInterface;
                 NetworkAddressEndPoint = UdpClientCreator.GetEndPoint(networkAddressUrlState.Url);
@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} with Url:'{1}' resulted in an invalid endpoint.",
                               this.PubSubConnectionConfiguration.Name, networkAddressUrlState.Url);
-                    return;
+                    return Task.FromResult<object>(null);
                 }
 
                 //publisher initialization    
@@ -140,12 +140,13 @@ namespace Opc.Ua.PubSub.Transport
                     }
                 }
             }
+            return Task.FromResult<object>(null);
         }
 
         /// <summary>
         /// Perform specific Stop tasks
         /// </summary>
-        protected override void InternalStop()
+        protected override Task InternalStop()
         {
             lock (m_lock)
             {
@@ -169,12 +170,13 @@ namespace Opc.Ua.PubSub.Transport
                     m_subscriberUdpClients.Clear();
                 }
             }
+            return Task.FromResult<object>(null);
         }
 
         /// <summary>
         /// Create the list of network messages built from the provided writerGroupConfiguration
         /// </summary>
-        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration)
+        public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
             UadpWriterGroupMessageDataType messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
                 as UadpWriterGroupMessageDataType;
@@ -199,7 +201,8 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
-                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
+                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, false);
+
                     if (dataSet != null)
                     {
                         UadpDataSetWriterMessageDataType dataSetMessageSettings =
@@ -299,7 +302,7 @@ namespace Opc.Ua.PubSub.Transport
             Utils.Trace(Utils.TraceMasks.Information, "UdpPubSubConnection.ProcessReceivedMessage from source={0}", source);
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
-            networkMessage.Decode(message, GetOperationalDataSetReaders());
+            networkMessage.Decode(m_context, message, GetOperationalDataSetReaders());
 
             // Raise rhe DataReceived event 
             RaiseNetworkMessageDataReceivedEvent(networkMessage, source.ToString());

@@ -286,8 +286,8 @@ namespace Opc.Ua.Security.Certificates
             cg.SetSubjectDN(m_subjectDN);
 
             // valid for
-            cg.SetNotBefore(NotBefore);
-            cg.SetNotAfter(NotAfter);
+            cg.SetNotBefore(NotBefore.ToUniversalTime());
+            cg.SetNotAfter(NotAfter.ToUniversalTime());
 
             // serial number
             cg.SetSerialNumber(new BigInteger(1, m_serialNumber.Reverse().ToArray()));

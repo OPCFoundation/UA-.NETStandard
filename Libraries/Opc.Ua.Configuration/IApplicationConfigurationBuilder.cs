@@ -243,6 +243,9 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.ReverseConnect"/>
         IApplicationConfigurationBuilderServerOptions SetReverseConnect(ReverseConnectServerConfiguration reverseConnectConfiguration);
+
+        /// <inheritdoc cref="ServerConfiguration.OperationLimits"/>
+        IApplicationConfigurationBuilderServerOptions SetOperationLimits(OperationLimits operationLimits);
     }
 
     /// <summary>

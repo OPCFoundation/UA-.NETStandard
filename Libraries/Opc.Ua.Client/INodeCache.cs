@@ -28,27 +28,60 @@
  * ======================================================================*/
 
 using System;
-using System.Reflection;
 using System.Collections.Generic;
+using System.Reflection;
 
-namespace Opc.Ua.Server
-{    
-#if LEGACY_CORENODEMANAGER
+namespace Opc.Ua.Client
+{
     /// <summary>
-    /// An interface to an object manages one or more views.
+    /// A client side cache of the server's type model.
     /// </summary>
-    [Obsolete("The IViewManager interface is obsolete and is not supported. See Opc.Ua.Server.CustomNodeManager for a replacement.")]
-    public interface IViewManager
-    {                
+    public interface INodeCache : INodeTable, ITypeTable
+    {
         /// <summary>
-        /// Determines whether a node is in a view.
+        /// Loads the UA defined types into the cache.
         /// </summary>
-        bool IsNodeInView(ViewDescription description, NodeId nodeId);
-        
+        /// <param name="context">The context.</param>
+        void LoadUaDefinedTypes(ISystemContext context);
+
         /// <summary>
-        /// Determines whether a reference is in a view.
+        /// Removes all nodes from the cache.
         /// </summary>
-        bool IsReferenceInView(ViewDescription description, ReferenceDescription reference);
+        void Clear();
+
+        /// <summary>
+        /// Fetches a node from the server and updates the cache.
+        /// </summary>
+        Node FetchNode(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Adds the supertypes of the node to the cache.
+        /// </summary>
+        void FetchSuperTypes(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Returns the references of the specified node that meet the criteria specified.
+        /// </summary>
+        IList<INode> FindReferences(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
+
+        /// <summary>
+        /// Returns a display name for a node.
+        /// </summary>
+        string GetDisplayText(INode node);
+
+        /// <summary>
+        /// Returns a display name for a node.
+        /// </summary>
+        string GetDisplayText(ExpandedNodeId nodeId);
+
+        /// <summary>
+        /// Returns a display name for the target of a reference.
+        /// </summary>
+        string GetDisplayText(ReferenceDescription reference);
+
+        /// <summary>
+        /// Builds the relative path from a type to a node.
+        /// </summary>
+        NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
     }
-#endif
 }

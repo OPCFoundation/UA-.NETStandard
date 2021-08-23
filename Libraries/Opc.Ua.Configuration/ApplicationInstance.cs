@@ -340,6 +340,27 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
+        /// Helper to replace localhost with the hostname
+        /// in the application uri and base adresses of the
+        /// configuration.
+        /// </summary>
+        /// <param name="configuration"></param>
+        public static ApplicationConfiguration FixupAppConfig(
+            ApplicationConfiguration configuration)
+        {
+            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
+            if (configuration.ServerConfiguration != null)
+            {
+                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
+                {
+                    configuration.ServerConfiguration.BaseAddresses[i] =
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                }
+            }
+            return configuration;
+        }
+
+        /// <summary>
         /// Create a builder for a UA application configuration.
         /// </summary>
         public IApplicationConfigurationBuilderTypes Build(
@@ -853,27 +874,6 @@ namespace Opc.Ua.Configuration
                 Utils.Trace(message);
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Helper to replace localhost with the hostname
-        /// in the application uri and base adresses of the
-        /// configuration.
-        /// </summary>
-        /// <param name="configuration"></param>
-        private static ApplicationConfiguration FixupAppConfig(
-            ApplicationConfiguration configuration)
-        {
-            configuration.ApplicationUri = Utils.ReplaceLocalhost(configuration.ApplicationUri);
-            if (configuration.ServerConfiguration != null)
-            {
-                for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
-                {
-                    configuration.ServerConfiguration.BaseAddresses[i] =
-                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
-                }
-            }
-            return configuration;
         }
         #endregion
 

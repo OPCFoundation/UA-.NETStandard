@@ -255,6 +255,14 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+    <OperationLimits>
+      <MaxNodesPerRead>1000</MaxNodesPerRead>
+      <MaxNodesPerWrite>1000</MaxNodesPerWrite>
+      <MaxNodesPerMethodCall>250</MaxNodesPerMethodCall>
+      <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
+    </OperationLimits>
   </ServerConfiguration>
 
   <Extensions>
