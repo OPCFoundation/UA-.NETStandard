@@ -29,14 +29,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using Moq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
-using Opc.Ua.PubSub.Tests.Transport;
 using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
@@ -180,6 +183,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (JsonNetworkMessage uaNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+                VerifyDataSetMetaDataEncoding(uaNetworkMessage);
             }
         }
 
@@ -298,12 +302,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // check first consistency of ua-data network messages
             List<JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
             Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
+
             int index = 0;
             foreach (var uaDataNetworkMessage in uaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaDataNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
             }
-            
         }             
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader without PublisherId parameter")]
@@ -414,6 +418,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (JsonNetworkMessage uaNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+                VerifyDataSetMetaDataEncoding(uaNetworkMessage);
             }
         }
 
@@ -528,6 +533,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (JsonNetworkMessage uaNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+                VerifyDataSetMetaDataEncoding(uaNetworkMessage);
             }
         }
 
@@ -638,6 +644,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (JsonNetworkMessage uaNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaNetworkMessage, dataSetReaders);
+                VerifyDataSetMetaDataEncoding(uaNetworkMessage);
             }
         }
 
@@ -761,6 +768,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecode(uaMetaDataNetworkMessage as JsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
+                VerifyDataSetMetaDataEncoding(uaMetaDataNetworkMessage);
             }
         }
 
@@ -814,6 +822,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             foreach (var uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
+                VerifyDataSetMetaDataEncoding(uaMetaDataNetworkMessage);
             }
         }
         
@@ -1107,7 +1116,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessageEncode"></param>
         /// <param name="jsonNetworkMessageDecoded"></param>
         /// <returns></returns>
-
         private void CompareData(JsonNetworkMessage jsonNetworkMessageEncode, JsonNetworkMessage jsonNetworkMessageDecoded)
         {
             JsonNetworkMessageContentMask networkMessageContentMask = jsonNetworkMessageEncode.NetworkMessageContentMask;
@@ -1248,6 +1256,107 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             }
             #endregion
+        }
+
+        /// <summary>
+        /// Verify DataSetMetaData encoding consistency
+        /// </summary>
+        /// <param name="jsonNetworkMessage"></param>
+        /// <param name="dataSetReaders"></param>
+        private void VerifyDataSetMetaDataEncoding(JsonNetworkMessage jsonNetworkMessage)
+        {
+            Assert.IsTrue(jsonNetworkMessage.IsMetaDataMessage, "JsonNetworkMessage is not MetaData message type");
+
+            // encode network message
+            byte[] networkMessage = jsonNetworkMessage.Encode();
+
+            // verify DataSetMetaData encoded consistency
+            ServiceMessageContext context = new ServiceMessageContext {
+                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+            };
+
+            string messageId = "";
+            string messageType = "";
+            string publisherId = "";
+            ushort dataSetWriterId = 0;
+
+            object token = null;
+            string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
+            using (JsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            {
+                #region Verify DataSetMetaData mandatory fields
+
+                const string MessageIdFieldName = "MessageId";
+                if (jsonDecoder.ReadField(MessageIdFieldName, out token))
+                {
+                    messageId = jsonDecoder.ReadString(MessageIdFieldName);
+                }
+                Assert.AreEqual(jsonNetworkMessage.MessageId, messageId, "MessageId was not decoded correctly. Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageId, messageId);
+
+                const string MessageTypeFieldName = "MessageType";
+                if (jsonDecoder.ReadField(MessageTypeFieldName, out token))
+                {
+                    messageType = jsonDecoder.ReadString(MessageTypeFieldName);
+                }
+                Assert.AreEqual(jsonNetworkMessage.MessageType, messageType, "MessageType was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageType, messageType);
+
+                const string PublisherIdFieldName = "PublisherId";
+                if (jsonDecoder.ReadField(PublisherIdFieldName, out token))
+                {
+                    publisherId = jsonDecoder.ReadString(PublisherIdFieldName);
+                }
+                Assert.AreEqual(jsonNetworkMessage.PublisherId, publisherId, "PublisherId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherId);
+
+                const string DataSetWriterIdFieldName = "DataSetWriterId";
+                if (jsonDecoder.ReadField(DataSetWriterIdFieldName, out token))
+                {
+                    dataSetWriterId = jsonDecoder.ReadUInt16(DataSetWriterIdFieldName);
+                }
+                Assert.AreEqual(jsonNetworkMessage.DataSetWriterId, dataSetWriterId, "DataSetWriterId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetWriterId, dataSetWriterId);
+
+                #region Verify DataSetMetaData.Metadata fields, the Metadata value is also mandatory
+
+                Assert.IsNotNull(jsonNetworkMessage.DataSetMetaData, "jsonNetworkMessage.DataSetMetaData should not be null.");
+                DataSetMetaDataType jsonDataSetMetaData = jsonNetworkMessage.DataSetMetaData;
+
+                DataSetMetaDataType dataSetMetaData = jsonDecoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+                Assert.IsNotNull(dataSetMetaData, "DataSetMetaData read by json decoder should not be null.");
+
+                Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Name, dataSetMetaData.Name, "DataSetMetaData.Name was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Name, dataSetMetaData.Name);
+                Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description, "DataSetMetaData.Description was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description);
+
+                Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Fields.Count, dataSetMetaData.Fields.Count, "DataSetMetaData.Fields.Count are not equal, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Fields.Count, dataSetMetaData.Fields.Count);
+                
+                foreach(FieldMetaData jsonFieldMetaData in jsonNetworkMessage.DataSetMetaData.Fields)
+                {
+                    FieldMetaData fieldMetaData = dataSetMetaData.Fields.Find(field => field.Name == jsonFieldMetaData.Name);
+
+                    Assert.IsNotNull(fieldMetaData, "DataSetMetaData.Field read by json decoder should exists in decoded DataSetMetaData.Fields collection.");
+                    Assert.IsTrue(Utils.IsEqual(jsonFieldMetaData, fieldMetaData), "FieldMetaData found in decoded collection is not identical with original one. Encoded: {0} Decoded: {1}",
+                        string.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
+                            jsonFieldMetaData.Name,
+                            jsonFieldMetaData.Description,
+                            jsonFieldMetaData.DataSetFieldId,
+                            jsonFieldMetaData.BuiltInType,
+                            jsonFieldMetaData.DataType,
+                            jsonFieldMetaData.TypeId),
+                         string.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
+                            fieldMetaData.Name,
+                            fieldMetaData.Description,
+                            fieldMetaData.DataSetFieldId,
+                            fieldMetaData.BuiltInType,
+                            fieldMetaData.DataType,
+                            fieldMetaData.TypeId));
+                }
+                
+                Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.DataSetClassId, dataSetMetaData.DataSetClassId, "DataSetMetaData.DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.DataSetClassId, dataSetMetaData.DataSetClassId);
+                Assert.IsTrue(Utils.IsEqual(jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion), "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion);
+
+                #endregion
+
+                #endregion
+            }
         }
 
         #endregion
