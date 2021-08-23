@@ -142,7 +142,18 @@ namespace Opc.Ua
             new AliasToUse(BrowseNames.HasTypeDefinition, ReferenceTypeIds.HasTypeDefinition),
             new AliasToUse(BrowseNames.HasModellingRule, ReferenceTypeIds.HasModellingRule),
             new AliasToUse(BrowseNames.HasEncoding, ReferenceTypeIds.HasEncoding),
-            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription)
+            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription),
+            new AliasToUse(BrowseNames.HasCause, ReferenceTypeIds.HasCause),
+            new AliasToUse(BrowseNames.ToState, ReferenceTypeIds.ToState),
+            new AliasToUse(BrowseNames.FromState, ReferenceTypeIds.FromState),
+            new AliasToUse(BrowseNames.HasEffect, ReferenceTypeIds.HasEffect),
+            new AliasToUse(BrowseNames.HasTrueSubState, ReferenceTypeIds.HasTrueSubState),
+            new AliasToUse(BrowseNames.HasFalseSubState, ReferenceTypeIds.HasFalseSubState),
+            new AliasToUse(BrowseNames.HasDictionaryEntry, ReferenceTypeIds.HasDictionaryEntry),
+            new AliasToUse(BrowseNames.HasCondition, ReferenceTypeIds.HasCondition),
+            new AliasToUse(BrowseNames.HasGuard, ReferenceTypeIds.HasGuard),
+            new AliasToUse(BrowseNames.HasAddIn, ReferenceTypeIds.HasAddIn),
+            new AliasToUse(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface)
         };
         #endregion
         
