@@ -920,6 +920,10 @@ namespace Opc.Ua.Export {
         
         private byte accessRestrictionsField;
         
+        private bool accessRestrictionsFieldSpecified;
+        
+        private bool hasNoPermissionsField;
+        
         private string symbolicNameField;
         
         private ReleaseStatus releaseStatusField;
@@ -927,7 +931,7 @@ namespace Opc.Ua.Export {
         public UANode() {
             this.writeMaskField = ((uint)(0));
             this.userWriteMaskField = ((uint)(0));
-            this.accessRestrictionsField = ((byte)(0));
+            this.hasNoPermissionsField = false;
             this.releaseStatusField = ReleaseStatus.Released;
         }
         
@@ -1055,13 +1059,35 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "0")]
         public byte AccessRestrictions {
             get {
                 return this.accessRestrictionsField;
             }
             set {
                 this.accessRestrictionsField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        public bool AccessRestrictionsSpecified {
+            get {
+                return this.accessRestrictionsFieldSpecified;
+            }
+            set {
+                this.accessRestrictionsFieldSpecified = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.ComponentModel.DefaultValueAttribute(false)]
+        public bool HasNoPermissions {
+            get {
+                return this.hasNoPermissionsField;
+            }
+            set {
+                this.hasNoPermissionsField = value;
             }
         }
         

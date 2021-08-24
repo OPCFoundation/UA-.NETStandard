@@ -42413,10 +42413,10 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGwAAAENvbmRpdGlvblJlZnJlc2gyTWV0aG9kVHlwZQEAcjIALwEAcjJy" +
            "MgAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAHMyAC4ARHMyAACWAgAAAAEA" +
-           "KgEBVQAAAA4AAABTdWJzY3JpcHRpb25JZAEAIAH/////AAAAAAMAAAAALgAAAFRoZSBpZGVudGlmaWVy" +
-           "IGZvciB0aGUgc3VzY3JpcHRpb24gdG8gcmVmcmVzaC4BACoBAVkAAAAPAAAATW9uaXRvcmVkSXRlbUlk" +
-           "AQAgAf////8AAAAAAwAAAAAxAAAAVGhlIGlkZW50aWZpZXIgZm9yIHRoZSBtb25pdG9yZWQgaXRlbSB0" +
-           "byByZWZyZXNoLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "KgEBVgAAAA4AAABTdWJzY3JpcHRpb25JZAEAIAH/////AAAAAAMAAAAALwAAAFRoZSBpZGVudGlmaWVy" +
+           "IGZvciB0aGUgc3Vic2NyaXB0aW9uIHRvIHJlZnJlc2guAQAqAQFZAAAADwAAAE1vbml0b3JlZEl0ZW1J" +
+           "ZAEAIAH/////AAAAAAMAAAAAMQAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgbW9uaXRvcmVkIGl0ZW0g" +
+           "dG8gcmVmcmVzaC4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion
@@ -42532,8 +42532,8 @@ namespace Opc.Ua
         private const string InitializationString =
            "//////////8EYYIKBAAAAAAAGgAAAENvbmRpdGlvblJlZnJlc2hNZXRob2RUeXBlAQAvIwAvAQAvIy8j" +
            "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAMCMALgBEMCMAAJYBAAAAAQAq" +
-           "AQFVAAAADgAAAFN1YnNjcmlwdGlvbklkAQAgAf////8AAAAAAwAAAAAuAAAAVGhlIGlkZW50aWZpZXIg" +
-           "Zm9yIHRoZSBzdXNjcmlwdGlvbiB0byByZWZyZXNoLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
+           "AQFWAAAADgAAAFN1YnNjcmlwdGlvbklkAQAgAf////8AAAAAAwAAAAAvAAAAVGhlIGlkZW50aWZpZXIg" +
+           "Zm9yIHRoZSBzdWJzY3JpcHRpb24gdG8gcmVmcmVzaC4BACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
         #endif
         #endregion

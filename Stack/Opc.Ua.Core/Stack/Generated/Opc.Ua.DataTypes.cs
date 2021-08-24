@@ -20882,7 +20882,7 @@ namespace Opc.Ua
             m_valueRank = (int)0;
             m_arrayDimensions = new UInt32Collection();
             m_maxStringLength = (uint)0;
-            m_isOptional = true;
+            m_isOptional = false;
         }
         #endregion
 

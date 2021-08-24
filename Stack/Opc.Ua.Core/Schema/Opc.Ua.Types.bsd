@@ -219,6 +219,9 @@
   </opc:EnumeratedType>
     
 
+  <opc:EnumeratedType Name="Enumeration" LengthInBits="32">
+  </opc:EnumeratedType>
+
   <opc:OpaqueType Name="ImageBMP">
   </opc:OpaqueType>
 
@@ -1006,6 +1009,9 @@
   <opc:StructuredType Name="RolePermissionType" BaseType="ua:ExtensionObject">
     <opc:Field Name="RoleId" TypeName="ua:NodeId" />
     <opc:Field Name="Permissions" TypeName="tns:PermissionType" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="DataTypeDefinition" BaseType="ua:ExtensionObject">
   </opc:StructuredType>
 
   <opc:EnumeratedType Name="StructureType" LengthInBits="32">
