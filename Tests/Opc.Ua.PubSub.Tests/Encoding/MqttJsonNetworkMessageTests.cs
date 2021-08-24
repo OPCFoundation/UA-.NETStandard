@@ -52,6 +52,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private const string MqttAddressUrl = "mqtt://localhost:1883";
         static IList<DateTime> s_publishTimes = new List<DateTime>();
 
+        private const string MetaDataMessageId = "MessageId";
+        private const string MetaDataMessageType = "MessageType";
+        private const string MetaDataPublisherId = "PublisherId";
+        private const string MetaDataDataSetWriterId = "DataSetWriterId";
+
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
@@ -775,7 +780,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test(Description = "Validate that metadata is encoded/decoded correctly")]
         public void ValidateMetaDataIsEncodedCorrectly()
         {
-            // arrange
+            // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
             DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
@@ -829,7 +834,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test(Description = "Validate that metadata with update time 0 is sent at startup for a MQTT Json publisher")]
         public void ValidateMetaDataUpdateTimeZeroSentAtStartup()
         {
-            // arrange
+            // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
             DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
@@ -1025,7 +1030,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
-            // create the mock IMqttPubSubConnection that will bje used to monitor hpw often the metadata will be sent
+            // create the mock IMqttPubSubConnection that will be used to monitor how often the metadata will be sent
             var mockConnection = new Mock<IMqttPubSubConnection>();
             
             mockConnection.Setup(x
@@ -1034,7 +1039,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             mockConnection.Setup(x => x.CreateDataSetMetaDataNetworkMessage(It.IsAny<WriterGroupDataType>(), It.IsAny<DataSetWriterDataType>()))
                 .Callback(() => s_publishTimes.Add(DateTime.Now));
 
-            WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections[0].WriterGroups[0];
+            WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections.First().WriterGroups.First();
 
             //Act 
             MqttMetadataPublisher mqttMetaDataPublisher = new MqttMetadataPublisher(mockConnection.Object, writerGroupDataType,
@@ -1068,8 +1073,44 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
 
         // todo: tests for encoding metadata of jsonNetworkMessage - test all mandatory parameters
+        // Add tests which have incomplete metadata info
+        [Test(Description = "Validate metadata with missing MessageId")]
+        public void ValidateMissingMessageId()
+        {
+            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
 
+            DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageId", NamespaceIndexAllTypes, metaDataType.Fields);
+            metadata.Description = new LocalizedText("Description text");
+            metadata.DataSetClassId = new Uuid();
+            metadata.ConfigurationVersion = new ConfigurationVersionDataType() { MajorVersion = 2, MinorVersion = 2 };
 
+            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
+            jsonNetworkMessage.MessageId = null; // error is here
+            jsonNetworkMessage.PublisherId = "1";
+            jsonNetworkMessage.DataSetWriterId = 1;
+
+            VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
+        }
+
+        [Test(Description = "Validate metadata with missing MessageType")]
+        public void ValidateMissingMessageType()
+        {
+            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+
+            DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageType", NamespaceIndexAllTypes, metaDataType.Fields);
+            metadata.Description = new LocalizedText("Description text");
+            metadata.DataSetClassId = new Uuid();
+            metadata.ConfigurationVersion = new ConfigurationVersionDataType() { MajorVersion = 2, MinorVersion = 2 };
+
+            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(); // do not pass metadata - then is ua-data type
+            jsonNetworkMessage.MessageId = "1"; 
+            jsonNetworkMessage.PublisherId = "1";
+            jsonNetworkMessage.DataSetWriterId = 1;
+
+            VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
+        }
 
         #region Private methods
 
@@ -1276,10 +1317,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
 
-            string messageId = "";
-            string messageType = "";
-            string publisherId = "";
-            ushort dataSetWriterId = 0;
+            string messageIdValue = "";
+            string messageTypeValue = "";
+            string publisherIdValue = "";
+            ushort dataSetWriterIdValue = 0;
 
             object token = null;
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
@@ -1287,33 +1328,45 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 #region Verify DataSetMetaData mandatory fields
 
-                const string MessageIdFieldName = "MessageId";
-                if (jsonDecoder.ReadField(MessageIdFieldName, out token))
+                if (jsonDecoder.ReadField(MetaDataMessageId, out token))
                 {
-                    messageId = jsonDecoder.ReadString(MessageIdFieldName);
+                    messageIdValue = jsonDecoder.ReadString(MetaDataMessageId);
                 }
-                Assert.AreEqual(jsonNetworkMessage.MessageId, messageId, "MessageId was not decoded correctly. Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageId, messageId);
+                else
+                {
+                    Assert.Fail("The mandatory 'MetaData.MessageId' field is missing from decoded message.");
+                }
+                Assert.AreEqual(jsonNetworkMessage.MessageId, messageIdValue, "MessageId was not decoded correctly. Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageId, messageIdValue);
 
-                const string MessageTypeFieldName = "MessageType";
-                if (jsonDecoder.ReadField(MessageTypeFieldName, out token))
+                if (jsonDecoder.ReadField(MetaDataMessageType, out token))
                 {
-                    messageType = jsonDecoder.ReadString(MessageTypeFieldName);
+                    messageTypeValue = jsonDecoder.ReadString(MetaDataMessageType);
                 }
-                Assert.AreEqual(jsonNetworkMessage.MessageType, messageType, "MessageType was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageType, messageType);
+                else
+                {
+                    Assert.Fail("The mandatory 'MetaData.MessageType' field is missing from decoded message.");
+                }
+                Assert.AreEqual(jsonNetworkMessage.MessageType, messageTypeValue, "MessageType was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageType, messageTypeValue);
 
-                const string PublisherIdFieldName = "PublisherId";
-                if (jsonDecoder.ReadField(PublisherIdFieldName, out token))
+                if (jsonDecoder.ReadField(MetaDataPublisherId, out token))
                 {
-                    publisherId = jsonDecoder.ReadString(PublisherIdFieldName);
+                    publisherIdValue = jsonDecoder.ReadString(MetaDataPublisherId);
                 }
-                Assert.AreEqual(jsonNetworkMessage.PublisherId, publisherId, "PublisherId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherId);
+                else
+                {
+                    Assert.Fail("The mandatory 'MetaData.PublisherId' field is missing from decoded message.");
+                }
+                Assert.AreEqual(jsonNetworkMessage.PublisherId, publisherIdValue, "PublisherId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
 
-                const string DataSetWriterIdFieldName = "DataSetWriterId";
-                if (jsonDecoder.ReadField(DataSetWriterIdFieldName, out token))
+                if (jsonDecoder.ReadField(MetaDataDataSetWriterId, out token))
                 {
-                    dataSetWriterId = jsonDecoder.ReadUInt16(DataSetWriterIdFieldName);
+                    dataSetWriterIdValue = jsonDecoder.ReadUInt16(MetaDataDataSetWriterId);
                 }
-                Assert.AreEqual(jsonNetworkMessage.DataSetWriterId, dataSetWriterId, "DataSetWriterId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetWriterId, dataSetWriterId);
+                else
+                {
+                    Assert.Fail("The mandatory 'MetaData.DataSetWriterId' field is missing from decoded message.");
+                }
+                Assert.AreEqual(jsonNetworkMessage.DataSetWriterId, dataSetWriterIdValue, "DataSetWriterId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetWriterId, dataSetWriterIdValue);
 
                 #region Verify DataSetMetaData.Metadata fields, the Metadata value is also mandatory
 
@@ -1332,7 +1385,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     FieldMetaData fieldMetaData = dataSetMetaData.Fields.Find(field => field.Name == jsonFieldMetaData.Name);
 
-                    Assert.IsNotNull(fieldMetaData, "DataSetMetaData.Field read by json decoder should exists in decoded DataSetMetaData.Fields collection.");
+                    Assert.IsNotNull(fieldMetaData, "DataSetMetaData.Field - Name: '{0}' read by json decoder not found into decoded DataSetMetaData.Fields collection.", jsonFieldMetaData.Name);
                     Assert.IsTrue(Utils.IsEqual(jsonFieldMetaData, fieldMetaData), "FieldMetaData found in decoded collection is not identical with original one. Encoded: {0} Decoded: {1}",
                         string.Format("Name: {0}, Description: {1}, DataSetFieldId: {2}, BuiltInType: {3}, DataType: {4}, TypeId: {5}",
                             jsonFieldMetaData.Name,
@@ -1351,7 +1404,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
                 
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.DataSetClassId, dataSetMetaData.DataSetClassId, "DataSetMetaData.DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.DataSetClassId, dataSetMetaData.DataSetClassId);
-                Assert.IsTrue(Utils.IsEqual(jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion), "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion);
+                Assert.IsTrue(Utils.IsEqual(jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion), "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
+                    string.Format("MajorVersion: {0}, MinorVersion: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion, jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion),
+                    string.Format("MajorVersion: {0}, MinorVersion: {1}", dataSetMetaData.ConfigurationVersion.MajorVersion, dataSetMetaData.ConfigurationVersion.MinorVersion));
 
                 #endregion
 
