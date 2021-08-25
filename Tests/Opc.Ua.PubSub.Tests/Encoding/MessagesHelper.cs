@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         ///  Ua metadata message type
         /// </summary>
-        private const string UaMetaDataMessageType = "ua-metadata";
+        internal const string UaMetaDataMessageType = "ua-metadata";
 
         /// <summary>
         /// Create PubSub connection
@@ -250,7 +250,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <returns></returns>
         public static DataSetMetaDataType CreateDataSetMetaData(string dataSetName,
             ushort namespaceIndex,
-            FieldMetaDataCollection fieldMetaDatas)
+            FieldMetaDataCollection fieldMetaDatas,
+            uint majorVersion = 1, uint minorVersion = 1)
         {
             DataSetMetaDataType metaData = new DataSetMetaDataType();
             metaData.DataSetClassId = new Uuid(Guid.Empty);
@@ -258,8 +259,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             metaData.Fields = fieldMetaDatas;
             metaData.ConfigurationVersion = new ConfigurationVersionDataType()
             {
-                MinorVersion = 1,
-                MajorVersion = 1
+                MajorVersion = majorVersion,
+                MinorVersion = minorVersion,
             };
 
             metaData.Description = LocalizedText.Null;
