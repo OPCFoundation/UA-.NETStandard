@@ -64,7 +64,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             MessageType,
             PublisherId,
             DataSetWriterId,
-            DataSetMetaData
+            DataSetMetaData,
+            Name,
+            Description,
+            Fields,
+            DataSetClassId,
+            ConfigurationVersion
         }
 
         [OneTimeSetUp()]
@@ -1092,7 +1097,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
 
             DataSetMetaDataType metadata =
-                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageId", NamespaceIndexAllTypes, metaDataType.Fields, 2, 2);
+                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageId", NamespaceIndexAllTypes, metaDataType.Fields);
             metadata.Description = new LocalizedText("Description text");
             metadata.DataSetClassId = new Uuid();
             
@@ -1151,7 +1156,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
 
             DataSetMetaDataType metadata =
-                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetWriterId", NamespaceIndexAllTypes, metaDataType.Fields, 2, 2);
+                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetWriterId", NamespaceIndexAllTypes, metaDataType.Fields, 3, 3);
             metadata.Description = new LocalizedText("Description text");
             metadata.DataSetClassId = new Uuid();
             
@@ -1180,7 +1185,32 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             MqttJsonMetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
 
-            Assert.AreEqual(failOptions, MqttJsonMetaDataFailOptions.DataSetMetaData | MqttJsonMetaDataFailOptions.MessageType, "ValidateMissingDataSetMetaData should fail due to missing ValidateMissingDataSetMetaData reason.");
+            Assert.AreEqual(failOptions, MqttJsonMetaDataFailOptions.DataSetMetaData | MqttJsonMetaDataFailOptions.MessageType, "ValidateMissingDataSetMetaData should fail due to missing DataSetMetaData reason.");
+        }
+
+        [Test(Description = "Validate metadata with missing DataSetMetaData.Name")]
+        public void ValidateMissingMetaDataName()
+        {
+            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+
+            DataSetMetaDataType metadata =
+                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetMetaData.Name", NamespaceIndexAllTypes, metaDataType.Fields, 4, 4);
+            metadata.Description = new LocalizedText("Description text");
+            metadata.DataSetClassId = new Uuid();
+
+            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
+            jsonNetworkMessage.MessageId = "1";
+            jsonNetworkMessage.PublisherId = "1";
+            jsonNetworkMessage.DataSetWriterId = 1;
+
+            jsonNetworkMessage.DataSetMetaData.Name = null;
+            jsonNetworkMessage.DataSetMetaData.Description = new LocalizedText("Metadata Description text");
+            jsonNetworkMessage.DataSetMetaData.DataSetClassId = new Uuid();
+
+            MqttJsonMetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
+
+            Assert.AreEqual(failOptions, MqttJsonMetaDataFailOptions.Name, "ValidateMissingMetaDataName should fail due to missing DataSetMetaData.Name reason.");
         }
 
         #region Private methods
@@ -1476,9 +1506,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 DataSetMetaDataType dataSetMetaData = jsonDecoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType)) as DataSetMetaDataType;
                 Assert.IsNotNull(dataSetMetaData, "DataSetMetaData read by json decoder should not be null.");
 
+                if (jsonDataSetMetaData.Name == null)
+                {
+                    return MqttJsonMetaDataFailOptions.Name;
+                }
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Name, dataSetMetaData.Name, "DataSetMetaData.Name was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Name, dataSetMetaData.Name);
+                if (jsonDataSetMetaData.Description == null)
+                {
+                    return MqttJsonMetaDataFailOptions.Name;
+                }
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description, "DataSetMetaData.Description was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description);
 
+                if (jsonDataSetMetaData.Fields == null)
+                {
+                    return MqttJsonMetaDataFailOptions.Fields;
+                }
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Fields.Count, dataSetMetaData.Fields.Count, "DataSetMetaData.Fields.Count are not equal, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Fields.Count, dataSetMetaData.Fields.Count);
                 
                 foreach(FieldMetaData jsonFieldMetaData in jsonNetworkMessage.DataSetMetaData.Fields)
@@ -1502,8 +1544,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             fieldMetaData.DataType,
                             fieldMetaData.TypeId));
                 }
-                
+
+                if (jsonDataSetMetaData.DataSetClassId == null)
+                {
+                    return MqttJsonMetaDataFailOptions.DataSetClassId;
+                }
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.DataSetClassId, dataSetMetaData.DataSetClassId, "DataSetMetaData.DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.DataSetClassId, dataSetMetaData.DataSetClassId);
+                if (jsonDataSetMetaData.ConfigurationVersion == null)
+                {
+                    return MqttJsonMetaDataFailOptions.ConfigurationVersion;
+                }
                 Assert.IsTrue(Utils.IsEqual(jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion), "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
                     string.Format("MajorVersion: {0}, MinorVersion: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion, jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion),
                     string.Format("MajorVersion: {0}, MinorVersion: {1}", dataSetMetaData.ConfigurationVersion.MajorVersion, dataSetMetaData.ConfigurationVersion.MinorVersion));
