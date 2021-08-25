@@ -364,7 +364,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.DataSetFieldContentMask = (uint)fieldContentMask;
             }
 
-            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup);
+            var networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -390,10 +390,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private void CompareEncodeDecode(UadpDataSetMessage uadpDataSetMessage)
         {
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
-            BinaryEncoder encoder = new BinaryEncoder(messageContextEncode);
-            uadpDataSetMessage.Encode(encoder);
-            byte[] bytes = ReadBytes(encoder.BaseStream);
-            encoder.Dispose();
+            byte[] bytes;
+            var memoryStream = new MemoryStream();
+            using (BinaryEncoder encoder = new BinaryEncoder(memoryStream, messageContextEncode, true))
+            {
+                uadpDataSetMessage.Encode(encoder);
+                _ = encoder.Close();
+                bytes = ReadBytes(memoryStream);
+            }
 
             UadpDataSetMessage uaDataSetMessageDecoded = new UadpDataSetMessage();
             BinaryDecoder decoder = new BinaryDecoder(bytes, messageContextEncode);

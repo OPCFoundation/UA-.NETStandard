@@ -11,7 +11,6 @@
 */
 using System.Runtime.CompilerServices;
 
-#if HAVE_CLIENT_TESTS // TODO: uncomment when client tests become available
 #if SIGNASSEMBLY
 [assembly: InternalsVisibleTo("Opc.Ua.Client.Tests, PublicKey = " +
     // OPC Foundation Strong Name Public Key
@@ -22,5 +21,4 @@ using System.Runtime.CompilerServices;
     "0a12a1ef")]
 #else
 [assembly: InternalsVisibleTo("Opc.Ua.Client.Tests")]
-#endif
 #endif

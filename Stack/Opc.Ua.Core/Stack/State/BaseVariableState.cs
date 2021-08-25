@@ -2648,6 +2648,6 @@ namespace Opc.Ua
         /// <summary>
         /// Data is copied when it is written and when it is read.
         /// </summary>
-        Always = 0x3
+        Always = CopyOnWrite | CopyOnRead
     }
 }

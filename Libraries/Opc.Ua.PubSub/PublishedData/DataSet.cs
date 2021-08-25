@@ -62,6 +62,11 @@ namespace Opc.Ua.PubSub.PublishedData
         public uint SequenceNumber { get; internal set; }
 
         /// <summary>
+        /// Gets DataSetMetaData for this DataSet
+        /// </summary>
+        public DataSetMetaDataType DataSetMetaData { get; set; }
+
+        /// <summary>
         /// Get/Set data set fields for this data set
         /// </summary>
         public Field[] Fields { get; set; }

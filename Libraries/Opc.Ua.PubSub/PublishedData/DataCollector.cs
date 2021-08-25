@@ -125,15 +125,21 @@ namespace Opc.Ua.PubSub.PublishedData
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
         /// <param name="dataSetName"></param>
+        /// <param name="isDeltaFrame"></param>
         /// <returns></returns>
-        public DataSet CollectData(string dataSetName)
+        public DataSet CollectData(string dataSetName, bool isDeltaFrame)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
+
             if (publishedDataSet != null)
             {
+                m_dataStore.UpdateMetaData(publishedDataSet);
+
                 if (publishedDataSet.DataSetSource != null)
                 {
                     DataSet dataSet = new DataSet(dataSetName);
+                    dataSet.DataSetMetaData = publishedDataSet.DataSetMetaData;
+
                     PublishedDataItemsDataType publishedDataItems = ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) as PublishedDataItemsDataType;
 
                     if (publishedDataItems != null && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
@@ -145,15 +151,16 @@ namespace Opc.Ua.PubSub.PublishedData
                             {
                                 PublishedVariableDataType publishedVariable = publishedDataItems.PublishedData[i];
                                 dataSet.Fields[i] = new Field();
+
                                 // set FieldMetaData property
                                 dataSet.Fields[i].FieldMetaData = publishedDataSet.DataSetMetaData.Fields[i];
 
                                 // retrieve value from DataStore 
                                 DataValue dataValue = null;
+
                                 if (publishedVariable.PublishedVariable != null)
                                 {
-                                    //todo handle missing value in data store
-                                    dataValue = m_dataStore.ReadPublishedDataItem(publishedVariable.PublishedVariable, publishedVariable.AttributeId);
+                                    dataValue = m_dataStore.ReadPublishedDataItem(publishedVariable.PublishedVariable, publishedVariable.AttributeId, isDeltaFrame);
                                 }
 
                                 if (dataValue == null)
@@ -267,7 +274,6 @@ namespace Opc.Ua.PubSub.PublishedData
                                     default:
                                         break;
                                 }
-
                                 #endregion
 
                                 dataSet.Fields[i].Value = dataValue;

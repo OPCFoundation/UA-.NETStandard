@@ -1918,17 +1918,16 @@ namespace Opc.Ua
 
             // encode xml body.
             XmlElement xml = body as XmlElement;
-
             if (xml != null)
             {
-                XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml));
-                m_writer.WriteNode(reader, false);
-                reader.Dispose();
-                return;
+                using (XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
+                {
+                    m_writer.WriteNode(reader, false);
+                    return;
+                }
             }
 
             IEncodeable encodeable = body as IEncodeable;
-
             if (encodeable == null)
             {
                 throw new ServiceResultException(

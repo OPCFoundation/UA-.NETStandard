@@ -1,9 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <LangVersion>6</LangVersion>
     <AssemblyName>Opc.Ua.Bindings.Https</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Bindings.Https</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>

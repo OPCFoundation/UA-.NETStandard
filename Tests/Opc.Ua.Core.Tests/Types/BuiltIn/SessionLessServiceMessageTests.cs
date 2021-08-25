@@ -21,28 +21,23 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
             var expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
-            var memoryStream = new MemoryStream();
             var context = new ServiceMessageContext { NamespaceUris = namespaceTable, ServerUris = serverUris };
-            Encoding encoding = Encoding.UTF7; // setting to UTF7 because the BOM marker in UTF8 causes reading error
-            // using jsonEncoder, this could have been any IEncoder
-            var jsonEncoder = new JsonEncoder(context, true, new StreamWriter(memoryStream, encoding));
+            string result;
+            using (var jsonEncoder = new JsonEncoder(context, true))
+            {
+                var envelope = new SessionLessServiceMessage {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    Message = null
+                };
 
-            var envelope = new SessionLessServiceMessage {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Message = null
-            };
+                //act and validate it does not throw
+                Assert.DoesNotThrow(() => {
+                    envelope.Encode(jsonEncoder);
+                });
 
-            //act and validate it does not throw
-            Assert.DoesNotThrow(() => {
-                envelope.Encode(jsonEncoder);
-            });
-            jsonEncoder.Close();
-            jsonEncoder.Dispose();
-
-            //assert
-            var buffer = memoryStream.ToArray();
-            var result = encoding.GetString(buffer);
+                result = jsonEncoder.CloseAndReturnText();
+            }
 
             var jObject = JObject.Parse(result);
             Assert.IsNotNull(jObject);

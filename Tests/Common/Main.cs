@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,16 +28,19 @@
  * ======================================================================*/
 
 using System;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
 
-#if NETFRAMEWORK
-namespace Opc.Ua.Client.ComplexTypes.Tests
+static class Program
 {
-    static class Program
+    // Main Method 
+    static public void Main(String[] args)
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-        }
+        IConfig config = ManualConfig.Create(DefaultConfig.Instance)
+            // need this option because of reference to nunit.framework
+            .WithOptions(ConfigOptions.DisableOptimizationsValidator)
+            ;
+        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
     }
 }
-#endif
+

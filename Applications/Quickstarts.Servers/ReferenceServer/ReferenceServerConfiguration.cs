@@ -27,20 +27,57 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Runtime.Serialization;
+using Quickstarts.Servers;
 
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>
-    /// Defines constants for namespaces used by the application.
+    /// Stores the configuration the data access node manager.
     /// </summary>
-    public static partial class Namespaces
+    [DataContract(Namespace = Namespaces.ReferenceServer)]
+    public class ReferenceServerConfiguration
     {
+        #region Constructors
         /// <summary>
-        /// The namespace for the nodes provided by the server.
+        /// The default constructor.
         /// </summary>
-        public const string ReferenceApplications = "http://opcfoundation.org/Quickstarts/ReferenceApplications";
+        public ReferenceServerConfiguration()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initializes the object during deserialization.
+        /// </summary>
+        [OnDeserializing()]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+        }
+        #endregion
+
+        #region Public Properties
+        /// <summary>
+        /// Whether the user dialog for accepting invalid certificates should be displayed.
+        /// </summary>
+        [DataMember(Order = 1)]
+        public bool ShowCertificateValidationDialog
+        {
+            get { return m_showCertificateValidationDialog; }
+            set { m_showCertificateValidationDialog = value; }
+        }
+        #endregion
+
+        #region Private Members
+        private bool m_showCertificateValidationDialog;
+        #endregion
     }
 }
