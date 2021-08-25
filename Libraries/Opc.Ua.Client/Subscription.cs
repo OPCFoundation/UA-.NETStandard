@@ -153,7 +153,8 @@ namespace Opc.Ua.Client
             m_maxMessageCount = 10;
             m_outstandingMessageWorkers = 0;
             m_maxMessageWorkers = 0; //Unlimited
-            m_sequentialPublishing = false; 
+            m_messageWorkersSemaphoreCurrentMax = 0;
+            m_sequentialPublishing = false;
             m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
@@ -378,33 +379,65 @@ namespace Opc.Ua.Client
         /// Gets or sets the maximum number of worker threads used to handle incoming messages.
         /// </summary>
         /// <value>
-        /// <c>1</c> if messages are processed synchronously; <c>0</c> or negative if number of workers is unlimited; otherwise limited to <paramref name="value"/>.
+        /// '1' if messages are processed synchronously; '0' or negative if number of workers is unlimited; otherwise limited to <paramref name="value"/>.
         /// </value>
         /// <remarks>
-        /// To ensure sequential handling of incoming messages, it is necessary to set <see cref="MaxMessageWorkers"/> to <c>1</c> and <see cref="SequentialPublishing"/> to <c>true</c>.
+        /// <para>
+        /// If <see cref="SequentialPublishing"/> is set to <c>true</c>, only one message worker will be used at all times.
+        /// </para>
+        /// <para>
+        /// Changing this while the <see cref="Subscription"/> is active and processing messages can cause more workers to be created momentarily than this setting allows.
+        /// </para>
         /// </remarks>
         [DataMember(Order = 13)]
         public int MaxMessageWorkers
         {
-            get { return m_maxMessageWorkers; }
-            set { m_maxMessageWorkers = value; }
+            get
+            {
+                lock (m_cache)
+                {
+                    return m_maxMessageWorkers;
+                }
+            }
+            set
+            {
+                lock (m_cache)
+                {
+                    m_maxMessageWorkers = value;
+                    ManageMessageWorkerSemaphore();
+                }
+            }
         }
 
         /// <summary>
-        /// Gets or sets the behavior of waiting for sequential order for handling incoming messages.
+        /// Gets or sets the behavior of waiting for sequential order in handling incoming messages.
         /// </summary>
         /// <value>
         /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
         /// </value>
         /// <remarks>
-        /// To ensure sequential handling of incoming messages, it is necessary to set <see cref="MaxMessageWorkers"/> to <c>1</c> and <see cref="SequentialPublishing"/> to <c>true</c>.
+        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> also limits the effective max message workers to 1, regardless of what <see cref="MaxMessageWorkers"/> is set to.
         /// </remarks>
         [DataMember(Order = 14)]
         public bool SequentialPublishing
         {
-            get { return m_sequentialPublishing; }
-            set { m_sequentialPublishing = value; }
+            get
+            {
+                lock (m_cache)
+                {
+                    return m_sequentialPublishing;
+                }
+            }
+            set
+            {
+                lock (m_cache)
+                {
+                    m_sequentialPublishing = value;
+                    ManageMessageWorkerSemaphore();
+                }
+            }
         }
+
 
         /// <summary>
         /// Gets or sets the fast data change callback.
@@ -796,11 +829,7 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
 
-            //Create semaphore if needed to limit message workers
-            m_messageWorkersSemaphore?.Dispose();
-            m_messageWorkersSemaphore = m_maxMessageWorkers > 0
-                ? new SemaphoreSlim(m_maxMessageWorkers)
-                : null;
+            ManageMessageWorkerSemaphore();
 
             m_session.CreateSubscription(
                 null,
@@ -855,6 +884,29 @@ namespace Opc.Ua.Client
             CreateItems();
 
             ChangesCompleted();
+        }
+        private void ManageMessageWorkerSemaphore()
+        {
+            lock (m_cache)
+            {
+                var maxWorkers = m_sequentialPublishing
+                    ? 1 //Sequential publishing means only one worker can be active, or else sequence can be violated.
+                    : m_maxMessageWorkers;
+
+                if (maxWorkers < 0)
+                    maxWorkers = 0; //Changing from one invalid value to another shouldn't make it update the semaphore
+
+                //Update the semaphore only if needed.
+                if (maxWorkers != m_messageWorkersSemaphoreCurrentMax)
+                {
+                    m_messageWorkersSemaphore?.Dispose();
+                    m_messageWorkersSemaphore = maxWorkers > 0
+                        ? new SemaphoreSlim(maxWorkers) //Use a semaphore to manage the number of workers
+                        : null; //No semaphore needed since no limit is in place
+                    m_messageWorkersSemaphoreCurrentMax = maxWorkers; //Track it so semaphore is not re-created unless necessary to change the maximum workers it can support
+                    //If the semaphore is updated while the subscription is running workers, it's possible to temporarily have too many workers while old waiting workers still use the old semaphore object.
+                }
+            }
         }
 
         /// <summary>
@@ -1593,10 +1645,10 @@ namespace Opc.Ua.Client
                     if (next != null)
                     {
                         //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
-                        if (node.Value.SequenceNumber == m_lastSequenceNumberProcessed + 1)
+                        if (entry.SequenceNumber == m_lastSequenceNumberProcessed + 1)
                         {
                             if (!entry.Processed)
-                                Utils.Trace("Subscription {0} skipping PublishResponse Sequence Number {1} - not received", Id, entry.SequenceNumber);
+                                Utils.Trace("Subscription {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
                             m_lastSequenceNumberProcessed = entry.SequenceNumber;
                         }
 
@@ -1629,18 +1681,26 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnMessageReceived()
         {
-            var semaphore = m_messageWorkersSemaphore; //Avoid semaphore being replaced for this instance while running, retain reference locally.
-            var needSemaphore = semaphore != null; //Later used to know if releasing the semaphore is needed. Assumed taken if needed.
+            SemaphoreSlim semaphore; //Avoid semaphore being replaced for this instance while running, retain reference locally.
+            lock (m_cache)
+            {
+                //Semaphore is maintained under m_cache lock, avoid semaphore swap issues when possible. The wait call will still sync the message workers properly.
+                semaphore = m_messageWorkersSemaphore;
+            } 
+            
+            var needSemaphore = semaphore != null; //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
             if (needSemaphore)
             {
                 try
                 {
-                    await(semaphore?.WaitAsync() ?? Task.CompletedTask); //In case needSemaphore is changed to not just be a null-check
+                    await semaphore.WaitAsync();
                 }
-                catch (Exception e)
+                catch (ObjectDisposedException)
                 {
-                    Utils.Trace(e, "Error obtaining semaphore for message worker - proceeding without it");
+                    Utils.Trace("Message Workers semaphore replaced, worker released");
                     needSemaphore = false;
+                    //Semaphore was replaced to change the number of maximum allowed workers - proceed without it, momentarily more workers than allowed may exist.
+                    //Note for sequential publishing, this can only happen if sequential publishing is enabled or disabled, so it will not interrupt it. Changing max workers while sequential publishing is enabled will not trigger a semaphore change.
                 }
             }
             try
@@ -1662,7 +1722,7 @@ namespace Opc.Ua.Client
                     {
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
-                            (!m_sequentialPublishing || ii.Value.SequenceNumber == m_lastSequenceNumberProcessed + 1))
+                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) //If sequential publishing is enabled, only release messages in perfect sequence. 
                         {
                             if (messagesToProcess == null)
                             {
@@ -1679,7 +1739,10 @@ namespace Opc.Ua.Client
 
                             m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
-                            m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
+
+                            //Keep the last sequence number processed going up
+                            if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed)
+                                m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                         }
 
                         // check for missing messages.
@@ -1808,7 +1871,7 @@ namespace Opc.Ua.Client
                     //Release semaphore taken earlier
                     try
                     {
-                        semaphore?.Release(); //Release the right semaphore
+                        semaphore.Release(); //Release the right semaphore
                     }
                     catch (ObjectDisposedException)
                     {
@@ -2105,6 +2168,7 @@ namespace Opc.Ua.Client
         private int m_outstandingMessageWorkers;
         private int m_maxMessageWorkers;
         private SemaphoreSlim m_messageWorkersSemaphore;
+        private int m_messageWorkersSemaphoreCurrentMax;
         private bool m_sequentialPublishing;
         private uint m_lastSequenceNumberProcessed;
 
