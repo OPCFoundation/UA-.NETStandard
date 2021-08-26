@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             publishedDataSet.Name = dataSetName; //name shall be unique in a configuration
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSet.DataSetMetaData = new DataSetMetaDataType();
-            publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid()); //Uuid.Empty;
+            publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid()); 
             publishedDataSet.DataSetMetaData.Name = publishedDataSet.Name;
             publishedDataSet.DataSetMetaData.Fields = fieldMetaDatas;
             publishedDataSet.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             uint majorVersion = 1, uint minorVersion = 1)
         {
             DataSetMetaDataType metaData = new DataSetMetaDataType();
-            metaData.DataSetClassId = new Uuid(Guid.Empty);
+            metaData.DataSetClassId = Uuid.Empty;
             metaData.Name = dataSetName;
             metaData.Fields = fieldMetaDatas;
             metaData.ConfigurationVersion = new ConfigurationVersionDataType()
@@ -352,7 +352,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             return null;
         }
-                /// <summary>
+
+        /// <summary>
         /// Create a Publisher with the specified parameters
         /// </summary>
         /// <param name="transportProfileUri"></param>
@@ -1014,7 +1015,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
-            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {
@@ -1213,7 +1214,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
-            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {
@@ -1412,7 +1413,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
-            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid()); 
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {
@@ -1462,7 +1463,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
-            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {
@@ -1512,7 +1513,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
-            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {
@@ -1562,7 +1563,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Define  DataSetMetaData
             DataSetMetaDataType dataSetMetaData = new DataSetMetaDataType();
-            dataSetMetaData.DataSetClassId = Uuid.Empty;
+            dataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             dataSetMetaData.Name = dataSetName;
             dataSetMetaData.Fields = new FieldMetaDataCollection()
                 {

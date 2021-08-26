@@ -1328,7 +1328,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             jsonNetworkMessage.DataSetMetaData.Description = new LocalizedText("Description text");
             jsonNetworkMessage.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
             jsonNetworkMessage.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType();
-            jsonNetworkMessage.DataSetMetaData.Fields = new FieldMetaDataCollection();
+            jsonNetworkMessage.DataSetMetaData.Fields = null;
 
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
 
@@ -1630,7 +1630,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description, "DataSetMetaData.Description was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description);
 
-                if (jsonDataSetMetaData.Fields == null)
+                // jsonDataSetMetaData.Fields.Count should be > 0
+                if (jsonDataSetMetaData.Fields.Count == 0) 
                 {
                     return MetaDataFailOptions.MetaData_Fields;
                 }
