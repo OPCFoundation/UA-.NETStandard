@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             publishedDataSet.Name = dataSetName; //name shall be unique in a configuration
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSet.DataSetMetaData = new DataSetMetaDataType();
-            publishedDataSet.DataSetMetaData.DataSetClassId = Uuid.Empty;
+            publishedDataSet.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid()); //Uuid.Empty;
             publishedDataSet.DataSetMetaData.Name = publishedDataSet.Name;
             publishedDataSet.DataSetMetaData.Fields = fieldMetaDatas;
             publishedDataSet.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
