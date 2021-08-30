@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
+using System.Xml;
 using Moq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -79,6 +81,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private const string NetworkMessageMessageType = "MessageType";
         private const string NetworkMessagePublisherId = "PublisherId";
         private const string NetworkMessageDataSetClassId = "DataSetClassId";
+        private const string NetworkMessageMessages = "Messages";
 
         private enum NetworkMessageFailOptions
         {
@@ -89,6 +92,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetClassId,
             Messages
         }
+
+        private const string DataSetMessageDataSetWriterId = "DataSetWriterId";
+        private const string DataSetMessageSequenceNumber = "SequenceNumber";
+        private const string DataSetMessageMetaDataVersion = "MetaDataVersion";
+        private const string DataSetMessageTimestamp = "Timestamp";
+        private const string DataSetMessageStatus = "Status";
+        private const string DataSetMessagePayload = "Payload";
 
         public enum DataSetMessageFailOptions
         {
@@ -1376,7 +1386,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareData(jsonNetworkMessage, uaNetworkMessageDecoded);
 
             // validate network message data 
-            //ValidateDataEncoding(jsonNetworkMessage);
+            ValidateDataEncoding(jsonNetworkMessage);
         }
 
         /// <summary>
@@ -1556,14 +1566,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] networkMessage = jsonNetworkMessage.Encode();
 
             // verify DataSetMetaData encoded consistency
-            ServiceMessageContext context = new ServiceMessageContext {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
+            ServiceMessageContext context = ServiceMessageContext.GlobalContext;
 
-            string messageIdValue = "";
-            string messageTypeValue = "";
-            string publisherIdValue = "";
+            string messageIdValue = null;
+            string messageTypeValue = null;
+            string publisherIdValue = null;
             ushort dataSetWriterIdValue = 0;
 
             object token = null;
@@ -1631,7 +1638,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description, "DataSetMetaData.Description was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetMetaData.Description, dataSetMetaData.Description);
 
                 // jsonDataSetMetaData.Fields.Count should be > 0
-                if (jsonDataSetMetaData.Fields.Count == 0) 
+                if (jsonDataSetMetaData.Fields.Count == 0)
                 {
                     return MetaDataFailOptions.MetaData_Fields;
                 }
@@ -1687,7 +1694,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessage"></param>
         private void ValidateDataEncoding(JsonNetworkMessage jsonNetworkMessage)
         {
-            NetworkMessageFailOptions failOptions = VerifyDataEncoding(jsonNetworkMessage);
+            VerifyDataEncoding(jsonNetworkMessage);
+            //NetworkMessageFailOptions failOptions = VerifyDataEncoding(jsonNetworkMessage);
             //if (failOptions != NetworkMessageFailOptions.Ok)
             //{
             //    Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
@@ -1698,73 +1706,383 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Verify NetworkMessage encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
-        private NetworkMessageFailOptions VerifyDataEncoding(JsonNetworkMessage jsonNetworkMessage)
+        private void VerifyDataEncoding(JsonNetworkMessage jsonNetworkMessage)
         {
             // encode network message
             byte[] networkMessage = jsonNetworkMessage.Encode();
 
-            // verify DataSetMetaData encoded consistency
-            //ServiceMessageContext context = new ServiceMessageContext {
-            //    NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-            //    ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            //};
+            // verify network message encoded consistency
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;
 
-            string messageIdValue = "";
-            string messageTypeValue = "";
-            string publisherIdValue = "";
-            string dataSetClassIdValue = "";
-
-            object token = null;
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
             using (JsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
-                #region Verify NetworkMessage mandatory fields
-
-                if (jsonDecoder.ReadField(NetworkMessageMessageId, out token))
+                if (jsonNetworkMessage.HasNetworkMessageHeader)
                 {
-                    messageIdValue = jsonDecoder.ReadString(NetworkMessageMessageId);
+                    NetworkMessageFailOptions failOptions = VerifyNetworkMessageEncoding(jsonNetworkMessage, jsonDecoder);
+                    if (failOptions != NetworkMessageFailOptions.Ok)
+                    {
+                        Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
+                    }
                 }
-                else
+
+                if (jsonNetworkMessage.HasDataSetMessageHeader)
                 {
-                    //return NetworkMessageFailOptions.MessageId;
+                    DataSetMessageFailOptions failOptions = VerifyDataSetMessagesEncoding(jsonNetworkMessage, jsonDecoder);
+                    if (failOptions != DataSetMessageFailOptions.Ok)
+                    {
+                        Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
+                    }
                 }
-                Assert.AreEqual(jsonNetworkMessage.MessageId, messageIdValue, "MessageId was not decoded correctly. Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageId, messageIdValue);
-
-                if (jsonDecoder.ReadField(NetworkMessageMessageType, out token))
-                {
-                    messageTypeValue = jsonDecoder.ReadString(NetworkMessageMessageType);
-                }
-                else
-                {
-                    //return NetworkMessageFailOptions.MessageType;
-                }
-                Assert.AreEqual(jsonNetworkMessage.MessageType, messageTypeValue, "MessageType was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageType, messageTypeValue);
-
-                #endregion
-
-                #region Verify NetworkMessage optional fields
-
-                if (jsonDecoder.ReadField(NetworkMessagePublisherId, out token))
-                {
-                    publisherIdValue = jsonDecoder.ReadString(NetworkMessagePublisherId);
-                }
-                Assert.AreEqual(jsonNetworkMessage.PublisherId, publisherIdValue, "PublisherId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
-
-                if (jsonDecoder.ReadField(NetworkMessageDataSetClassId, out token))
-                {
-                    dataSetClassIdValue = jsonDecoder.ReadString(NetworkMessageDataSetClassId);
-                }
-                Assert.AreEqual(jsonNetworkMessage.DataSetClassId, dataSetClassIdValue, "DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
-
-                #endregion
-
-
             }
+
+        //    return NetworkMessageFailOptions.Ok;
+        }
+
+        private NetworkMessageFailOptions VerifyNetworkMessageEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
+        {
+            string messageIdValue = null;
+            string messageTypeValue = null;
+            string publisherIdValue = null;
+            string dataSetClassIdValue = null;
+
+            object token = null;
+
+            #region Verify NetworkMessage mandatory fields
+
+            if (jsonDecoder.ReadField(NetworkMessageMessageId, out token))
+            {
+                messageIdValue = jsonDecoder.ReadString(NetworkMessageMessageId);
+            }
+            else
+            {
+                return NetworkMessageFailOptions.MessageId;
+            }
+            Assert.AreEqual(jsonNetworkMessage.MessageId, messageIdValue, "MessageId was not decoded correctly. Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageId, messageIdValue);
+
+            if (jsonDecoder.ReadField(NetworkMessageMessageType, out token))
+            {
+                messageTypeValue = jsonDecoder.ReadString(NetworkMessageMessageType);
+            }
+            else
+            {
+                return NetworkMessageFailOptions.MessageType;
+            }
+            Assert.AreEqual(jsonNetworkMessage.MessageType, messageTypeValue, "MessageType was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageType, messageTypeValue);
+
+            #endregion Verify NetworkMessage mandatory fields
+
+            #region Verify NetworkMessage optional fields
+
+            if (jsonDecoder.ReadField(NetworkMessagePublisherId, out token))
+            {
+                publisherIdValue = jsonDecoder.ReadString(NetworkMessagePublisherId);
+                Assert.AreEqual(jsonNetworkMessage.PublisherId, publisherIdValue, "PublisherId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
+            }
+
+            if (jsonDecoder.ReadField(NetworkMessageDataSetClassId, out token))
+            {
+                dataSetClassIdValue = jsonDecoder.ReadString(NetworkMessageDataSetClassId);
+                Assert.AreEqual(jsonNetworkMessage.DataSetClassId, dataSetClassIdValue, "DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
+            }
+
+            #endregion Verify NetworkMessage optional fields
 
             return NetworkMessageFailOptions.Ok;
         }
 
+        private DataSetMessageFailOptions VerifyDataSetMessagesEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
+        {
+            UInt16 dataSetWriterIdValue = 0;
+            UInt32 sequenceNumberValue = 0;
+            ConfigurationVersionDataType configurationVersion = new ConfigurationVersionDataType();
+            DateTime timeStampValue = new DateTime();
+            StatusCode statusValue = StatusCodes.Good;
+            //Dictionary<string, object> publishedDataSet = null; // DataSet nice to be encodeable as PublishedDataSetDataType type
+
+            object token = null;
+
+            object messagesToken = null;
+            List<object> messagesList = null;
+            string messagesListName = string.Empty;
+            if (jsonDecoder.ReadField(NetworkMessageMessages, out messagesToken))
+            {
+                messagesList = messagesToken as List<object>;
+                if (messagesList == null)
+                {
+                    // this is a SingleDataSetMessage encoded as the content of Messages 
+                    jsonDecoder.PushStructure(NetworkMessageMessages);
+                    messagesList = new List<object>();
+                }
+                else
+                {
+                    messagesListName = NetworkMessageMessages;
+                }
+            }
+            else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
+            {
+                messagesList = messagesToken as List<object>;
+                messagesListName = JsonDecoder.RootArrayName;
+            }
+            else
+            {
+                // this is a SingleDataSetMessage encoded as the content json 
+                messagesList = new List<object>();
+            }
+
+            //List<JsonDataSetMessage> dataSetMessages = jsonDecoder.ReadEncodeable("Messages", typeof(List<JsonDataSetMessage>)) as List<JsonDataSetMessage>;
+            //Array x = jsonDecoder.ReadEncodeableArray("Messages",  typeof(object));
+
+            if (!string.IsNullOrEmpty(messagesListName))
+            {
+
+                int index = 0;
+                foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages)
+                {
+                    bool wasPushed = jsonDecoder.PushArray(JsonDecoder.RootArrayName, index++);
+                    if (wasPushed)
+                    {
+                        #region Verify DataSetMessages mandatory fields
+
+                        if (jsonDecoder.ReadField(DataSetMessageDataSetWriterId, out token))
+                        {
+                            dataSetWriterIdValue = jsonDecoder.ReadUInt16(DataSetMessageDataSetWriterId);
+                            Assert.AreEqual(jsonDataSetMessage.DataSetWriterId, dataSetWriterIdValue, "jsonDataSetMessage.DataSetWriterId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.DataSetWriterId, dataSetWriterIdValue);
+                        }
+                        else
+                        {
+                            if ((jsonDataSetMessage.DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
+                            {
+                                return DataSetMessageFailOptions.DataSetWriterId;
+                            }
+                        }
+                        
+                        //if (jsonDecoder.ReadField(DataSetMessagePayload, out token))
+                        //{
+                        //    publishedDataSet = token as Dictionary<string, object>;
+                        //    int index1 = 0;
+                        //    foreach (Field field in jsonDataSetMessage.DataSet.Fields)
+                        //    {
+                        //        Assert.IsTrue(publishedDataSet.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
+                        //        Assert.IsNotNull(publishedDataSet[field.FieldMetaData.Name], "Decoded Field: {0} is not null", field.FieldMetaData.Name);
+                        //        Dictionary<string, object> decodedFieldData = publishedDataSet[field.FieldMetaData.Name] as Dictionary<string, object>;
+                        //        Assert.IsTrue(Utils.IsEqual(field.FieldMetaData.BuiltInType, Convert.ToByte(decodedFieldData["Type"])), "Decoded Field type: {0} is not null", field.FieldMetaData.Name);
+                        //        var decodedFieldValue = ConvertToType(decodedFieldData["Body"], field.Value.Value.GetType());
+                        //        Assert.IsTrue(Utils.IsEqual(field.Value.Value, decodedFieldValue), "Decoded Field type: {0} is not null", field.FieldMetaData.Name);
+                        //        Dictionary<string, object> meta = fieldMetaData as Dictionary<string, object>;
+                        //        index1++;
+                        //    }
+                        //    publishedDataSet = jsonDecoder.ReadVariant(DataSetMessagePayload) as Dictionary<string, object>;
+                        //}
+
+                        #endregion Verify DataSetMessages mandatory fields
+
+                        #region Verify DataSetMessages optional fields
+
+                        if (jsonDecoder.ReadField(DataSetMessageSequenceNumber, out token))
+                        {
+                            sequenceNumberValue = jsonDecoder.ReadUInt32(DataSetMessageSequenceNumber);
+                            Assert.AreEqual(jsonDataSetMessage.SequenceNumber, sequenceNumberValue, "jsonDataSetMessage.SequenceNumberValue was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.SequenceNumber, sequenceNumberValue);
+                        }
+
+                        if (jsonDecoder.ReadField(DataSetMessageMetaDataVersion, out token))
+                        {
+                            configurationVersion = jsonDecoder.ReadEncodeable(DataSetMessageMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
+                            Assert.IsTrue(Utils.IsEqual(jsonDataSetMessage.MetaDataVersion, configurationVersion), "jsonDataSetMessage.MetaDataVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
+                            string.Format("MajorVersion: {0}, MinorVersion: {1}", jsonDataSetMessage.MetaDataVersion.MajorVersion, jsonDataSetMessage.MetaDataVersion.MinorVersion),
+                            string.Format("MajorVersion: {0}, MinorVersion: {1}", configurationVersion.MajorVersion, configurationVersion.MinorVersion));
+                        }
+
+                        if (jsonDecoder.ReadField(DataSetMessageTimestamp, out token))
+                        {
+                            timeStampValue = jsonDecoder.ReadDateTime(DataSetMessageTimestamp);
+                            Assert.AreEqual(jsonDataSetMessage.Timestamp, timeStampValue, "jsonDataSetMessage.Timestamp was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.Timestamp, timeStampValue);
+                        }
+
+                        if (jsonDecoder.ReadField(DataSetMessageStatus, out token))
+                        {
+                            statusValue = jsonDecoder.ReadStatusCode(DataSetMessageStatus);
+                            Assert.AreEqual(jsonDataSetMessage.Status, statusValue, "jsonDataSetMessage.Timestamp was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.Status, statusValue);
+                        }
+
+                        #endregion Verify DataSetMessages optional fields
+
+                        jsonDecoder.Pop();
+                    }
+                }
+            }
+
+            return DataSetMessageFailOptions.Ok;
+        }
+
+        private object ConvertToType(object source, Type type)
+        {
+            if (type == typeof(Uuid))
+            {
+                return new Uuid(source.ToString());
+            }
+            if (type == typeof(byte[]))
+            {
+                return Convert.FromBase64String(source.ToString());
+            }
+            if (type == typeof(XmlElement))
+            {
+                XmlDocument doc = new XmlDocument();
+                doc.LoadXml(System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(source.ToString())));
+                return doc.DocumentElement;
+            }
+            if (type == typeof(NodeId))
+            {
+                Dictionary<string, object> nodeIdData = source as Dictionary<string, object>;
+                if (nodeIdData != null)
+                {
+                    IdType idType = IdType.Numeric;
+                    if (nodeIdData.ContainsKey("IdType"))
+                    {
+                        idType = (IdType)Enum.Parse(typeof(IdType), nodeIdData["IdType"].ToString(), false);
+                    }
+                    object id = null;
+                    if (nodeIdData.ContainsKey("Id"))
+                    {
+                        switch (idType)
+                        {
+                            case IdType.Numeric:
+                                id = Convert.ToUInt32(nodeIdData["Id"]);
+                                break;
+                            case IdType.String:
+                                id = nodeIdData["Id"].ToString();
+                                break;
+                            case IdType.Guid:
+                                id = new Guid(nodeIdData["Id"].ToString());
+                                break;
+                            case IdType.Opaque:
+                                id = Convert.FromBase64String(nodeIdData["Id"].ToString());
+                                break;
+                        }
+                    }
+                    UInt16 namespaceIndex = 0;
+                    if (nodeIdData.ContainsKey("Namespace"))
+                    {
+                        namespaceIndex = Convert.ToUInt16(nodeIdData["Namespace"]);
+                    }
+                    StringBuilder stringBuilder = new StringBuilder();
+                    NodeId.Format(stringBuilder, id, idType, namespaceIndex);
+                    return new NodeId(stringBuilder.ToString());
+                }
+            }
+            if (type == typeof(ExpandedNodeId))
+            {
+                Dictionary<string, object> expandedNodeIdData = source as Dictionary<string, object>;
+                if (expandedNodeIdData != null)
+                {
+                    IdType idType = IdType.Numeric;
+                    if (expandedNodeIdData.ContainsKey("IdType"))
+                    {
+                        idType = (IdType)Enum.Parse(typeof(IdType), expandedNodeIdData["IdType"].ToString(), false);
+                    }
+                    object id = null;
+                    if (expandedNodeIdData.ContainsKey("Id"))
+                    {
+                        switch (idType)
+                        {
+                            case IdType.Numeric:
+                                id = Convert.ToUInt32(expandedNodeIdData["Id"]);
+                                break;
+                            case IdType.String:
+                                id = expandedNodeIdData["Id"].ToString();
+                                break;
+                            case IdType.Guid:
+                                id = new Guid(expandedNodeIdData["Id"].ToString());
+                                break;
+                            case IdType.Opaque:
+                                id = Convert.FromBase64String(expandedNodeIdData["Id"].ToString());
+                                break;
+                        }
+                    }
+                    UInt16 namespaceIndex = 0;
+                    if (expandedNodeIdData.ContainsKey("Namespace"))
+                    {
+                        namespaceIndex = Convert.ToUInt16(expandedNodeIdData["Namespace"]);
+                    }
+                    uint serverIndex = 0;
+                    string namespaceUri = string.Empty;
+                    StringBuilder stringBuilder = new StringBuilder();
+                    ExpandedNodeId.Format(stringBuilder, id, idType, namespaceIndex, namespaceUri, serverIndex);
+                    return new ExpandedNodeId(stringBuilder.ToString());
+                }
+            }
+            if (type == typeof(StatusCode))
+            {
+                return new StatusCode(Convert.ToUInt32(source));
+            }
+            if (type == typeof(QualifiedName))
+            {
+                Dictionary<string, object> qualifiedNameData = source as Dictionary<string, object>;
+                if (qualifiedNameData != null)
+                {
+                    string name = string.Empty;
+                    if (qualifiedNameData.ContainsKey("Name"))
+                    {
+                        name = qualifiedNameData["Name"].ToString();
+                    }
+                    UInt16 namespaceIndex = 0;
+                    if (qualifiedNameData.ContainsKey("Uri"))
+                    {
+                        namespaceIndex = Convert.ToUInt16(qualifiedNameData["Uri"]);
+                    }
+                    return new QualifiedName(name, namespaceIndex);
+                }
+            }
+            if (type == typeof(LocalizedText))
+            {
+                Dictionary<string, object> localizedTextData = source as Dictionary<string, object>;
+                if (localizedTextData != null)
+                {
+                    string text = string.Empty;
+                    if (localizedTextData.ContainsKey("Text"))
+                    {
+                        text = localizedTextData["Text"].ToString();
+                    }
+                    return new LocalizedText(text);
+                }
+            }
+            if (type == typeof(DiagnosticInfo))
+            {
+                Dictionary<string, object> diagnosticInfoData = source as Dictionary<string, object>;
+                if (diagnosticInfoData != null)
+                {
+                    int symbolicId = 0;
+                    if (diagnosticInfoData.ContainsKey("SymbolicId"))
+                    {
+                        symbolicId = Convert.ToInt32(diagnosticInfoData["SymbolicId"]);
+                    }
+                    int namespaceUri = 0;
+                    if (diagnosticInfoData.ContainsKey("NamespaceUri"))
+                    {
+                        namespaceUri = Convert.ToInt32(diagnosticInfoData["NamespaceUri"]);
+                    }
+                    int locale = 0;
+                    if (diagnosticInfoData.ContainsKey("Locale"))
+                    {
+                        locale = Convert.ToInt32(diagnosticInfoData["Locale"]);
+                    }
+                    int localizedText = 0;
+                    if (diagnosticInfoData.ContainsKey("LocalizedText"))
+                    {
+                        localizedText = Convert.ToInt32(diagnosticInfoData["LocalizedText"]);
+                    }
+                    string additionalInfo = string.Empty;
+                    if (diagnosticInfoData.ContainsKey("AdditionalInfo"))
+                    {
+                        additionalInfo = diagnosticInfoData["AdditionalInfo"].ToString();
+                    }
+                    return new DiagnosticInfo(symbolicId, namespaceUri, locale, localizedText, additionalInfo);
+                }
+            }
+
+
+            return Convert.ChangeType(source, type);
+        }
         #endregion
 
     }
