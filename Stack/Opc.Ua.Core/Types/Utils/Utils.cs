@@ -13,19 +13,19 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Net;
-using System.Collections.ObjectModel;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -114,7 +114,8 @@ namespace Opc.Ua
         /// <summary>
         /// The path to the default certificate store.
         /// </summary>
-        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/CertificateStores/MachineDefault";
+        [Obsolete("Use CertificateStoreIdentifier.DefaultPKIRoot instead.")]
+        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/pki/own";
 
         /// <summary>
         /// The default LocalFolder.
@@ -256,26 +257,20 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the current trace mask settings.
         /// </summary>
-        public static int TraceMask
-        {
-            get { return s_traceMasks; }
-        }
+        public static int TraceMask => s_traceMasks;
 
         /// <summary>
         /// Sets the mask for tracing (thead safe).
         /// </summary>
         public static void SetTraceMask(int masks)
         {
-            s_traceMasks = (int)masks;
+            s_traceMasks = masks;
         }
 
         /// <summary>
         /// Returns Tracing class instance for event attaching.
         /// </summary>
-        public static Tracing Tracing
-        {
-            get { return Tracing.Instance; }
-        }
+        public static Tracing Tracing => Tracing.Instance;
 
         /// <summary>
         /// Writes a trace statement.
@@ -397,9 +392,19 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
+        public static void Trace(string message)
+        {
+            OpcUaCoreEventSource.Log.Trace(message);
+            //Trace(TraceMasks.Information, format, false, args);
+        }
+
+        /// <summary>
+        /// Writes an informational message to the trace log.
+        /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            Trace((int)TraceMasks.Information, format, false, args);
+            OpcUaCoreEventSource.Log.Trace(format, args);
+            //Trace(TraceMasks.Information, format, false, args);
         }
 
         /// <summary>
@@ -408,7 +413,7 @@ namespace Opc.Ua
         [Conditional("DEBUG")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Trace((int)TraceMasks.OperationDetail, format, false, args);
+            Trace(TraceMasks.OperationDetail, format, false, args);
         }
 
         /// <summary>
@@ -416,7 +421,8 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(Exception e, string format, params object[] args)
         {
-            Trace(e, format, false, args);
+            //Trace(e, format, false, args);
+            OpcUaCoreEventSource.Log.Exception(e, format, args);
         }
 
         /// <summary>
@@ -460,7 +466,7 @@ namespace Opc.Ua
                 message.AppendLine();
 
                 // append stack trace.
-                if ((s_traceMasks & (int)TraceMasks.StackTrace) != 0)
+                if ((s_traceMasks & TraceMasks.StackTrace) != 0)
                 {
                     message.AppendLine();
                     message.AppendLine();
@@ -472,7 +478,7 @@ namespace Opc.Ua
             }
 
             // trace message.
-            Trace(e, (int)TraceMasks.Error, message.ToString(), handled, null);
+            Trace(e, TraceMasks.Error, message.ToString(), handled, null);
         }
 
         /// <summary>
@@ -960,10 +966,7 @@ namespace Opc.Ua
         /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
-        public static DateTime TimeBase
-        {
-            get { return s_TimeBase; }
-        }
+        public static DateTime TimeBase => s_TimeBase;
 
         private static readonly DateTime s_TimeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -1300,12 +1303,12 @@ namespace Opc.Ua
         /// </summary>
         public static int ToInt32(uint identifier)
         {
-            if (identifier <= (uint)Int32.MaxValue)
+            if (identifier <= int.MaxValue)
             {
                 return (int)identifier;
             }
 
-            return -(int)((long)UInt32.MaxValue - (long)identifier + 1);
+            return -(int)(uint.MaxValue - (long)identifier + 1);
         }
 
         /// <summary>
@@ -1318,7 +1321,7 @@ namespace Opc.Ua
                 return (uint)identifier;
             }
 
-            return (uint)((long)UInt32.MaxValue + 1 + (long)identifier);
+            return (uint)((long)UInt32.MaxValue + 1 + identifier);
         }
 
         /// <summary>
@@ -2450,7 +2453,7 @@ namespace Opc.Ua
                 }
 
                 // type found.
-                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
+                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
 
                 try
                 {
@@ -2459,7 +2462,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace("Exception parsing extension: " + ex.Message);
+                    Utils.Trace(ex, "Exception parsing extension.");
                     throw;
                 }
                 finally
@@ -3009,121 +3012,5 @@ namespace Opc.Ua
             return IsRunningOnMonoValue.Value;
         }
         #endregion
-    }
-
-    /// <summary>
-    /// Used as underlying tracing object for event processing.
-    /// </summary>
-    public class Tracing
-    {
-        #region Private Members
-        private static object m_syncRoot = new Object();
-        private static Tracing s_instance;
-        #endregion Private Members
-
-        #region Singleton Instance
-        /// <summary>
-        /// Private constructor.
-        /// </summary>
-        private Tracing()
-        { }
-
-        /// <summary>
-        /// Public Singleton Instance getter.
-        /// </summary>
-        public static Tracing Instance
-        {
-            get
-            {
-                if (s_instance == null)
-                {
-                    lock (m_syncRoot)
-                    {
-                        if (s_instance == null)
-                        {
-                            s_instance = new Tracing();
-                        }
-                    }
-                }
-                return s_instance;
-            }
-        }
-        #endregion Singleton Instance
-
-        #region Public Events
-        /// <summary>
-        /// Occurs when a trace call is made.
-        /// </summary>
-        public event EventHandler<TraceEventArgs> TraceEventHandler;
-        #endregion Public Events
-
-        #region Internal Members
-        internal void RaiseTraceEvent(TraceEventArgs eventArgs)
-        {
-            if (TraceEventHandler != null)
-            {
-                try
-                {
-                    TraceEventHandler(this, eventArgs);
-                }
-                catch (Exception ex)
-                {
-                    Utils.Trace(ex, "Exception invoking Trace Event Handler", true, null);
-                }
-            }
-        }
-        #endregion
-    }
-
-    /// <summary>
-    /// The event arguments provided when a trace event is raised.
-    /// </summary>
-    public class TraceEventArgs : EventArgs
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes a new instance of the TraceEventArgs class.
-        /// </summary>
-        /// <param name="traceMask">The trace mask.</param>
-        /// <param name="format">The format.</param>
-        /// <param name="message">The message.</param>
-        /// <param name="exception">The exception.</param>
-        /// <param name="args">The arguments.</param>
-        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
-        {
-            TraceMask = traceMask;
-            Format = format;
-            Message = message;
-            Exception = exception;
-            Arguments = args;
-        }
-        #endregion Constructors
-
-        #region Public Properties
-        /// <summary>
-        /// Gets the trace mask.
-        /// </summary>
-        public int TraceMask { get; private set; }
-
-        /// <summary>
-        /// Gets the format.
-        /// </summary>
-        public string Format { get; private set; }
-
-        /// <summary>
-        /// Gets the arguments.
-        /// </summary>
-        public object[] Arguments { get; private set; }
-
-        /// <summary>
-        /// Gets the message.
-        /// </summary>
-        public string Message { get; private set; }
-
-        /// <summary>
-        /// Gets the exception.
-        /// </summary>
-        public Exception Exception { get; private set; }
-        #endregion Public Properties
     }
 }
