@@ -954,7 +954,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test(Description = "Validate that metadata with update time 0 is sent when the metadata changes for a MQTT Json publisher")]
         public void ValidateMetaDataUpdateTimeZeroSentAtMetaDataChange()
         {
-            // arrange
+            // Arrange
             JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
             DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
@@ -1124,11 +1124,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         // Add tests which have incomplete metadata info
 
         [Test(Description = "Validate metadata with missing MessageId")]
-        public void ValidateMissingMessageId()
+        public void ValidateMissingMetaDataMessageId()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
-
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
+            
             DataSetMetaDataType metadata =
                 MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageId", NamespaceIndexAllTypes, metaDataType.Fields);
             metadata.Description = new LocalizedText("Description text");
@@ -1145,10 +1145,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test(Description = "Validate metadata with wrong MessageType")]
-        public void ValidateMissingMessageType()
+        public void ValidateMissingMetaDataMessageType()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             // Test wrong MessageType
             JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(); // do not pass metadata 
@@ -1162,10 +1162,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test(Description = "Validate metadata with missing PublisherId")]
-        public void ValidateMissingPublisherId()
+        public void ValidateMissingMetaDataPublisherId()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata =
                 MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing PublisherId", NamespaceIndexAllTypes, metaDataType.Fields, 2, 2);
@@ -1186,7 +1186,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMissingDataSetWriterId()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata =
                 MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetWriterId", NamespaceIndexAllTypes, metaDataType.Fields, 3, 3);
@@ -1204,10 +1204,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test(Description = "Validate metadata with missing DataSetMetaData")]
-        public void ValidateMissingDataSetMetaData()
+        public void ValidateMissingMetaDataDataSetMetaData()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata = null;
 
@@ -1225,7 +1225,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMissingMetaDataName()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata =
                 MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetMetaData.Name", NamespaceIndexAllTypes, metaDataType.Fields, 4, 4);
@@ -1250,7 +1250,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMissingMetaDataFieldDescription()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetMetaDatadDescription", NamespaceIndexAllTypes, metaDataType.Fields, 5, 5);
             metadata.Description = new LocalizedText("Description text");
@@ -1274,7 +1274,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMissingMetaDataFieldDataSetClassId()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing ValidateMissingMetaDataFieldDataSetClassId", NamespaceIndexAllTypes, metaDataType.Fields, 6, 6);
             metadata.Description = new LocalizedText("Description text");
@@ -1298,7 +1298,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMissingMetaDataFieldConfigurationVersion()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing ValidateMissingMetaDataFieldConfigurationVersion", NamespaceIndexAllTypes, metaDataType.Fields, 7, 7);
             metadata.Description = new LocalizedText("Description text");
@@ -1323,7 +1323,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMissingMetaDataFields()
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1, new WriterGroupMessageDataType(), new WriterGroupTransportDataType());
+            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing ValidateMissingMetaDataFields", NamespaceIndexAllTypes, metaDataType.Fields, 8, 8);
             metadata.Description = new LocalizedText("Description text");
@@ -1343,6 +1343,63 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
 
             Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Fields, "ValidateMissingMetaDataFields should fail due to missing DataSetMetaDataFields reason.");
+        }
+
+        [Test(Description = "Validate NetworkMessage with missing MessageId")]
+        public void ValidateMissingNetworkMessageMessageId()
+        {
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader;
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
+            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3"),
+            };
+
+            PubSubConfigurationDataType pubSubConfiguration = MessagesHelper.CreateDataSetMessages(Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl,
+                writerGroupId : 1,
+                jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray,
+                NamespaceIndexAllTypes);
+            Assert.IsNotNull(pubSubConfiguration, "pubSubConfiguration should not be null");
+
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(pubSubConfiguration);
+            Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+           
+            var networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+
+            // Assert
+            // check first consistency of ua-data network messages
+            List<JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
+
+            foreach (JsonNetworkMessage jsonNetworkMessage in uaDataNetworkMessages)
+            {
+                //WriterGroupDataType writerGroup = pubSubConfiguration.Connections.First().WriterGroups.First();
+                //Assert.IsNotNull(connection, "Pubsub WriterGroup instance should not be null");
+
+                //JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, uaDataNetworkMessage.DataSetMessages.Cast<JsonDataSetMessage>().ToList());
+                jsonNetworkMessage.MessageId = null;
+                jsonNetworkMessage.PublisherId = "1";
+                jsonNetworkMessage.DataSetWriterId = 1;
+
+                object failOptions = VerifyDataEncoding(jsonNetworkMessage);
+                if (failOptions is NetworkMessageFailOptions)
+                {
+                    Assert.AreEqual(failOptions, NetworkMessageFailOptions.MessageId, "ValidateMissingNetworkMessageMessageId should fail due to missing MessageId reason.");
+                }
+            }
         }
 
         #region Private methods
@@ -1694,19 +1751,28 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessage"></param>
         private void ValidateDataEncoding(JsonNetworkMessage jsonNetworkMessage)
         {
-            VerifyDataEncoding(jsonNetworkMessage);
-            //NetworkMessageFailOptions failOptions = VerifyDataEncoding(jsonNetworkMessage);
-            //if (failOptions != NetworkMessageFailOptions.Ok)
-            //{
-            //    Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
-            //}
+            object failOptions = VerifyDataEncoding(jsonNetworkMessage);
+            if(failOptions is NetworkMessageFailOptions)
+            {
+                if ((NetworkMessageFailOptions)failOptions != NetworkMessageFailOptions.Ok)
+                {
+                    Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
+                }
+            }
+            if (failOptions is DataSetMessageFailOptions)
+            {
+                if ((DataSetMessageFailOptions)failOptions != DataSetMessageFailOptions.Ok)
+                {
+                    Assert.Fail("The mandatory 'jsonDataSetMessage.{0}' field is wrong or missing from decoded message.", failOptions);
+                }
+            }
         }
 
         /// <summary>
         /// Verify NetworkMessage encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
-        private void VerifyDataEncoding(JsonNetworkMessage jsonNetworkMessage)
+        private object VerifyDataEncoding(JsonNetworkMessage jsonNetworkMessage)
         {
             // encode network message
             byte[] networkMessage = jsonNetworkMessage.Encode();
@@ -1722,7 +1788,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     NetworkMessageFailOptions failOptions = VerifyNetworkMessageEncoding(jsonNetworkMessage, jsonDecoder);
                     if (failOptions != NetworkMessageFailOptions.Ok)
                     {
-                        Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
+                        return failOptions;
+                        //Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
                     }
                 }
 
@@ -1731,12 +1798,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     DataSetMessageFailOptions failOptions = VerifyDataSetMessagesEncoding(jsonNetworkMessage, jsonDecoder);
                     if (failOptions != DataSetMessageFailOptions.Ok)
                     {
-                        Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
+                        return failOptions;
+                        //Assert.Fail("The mandatory 'jsonNetworkMessage.{0}' field is wrong or missing from decoded message.", failOptions);
                     }
                 }
             }
 
-        //    return NetworkMessageFailOptions.Ok;
+            return NetworkMessageFailOptions.Ok;
         }
 
         private NetworkMessageFailOptions VerifyNetworkMessageEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
