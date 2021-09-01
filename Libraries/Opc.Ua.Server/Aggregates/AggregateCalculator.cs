@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                 CurrentSlice.OutOfDataRange = true;
             }
 
-            Utils.Trace(1, "Computing {0:HH:mm:ss.fff}", CurrentSlice.StartTime);
+            Utils.TraceDebug("Computing {0:HH:mm:ss.fff}", CurrentSlice.StartTime);
 
             // compute the value.
             DataValue value = ComputeValue(CurrentSlice);

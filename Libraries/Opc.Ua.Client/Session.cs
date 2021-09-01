@@ -1600,7 +1600,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
+                        Utils.Trace(ex, "Dictionary load error for Dictionary {0}", r.NodeId);
                     }
                 }
             }
@@ -2768,7 +2768,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace("Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
+                    Utils.Trace(e, "Cleanup: CloseSession() or CloseChannel() raised exception.");
                 }
                 finally
                 {

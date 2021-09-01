@@ -324,7 +324,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 var nodeId = dictionary.DataTypes.FirstOrDefault(d => d.Value.BrowseName.Name == item.Name).Value;
                                 if (nodeId == null)
                                 {
-                                    Utils.Trace(TraceMasks.Error, $"Skip the type definition of {item.Name} because the data type node was not found.");
+                                    Utils.Trace(TraceMasks.Error, "Skip the type definition of {0} because the data type node was not found.", item.Name);
                                     continue;
                                 }
 
@@ -425,8 +425,10 @@ namespace Opc.Ua.Client.ComplexTypes
                                         // match namespace and add new type to type factory
                                         foreach (var encodingId in encodingIds)
                                         {
+                                            Utils.Trace("Add encodingId {0} for type {1}", encodingId, complexType.Name);
                                             AddEncodeableType(encodingId, complexType);
                                         }
+                                        Utils.Trace("Add typeId {0} for type {1}", typeId, complexType.Name);
                                         AddEncodeableType(typeId, complexType);
                                         var qName = structuredObject.QName ?? new XmlQualifiedName(structuredObject.Name, targetDictionaryNamespace);
                                         typeDictionary[qName] = ExpandedNodeId.ToNodeId(typeId, m_session.NamespaceUris);
@@ -436,7 +438,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 if (complexType == null)
                                 {
                                     retryStructureList.Add(item);
-                                    Utils.Trace(TraceMasks.Error, "Skipped the type definition of {0}. Retry in next round.", item.Name);
+                                    Utils.Trace("Skipped the type definition of {0}. Retry in next round.", item.Name);
                                 }
                             }
                         }
@@ -1006,7 +1008,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 return;
             }
             var internalNodeId = NormalizeExpandedNodeId(nodeId);
-            Utils.TraceDebug($"Adding Type {type.FullName} as: {internalNodeId}");
+            Utils.TraceDebug("Adding Type {0} as: {1}", type.FullName, internalNodeId);
+            //Utils.Log.Trace("Adding Type {0} as: {1}", type.FullName, internalNodeId);
             m_session.Factory.AddEncodeableType(internalNodeId, type);
         }
 

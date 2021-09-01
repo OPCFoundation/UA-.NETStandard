@@ -376,13 +376,13 @@ namespace Opc.Ua
                 if (ContainsUnsuppressibleSC(se.Result))
                 {
                     SaveCertificate(certificate);
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}.", certificate.Subject, se.Result.ToString());
+                    Utils.Log.Error("Certificate '{0}' rejected. Reason={1}.", certificate.Subject, se.Result.ToString());
                     TraceInnerServiceResults(se.Result);
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
                 else
                 {
-                    Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}", certificate.Subject, se.ToLongString());
+                    Utils.Log.Warning("Certificate Validation failed for '{0}'. Reason={1}", certificate.Subject, se.ToLongString());
                     TraceInnerServiceResults(se.Result);
                 }
 
@@ -429,7 +429,7 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
+                    Utils.Log.Error("Certificate '{0}' rejected. Reason={1}",
                         certificate.Subject, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
                     SaveCertificate(certificate);
 

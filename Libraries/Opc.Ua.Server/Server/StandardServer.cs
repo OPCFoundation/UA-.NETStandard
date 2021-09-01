@@ -2429,10 +2429,10 @@ namespace Opc.Ua.Server
 
             OperationContext context = ServerInternal.SessionManager.ValidateRequest(requestHeader, requestType);
 
-            Utils.Trace(
-                (int)Utils.TraceMasks.Service,
-                "{0} Validated. ID={1}",
-                context.RequestType,
+            Utils.Log.ServerCall(
+                //(int)Utils.TraceMasks.Service,
+                //"{0} Validated. ID={1}",
+                context.RequestType.ToString(),
                 context.RequestId);
 
             // notify the request manager.

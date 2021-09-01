@@ -15,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -142,6 +143,11 @@ namespace Opc.Ua
         #endregion
 
         #region Trace Support
+        /// <summary>
+        /// 
+        /// </summary>
+        public static OpcUaEventSource Log => OpcUaEventSource.Log;
+
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
@@ -394,7 +400,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string message)
         {
-            OpcUaCoreEventSource.Log.Trace(message);
+            Log.Trace(message);
             //Trace(TraceMasks.Information, format, false, args);
         }
 
@@ -403,7 +409,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            OpcUaCoreEventSource.Log.Trace(format, args);
+            Log.Trace(format, args);
             //Trace(TraceMasks.Information, format, false, args);
         }
 
@@ -411,9 +417,11 @@ namespace Opc.Ua
         /// Writes an informational message to the trace log.
         /// </summary>
         [Conditional("DEBUG")]
+        //[Obsolete("Use TraceEvent message instead")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Trace(TraceMasks.OperationDetail, format, false, args);
+            //Trace(TraceMasks.OperationDetail, format, false, args);
+            Log.Debug(format, args);
         }
 
         /// <summary>
@@ -422,7 +430,7 @@ namespace Opc.Ua
         public static void Trace(Exception e, string format, params object[] args)
         {
             //Trace(e, format, false, args);
-            OpcUaCoreEventSource.Log.Exception(e, format, args);
+            Log.Exception(e, format, args);
         }
 
         /// <summary>
@@ -486,7 +494,26 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
-            Trace(traceMask, format, false, args);
+            if ((traceMask & TraceMasks.Error) != 0)
+            {
+                Log.Error(format, args);
+            }
+            else if ((traceMask & TraceMasks.Security) != 0)
+            {
+                Log.Security(format, args);
+            }
+            else if ((traceMask & TraceMasks.Information) != 0)
+            {
+                Log.Trace(format, args);
+            }
+            else if ((traceMask & TraceMasks.OperationDetail) != 0)
+            {
+                Log.Trace(format, args);
+            }
+            else
+            {
+                Trace(traceMask, format, false, args);
+            }
         }
 
         /// <summary>

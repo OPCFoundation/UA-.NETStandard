@@ -308,7 +308,7 @@ namespace Opc.Ua.Bindings
                         m_listeningSocket.Dispose();
                         m_listeningSocket = null;
                     }
-                    Utils.Trace("failed to create IPv4 listening socket: " + ex.Message);
+                    Utils.Trace(ex, "Failed to create IPv4 listening socket.");
                 }
 
                 // create IPv6 socket
@@ -334,7 +334,7 @@ namespace Opc.Ua.Bindings
                         m_listeningSocketIPv6.Dispose();
                         m_listeningSocketIPv6 = null;
                     }
-                    Utils.Trace("failed to create IPv6 listening socket: " + ex.Message);
+                    Utils.Trace(ex, "Failed to create IPv6 listening socket.");
                 }
 
                 if (m_listeningSocketIPv6 == null && m_listeningSocket == null)

@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
 #if !NETSTANDARD2_1 && !NET472 && !NET5_0
 
 using System;

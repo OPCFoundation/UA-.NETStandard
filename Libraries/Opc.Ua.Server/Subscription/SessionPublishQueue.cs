@@ -56,15 +56,16 @@ namespace Opc.Ua.Server
             m_maxPublishRequests  = maxPublishRequests;
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
+
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -106,7 +107,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>The list of subscriptions in the queue.</returns>
         public IList<Subscription> Close()
-        {            
+        {
             lock (m_lock)
             {
                 // TraceState("SESSION CLOSED");
@@ -121,7 +122,7 @@ namespace Opc.Ua.Server
                     request.Error = StatusCodes.BadSessionClosed;
                     request.Set();
                 }
-                
+
                 // tell the subscriptions that the session is closed.
                 Subscription[] subscriptions = new Subscription[m_queuedSubscriptions.Count];
 
@@ -153,12 +154,12 @@ namespace Opc.Ua.Server
                 queuedSubscription.Timestamp = DateTime.UtcNow;
                 queuedSubscription.Subscription = subscription;
 
-                m_queuedSubscriptions.Add(queuedSubscription);      
+                m_queuedSubscriptions.Add(queuedSubscription);
 
                 // TraceState("SUBSCRIPTION QUEUED");          
             }
         }
-        
+
         /// <summary>
         /// Removes a subscription from the publish queue.
         /// </summary>
@@ -189,7 +190,7 @@ namespace Opc.Ua.Server
                         m_queuedRequests.RemoveFirst();
                     }
                 }
-                
+
                 // TraceState("SUBSCRIPTION REMOVED");
             }
         }
@@ -199,15 +200,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Acknowledge(
             OperationContext                      context,
-            SubscriptionAcknowledgementCollection subscriptionAcknowledgements, 
-            out StatusCodeCollection              acknowledgeResults, 
+            SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
+            out StatusCodeCollection              acknowledgeResults,
             out DiagnosticInfoCollection          acknowledgeDiagnosticInfos)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (subscriptionAcknowledgements == null) throw new ArgumentNullException(nameof(subscriptionAcknowledgements));
 
             lock (m_lock)
-            {                
+            {
                 bool diagnosticsExist = false;
                 acknowledgeResults = new StatusCodeCollection(subscriptionAcknowledgements.Count);
                 acknowledgeDiagnosticInfos = new DiagnosticInfoCollection(subscriptionAcknowledgements.Count);
@@ -217,7 +218,7 @@ namespace Opc.Ua.Server
                     SubscriptionAcknowledgement acknowledgement = subscriptionAcknowledgements[ii];
 
                     bool found = false;
-                    
+
                     for (int jj = 0; jj < m_queuedSubscriptions.Count; jj++)
                     {
                         QueuedSubscription subscription = m_queuedSubscriptions[jj];
@@ -229,7 +230,7 @@ namespace Opc.Ua.Server
                             if (ServiceResult.IsGood(result))
                             {
                                 acknowledgeResults.Add(StatusCodes.Good);
-                                
+
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                                 {
                                     acknowledgeDiagnosticInfos.Add(null);
@@ -238,9 +239,9 @@ namespace Opc.Ua.Server
                             else
                             {
                                 acknowledgeResults.Add(result.Code);
-                                
+
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                                {                                    
+                                {
                                     DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
@@ -256,7 +257,7 @@ namespace Opc.Ua.Server
                     {
                         ServiceResult result = new ServiceResult(StatusCodes.BadSubscriptionIdInvalid);
                         acknowledgeResults.Add(result.Code);
-                        
+
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
                             DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
@@ -272,7 +273,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-                
+
         /// <summary>
         /// Returns a subscription that is ready to publish.
         /// </summary>
@@ -282,7 +283,7 @@ namespace Opc.Ua.Server
 
             // DateTime queueTime = DateTime.UtcNow;
             // DateTime dequeueTime = DateTime.UtcNow;
-            
+
             lock (m_lock)
             {
                 if (m_queuedSubscriptions.Count == 0)
@@ -297,13 +298,13 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
                     QueuedSubscription subscription = m_queuedSubscriptions[ii];
-                    
+
                     if (subscription.ReadyToPublish && !subscription.Publishing)
                     {
                         subscriptions.Add(subscription);
                     }
                 }
-                
+
                 // find waiting the subscription that has been waiting the longest.
                 if (subscriptions.Count > 0)
                 {
@@ -349,7 +350,7 @@ namespace Opc.Ua.Server
                 if (subscriptions.Count == 0)
                 {
                     LinkedListNode<QueuedRequest> node = m_queuedRequests.First;
-                    
+
                     while (node != null)
                     {
                         LinkedListNode<QueuedRequest> next = node.Next;
@@ -389,7 +390,7 @@ namespace Opc.Ua.Server
                     }
 
                     request = new QueuedRequest();
-                    
+
                     request.SecureChannelId = SecureChannelContext.Current.SecureChannelId;
                     request.Deadline = deadline;
                     request.Subscription = null;
@@ -414,7 +415,7 @@ namespace Opc.Ua.Server
                         m_queuedRequests.AddLast(request);
                         // TraceState("REQUEST #{0} QUEUED", clientHandle);
                     }
-                }                 
+                }
             }
 
             // check for non-blocking operation.
@@ -471,7 +472,7 @@ namespace Opc.Ua.Server
         /// <param name="calldata">The calldata.</param>
         /// <returns></returns>
         public Subscription CompletePublish(
-            bool requeue, 
+            bool requeue,
             AsyncPublishOperation operation,
             object calldata)
         {
@@ -518,7 +519,7 @@ namespace Opc.Ua.Server
             // return whatever was assigned.
             return request.Subscription.Subscription;
         }
-        
+
         /// <summary>
         /// Adds a subscription back into the queue because it has more notifications to publish.
         /// </summary>
@@ -575,10 +576,10 @@ namespace Opc.Ua.Server
                     }
 
                     liveSubscriptions.Add(subscription);
-                    
+
                     // check if idle.
                     if (state == PublishingState.Idle)
-                    {               
+                    {
                         subscription.ReadyToPublish = false;
                         continue;
                     }
@@ -594,7 +595,7 @@ namespace Opc.Ua.Server
                                 // TraceState("SUBSCRIPTIONS WAITING");
                             }
                         }
-   
+
                         continue;
                     }
 
@@ -612,12 +613,12 @@ namespace Opc.Ua.Server
                 SubscriptionManager.CleanupSubscriptions(m_server, subscriptionsToDelete);
             }
         }
-        
+
         /// <summary>
         /// Checks the state of the subscriptions.
         /// </summary>
         private void AssignSubscriptionToRequest(QueuedSubscription subscription)
-        {            
+        {
             // find a request.
             for (LinkedListNode<QueuedRequest> node = m_queuedRequests.First; node != null; node = node.Next)
             {
@@ -639,7 +640,7 @@ namespace Opc.Ua.Server
                 }
 
                 if (StatusCode.IsBad(error))
-                {                         
+                {
                     // remove request.
                     LinkedListNode<QueuedRequest> next = node.Next;
                     m_queuedRequests.Remove(node);
@@ -674,7 +675,7 @@ namespace Opc.Ua.Server
             subscription.Timestamp = DateTime.UtcNow;
         }
         #endregion
-        
+
         #region QueuedRequest Class
         /// <summary>
         /// A request queued while waiting for a subscription.
@@ -693,9 +694,10 @@ namespace Opc.Ua.Server
             /// Frees any unmanaged resources.
             /// </summary>
             public void Dispose()
-            {   
+            {
                 Dispose(true);
             }
+
 
             /// <summary>
             /// An overrideable version of the Dispose.
@@ -711,7 +713,7 @@ namespace Opc.Ua.Server
                         this.Operation.Dispose();
                         this.Operation = null;
                     }
-                    
+
                     if (this.Event != null)
                     {
                         try
