@@ -128,7 +128,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create writer group with configurated message and transport settings
+        /// Create PubSubConfiguration with configurated DataSetMessages
         /// </summary>
         /// <param name="transportProfileUri"></param>
         /// <param name="writerGroupId"></param>
@@ -138,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetMetaDataArray"></param>
         /// <param name="metaDataUpdateTime"></param>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateDataSetMessages(string transportProfileUri,
+        public static PubSubConfigurationDataType ConfigureDataSetMessages(string transportProfileUri,
             string addressUrl,
             ushort writerGroupId,
             UInt32 networkMessageContentMask,
@@ -277,7 +277,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create Writer Group for Json
+        /// Create PubSubConfiguration with DataSetMessages for Json
         /// </summary>
         /// <param name="transportProfileUri"></param>
         /// <param name="writerGroupId"></param>
@@ -286,7 +286,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetFieldContentMask"></param>
         /// <param name="dataSetMetaDataArray"></param>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateDataSetMessages(string transportProfileUri,
+        public static PubSubConfigurationDataType ConfigureDataSetMessages(string transportProfileUri,
             string addressUrl,
             ushort writerGroupId,
             JsonNetworkMessageContentMask networkMessageContentMask,
@@ -295,7 +295,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData)
         {
-            return CreateDataSetMessages(transportProfileUri,
+            return ConfigureDataSetMessages(transportProfileUri,
                 addressUrl,
                 writerGroupId,
                 (UInt32)networkMessageContentMask,
@@ -306,7 +306,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Create Writer Group for Uadp
+        /// Create PubSubConfiguration with DataSetMessages for Uadp
         /// </summary>
         /// <param name="transportProfileUri"></param>
         /// <param name="writerGroupId"></param>
@@ -315,7 +315,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetFieldContentMask"></param>
         /// <param name="dataSetMetaDataArray"></param>
         /// <returns></returns>
-        public static PubSubConfigurationDataType CreateDataSetMessages(string transportProfileUri,
+        public static PubSubConfigurationDataType ConfigureDataSetMessages(string transportProfileUri,
             ushort writerGroupId,
             string addressUrl,
             UadpNetworkMessageContentMask networkMessageContentMask,
@@ -324,7 +324,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             DataSetMetaDataType[] dataSetMetaDataArray,
             ushort nameSpaceIndexForData)
         {
-            return CreateDataSetMessages(transportProfileUri,
+            return ConfigureDataSetMessages(transportProfileUri,
                 addressUrl,
                 writerGroupId,
                 (UInt32)networkMessageContentMask,
