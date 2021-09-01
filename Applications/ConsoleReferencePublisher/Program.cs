@@ -471,12 +471,12 @@ namespace Quickstarts.ConsoleReferencePublisher
             };
 
             dataSetWriter1.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
-            BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
+            BrokerDataSetWriterTransportDataType uadpDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
                 QueueName = brokerQueueName,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
                 MetaDataUpdateTime = 60000
             };
-            dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
+            dataSetWriter1.TransportSettings = new ExtensionObject(uadpDataSetWriterTransport);
 
 
             writerGroup1.DataSetWriters.Add(dataSetWriter1);
@@ -498,7 +498,7 @@ namespace Quickstarts.ConsoleReferencePublisher
 
             dataSetWriter2.MessageSettings = new ExtensionObject(uadpDataSetWriterMessage);
 
-            dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
+            dataSetWriter2.TransportSettings = new ExtensionObject(uadpDataSetWriterTransport);
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
