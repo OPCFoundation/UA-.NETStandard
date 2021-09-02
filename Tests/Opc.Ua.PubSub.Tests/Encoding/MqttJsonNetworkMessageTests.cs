@@ -1128,7 +1128,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
             WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-            
+
             DataSetMetaDataType metadata =
                 MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageId", NamespaceIndexAllTypes, metaDataType.Fields);
             metadata.Description = new LocalizedText("Description text");
@@ -1361,7 +1361,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             PubSubConfigurationDataType pubSubConfiguration = MessagesHelper.ConfigureDataSetMessages(Profiles.PubSubMqttJsonTransport,
                 MqttAddressUrl,
-                writerGroupId : 1,
+                writerGroupId: 1,
                 jsonNetworkMessageContentMask,
                 jsonDataSetMessageContentMask,
                 dataSetFieldContentMask,
@@ -1375,7 +1375,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
-           
+
             var networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
@@ -1448,7 +1448,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 if (failOptions is NetworkMessageFailOptions &&
                     (NetworkMessageFailOptions)failOptions != NetworkMessageFailOptions.Ok)
                 {
-                     Assert.AreEqual(failOptions, NetworkMessageFailOptions.PublisherId, "ValidateMissingNetworkMessagePublisherId should fail due to missing MessageId reason.");
+                    Assert.AreEqual(failOptions, NetworkMessageFailOptions.PublisherId, "ValidateMissingNetworkMessagePublisherId should fail due to missing MessageId reason.");
                 }
             }
         }
@@ -1462,8 +1462,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
                 MessagesHelper.CreateDataSetMetaData1("DataSet1"),
                 MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3")
             };
 
             PubSubConfigurationDataType pubSubConfiguration = MessagesHelper.ConfigureDataSetMessages(Profiles.PubSubMqttJsonTransport,
@@ -1497,10 +1499,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 jsonNetworkMessage.PublisherId = "1";
                 jsonNetworkMessage.DataSetClassId = "1";
 
-                foreach(JsonDataSetMessage jsonDataSetMessage in  jsonNetworkMessage.DataSetMessages)
-                {
-                    jsonDataSetMessage.DataSetWriterId = 0xFF; 
-                }
+                //foreach(JsonDataSetMessage jsonDataSetMessage in  jsonNetworkMessage.DataSetMessages)
+                //{
+                //    jsonDataSetMessage.DataSetWriterId = 0xFF; 
+                //}
+                //CompareEncodeDecode(jsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[0] });
 
                 object failOptions = VerifyDataEncoding(jsonNetworkMessage);
                 if (failOptions is DataSetMessageFailOptions &&
@@ -1508,7 +1511,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     Assert.AreEqual(failOptions, DataSetMessageFailOptions.DataSetWriterId, "ValidateMissingDataSetMessageDataSetWriterId should fail due to missing DataSetWriterId reason.");
                 }
-            } 
+            }
         }
 
         #region Private methods
@@ -1861,7 +1864,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private void ValidateDataEncoding(JsonNetworkMessage jsonNetworkMessage)
         {
             object failOptions = VerifyDataEncoding(jsonNetworkMessage);
-            if(failOptions is NetworkMessageFailOptions)
+            if (failOptions is NetworkMessageFailOptions)
             {
                 if ((NetworkMessageFailOptions)failOptions != NetworkMessageFailOptions.Ok)
                 {
@@ -1973,9 +1976,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ConfigurationVersionDataType configurationVersion = new ConfigurationVersionDataType();
             DateTime timeStampValue = new DateTime();
             StatusCode statusValue = StatusCodes.Good;
-            //Dictionary<string, object> publishedDataSet = null; // DataSet & Field nice to be encodeable as PublishedDataSetDataType type
-
+            FieldTypeEncodingMask fieldTypeEncoding = FieldTypeEncodingMask.Reserved;
+            Dictionary<string, object> dataSetPayload = null;
+            
             object token = null;
+            //object token1 = null;
 
             object messagesToken = null;
             List<object> messagesList = null;
@@ -2005,15 +2010,31 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 messagesList = new List<object>();
             }
 
-            //List<JsonDataSetMessage> dataSetMessages = jsonDecoder.ReadEncodeable("Messages", typeof(List<JsonDataSetMessage>)) as List<JsonDataSetMessage>;
-            //Array x = jsonDecoder.ReadEncodeableArray("Messages",  typeof(object));
-
             if (!string.IsNullOrEmpty(messagesListName))
             {
-
                 int index = 0;
                 foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages)
                 {
+                    if (jsonDataSetMessage.FieldContentMask == DataSetFieldContentMask.None)
+                    {
+                        fieldTypeEncoding = FieldTypeEncodingMask.Variant;
+                    }
+                    else if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.RawData) != 0)
+                    {
+                        // If the RawData flag is set, all other bits are ignored.
+                        // 01 RawData Field Encoding
+                        fieldTypeEncoding = FieldTypeEncodingMask.RawData;
+                    }
+                    else if ((jsonDataSetMessage.FieldContentMask & (DataSetFieldContentMask.StatusCode
+                                                  | DataSetFieldContentMask.SourceTimestamp
+                                                  | DataSetFieldContentMask.ServerTimestamp
+                                                  | DataSetFieldContentMask.SourcePicoSeconds
+                                                  | DataSetFieldContentMask.ServerPicoSeconds)) != 0)
+                    {
+                        // 10 DataValue Field Encoding
+                        fieldTypeEncoding = FieldTypeEncodingMask.DataValue;
+                    }
+
                     bool wasPushed = jsonDecoder.PushArray(JsonDecoder.RootArrayName, index++);
                     if (wasPushed)
                     {
@@ -2023,7 +2044,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         {
                             dataSetWriterIdValue = jsonDecoder.ReadUInt16(DataSetMessageDataSetWriterId);
                             Assert.AreEqual(jsonDataSetMessage.DataSetWriterId, dataSetWriterIdValue, "jsonDataSetMessage.DataSetWriterId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.DataSetWriterId, dataSetWriterIdValue);
-                            if(dataSetWriterIdValue == 0xFF)
+                            if (dataSetWriterIdValue == 0xFF)
                             {
                                 return DataSetMessageFailOptions.DataSetWriterId;
                             }
@@ -2038,33 +2059,128 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         if (jsonDecoder.ReadField(DataSetMessagePayload, out token))
                         {
-                            //publishedDataSet = token as Dictionary<string, object>;
-                            //int index1 = 0;
+                            dataSetPayload = token as Dictionary<string, object>;
 
-                            
-                            //FieldMetaDataCollection fields = (FieldMetaDataCollection)jsonDecoder.ReadEncodeableArray(JsonDecoder.RootArrayName, typeof(FieldMetaData));
                             //foreach (Field field in jsonDataSetMessage.DataSet.Fields)
                             //{
-                            //    if(jsonDecoder.PushArray(field.FieldMetaData.Name, index1++))
-                            //    {
+                            //    Assert.IsTrue(dataSetPayload.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
+                            //    Assert.IsNotNull(dataSetPayload[field.FieldMetaData.Name], "Decoded Field: {0} is not null", field.FieldMetaData.Name);
+                            //    object decodedField = dataSetPayload[field.FieldMetaData.Name] as object;
+                            //    var decodedFieldValue = ConvertToType(decodedField, field.Value.Value.GetType());
 
-                            //    }
-                            //    bool x = jsonDecoder.ReadBoolean(field.FieldMetaData.Name);
-                                
-                            //    sbyte s = jsonDecoder.ReadSByte(field.FieldMetaData.Name);
-                            //    //object val1 = jsonDecoder.ReadArray(field.FieldMetaData.Name, 1, BuiltInType.Boolean);
-                            //    //object val2 = jsonDecoder.ReadArrayField(field.FieldMetaData.Name, 1, BuiltInType.SByte);
-
-                            //    Assert.IsTrue(publishedDataSet.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
-                            //    Assert.IsNotNull(publishedDataSet[field.FieldMetaData.Name], "Decoded Field: {0} is not null", field.FieldMetaData.Name);
-                            //    Dictionary<string, object> decodedFieldData = publishedDataSet[field.FieldMetaData.Name] as Dictionary<string, object>;
-                            //    Assert.IsTrue(Utils.IsEqual(field.FieldMetaData.BuiltInType, Convert.ToByte(decodedFieldData["Type"])), "Decoded Field type: {0} is not null", field.FieldMetaData.Name);
-                            //    var decodedFieldValue = ConvertToType(decodedFieldData["Body"], field.Value.Value.GetType());
-                            //    Assert.IsTrue(Utils.IsEqual(field.Value.Value, decodedFieldValue), "Decoded Field type: {0} is not null", field.FieldMetaData.Name);
-                            //    //Dictionary<string, object> meta = fieldMetaData as Dictionary<string, object>;
-                            //    index1++;
+                            //    Assert.AreEqual(field.Value.Value, decodedFieldValue,
+                            //        "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
                             //}
-                            //publishedDataSet = jsonDecoder.ReadVariant(DataSetMessagePayload) as Dictionary<string, object>;
+
+                            bool wasPushed1 = jsonDecoder.PushStructure(DataSetMessagePayload);
+                            if (wasPushed1)
+                            {
+                                object decodedFieldValue = null;
+                                foreach (Field field in jsonDataSetMessage.DataSet.Fields)
+                                {
+                                    Assert.IsTrue(dataSetPayload.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
+                                    Assert.IsNotNull(dataSetPayload[field.FieldMetaData.Name], "Decoded Field: {0} is not null", field.FieldMetaData.Name);
+
+                                    if (jsonDecoder.ReadField(field.FieldMetaData.Name, out token))
+                                    {
+                                        switch(fieldTypeEncoding)
+                                        {
+                                            case FieldTypeEncodingMask.Variant:
+                                                decodedFieldValue = jsonDecoder.ReadVariant(field.FieldMetaData.Name);
+                                                Assert.IsNotNull(((Variant)decodedFieldValue).Value, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
+                                                Assert.IsTrue(Utils.IsEqual(field.Value.Value, ((Variant)decodedFieldValue).Value),
+                                                     "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
+                                                break;
+                                            case FieldTypeEncodingMask.RawData:
+                                                decodedFieldValue = DecodeFieldData(jsonDecoder, field.FieldMetaData, field.FieldMetaData.Name);
+                                                Assert.IsNotNull(decodedFieldValue, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
+                                                // ExtendedNodeId namespaceIndex workaround issue
+                                                if (decodedFieldValue is ExpandedNodeId &&
+                                                    !string.IsNullOrEmpty(((ExpandedNodeId)decodedFieldValue).NamespaceUri))
+                                                {
+                                                    // replace the namespaceUri with namespaceIndex to match the encoded value
+                                                    ExpandedNodeId expandedNodeId = Utils.Clone(decodedFieldValue) as ExpandedNodeId;
+                                                    Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
+                                                    Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
+
+                                                    UInt16 namespaceIndex =
+                                                        Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)decodedFieldValue).NamespaceUri));
+
+                                                    StringBuilder stringBuilder = new StringBuilder();
+                                                    ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
+                                                    decodedFieldValue = new ExpandedNodeId(stringBuilder.ToString());
+                                                }
+                                                Assert.IsTrue(Utils.IsEqual(field.Value.Value, decodedFieldValue),
+                                                         "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
+                                                break;
+                                            case FieldTypeEncodingMask.DataValue:
+                                                bool wasPushed2 = jsonDecoder.PushStructure(field.FieldMetaData.Name);
+                                                DataValue dataValue = new DataValue(Variant.Null);
+                                                try
+                                                {
+                                                    if (wasPushed2 && jsonDecoder.ReadField("Value", out token))
+                                                    {
+                                                        // the Value was encoded using the non reversible json encoding 
+                                                        token = DecodeFieldData(jsonDecoder, field.FieldMetaData, "Value");
+                                                        dataValue = new DataValue(new Variant(token));
+                                                    }
+                                                    else
+                                                    {
+                                                        // handle Good StatusCode that was not encoded
+                                                        if (field.FieldMetaData.BuiltInType == (byte)BuiltInType.StatusCode)
+                                                        {
+                                                            dataValue = new DataValue(new Variant(new StatusCode(StatusCodes.Good)));
+                                                        }
+                                                    }
+
+                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
+                                                    {
+                                                        if (jsonDecoder.ReadField("StatusCode", out token))
+                                                        {
+                                                            bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
+                                                            if (wasPush3)
+                                                            {
+                                                                dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
+                                                                jsonDecoder.Pop();
+                                                            }
+                                                        }
+                                                    }
+
+                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
+                                                    {
+                                                        dataValue.SourceTimestamp = jsonDecoder.ReadDateTime("SourceTimestamp");
+                                                    }
+
+                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
+                                                    {
+                                                        dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16("SourcePicoseconds");
+                                                    }
+
+                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
+                                                    {
+                                                        dataValue.ServerTimestamp = jsonDecoder.ReadDateTime("ServerTimestamp");
+                                                    }
+
+                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
+                                                    {
+                                                        dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16("ServerPicoseconds");
+                                                    }
+                                                    Assert.IsNotNull(dataValue.Value, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
+                                                    Assert.IsTrue(Utils.IsEqual(field.Value.Value, dataValue.Value),
+                                                         "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
+                                                }
+                                                finally
+                                                {
+                                                    if (wasPushed2)
+                                                    {
+                                                        jsonDecoder.Pop();
+                                                    }
+                                                }
+                                                break;
+                                        }
+                                    }                                     
+                                }
+                            }
                         }
 
                         #endregion Verify DataSetMessages mandatory fields
@@ -2107,8 +2223,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return DataSetMessageFailOptions.Ok;
         }
 
+        /// <summary>
+        /// convert object based on specific type
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
         private object ConvertToType(object source, Type type)
         {
+            if (type.IsArray)
+            {
+                // todo:
+            }
+
             if (type == typeof(Uuid))
             {
                 return new Uuid(source.ToString());
@@ -2155,7 +2282,28 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     UInt16 namespaceIndex = 0;
                     if (nodeIdData.ContainsKey("Namespace"))
                     {
-                        namespaceIndex = Convert.ToUInt16(nodeIdData["Namespace"]);
+                        if (UInt16.TryParse(nodeIdData["Namespace"].ToString(), out namespaceIndex))
+                        {
+                            namespaceIndex = Convert.ToUInt16(nodeIdData["Namespace"]);
+                        }
+                        else
+                        {
+                            switch (idType)
+                            {
+                                case IdType.Numeric:
+                                    namespaceIndex = 1;
+                                    break;
+                                case IdType.String:
+                                    namespaceIndex = 3;
+                                    break;
+                                case IdType.Guid:
+                                    namespaceIndex = 2;
+                                    break;
+                                case IdType.Opaque:
+                                    namespaceIndex = 4;
+                                    break;
+                            }
+                        }
                     }
                     StringBuilder stringBuilder = new StringBuilder();
                     NodeId.Format(stringBuilder, id, idType, namespaceIndex);
@@ -2194,7 +2342,28 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     UInt16 namespaceIndex = 0;
                     if (expandedNodeIdData.ContainsKey("Namespace"))
                     {
-                        namespaceIndex = Convert.ToUInt16(expandedNodeIdData["Namespace"]);
+                        if (UInt16.TryParse(expandedNodeIdData["Namespace"].ToString(), out namespaceIndex))
+                        {
+                            namespaceIndex = Convert.ToUInt16(expandedNodeIdData["Namespace"]);
+                        }
+                        else
+                        {
+                            switch (idType)
+                            {
+                                case IdType.Numeric:
+                                    namespaceIndex = 1;
+                                    break;
+                                case IdType.String:
+                                    namespaceIndex = 3;
+                                    break;
+                                case IdType.Guid:
+                                    namespaceIndex = 2;
+                                    break;
+                                case IdType.Opaque:
+                                    namespaceIndex = 4;
+                                    break;
+                            }
+                        }
                     }
                     uint serverIndex = 0;
                     string namespaceUri = string.Empty;
@@ -2205,6 +2374,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             if (type == typeof(StatusCode))
             {
+                Dictionary<string, object> statusCodeData = source as Dictionary<string, object>;
+                if (statusCodeData.ContainsKey("Code"))
+                {
+                    return new StatusCode(Convert.ToUInt32(statusCodeData["Code"]));
+                }
                 return new StatusCode(Convert.ToUInt32(source));
             }
             if (type == typeof(QualifiedName))
@@ -2220,23 +2394,34 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     UInt16 namespaceIndex = 0;
                     if (qualifiedNameData.ContainsKey("Uri"))
                     {
-                        namespaceIndex = Convert.ToUInt16(qualifiedNameData["Uri"]);
+                        if (UInt16.TryParse(qualifiedNameData["Uri"].ToString(), out namespaceIndex))
+                        {
+                            namespaceIndex = Convert.ToUInt16(qualifiedNameData["Uri"]);
+                        }
+                        else
+                        {
+                            namespaceIndex = 3;
+                        }
                     }
                     return new QualifiedName(name, namespaceIndex);
                 }
             }
             if (type == typeof(LocalizedText))
             {
+                string text = string.Empty;
                 Dictionary<string, object> localizedTextData = source as Dictionary<string, object>;
+                if (localizedTextData == null)
+                {
+                    text = source.ToString();
+                }
                 if (localizedTextData != null)
                 {
-                    string text = string.Empty;
                     if (localizedTextData.ContainsKey("Text"))
                     {
                         text = localizedTextData["Text"].ToString();
                     }
-                    return new LocalizedText(text);
                 }
+                return new LocalizedText(text);
             }
             if (type == typeof(DiagnosticInfo))
             {
@@ -2272,8 +2457,117 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             }
 
-
             return Convert.ChangeType(source, type);
+        }
+
+        /// <summary>
+        /// Decode field data
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="fieldMetaData"></param>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        private object DecodeFieldData(JsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
+        {
+            if (fieldMetaData.BuiltInType != 0)
+            {
+                try
+                {
+                    if (fieldMetaData.ValueRank == ValueRanks.Scalar)
+                    {
+                        return DecodeFieldByType(jsonDecoder, fieldMetaData.BuiltInType, fieldName);
+                    }
+                    if (fieldMetaData.ValueRank >= ValueRanks.OneDimension)
+                    {
+                        return jsonDecoder.ReadArray(fieldName, fieldMetaData.ValueRank, (BuiltInType)fieldMetaData.BuiltInType);
+                    }
+                    else
+                    {
+                        Assert.Warn("JsonDataSetMessage - Decoding ValueRank = {0} not supported yet !!!", fieldMetaData.ValueRank);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Assert.Warn("JsonDataSetMessage - Error reading element for RawData. {0}", ex.Message);
+                    return (StatusCodes.BadDecodingError);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Decode field by type
+        /// </summary>
+        /// <param name="jsonDecoder"></param>
+        /// <param name="builtInType"></param>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        private object DecodeFieldByType(JsonDecoder jsonDecoder, byte builtInType, string fieldName)
+        {
+            try
+            {
+                switch ((BuiltInType)builtInType)
+                {
+                    case BuiltInType.Boolean:
+                        return jsonDecoder.ReadBoolean(fieldName);
+                    case BuiltInType.SByte:
+                        return jsonDecoder.ReadSByte(fieldName);
+                    case BuiltInType.Byte:
+                        return jsonDecoder.ReadByte(fieldName);
+                    case BuiltInType.Int16:
+                        return jsonDecoder.ReadInt16(fieldName);
+                    case BuiltInType.UInt16:
+                        return jsonDecoder.ReadUInt16(fieldName);
+                    case BuiltInType.Int32:
+                        return jsonDecoder.ReadInt32(fieldName);
+                    case BuiltInType.UInt32:
+                        return jsonDecoder.ReadUInt32(fieldName);
+                    case BuiltInType.Int64:
+                        return jsonDecoder.ReadInt64(fieldName);
+                    case BuiltInType.UInt64:
+                        return jsonDecoder.ReadUInt64(fieldName);
+                    case BuiltInType.Float:
+                        return jsonDecoder.ReadFloat(fieldName);
+                    case BuiltInType.Double:
+                        return jsonDecoder.ReadDouble(fieldName);
+                    case BuiltInType.String:
+                        return jsonDecoder.ReadString(fieldName);
+                    case BuiltInType.DateTime:
+                        return jsonDecoder.ReadDateTime(fieldName);
+                    case BuiltInType.Guid:
+                        return jsonDecoder.ReadGuid(fieldName);
+                    case BuiltInType.ByteString:
+                        return jsonDecoder.ReadByteString(fieldName);
+                    case BuiltInType.XmlElement:
+                        return jsonDecoder.ReadXmlElement(fieldName);
+                    case BuiltInType.NodeId:
+                        return jsonDecoder.ReadNodeId(fieldName);
+                    case BuiltInType.ExpandedNodeId:
+                        return jsonDecoder.ReadExpandedNodeId(fieldName);
+                    case BuiltInType.QualifiedName:
+                        return jsonDecoder.ReadQualifiedName(fieldName);
+                    case BuiltInType.LocalizedText:
+                        return jsonDecoder.ReadLocalizedText(fieldName);
+                    case BuiltInType.DataValue:
+                        return jsonDecoder.ReadDataValue(fieldName);
+                    case BuiltInType.Enumeration:
+                        return jsonDecoder.ReadInt32(fieldName);
+                    case BuiltInType.Variant:
+                        return jsonDecoder.ReadVariant(fieldName);
+                    case BuiltInType.ExtensionObject:
+                        return jsonDecoder.ReadExtensionObject(fieldName);
+                    case BuiltInType.DiagnosticInfo:
+                        return jsonDecoder.ReadDiagnosticInfo(fieldName);
+                    case BuiltInType.StatusCode:
+                        return jsonDecoder.ReadStatusCode(fieldName);
+                }
+            }
+            catch (Exception)
+            {
+                Assert.Warn("JsonDataSetMessage - Error decoding field {0}", fieldName);
+            }
+
+            return null;
         }
         #endregion
 

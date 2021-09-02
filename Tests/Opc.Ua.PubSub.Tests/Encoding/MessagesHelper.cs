@@ -1820,7 +1820,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     Name = "Int64",
                     DataSetFieldId = new Uuid(Guid.NewGuid()),
                     BuiltInType = (byte)BuiltInType.Int64,
-                    DataType = DataTypeIds.UInt64,
+                    DataType = DataTypeIds.Int64,
                     ValueRank = ValueRanks.Scalar,
                     Description = LocalizedText.Null
                 },
@@ -1970,13 +1970,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 },
                 new FieldMetaData()
                 {
-                    Name = "StatusCodeGood",
+                    Name = "StatusCode",
                     DataSetFieldId = new Uuid(Guid.NewGuid()),
                     BuiltInType = (byte)BuiltInType.StatusCode,
                     DataType = DataTypeIds.StatusCode,
                     ValueRank = ValueRanks.Scalar,
                     Description = LocalizedText.Null
                 },
+                //new FieldMetaData()
+                //{
+                //    Name = "StatusCodeGood",
+                //    DataSetFieldId = new Uuid(Guid.NewGuid()),
+                //    BuiltInType = (byte)BuiltInType.StatusCode,
+                //    DataType = DataTypeIds.StatusCode,
+                //    ValueRank = ValueRanks.Scalar,
+                //    Description = LocalizedText.Null
+                //},
                 new FieldMetaData()
                 {
                     Name = "StatusCodeBad",
