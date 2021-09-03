@@ -47,6 +47,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         private ManualResetEvent m_uaDataShutdownEvent;
         private ManualResetEvent m_uaMetaDataShutdownEvent;
+        private ManualResetEvent m_uaConfigurationUpdateEvent;
         private const int EstimatedPublishingTime = 60000;
 
         [OneTimeSetUp()]
@@ -261,13 +262,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberConnection, "Subscriber first connection should not be null");
 
             //Act
-            // it will signal if the uadp message was received from local ip
+            // it will signal if the mqtt message was received from local ip
             m_uaDataShutdownEvent = new ManualResetEvent(false);
-            // it will signal if the uadp metadata message was received from local ip
+            // it will signal if the mqtt metadata message was received from local ip
             m_uaMetaDataShutdownEvent = new ManualResetEvent(false);
+            // it will signal if the changed configuration message was received on local ip
+            m_uaConfigurationUpdateEvent = new ManualResetEvent(false);
 
             subscriberApplication.DataReceived += UaPubSubApplication_DataReceived;
             subscriberApplication.MetaDataReceived += UaPubSubApplication_MetaDataReceived;
+            subscriberApplication.ConfigurationUpdating += UaPubSubApplication_ConfigurationUpdating;
             subscriberConnection.Start();
 
             publisherConnection.Start();
@@ -280,6 +284,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             if (!m_uaMetaDataShutdownEvent.WaitOne(EstimatedPublishingTime))
             {
                 Assert.Fail("The JSON metadata message was not received");
+            }
+            if (!m_uaConfigurationUpdateEvent.WaitOne(EstimatedPublishingTime))
+            {
+               // Assert.Fail("The JSON configuration update message was not received");
             }
 
             subscriberConnection.Stop();
@@ -307,7 +315,17 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             m_uaMetaDataShutdownEvent.Set();
         }
-        
+
+        /// <summary>
+        /// ConfigurationUpdating received handler 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UaPubSubApplication_ConfigurationUpdating(object sender, ConfigurationUpdatingEventArgs e)
+        {
+            m_uaConfigurationUpdateEvent.Set();
+        }
+
         /// <summary>
         /// Start/stop local mosquitto
         /// </summary>

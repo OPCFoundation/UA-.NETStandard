@@ -43,10 +43,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
     {
         private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
 
-        private const string UrlScheme = "opc.udp://";
+        private string UrlScheme = string.Format("{0}://", Utils.UriSchemeOpcUdp);
+
         // generic well known address
-        private string UrlHostName = "192.168.0.1"; 
-        private const int UrlPortNo = 4840;
+        private string UrlHostName = "192.168.0.1";
+        private const int DiscoveryPortNo = 4840;
 
         private string m_defaultUrl;
 
@@ -57,11 +58,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void MyTestInitialize()
         {
             var localhost = UdpPubSubConnectionTests.GetFirstNic();
-            if(localhost != null && localhost.Address != null)
+            if (localhost != null && localhost.Address != null)
             {
                 UrlHostName = localhost.Address.ToString();
             }
-            m_defaultUrl = string.Concat(UrlScheme, UrlHostName, ":", UrlPortNo);
+            m_defaultUrl = string.Concat(UrlScheme, UrlHostName, ":", DiscoveryPortNo);
         }
 
         [Test(Description = "Validate url value")]
@@ -71,14 +72,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(ipEndPoint, "GetEndPoint failed: ipEndPoint is null");
 
             Assert.AreEqual(ipEndPoint.Address.ToString(), UrlHostName, "The url hostname: {0} is not equal to specified hostname: {1}", ipEndPoint.Address.ToString(), UrlHostName);
-            Assert.AreEqual(ipEndPoint.Port, UrlPortNo, "The url port: {0} is not equal to specified port: {1}", ipEndPoint.Port, UrlPortNo);
+            Assert.AreEqual(ipEndPoint.Port, DiscoveryPortNo, "The url port: {0} is not equal to specified port: {1}", ipEndPoint.Port, DiscoveryPortNo);
         }
 
         [Test(Description = "Invalidate url Scheme value")]
         public void InvalidateUdpClientCreatorUrlScheme()
         {
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat("opc.udp:", UrlHostName, ":", UrlPortNo));
-            Assert.IsNull(ipEndPoint, "Url scheme is good!?");
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(Utils.UriSchemeOpcUdp, ":", UrlHostName, ":", DiscoveryPortNo));
+            Assert.IsNull(ipEndPoint, "Url scheme is not corect!");
         }
 
         [Test(Description = "Invalidate url Hostname value")]
@@ -90,8 +91,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 urlHostNameChanged = localhostIP;
             }
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, urlHostNameChanged, ":", UrlPortNo));
-            Assert.IsNull(ipEndPoint, "Url hostname is good!?");
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, urlHostNameChanged, ":", DiscoveryPortNo));
+            Assert.IsNull(ipEndPoint, "Url hostname is not corect!");
         }
 
         [Test(Description = "Invalidate url Port number value")]
@@ -106,12 +107,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             string urlHostNameChanged = "192.168.0.200";
             string localhostIP = ReplaceLastIpByte(UrlHostName, "200");
-            if (localhostIP != null )
+            if (localhostIP != null)
             {
                 urlHostNameChanged = localhostIP;
             }
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, urlHostNameChanged, ":", UrlPortNo));
-            Assert.IsNotNull(ipEndPoint, "Url hostname(address) is good!?");
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, urlHostNameChanged, ":", DiscoveryPortNo));
+            Assert.IsNotNull(ipEndPoint, "Url hostname(address) is not corect!");
         }
 
         [Test(Description = "Validate url hostname as computer bane value (DNS might be necessary)")]
@@ -123,8 +124,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
             }
 
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, Environment.MachineName, ":", UrlPortNo));
-            Assert.IsNotNull(ipEndPoint, "Url hostname is good!?");
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, Environment.MachineName, ":", DiscoveryPortNo));
+            Assert.IsNotNull(ipEndPoint, "Url hostname is not corect!");
         }
 
         [Test(Description = "Validate GetUdpClients value")]
@@ -140,15 +141,15 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             // Get the publisher configuration
             PubSubConfigurationDataType publisherConfiguration = publisherApplication.UaPubSubConfigurator.PubSubConfiguration;
-            Assert.IsNotNull(publisherConfiguration, "m_publisherConfiguration should not be null");
+            Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Check publisher connections
-            Assert.IsNotNull(publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be empty");
+            Assert.IsNotNull(publisherConfiguration.Connections, "publisherConfiguration.Connections should not be null");
+            Assert.IsNotEmpty(publisherConfiguration.Connections, "publisherConfiguration.Connections should not be empty");
 
             PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections.First();
             Assert.IsNotNull(publisherConnection1, "publisherConnection1 should not be null");
-            
+
             NetworkAddressUrlDataType networkAddressUrlState1 = ExtensionObject.ToEncodeable(publisherConnection1.Address)
                 as NetworkAddressUrlDataType;
             Assert.IsNotNull(networkAddressUrlState1, "networkAddressUrlState1 is null");
@@ -156,12 +157,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPEndPoint configuredEndPoint1 = UdpClientCreator.GetEndPoint(networkAddressUrlState1.Url);
             Assert.IsNotNull(configuredEndPoint1, "configuredEndPoint1 is null");
 
-            List<UdpClient> udpClients1 =  UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState1.NetworkInterface, configuredEndPoint1);
+            List<UdpClient> udpClients1 = UdpClientCreator.GetUdpClients(UsedInContext.Publisher, networkAddressUrlState1.NetworkInterface, configuredEndPoint1);
             Assert.IsNotNull(udpClients1, "udpClients1 is null");
             Assert.IsNotEmpty(udpClients1, "udpClients1 is empty");
 
             UdpClient udpClient1 = udpClients1[0];
             Assert.IsTrue(udpClient1 is UdpClientMulticast, "udpClient1 was configured as UdpClientMulticast");
+            Assert.IsNotNull(udpClient1.Client, "udpClient1 client socket should not be null");
             Assert.IsNotNull(udpClient1.Client.LocalEndPoint, "udpClient1 IP address is empty");
 
             PubSubConnectionDataType publisherConnection2 = publisherConfiguration.Connections[1];
@@ -180,6 +182,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             UdpClient udpClient2 = udpClients2[0];
             Assert.IsTrue(udpClient2 is UdpClientBroadcast, "udpClient2 was configured as UdpClientBroadcast");
+            Assert.IsNotNull(udpClient2.Client, "udpClient1 client socket should not be null");
             Assert.IsNotNull(udpClient2.Client.LocalEndPoint, "udpClient2 IP address is empty");
 
             IPEndPoint udpClientEndPoint1 = udpClient1.Client.LocalEndPoint as IPEndPoint;
@@ -192,7 +195,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.AreNotEqual(udpClientEndPoint1.Port, udpClientEndPoint2.Port, "udpClientEndPoint1 port number: {0} should not match udpClientEndPoint1 port number: {1}", udpClientEndPoint1.Port, udpClientEndPoint2.Port);
         }
 
-        #region Helper methods
+        #region Private methods
         private string ReplaceLastIpByte(string ipAddress, string lastIpByte)
         {
             string newIPAddress = null;
@@ -203,7 +206,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (isValidIP)
                 {
                     byte[] ipAddressBytes = validIp.GetAddressBytes();
-                    for (int pos = 0; pos < ipAddressBytes.Length - 1; pos++)
+                    for (int pos = 0; pos < ipAddressBytes.Count() - 1; pos++)
                     {
                         newIPAddress += string.Format("{0}.", ipAddressBytes[pos]);
                     }

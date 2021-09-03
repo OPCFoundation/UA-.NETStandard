@@ -135,14 +135,12 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
                         Console.WriteLine("The PubSub Connection was initialized using MQTT & JSON Profile.");
                     }
-
-                   
                 }
 
                 // Create the UA Publisher application
                 using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
-                    // Subscribte to DataReceived event
+                    // Subscribte to RawDataReceived event
                     uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
 
                     // Subscribte to DataReceived event
@@ -152,6 +150,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     uaPubSubApplication.MetaDataReceived += UaPubSubApplication_MetaDataDataReceived;
 
                     uaPubSubApplication.ConfigurationUpdating += UaPubSubApplication_ConfigurationUpdating;
+
                     // Start the publisher
                     uaPubSubApplication.Start();
 

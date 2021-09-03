@@ -1399,6 +1399,76 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
         }
 
+        [Test(Description = "Validate missing or wrong NetworkMessage fields definition")]
+        public void ValidateMissingNetworkMessageFields(
+            [Values("1", null)] string messageId,
+            [Values("1", null)] string publisherId,
+            [Values("1", null)] string dataSetClassId)
+        {
+            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader;
+            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
+            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3"),
+            };
+
+            PubSubConfigurationDataType pubSubConfiguration = MessagesHelper.ConfigureDataSetMessages(Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl,
+                writerGroupId: 1,
+                jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray,
+                NamespaceIndexAllTypes);
+            Assert.IsNotNull(pubSubConfiguration, "pubSubConfiguration should not be null");
+
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(pubSubConfiguration);
+            Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            var networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+
+            // Assert
+            // check first consistency of ua-data network messages
+            List<JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
+
+            foreach (JsonNetworkMessage jsonNetworkMessage in uaDataNetworkMessages)
+            {
+                jsonNetworkMessage.MessageId = messageId;
+                jsonNetworkMessage.PublisherId = publisherId;
+                jsonNetworkMessage.DataSetClassId = dataSetClassId;
+
+                NetworkMessageFailOptions failOptions = (NetworkMessageFailOptions)VerifyDataEncoding(jsonNetworkMessage);
+                if(failOptions != NetworkMessageFailOptions.Ok)
+                {
+                    switch(failOptions)
+                    {
+                        case NetworkMessageFailOptions.MessageId:
+                            Assert.AreEqual(failOptions, NetworkMessageFailOptions.MessageId, "ValidateMissingNetworkMessageFields should fail due to missing MessageId reason.");
+                            break;
+                        case NetworkMessageFailOptions.MessageType:
+                            Assert.AreEqual(failOptions, NetworkMessageFailOptions.MessageType, "ValidateMissingNetworkMessageFields should fail due to missing MessageType reason.");
+                            break;
+                        case NetworkMessageFailOptions.PublisherId:
+                            Assert.AreEqual(failOptions, NetworkMessageFailOptions.PublisherId, "ValidateMissingNetworkMessageFields should fail due to missing PublisherId reason.");
+                            break;
+                        case NetworkMessageFailOptions.DataSetClassId:
+                            Assert.AreEqual(failOptions, NetworkMessageFailOptions.DataSetClassId, "ValidateMissingNetworkMessageFields should fail due to missing DataSetClassId reason.");
+                            break;
+                    }
+                }
+            }
+        }
+
         [Test(Description = "Validate NetworkMessage with missing PublisherId")]
         public void ValidateMissingNetworkMessagePublisherId()
         {
@@ -1454,12 +1524,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test(Description = "Validate DataSetMessage with missing DataSetWriterId")]
-        public void ValidateMissingDataSetMessageDataSetWriterId()
+        public void ValidateMissingDataSetMessageDataSetWriterId(
+            [Values(JsonNetworkMessageContentMask.DataSetMessageHeader, JsonNetworkMessageContentMask.SingleDataSetMessage)]
+                JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
+            [Values(DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                    DataSetFieldContentMask dataSetFieldContentMask)
         {
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader;
             JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.RawData;
-
+            
             DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
             {
                 MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
@@ -1499,11 +1575,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 jsonNetworkMessage.PublisherId = "1";
                 jsonNetworkMessage.DataSetClassId = "1";
 
-                //foreach(JsonDataSetMessage jsonDataSetMessage in  jsonNetworkMessage.DataSetMessages)
-                //{
-                //    jsonDataSetMessage.DataSetWriterId = 0xFF; 
-                //}
-                //CompareEncodeDecode(jsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[0] });
+                foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages)
+                {
+                    jsonDataSetMessage.DataSetWriterId = 0xFF;
+                }
 
                 object failOptions = VerifyDataEncoding(jsonNetworkMessage);
                 if (failOptions is DataSetMessageFailOptions &&
@@ -1514,6 +1589,90 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
         }
 
+        [Test(Description = "Validate missing or wrong DataSetMessage fields definition")]
+        public void ValidateMissingDataSetMessagesFields(
+            [Values(JsonNetworkMessageContentMask.DataSetMessageHeader, JsonNetworkMessageContentMask.SingleDataSetMessage)]
+                JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
+            [Values(JsonDataSetMessageContentMask.DataSetWriterId, JsonDataSetMessageContentMask.SequenceNumber,
+                JsonDataSetMessageContentMask.MetaDataVersion, JsonDataSetMessageContentMask.Timestamp, JsonDataSetMessageContentMask.Status)]
+               JsonDataSetMessageContentMask jsonDataSetMessageContentMask,
+            [Values(DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData,
+                DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode)]
+                    DataSetFieldContentMask dataSetFieldContentMask)
+        {
+            DataSetMetaDataType[] dataSetMetaDataArray = new DataSetMetaDataType[]
+            {
+                MessagesHelper.CreateDataSetMetaDataAllTypes("AllTypes"),
+                MessagesHelper.CreateDataSetMetaData1("DataSet1"),
+                MessagesHelper.CreateDataSetMetaData2("DataSet2"),
+                MessagesHelper.CreateDataSetMetaData3("DataSet3")
+            };
+
+            PubSubConfigurationDataType pubSubConfiguration = MessagesHelper.ConfigureDataSetMessages(Profiles.PubSubMqttJsonTransport,
+                MqttAddressUrl,
+                writerGroupId: 1,
+                jsonNetworkMessageContentMask,
+                jsonDataSetMessageContentMask,
+                dataSetFieldContentMask,
+                dataSetMetaDataArray,
+                NamespaceIndexAllTypes);
+            Assert.IsNotNull(pubSubConfiguration, "pubSubConfiguration should not be null");
+
+            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(pubSubConfiguration);
+            Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
+            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            Assert.IsNotNull(connection, "Pubsub first connection should not be null");
+
+            var networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
+
+            // Assert
+            // check first consistency of ua-data network messages
+            List<JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
+
+            foreach (JsonNetworkMessage jsonNetworkMessage in uaDataNetworkMessages)
+            {
+                jsonNetworkMessage.MessageId = "1";
+                jsonNetworkMessage.PublisherId = "1";
+                jsonNetworkMessage.DataSetClassId = "1";
+
+                foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages)
+                {
+                    switch (jsonDataSetMessageContentMask)
+                    {
+                        case JsonDataSetMessageContentMask.DataSetWriterId:
+                            jsonDataSetMessage.DataSetWriterId = 0xFF;
+                            break;
+                        case JsonDataSetMessageContentMask.SequenceNumber:
+                            jsonDataSetMessage.SequenceNumber = 0xFFFF;
+                            break;
+                        case JsonDataSetMessageContentMask.MetaDataVersion:
+                            jsonDataSetMessage.MetaDataVersion = new ConfigurationVersionDataType() { MajorVersion = 0, MinorVersion = 0 };
+                            break;
+                        case JsonDataSetMessageContentMask.Timestamp:
+                            jsonDataSetMessage.Timestamp = DateTime.MinValue;
+                            break;
+                        case JsonDataSetMessageContentMask.Status:
+                            jsonDataSetMessage.Status = StatusCodes.Good;
+                            break;
+                    }
+                }
+
+                object failOptions = VerifyDataEncoding(jsonNetworkMessage);
+                if (failOptions is DataSetMessageFailOptions &&
+                   (DataSetMessageFailOptions)failOptions != DataSetMessageFailOptions.Ok)
+                {
+                    Assert.AreEqual(failOptions, DataSetMessageFailOptions.DataSetWriterId, "ValidateMissingDataSetMessagesFields should fail due to missing DataSetWriterId reason.");
+                }
+            }
+        }
+        
         #region Private methods
 
         /// <summary>
@@ -1881,7 +2040,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         /// <summary>
-        /// Verify NetworkMessage encoding consistency
+        /// Verify NetworkMessage data encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
         private object VerifyDataEncoding(JsonNetworkMessage jsonNetworkMessage)
@@ -1904,7 +2063,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     }
                 }
 
-                if (jsonNetworkMessage.HasDataSetMessageHeader)
+                if (jsonNetworkMessage.HasDataSetMessageHeader || jsonNetworkMessage.HasSingleDataSetMessage)
                 {
                     DataSetMessageFailOptions failOptions = VerifyDataSetMessagesEncoding(jsonNetworkMessage, jsonDecoder);
                     if (failOptions != DataSetMessageFailOptions.Ok)
@@ -1917,6 +2076,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return NetworkMessageFailOptions.Ok;
         }
 
+        /// <summary>
+        /// Verify NetworkMessage encoding
+        /// </summary>
+        /// <param name="jsonNetworkMessage"></param>
+        /// <param name="jsonDecoder"></param>
+        /// <returns></returns>
         private NetworkMessageFailOptions VerifyNetworkMessageEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
         {
             string messageIdValue = null;
@@ -1969,6 +2134,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return NetworkMessageFailOptions.Ok;
         }
 
+        /// <summary>
+        /// Verify DataSetMessage(s) encoding
+        /// </summary>
+        /// <param name="jsonNetworkMessage"></param>
+        /// <param name="jsonDecoder"></param>
+        /// <returns></returns>
         private DataSetMessageFailOptions VerifyDataSetMessagesEncoding(JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
         {
             UInt16 dataSetWriterIdValue = 0;
@@ -2060,17 +2231,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         if (jsonDecoder.ReadField(DataSetMessagePayload, out token))
                         {
                             dataSetPayload = token as Dictionary<string, object>;
-
-                            //foreach (Field field in jsonDataSetMessage.DataSet.Fields)
-                            //{
-                            //    Assert.IsTrue(dataSetPayload.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
-                            //    Assert.IsNotNull(dataSetPayload[field.FieldMetaData.Name], "Decoded Field: {0} is not null", field.FieldMetaData.Name);
-                            //    object decodedField = dataSetPayload[field.FieldMetaData.Name] as object;
-                            //    var decodedFieldValue = ConvertToType(decodedField, field.Value.Value.GetType());
-
-                            //    Assert.AreEqual(field.Value.Value, decodedFieldValue,
-                            //        "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
-                            //}
 
                             bool wasPushed1 = jsonDecoder.PushStructure(DataSetMessagePayload);
                             if (wasPushed1)
@@ -2239,243 +2399,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             return DataSetMessageFailOptions.Ok;
         }
                 
-        /// <summary>
-        /// convert object based on specific type
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        private object ConvertToType(object source, Type type)
-            {
-                if (type.IsArray)
-                {
-                    // todo:
-                }
-
-                if (type == typeof(Uuid))
-                {
-                    return new Uuid(source.ToString());
-                }
-                if (type == typeof(byte[]))
-                {
-                    return Convert.FromBase64String(source.ToString());
-                }
-                if (type == typeof(XmlElement))
-                {
-                    XmlDocument doc = new XmlDocument();
-                    doc.LoadXml(System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(source.ToString())));
-                    return doc.DocumentElement;
-                }
-                if (type == typeof(NodeId))
-                {
-                    Dictionary<string, object> nodeIdData = source as Dictionary<string, object>;
-                    if (nodeIdData != null)
-                    {
-                        IdType idType = IdType.Numeric;
-                        if (nodeIdData.ContainsKey("IdType"))
-                        {
-                            idType = (IdType)Enum.Parse(typeof(IdType), nodeIdData["IdType"].ToString(), false);
-                        }
-                        object id = null;
-                        if (nodeIdData.ContainsKey("Id"))
-                        {
-                            switch (idType)
-                            {
-                                case IdType.Numeric:
-                                    id = Convert.ToUInt32(nodeIdData["Id"]);
-                                    break;
-                                case IdType.String:
-                                    id = nodeIdData["Id"].ToString();
-                                    break;
-                                case IdType.Guid:
-                                    id = new Guid(nodeIdData["Id"].ToString());
-                                    break;
-                                case IdType.Opaque:
-                                    id = Convert.FromBase64String(nodeIdData["Id"].ToString());
-                                    break;
-                            }
-                        }
-                        UInt16 namespaceIndex = 0;
-                        if (nodeIdData.ContainsKey("Namespace"))
-                        {
-                            if (UInt16.TryParse(nodeIdData["Namespace"].ToString(), out namespaceIndex))
-                            {
-                                namespaceIndex = Convert.ToUInt16(nodeIdData["Namespace"]);
-                            }
-                            else
-                            {
-                                switch (idType)
-                                {
-                                    case IdType.Numeric:
-                                        namespaceIndex = 1;
-                                        break;
-                                    case IdType.String:
-                                        namespaceIndex = 3;
-                                        break;
-                                    case IdType.Guid:
-                                        namespaceIndex = 2;
-                                        break;
-                                    case IdType.Opaque:
-                                        namespaceIndex = 4;
-                                        break;
-                                }
-                            }
-                        }
-                        StringBuilder stringBuilder = new StringBuilder();
-                        NodeId.Format(stringBuilder, id, idType, namespaceIndex);
-                        return new NodeId(stringBuilder.ToString());
-                    }
-                }
-                if (type == typeof(ExpandedNodeId))
-                {
-                    Dictionary<string, object> expandedNodeIdData = source as Dictionary<string, object>;
-                    if (expandedNodeIdData != null)
-                    {
-                        IdType idType = IdType.Numeric;
-                        if (expandedNodeIdData.ContainsKey("IdType"))
-                        {
-                            idType = (IdType)Enum.Parse(typeof(IdType), expandedNodeIdData["IdType"].ToString(), false);
-                        }
-                        object id = null;
-                        if (expandedNodeIdData.ContainsKey("Id"))
-                        {
-                            switch (idType)
-                            {
-                                case IdType.Numeric:
-                                    id = Convert.ToUInt32(expandedNodeIdData["Id"]);
-                                    break;
-                                case IdType.String:
-                                    id = expandedNodeIdData["Id"].ToString();
-                                    break;
-                                case IdType.Guid:
-                                    id = new Guid(expandedNodeIdData["Id"].ToString());
-                                    break;
-                                case IdType.Opaque:
-                                    id = Convert.FromBase64String(expandedNodeIdData["Id"].ToString());
-                                    break;
-                            }
-                        }
-                        UInt16 namespaceIndex = 0;
-                        if (expandedNodeIdData.ContainsKey("Namespace"))
-                        {
-                            if (UInt16.TryParse(expandedNodeIdData["Namespace"].ToString(), out namespaceIndex))
-                            {
-                                namespaceIndex = Convert.ToUInt16(expandedNodeIdData["Namespace"]);
-                            }
-                            else
-                            {
-                                switch (idType)
-                                {
-                                    case IdType.Numeric:
-                                        namespaceIndex = 1;
-                                        break;
-                                    case IdType.String:
-                                        namespaceIndex = 3;
-                                        break;
-                                    case IdType.Guid:
-                                        namespaceIndex = 2;
-                                        break;
-                                    case IdType.Opaque:
-                                        namespaceIndex = 4;
-                                        break;
-                                }
-                            }
-                        }
-                        uint serverIndex = 0;
-                        string namespaceUri = string.Empty;
-                        StringBuilder stringBuilder = new StringBuilder();
-                        ExpandedNodeId.Format(stringBuilder, id, idType, namespaceIndex, namespaceUri, serverIndex);
-                        return new ExpandedNodeId(stringBuilder.ToString());
-                    }
-                }
-                if (type == typeof(StatusCode))
-                {
-                    Dictionary<string, object> statusCodeData = source as Dictionary<string, object>;
-                    if (statusCodeData.ContainsKey("Code"))
-                    {
-                        return new StatusCode(Convert.ToUInt32(statusCodeData["Code"]));
-                    }
-                    return new StatusCode(Convert.ToUInt32(source));
-                }
-                if (type == typeof(QualifiedName))
-                {
-                    Dictionary<string, object> qualifiedNameData = source as Dictionary<string, object>;
-                    if (qualifiedNameData != null)
-                    {
-                        string name = string.Empty;
-                        if (qualifiedNameData.ContainsKey("Name"))
-                        {
-                            name = qualifiedNameData["Name"].ToString();
-                        }
-                        UInt16 namespaceIndex = 0;
-                        if (qualifiedNameData.ContainsKey("Uri"))
-                        {
-                            if (UInt16.TryParse(qualifiedNameData["Uri"].ToString(), out namespaceIndex))
-                            {
-                                namespaceIndex = Convert.ToUInt16(qualifiedNameData["Uri"]);
-                            }
-                            else
-                            {
-                                namespaceIndex = 3;
-                            }
-                        }
-                        return new QualifiedName(name, namespaceIndex);
-                    }
-                }
-                if (type == typeof(LocalizedText))
-                {
-                    string text = string.Empty;
-                    Dictionary<string, object> localizedTextData = source as Dictionary<string, object>;
-                    if (localizedTextData == null)
-                    {
-                        text = source.ToString();
-                    }
-                    if (localizedTextData != null)
-                    {
-                        if (localizedTextData.ContainsKey("Text"))
-                        {
-                            text = localizedTextData["Text"].ToString();
-                        }
-                    }
-                    return new LocalizedText(text);
-                }
-                if (type == typeof(DiagnosticInfo))
-                {
-                    Dictionary<string, object> diagnosticInfoData = source as Dictionary<string, object>;
-                    if (diagnosticInfoData != null)
-                    {
-                        int symbolicId = 0;
-                        if (diagnosticInfoData.ContainsKey("SymbolicId"))
-                        {
-                            symbolicId = Convert.ToInt32(diagnosticInfoData["SymbolicId"]);
-                        }
-                        int namespaceUri = 0;
-                        if (diagnosticInfoData.ContainsKey("NamespaceUri"))
-                        {
-                            namespaceUri = Convert.ToInt32(diagnosticInfoData["NamespaceUri"]);
-                        }
-                        int locale = 0;
-                        if (diagnosticInfoData.ContainsKey("Locale"))
-                        {
-                            locale = Convert.ToInt32(diagnosticInfoData["Locale"]);
-                        }
-                        int localizedText = 0;
-                        if (diagnosticInfoData.ContainsKey("LocalizedText"))
-                        {
-                            localizedText = Convert.ToInt32(diagnosticInfoData["LocalizedText"]);
-                        }
-                        string additionalInfo = string.Empty;
-                        if (diagnosticInfoData.ContainsKey("AdditionalInfo"))
-                        {
-                            additionalInfo = diagnosticInfoData["AdditionalInfo"].ToString();
-                        }
-                        return new DiagnosticInfo(symbolicId, namespaceUri, locale, localizedText, additionalInfo);
-                    }
-                }
-
-                return Convert.ChangeType(source, type);
-            }
-
         /// <summary>
         /// Decode field data
         /// </summary>
