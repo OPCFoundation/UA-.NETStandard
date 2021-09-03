@@ -2166,6 +2166,22 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16("ServerPicoseconds");
                                                     }
                                                     Assert.IsNotNull(dataValue.Value, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
+                                                    // ExtendedNodeId namespaceIndex workaround issue
+                                                    if (dataValue.Value is ExpandedNodeId &&
+                                                        !string.IsNullOrEmpty(((ExpandedNodeId)dataValue.Value).NamespaceUri))
+                                                    {
+                                                        // replace the namespaceUri with namespaceIndex to match the encoded value
+                                                        ExpandedNodeId expandedNodeId = Utils.Clone(dataValue.Value) as ExpandedNodeId;
+                                                        Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
+                                                        Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
+
+                                                        UInt16 namespaceIndex =
+                                                            Convert.ToUInt16(ServiceMessageContext.GlobalContext.NamespaceUris.GetIndex(((ExpandedNodeId)dataValue.Value).NamespaceUri));
+
+                                                        StringBuilder stringBuilder = new StringBuilder();
+                                                        ExpandedNodeId.Format(stringBuilder, expandedNodeId.Identifier, expandedNodeId.IdType, namespaceIndex, string.Empty, expandedNodeId.ServerIndex);
+                                                        dataValue.Value = new ExpandedNodeId(stringBuilder.ToString());
+                                                    }
                                                     Assert.IsTrue(Utils.IsEqual(field.Value.Value, dataValue.Value),
                                                          "Decoded Field name: {0} values: encoded {1} - decoded {2}", field.FieldMetaData.Name, field.Value.Value, dataSetPayload[field.FieldMetaData.Name]);
                                                 }
@@ -2222,7 +2238,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             return DataSetMessageFailOptions.Ok;
         }
-
+                
         /// <summary>
         /// convert object based on specific type
         /// </summary>
@@ -2230,235 +2246,235 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="type"></param>
         /// <returns></returns>
         private object ConvertToType(object source, Type type)
-        {
-            if (type.IsArray)
             {
-                // todo:
-            }
-
-            if (type == typeof(Uuid))
-            {
-                return new Uuid(source.ToString());
-            }
-            if (type == typeof(byte[]))
-            {
-                return Convert.FromBase64String(source.ToString());
-            }
-            if (type == typeof(XmlElement))
-            {
-                XmlDocument doc = new XmlDocument();
-                doc.LoadXml(System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(source.ToString())));
-                return doc.DocumentElement;
-            }
-            if (type == typeof(NodeId))
-            {
-                Dictionary<string, object> nodeIdData = source as Dictionary<string, object>;
-                if (nodeIdData != null)
+                if (type.IsArray)
                 {
-                    IdType idType = IdType.Numeric;
-                    if (nodeIdData.ContainsKey("IdType"))
+                    // todo:
+                }
+
+                if (type == typeof(Uuid))
+                {
+                    return new Uuid(source.ToString());
+                }
+                if (type == typeof(byte[]))
+                {
+                    return Convert.FromBase64String(source.ToString());
+                }
+                if (type == typeof(XmlElement))
+                {
+                    XmlDocument doc = new XmlDocument();
+                    doc.LoadXml(System.Text.Encoding.ASCII.GetString(Convert.FromBase64String(source.ToString())));
+                    return doc.DocumentElement;
+                }
+                if (type == typeof(NodeId))
+                {
+                    Dictionary<string, object> nodeIdData = source as Dictionary<string, object>;
+                    if (nodeIdData != null)
                     {
-                        idType = (IdType)Enum.Parse(typeof(IdType), nodeIdData["IdType"].ToString(), false);
-                    }
-                    object id = null;
-                    if (nodeIdData.ContainsKey("Id"))
-                    {
-                        switch (idType)
+                        IdType idType = IdType.Numeric;
+                        if (nodeIdData.ContainsKey("IdType"))
                         {
-                            case IdType.Numeric:
-                                id = Convert.ToUInt32(nodeIdData["Id"]);
-                                break;
-                            case IdType.String:
-                                id = nodeIdData["Id"].ToString();
-                                break;
-                            case IdType.Guid:
-                                id = new Guid(nodeIdData["Id"].ToString());
-                                break;
-                            case IdType.Opaque:
-                                id = Convert.FromBase64String(nodeIdData["Id"].ToString());
-                                break;
+                            idType = (IdType)Enum.Parse(typeof(IdType), nodeIdData["IdType"].ToString(), false);
                         }
-                    }
-                    UInt16 namespaceIndex = 0;
-                    if (nodeIdData.ContainsKey("Namespace"))
-                    {
-                        if (UInt16.TryParse(nodeIdData["Namespace"].ToString(), out namespaceIndex))
-                        {
-                            namespaceIndex = Convert.ToUInt16(nodeIdData["Namespace"]);
-                        }
-                        else
+                        object id = null;
+                        if (nodeIdData.ContainsKey("Id"))
                         {
                             switch (idType)
                             {
                                 case IdType.Numeric:
-                                    namespaceIndex = 1;
+                                    id = Convert.ToUInt32(nodeIdData["Id"]);
                                     break;
                                 case IdType.String:
-                                    namespaceIndex = 3;
+                                    id = nodeIdData["Id"].ToString();
                                     break;
                                 case IdType.Guid:
-                                    namespaceIndex = 2;
+                                    id = new Guid(nodeIdData["Id"].ToString());
                                     break;
                                 case IdType.Opaque:
-                                    namespaceIndex = 4;
+                                    id = Convert.FromBase64String(nodeIdData["Id"].ToString());
                                     break;
                             }
                         }
+                        UInt16 namespaceIndex = 0;
+                        if (nodeIdData.ContainsKey("Namespace"))
+                        {
+                            if (UInt16.TryParse(nodeIdData["Namespace"].ToString(), out namespaceIndex))
+                            {
+                                namespaceIndex = Convert.ToUInt16(nodeIdData["Namespace"]);
+                            }
+                            else
+                            {
+                                switch (idType)
+                                {
+                                    case IdType.Numeric:
+                                        namespaceIndex = 1;
+                                        break;
+                                    case IdType.String:
+                                        namespaceIndex = 3;
+                                        break;
+                                    case IdType.Guid:
+                                        namespaceIndex = 2;
+                                        break;
+                                    case IdType.Opaque:
+                                        namespaceIndex = 4;
+                                        break;
+                                }
+                            }
+                        }
+                        StringBuilder stringBuilder = new StringBuilder();
+                        NodeId.Format(stringBuilder, id, idType, namespaceIndex);
+                        return new NodeId(stringBuilder.ToString());
                     }
-                    StringBuilder stringBuilder = new StringBuilder();
-                    NodeId.Format(stringBuilder, id, idType, namespaceIndex);
-                    return new NodeId(stringBuilder.ToString());
                 }
-            }
-            if (type == typeof(ExpandedNodeId))
-            {
-                Dictionary<string, object> expandedNodeIdData = source as Dictionary<string, object>;
-                if (expandedNodeIdData != null)
+                if (type == typeof(ExpandedNodeId))
                 {
-                    IdType idType = IdType.Numeric;
-                    if (expandedNodeIdData.ContainsKey("IdType"))
+                    Dictionary<string, object> expandedNodeIdData = source as Dictionary<string, object>;
+                    if (expandedNodeIdData != null)
                     {
-                        idType = (IdType)Enum.Parse(typeof(IdType), expandedNodeIdData["IdType"].ToString(), false);
-                    }
-                    object id = null;
-                    if (expandedNodeIdData.ContainsKey("Id"))
-                    {
-                        switch (idType)
+                        IdType idType = IdType.Numeric;
+                        if (expandedNodeIdData.ContainsKey("IdType"))
                         {
-                            case IdType.Numeric:
-                                id = Convert.ToUInt32(expandedNodeIdData["Id"]);
-                                break;
-                            case IdType.String:
-                                id = expandedNodeIdData["Id"].ToString();
-                                break;
-                            case IdType.Guid:
-                                id = new Guid(expandedNodeIdData["Id"].ToString());
-                                break;
-                            case IdType.Opaque:
-                                id = Convert.FromBase64String(expandedNodeIdData["Id"].ToString());
-                                break;
+                            idType = (IdType)Enum.Parse(typeof(IdType), expandedNodeIdData["IdType"].ToString(), false);
                         }
-                    }
-                    UInt16 namespaceIndex = 0;
-                    if (expandedNodeIdData.ContainsKey("Namespace"))
-                    {
-                        if (UInt16.TryParse(expandedNodeIdData["Namespace"].ToString(), out namespaceIndex))
-                        {
-                            namespaceIndex = Convert.ToUInt16(expandedNodeIdData["Namespace"]);
-                        }
-                        else
+                        object id = null;
+                        if (expandedNodeIdData.ContainsKey("Id"))
                         {
                             switch (idType)
                             {
                                 case IdType.Numeric:
-                                    namespaceIndex = 1;
+                                    id = Convert.ToUInt32(expandedNodeIdData["Id"]);
                                     break;
                                 case IdType.String:
-                                    namespaceIndex = 3;
+                                    id = expandedNodeIdData["Id"].ToString();
                                     break;
                                 case IdType.Guid:
-                                    namespaceIndex = 2;
+                                    id = new Guid(expandedNodeIdData["Id"].ToString());
                                     break;
                                 case IdType.Opaque:
-                                    namespaceIndex = 4;
+                                    id = Convert.FromBase64String(expandedNodeIdData["Id"].ToString());
                                     break;
                             }
                         }
-                    }
-                    uint serverIndex = 0;
-                    string namespaceUri = string.Empty;
-                    StringBuilder stringBuilder = new StringBuilder();
-                    ExpandedNodeId.Format(stringBuilder, id, idType, namespaceIndex, namespaceUri, serverIndex);
-                    return new ExpandedNodeId(stringBuilder.ToString());
-                }
-            }
-            if (type == typeof(StatusCode))
-            {
-                Dictionary<string, object> statusCodeData = source as Dictionary<string, object>;
-                if (statusCodeData.ContainsKey("Code"))
-                {
-                    return new StatusCode(Convert.ToUInt32(statusCodeData["Code"]));
-                }
-                return new StatusCode(Convert.ToUInt32(source));
-            }
-            if (type == typeof(QualifiedName))
-            {
-                Dictionary<string, object> qualifiedNameData = source as Dictionary<string, object>;
-                if (qualifiedNameData != null)
-                {
-                    string name = string.Empty;
-                    if (qualifiedNameData.ContainsKey("Name"))
-                    {
-                        name = qualifiedNameData["Name"].ToString();
-                    }
-                    UInt16 namespaceIndex = 0;
-                    if (qualifiedNameData.ContainsKey("Uri"))
-                    {
-                        if (UInt16.TryParse(qualifiedNameData["Uri"].ToString(), out namespaceIndex))
+                        UInt16 namespaceIndex = 0;
+                        if (expandedNodeIdData.ContainsKey("Namespace"))
                         {
-                            namespaceIndex = Convert.ToUInt16(qualifiedNameData["Uri"]);
+                            if (UInt16.TryParse(expandedNodeIdData["Namespace"].ToString(), out namespaceIndex))
+                            {
+                                namespaceIndex = Convert.ToUInt16(expandedNodeIdData["Namespace"]);
+                            }
+                            else
+                            {
+                                switch (idType)
+                                {
+                                    case IdType.Numeric:
+                                        namespaceIndex = 1;
+                                        break;
+                                    case IdType.String:
+                                        namespaceIndex = 3;
+                                        break;
+                                    case IdType.Guid:
+                                        namespaceIndex = 2;
+                                        break;
+                                    case IdType.Opaque:
+                                        namespaceIndex = 4;
+                                        break;
+                                }
+                            }
                         }
-                        else
+                        uint serverIndex = 0;
+                        string namespaceUri = string.Empty;
+                        StringBuilder stringBuilder = new StringBuilder();
+                        ExpandedNodeId.Format(stringBuilder, id, idType, namespaceIndex, namespaceUri, serverIndex);
+                        return new ExpandedNodeId(stringBuilder.ToString());
+                    }
+                }
+                if (type == typeof(StatusCode))
+                {
+                    Dictionary<string, object> statusCodeData = source as Dictionary<string, object>;
+                    if (statusCodeData.ContainsKey("Code"))
+                    {
+                        return new StatusCode(Convert.ToUInt32(statusCodeData["Code"]));
+                    }
+                    return new StatusCode(Convert.ToUInt32(source));
+                }
+                if (type == typeof(QualifiedName))
+                {
+                    Dictionary<string, object> qualifiedNameData = source as Dictionary<string, object>;
+                    if (qualifiedNameData != null)
+                    {
+                        string name = string.Empty;
+                        if (qualifiedNameData.ContainsKey("Name"))
                         {
-                            namespaceIndex = 3;
+                            name = qualifiedNameData["Name"].ToString();
+                        }
+                        UInt16 namespaceIndex = 0;
+                        if (qualifiedNameData.ContainsKey("Uri"))
+                        {
+                            if (UInt16.TryParse(qualifiedNameData["Uri"].ToString(), out namespaceIndex))
+                            {
+                                namespaceIndex = Convert.ToUInt16(qualifiedNameData["Uri"]);
+                            }
+                            else
+                            {
+                                namespaceIndex = 3;
+                            }
+                        }
+                        return new QualifiedName(name, namespaceIndex);
+                    }
+                }
+                if (type == typeof(LocalizedText))
+                {
+                    string text = string.Empty;
+                    Dictionary<string, object> localizedTextData = source as Dictionary<string, object>;
+                    if (localizedTextData == null)
+                    {
+                        text = source.ToString();
+                    }
+                    if (localizedTextData != null)
+                    {
+                        if (localizedTextData.ContainsKey("Text"))
+                        {
+                            text = localizedTextData["Text"].ToString();
                         }
                     }
-                    return new QualifiedName(name, namespaceIndex);
+                    return new LocalizedText(text);
                 }
-            }
-            if (type == typeof(LocalizedText))
-            {
-                string text = string.Empty;
-                Dictionary<string, object> localizedTextData = source as Dictionary<string, object>;
-                if (localizedTextData == null)
+                if (type == typeof(DiagnosticInfo))
                 {
-                    text = source.ToString();
-                }
-                if (localizedTextData != null)
-                {
-                    if (localizedTextData.ContainsKey("Text"))
+                    Dictionary<string, object> diagnosticInfoData = source as Dictionary<string, object>;
+                    if (diagnosticInfoData != null)
                     {
-                        text = localizedTextData["Text"].ToString();
+                        int symbolicId = 0;
+                        if (diagnosticInfoData.ContainsKey("SymbolicId"))
+                        {
+                            symbolicId = Convert.ToInt32(diagnosticInfoData["SymbolicId"]);
+                        }
+                        int namespaceUri = 0;
+                        if (diagnosticInfoData.ContainsKey("NamespaceUri"))
+                        {
+                            namespaceUri = Convert.ToInt32(diagnosticInfoData["NamespaceUri"]);
+                        }
+                        int locale = 0;
+                        if (diagnosticInfoData.ContainsKey("Locale"))
+                        {
+                            locale = Convert.ToInt32(diagnosticInfoData["Locale"]);
+                        }
+                        int localizedText = 0;
+                        if (diagnosticInfoData.ContainsKey("LocalizedText"))
+                        {
+                            localizedText = Convert.ToInt32(diagnosticInfoData["LocalizedText"]);
+                        }
+                        string additionalInfo = string.Empty;
+                        if (diagnosticInfoData.ContainsKey("AdditionalInfo"))
+                        {
+                            additionalInfo = diagnosticInfoData["AdditionalInfo"].ToString();
+                        }
+                        return new DiagnosticInfo(symbolicId, namespaceUri, locale, localizedText, additionalInfo);
                     }
                 }
-                return new LocalizedText(text);
-            }
-            if (type == typeof(DiagnosticInfo))
-            {
-                Dictionary<string, object> diagnosticInfoData = source as Dictionary<string, object>;
-                if (diagnosticInfoData != null)
-                {
-                    int symbolicId = 0;
-                    if (diagnosticInfoData.ContainsKey("SymbolicId"))
-                    {
-                        symbolicId = Convert.ToInt32(diagnosticInfoData["SymbolicId"]);
-                    }
-                    int namespaceUri = 0;
-                    if (diagnosticInfoData.ContainsKey("NamespaceUri"))
-                    {
-                        namespaceUri = Convert.ToInt32(diagnosticInfoData["NamespaceUri"]);
-                    }
-                    int locale = 0;
-                    if (diagnosticInfoData.ContainsKey("Locale"))
-                    {
-                        locale = Convert.ToInt32(diagnosticInfoData["Locale"]);
-                    }
-                    int localizedText = 0;
-                    if (diagnosticInfoData.ContainsKey("LocalizedText"))
-                    {
-                        localizedText = Convert.ToInt32(diagnosticInfoData["LocalizedText"]);
-                    }
-                    string additionalInfo = string.Empty;
-                    if (diagnosticInfoData.ContainsKey("AdditionalInfo"))
-                    {
-                        additionalInfo = diagnosticInfoData["AdditionalInfo"].ToString();
-                    }
-                    return new DiagnosticInfo(symbolicId, namespaceUri, locale, localizedText, additionalInfo);
-                }
-            }
 
-            return Convert.ChangeType(source, type);
-        }
+                return Convert.ChangeType(source, type);
+            }
 
         /// <summary>
         /// Decode field data
