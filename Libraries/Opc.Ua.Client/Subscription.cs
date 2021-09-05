@@ -228,12 +228,9 @@ namespace Opc.Ua.Client
         [DataMember(Order = 1)]
         public string DisplayName
         {
-            get { return m_displayName; }
+            get => m_displayName;
 
-            set
-            {
-                m_displayName = value;
-            }
+            set => m_displayName = value;
         }
 
         /// <summary>
@@ -242,8 +239,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 2)]
         public int PublishingInterval
         {
-            get { return m_publishingInterval; }
-            set { m_publishingInterval = value; }
+            get => m_publishingInterval;
+            set => m_publishingInterval = value;
         }
 
         /// <summary>
@@ -252,8 +249,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 3)]
         public uint KeepAliveCount
         {
-            get { return m_keepAliveCount; }
-            set { m_keepAliveCount = value; }
+            get => m_keepAliveCount;
+            set => m_keepAliveCount = value;
         }
 
         /// <summary>
@@ -262,8 +259,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 4)]
         public uint LifetimeCount
         {
-            get { return m_lifetimeCount; }
-            set { m_lifetimeCount = value; }
+            get => m_lifetimeCount;
+            set => m_lifetimeCount = value;
         }
 
         /// <summary>
@@ -272,8 +269,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 5)]
         public uint MaxNotificationsPerPublish
         {
-            get { return m_maxNotificationsPerPublish; }
-            set { m_maxNotificationsPerPublish = value; }
+            get => m_maxNotificationsPerPublish;
+            set => m_maxNotificationsPerPublish = value;
         }
 
         /// <summary>
@@ -282,8 +279,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public bool PublishingEnabled
         {
-            get { return m_publishingEnabled; }
-            set { m_publishingEnabled = value; }
+            get => m_publishingEnabled;
+            set => m_publishingEnabled = value;
         }
 
         /// <summary>
@@ -292,8 +289,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 7)]
         public byte Priority
         {
-            get { return m_priority; }
-            set { m_priority = value; }
+            get => m_priority;
+            set => m_priority = value;
         }
 
         /// <summary>
@@ -302,8 +299,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 8)]
         public TimestampsToReturn TimestampsToReturn
         {
-            get { return m_timestampsToReturn; }
-            set { m_timestampsToReturn = value; }
+            get => m_timestampsToReturn;
+            set => m_timestampsToReturn = value;
         }
 
         /// <summary>
@@ -335,8 +332,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 10)]
         public MonitoredItem DefaultItem
         {
-            get { return m_defaultItem; }
-            set { m_defaultItem = value; }
+            get => m_defaultItem;
+            set => m_defaultItem = value;
         }
 
         /// <summary>
@@ -345,8 +342,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 11)]
         public uint MinLifetimeInterval
         {
-            get { return m_minLifetimeInterval; }
-            set { m_minLifetimeInterval = value; }
+            get => m_minLifetimeInterval;
+            set => m_minLifetimeInterval = value;
         }
 
         /// <summary>
@@ -362,8 +359,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 12)]
         public bool DisableMonitoredItemCache
         {
-            get { return m_disableMonitoredItemCache; }
-            set { m_disableMonitoredItemCache = value; }
+            get => m_disableMonitoredItemCache;
+            set => m_disableMonitoredItemCache = value;
         }
 
         /// <summary>
@@ -375,8 +372,8 @@ namespace Opc.Ua.Client
         /// </remarks>
         public FastDataChangeNotificationEventHandler FastDataChangeCallback
         {
-            get { return m_fastDataChangeCallback; }
-            set { m_fastDataChangeCallback = value; }
+            get => m_fastDataChangeCallback;
+            set => m_fastDataChangeCallback = value;
         }
 
         /// <summary>
@@ -388,8 +385,8 @@ namespace Opc.Ua.Client
         /// </remarks>
         public FastEventNotificationEventHandler FastEventCallback
         {
-            get { return m_fastEventCallback; }
-            set { m_fastEventCallback = value; }
+            get => m_fastEventCallback;
+            set => m_fastEventCallback = value;
         }
 
         /// <summary>
@@ -490,8 +487,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public Session Session
         {
-            get { return m_session; }
-            internal set { m_session = value; }
+            get => m_session;
+            internal set => m_session = value;
         }
 
         /// <summary>
@@ -499,8 +496,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public object Handle
         {
-            get { return m_handle; }
-            set { m_handle = value; }
+            get => m_handle;
+            set => m_handle = value;
         }
 
         /// <summary>
@@ -1517,6 +1514,20 @@ namespace Opc.Ua.Client
                 MethodIds.ConditionType_ConditionRefresh,
                 m_id);
         }
+
+        /// <summary>
+        /// Tells the server to refresh specific conditions being monitored by the subscription.
+        /// </summary>
+        public void ConditionRefresh2()
+        {
+            VerifySubscriptionState(true);
+
+            m_session.Call(
+                ObjectTypeIds.ConditionType,
+                MethodIds.ConditionType_ConditionRefresh2,
+                // TODO: parameter
+                m_id);
+        }
         #endregion
 
         #region Private Methods
@@ -1612,7 +1623,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Update the subscription with the given revised settings.
         /// </summary>
-        private void UpdateSubscription(uint subscriptionId, double revisedPublishingInterval, uint revisedKeepAliveCount,
+        private void UpdateSubscription(
+            uint subscriptionId,
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
             uint revisedLifetimeCounter)
         {
             // update current state.
@@ -1862,8 +1876,8 @@ namespace Opc.Ua.Client
             }
             finally
             {
-            Interlocked.Decrement(ref m_outstandingMessageWorkers);
-}
+                Interlocked.Decrement(ref m_outstandingMessageWorkers);
+            }
         }
 
         /// <summary>
