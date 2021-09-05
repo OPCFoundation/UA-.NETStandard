@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 
+#if NET_STANDARD_ASYNC
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -171,3 +173,5 @@ namespace Opc.Ua.Client
         #endregion
     }
 }
+
+#endif
