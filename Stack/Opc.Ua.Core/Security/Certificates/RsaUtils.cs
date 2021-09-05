@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -41,21 +41,16 @@ namespace Opc.Ua
             throw new ServiceResultException("Invalid Padding");
         }
         #endregion
+
         #region Public Methods
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
         internal static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                rsa = encryptingCertificate.GetRSAPublicKey();
                 return GetPlainTextBlockSize(rsa, padding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -81,15 +76,9 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                rsa = encryptingCertificate.GetRSAPublicKey();
                 return GetCipherTextBlockSize(rsa, padding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -110,20 +99,13 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
-                rsa = signingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
                 }
-
                 return rsa.KeySize / 8;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -136,11 +118,9 @@ namespace Opc.Ua
             HashAlgorithmName hashAlgorithm,
             RSASignaturePadding rsaSignaturePadding)
         {
-            RSA rsa = null;
-            try
+            // extract the private key.
+            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
             {
-                // extract the private key.
-                rsa = signingCertificate.GetRSAPrivateKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -148,10 +128,6 @@ namespace Opc.Ua
 
                 // create the signature.
                 return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, hashAlgorithm, rsaSignaturePadding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -165,11 +141,9 @@ namespace Opc.Ua
             HashAlgorithmName hashAlgorithm,
             RSASignaturePadding rsaSignaturePadding)
         {
-            RSA rsa = null;
-            try
+            // extract the public key.
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
-                // extract the public key.
-                rsa = signingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -177,10 +151,6 @@ namespace Opc.Ua
 
                 // verify signature.
                 return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, hashAlgorithm, rsaSignaturePadding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -192,11 +162,8 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-
-                rsa = encryptingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -223,10 +190,6 @@ namespace Opc.Ua
                 System.Diagnostics.Debug.Assert(cipherText.Count == buffer.Length);
 
                 return buffer;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -283,10 +246,8 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            RSA rsa = null;
-            try
+            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
             {
-                rsa = encryptingCertificate.GetRSAPrivateKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -316,10 +277,6 @@ namespace Opc.Ua
                 Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
 
                 return decryptedData;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -383,12 +340,11 @@ namespace Opc.Ua
                 return false;
             }
         }
-
         /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
         internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
-#if NET46 || NET461 || NET462 || NET47
+#if NETFRAMEWORK
             // The Pss check returns false on .Net4.6/4.7, although it is always supported with certs.
             // but not supported with Mono
             return !Utils.IsRunningOnMono();
@@ -399,24 +355,6 @@ namespace Opc.Ua
             }
 #endif
         });
-
-        /// <summary>
-        /// Dispose RSA object only if not running on Mono runtime.
-        /// Workaround due to a Mono bug in the X509Certificate2 implementation of RSA.
-        /// see also: https://github.com/mono/mono/issues/6306
-        /// On Mono GetRSAPrivateKey/GetRSAPublickey returns a reference instead of a disposable object.
-        /// Calling Dispose on RSA makes the X509Certificate2 keys unusable on Mono.
-        /// Only call dispose when using .Net and .Net Core runtimes.
-        /// </summary>
-        /// <param name="rsa">RSA object returned by GetRSAPublicKey/GetRSAPrivateKey</param>
-        internal static void RSADispose(RSA rsa)
-        {
-            if (rsa != null &&
-                !Utils.IsRunningOnMono())
-            {
-                rsa.Dispose();
-            }
-        }
         #endregion
     }
 }

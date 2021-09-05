@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -10,18 +10,12 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using System.ServiceModel;
-using System.Threading;
-
 namespace Opc.Ua
 {
     /// <summary>
     /// An interface to a service response message.
     /// </summary>
-    public interface IServerBase 
+    public interface IServerBase
     {
         /// <summary>
         /// The message context to use with the service.
@@ -29,7 +23,7 @@ namespace Opc.Ua
         /// <value>
         /// The context information associated with a UA server that is used during message processing.
         /// </value>
-        ServiceMessageContext MessageContext { get; }
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// An error condition that describes why the server if not running (null if no error exists).
@@ -92,7 +86,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// An interface which the service host object.
+    /// An interface for the service host object.
     /// </summary>
     public interface IServiceHostBase
     {

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -17,6 +17,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -125,7 +126,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2)" />
+        /// <summary cref="ICertificateStore.Add(X509Certificate2, String)" />
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -226,7 +227,11 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.GetPublicKeyFilePath" />
+        /// <summary>
+        /// Returns the path to the public key file.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint of the certificate.</param>
+        /// <returns>The path.</returns>
         public string GetPublicKeyFilePath(string thumbprint)
         {
             Entry entry = Find(thumbprint);
@@ -244,7 +249,11 @@ namespace Opc.Ua
             return entry.CertificateFile.FullName;
         }
 
-        /// <summary cref="ICertificateStore.GetPrivateKeyFilePath" />
+        /// <summary>
+        /// Returns the path to the private key file.
+        /// </summary>
+        /// <param name="thumbprint">The thumbprint of the certificate.</param>
+        /// <returns>The path.</returns>
         public string GetPrivateKeyFilePath(string thumbprint)
         {
             Entry entry = Find(thumbprint);
@@ -293,14 +302,14 @@ namespace Opc.Ua
 
                     if (!String.IsNullOrEmpty(subjectName))
                     {
-                        if (!Utils.CompareDistinguishedName(subjectName, certificate.Subject))
+                        if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
                         {
                             if (subjectName.Contains("="))
                             {
                                 continue;
                             }
 
-                            if (!Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
+                            if (!X509Utils.ParseDistinguishedName(certificate.Subject).Any(s => s.Equals("CN=" + subjectName, StringComparison.OrdinalIgnoreCase)))
                             {
                                 continue;
                             }
@@ -310,33 +319,35 @@ namespace Opc.Ua
 
                     string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
 
-                    StringBuilder filePath = new StringBuilder();
-                    filePath.Append(m_privateKeySubdir.FullName);
-                    filePath.Append(Path.DirectorySeparatorChar);
-                    filePath.Append(fileRoot);
+                    StringBuilder filePath = new StringBuilder()
+                        .Append(m_privateKeySubdir.FullName)
+                        .Append(Path.DirectorySeparatorChar)
+                        .Append(fileRoot);
+
+                    X509KeyStorageFlags[] storageFlags = {
+                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet,
+                        X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet
+                    };
 
                     FileInfo privateKeyFile = new FileInfo(filePath.ToString() + ".pfx");
                     password = password ?? String.Empty;
-                    try
+                    foreach (var flag in storageFlags)
                     {
-                        certificate = new X509Certificate2(
-                            privateKeyFile.FullName,
-                            password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.UserKeySet);
-                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
+                        try
                         {
-                            return certificate;
+                            certificate = new X509Certificate2(
+                                privateKeyFile.FullName,
+                                password,
+                                flag);
+                            if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                            {
+                                return certificate;
+                            }
                         }
-                    }
-                    catch (Exception)
-                    {
-                        certificate = new X509Certificate2(
-                            privateKeyFile.FullName,
-                            password,
-                            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.MachineKeySet);
-                        if (CertificateFactory.VerifyRSAKeyPair(certificate, certificate, true))
+                        catch (Exception)
                         {
-                            return certificate;
+                            certificate?.Dispose();
+                            certificate = null;
                         }
                     }
                 }
@@ -385,7 +396,7 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                    if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
                     {
                         continue;
                     }
@@ -400,7 +411,7 @@ namespace Opc.Ua
                         return StatusCodes.BadCertificateRevoked;
                     }
 
-                    if (crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
                     {
                         crlExpired = false;
                     }
@@ -418,7 +429,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Whether the the store support CRLs.
+        /// Whether the store support CRLs.
         /// </summary>
         public bool SupportsCRLs { get { return true; } }
 
@@ -458,7 +469,7 @@ namespace Opc.Ua
 
             foreach (X509CRL crl in EnumerateCRLs())
             {
-                if (!Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
+                if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
                 {
                     continue;
                 }
@@ -469,7 +480,7 @@ namespace Opc.Ua
                 }
 
                 if (!validateUpdateTime ||
-                    crl.UpdateTime <= DateTime.UtcNow && (crl.NextUpdateTime == DateTime.MinValue || crl.NextUpdateTime >= DateTime.UtcNow))
+                    crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
                 {
                     crls.Add(crl);
                 }
@@ -493,7 +504,7 @@ namespace Opc.Ua
             certificates = Enumerate().Result;
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
+                if (X509Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
                 {
                     if (crl.VerifySignature(certificate, false))
                     {
@@ -511,7 +522,7 @@ namespace Opc.Ua
             StringBuilder builder = new StringBuilder();
             builder.Append(m_directory.FullName);
 
-            builder.Append(Path.DirectorySeparatorChar + "crl" + Path.DirectorySeparatorChar);
+            builder.Append(Path.DirectorySeparatorChar).Append("crl").Append(Path.DirectorySeparatorChar);
             builder.Append(GetFileName(issuer));
             builder.Append(".crl");
 
@@ -709,7 +720,7 @@ namespace Opc.Ua
             // build file name.
             string commonName = certificate.FriendlyName;
 
-            List<string> names = Utils.ParseDistinguishedName(certificate.Subject);
+            List<string> names = X509Utils.ParseDistinguishedName(certificate.Subject);
 
             for (int ii = 0; ii < names.Count; ii++)
             {
@@ -737,7 +748,7 @@ namespace Opc.Ua
 
             fileName.Append(" [");
             fileName.Append(certificate.Thumbprint);
-            fileName.Append("]");
+            fileName.Append(']');
 
             return fileName.ToString();
         }

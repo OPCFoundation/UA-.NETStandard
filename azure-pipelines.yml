@@ -2,11 +2,14 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-pr:
-  autoCancel: true
+pr: 
+  autoCancel: 'true'
   branches:
     include:
     - '*'
+  paths:
+    include:
+    - '*' 
 
 stages:
 - stage: build
@@ -33,15 +36,32 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      agents: '@{ windows = "vs2017-win2016"; mac = "macOS-10.15" }'
-  - template: .azurepipelines/testcc.yml
+      framework: net462
+      agents: '@{ windows = "windows-2019" }'
+      jobnamesuffix: net462
+  - template: .azurepipelines/test.yml
+    parameters:
+      framework: netcoreapp2.1
+      configuration: Release
+  - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      poolImage: 'ubuntu-18.04'
+      framework: netcoreapp3.1
+      jobnamesuffix: core3
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
+      framework: netcoreapp3.1
       configuration: Debug
+- stage: coverage
+  dependsOn: [testdebug,testrelease]
+  displayName: 'Code Coverage'
+  jobs:
+  - template: .azurepipelines/testcc.yml
+    parameters:
+      configuration: Release
+      poolImage: 'ubuntu-18.04'
+      jobnamesuffix: netcore31

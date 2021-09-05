@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract class NodeState : IDisposable, IFormattable
+    public abstract partial class NodeState : IDisposable, IFormattable
     {
         #region Constructors
         /// <summary>
@@ -1201,10 +1201,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.ConformanceLevel = ConformanceLevel.Document;
-
-            using (XmlReader reader = XmlReader.Create(input, settings))
+            using (XmlReader reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
             {
                 LoadFromXml(context, reader);
             }
@@ -1217,10 +1214,7 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, Stream input)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.ConformanceLevel = ConformanceLevel.Document;
-
-            using (XmlReader reader = XmlReader.Create(input, settings))
+            using (XmlReader reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
             {
                 LoadFromXml(context, reader);
             }
@@ -2853,7 +2847,7 @@ namespace Opc.Ua
         /// <param name="browseName">The browse name of the targets to return.</param>
         /// <param name="additionalReferences">Any additional references that should be included in the list.</param>
         /// <param name="internalOnly">Only return references that are stored in memory.</param>
-        /// <returns>A thread safe object which enumerates the refernces for an entity.</returns>
+        /// <returns>A thread safe object which enumerates the references for an entity.</returns>
         public virtual INodeBrowser CreateBrowser(
             ISystemContext context,
             ViewDescription view,
@@ -2933,7 +2927,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Populates a table with all references in the hierarchy. 
+        /// Populates a table with all references in the hierarchy.
         /// </summary>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="browsePath">The path to the parent object.</param>
@@ -4646,8 +4640,19 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region Protected Fields
+        /// <summary>
+        /// A list of children of the node.
+        /// </summary>
+        protected List<BaseInstanceState> m_children;
+
+        /// <summary>
+        /// Indicates what has changed in the node.
+        /// </summary>
+        protected NodeStateChangeMasks m_changeMasks;
+        #endregion
+
         #region Private Fields
-        private object m_lock = new object();
         private object m_handle;
         private string m_symbolicName;
         private NodeId m_nodeId;
@@ -4660,20 +4665,18 @@ namespace Opc.Ua
         private RolePermissionTypeCollection m_rolePermissions;
         private RolePermissionTypeCollection m_userRolePermissions;
         private AccessRestrictionType m_accessRestrictions;
-        protected List<BaseInstanceState> m_children;
         private IReferenceDictionary<object> m_references;
-        protected NodeStateChangeMasks m_changeMasks;
         private int m_areEventsMonitored;
         private bool m_initialized;
         private List<Notifier> m_notifiers;
-        private System.Xml.XmlElement[] m_extensions;
+        private XmlElement[] m_extensions;
         #endregion
     }
 
-    [Flags]
     /// <summary>
     /// Indicates what has changed in a node.
     /// </summary>
+    [Flags]
     public enum NodeStateChangeMasks
     {
         /// <summary>

@@ -1,8 +1,0 @@
-ComServerStatusType,9,ObjectType
-ComServerStatusType_ServerUrl,10,Variable
-ComServerStatusType_VendorInfo,11,Variable
-ComServerStatusType_SoftwareVersion,12,Variable
-ComServerStatusType_ServerState,13,Variable
-ComServerStatusType_CurrentTime,14,Variable
-ComServerStatusType_StartTime,15,Variable
-ComServerStatusType_LastUpdateTime,16,Variable

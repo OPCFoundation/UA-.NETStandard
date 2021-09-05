@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -136,6 +136,11 @@ namespace Opc.Ua.Bindings
         int Handle { get; }
 
         /// <summary>
+        /// Returns the features implemented by the message socket.
+        /// </summary>
+        TransportChannelFeatures MessageSocketFeatures { get; }
+
+        /// <summary>
         /// Connects to an endpoint.
         /// </summary>
         Task<bool> BeginConnect(
@@ -170,6 +175,9 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Event factory
+        /// <summary>
+        /// Get the message socket event args.
+        /// </summary>
         IMessageSocketAsyncEventArgs MessageSocketEventArgs();
         #endregion
     }

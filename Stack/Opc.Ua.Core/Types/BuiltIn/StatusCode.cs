@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -426,12 +426,6 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to *this* object</param>
         public int CompareTo(object obj)
         {
-            // check for reference equality.
-            if (Object.ReferenceEquals(obj, this))
-            {
-                return 0;
-            }
-
             // check for null.
             if (obj == null)
             {
@@ -576,11 +570,6 @@ namespace Opc.Ua
         /// <param name="b">The second object being compared to</param>
         public static bool operator ==(StatusCode a, StatusCode b)
         {
-            if (Object.ReferenceEquals(a, null))
-            {
-                return Object.ReferenceEquals(b, null);
-            }
-
             return a.Equals(b);
         }
 
@@ -607,11 +596,6 @@ namespace Opc.Ua
         /// <param name="b">The second object being compared to</param>
         public static bool operator ==(StatusCode a, uint b)
         {
-            if (Object.ReferenceEquals(a, null))
-            {
-                return false;
-            }
-
             return a.Equals(b);
         }
 

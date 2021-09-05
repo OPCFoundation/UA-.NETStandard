@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -48,8 +48,8 @@ namespace Opc.Ua
                 this.ShelvingState.TimedShelve.OnReadUserExecutable = IsTimedShelveExecutable;
 
                 this.ShelvingState.Unshelve.OnCallMethod = OnUnshelve;
-                this.ShelvingState.Unshelve.OnReadExecutable = IsTimedShelveExecutable;
-                this.ShelvingState.Unshelve.OnReadUserExecutable = IsTimedShelveExecutable;
+                this.ShelvingState.Unshelve.OnReadExecutable = IsUnshelveExecutable;
+                this.ShelvingState.Unshelve.OnReadUserExecutable = IsUnshelveExecutable;
             }
         }
         #endregion
@@ -67,10 +67,36 @@ namespace Opc.Ua
                     m_unshelveTimer.Dispose();
                     m_unshelveTimer = null;
                 }
+                if (m_updateUnshelveTimer != null)
+                {
+                    m_updateUnshelveTimer.Dispose();
+                    m_updateUnshelveTimer = null;
+                }
             }
 
             base.Dispose(disposing);
         }
+        #endregion
+
+        #region Public Properties - Operational
+
+        /// <summary>
+        /// Defines how often to update the UnshelveTime when Shelving State is TimedShelve or OneShotShelved.
+        /// Defaults to 1000 ms
+        /// </summary>
+        public int UnshelveTimeUpdateRate
+        {
+            get
+            {
+                return m_unshelveTimeUpdateRate;
+            }
+
+            set
+            {
+                m_unshelveTimeUpdateRate = value;
+            }
+        }
+
         #endregion
 
         #region Public Methods
@@ -228,6 +254,14 @@ namespace Opc.Ua
                 m_unshelveTimer = null;
             }
 
+            if (m_updateUnshelveTimer != null)
+            {
+                m_updateUnshelveTimer.Dispose();
+                m_updateUnshelveTimer = null;
+            }
+
+            m_unshelveTime = DateTime.MinValue;
+
             if (!shelved)
             {
                 if (this.SuppressedState == null || !this.SuppressedState.Id.Value)
@@ -235,28 +269,42 @@ namespace Opc.Ua
                     SuppressedOrShelved.Value = false;
                 }
 
+                this.ShelvingState.UnshelveTime.Value = 0.0;
+                
                 this.ShelvingState.CauseProcessingCompleted(context, Methods.ShelvedStateMachineType_Unshelve);
             }
             else
             {
                 SuppressedOrShelved.Value = true;
                 m_oneShot = oneShot;
-                m_unshelveTime = DateTime.MinValue;
 
-                if (oneShot)
-                {                    
-                    this.ShelvingState.CauseProcessingCompleted(context, Methods.ShelvedStateMachineType_OneShotShelve);
-                }
-                else
+                // Unshelve time is still valid even for OneShotShelved -  See Mantis 6462
+
+                double maxTimeShelved = (double)int.MaxValue;
+                if ( this.MaxTimeShelved != null && this.MaxTimeShelved.Value > 0 )
                 {
-                    if (shelvingTime > 0)
-                    {
-                        m_unshelveTime = DateTime.UtcNow.AddMilliseconds(shelvingTime);
-                        m_unshelveTimer = new Timer(OnTimerExpired, context, (int)shelvingTime, Timeout.Infinite);
-                    }
-
-                    this.ShelvingState.CauseProcessingCompleted(context, Methods.ShelvedStateMachineType_TimedShelve);
+                    maxTimeShelved = this.MaxTimeShelved.Value;
                 }
+
+                double shelveTime = maxTimeShelved;
+
+                uint state = Methods.ShelvedStateMachineType_OneShotShelve;
+                if (!oneShot)
+                {
+                    if (shelvingTime > 0 && shelvingTime < shelveTime)
+                    {
+                        shelveTime = shelvingTime;
+                    }
+                    state = Methods.ShelvedStateMachineType_TimedShelve;
+                }
+
+                this.ShelvingState.UnshelveTime.Value = shelveTime;
+                m_unshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
+
+                m_updateUnshelveTimer = new Timer(OnUnshelveTimeUpdate, context, m_unshelveTimeUpdateRate, m_unshelveTimeUpdateRate);
+
+                m_unshelveTimer = new Timer(OnTimerExpired, context, (int)shelveTime, Timeout.Infinite);
+                this.ShelvingState.CauseProcessingCompleted(context, state);
             }
 
             UpdateEffectiveState(context);
@@ -276,6 +324,12 @@ namespace Opc.Ua
         /// Raised when the timed shelving period expires.
         /// </summary>
         public AlarmConditionTimedUnshelveEventHandler OnTimedUnshelve;
+
+        /// <summary>
+        /// Raised periodically when the shelving state is not Unshelved to update the UnshelveTimeValue.
+        /// </summary>
+        public AlarmConditionUnshelveTimeValueEventHandler OnUpdateUnshelveTime;
+
         #endregion
 
         #region Protected Method
@@ -382,6 +436,11 @@ namespace Opc.Ua
             if (m_unshelveTime != DateTime.MinValue)
             {
                 delta = (m_unshelveTime - DateTime.UtcNow).TotalMilliseconds;
+
+                if ( delta < 0 )
+                {
+                    m_unshelveTime = DateTime.MinValue;
+                }
             }
 
             value = delta;
@@ -648,18 +707,45 @@ namespace Opc.Ua
                 {
                     OnTimedUnshelve((ISystemContext)state, this);
                 }
+                    this.OnUnshelveTimeUpdate(state);
             }
             catch (Exception e)
             {
                 Utils.Trace(e, "Unexpected error unshelving alarm.");
             }
         }
+
+        /// <summary>
+        /// Called when shelved state is not Unshelved to update the UnshelveTime value.
+        /// </summary>
+        private void OnUnshelveTimeUpdate(object state)
+        {
+            try
+            {
+                ISystemContext context = (ISystemContext)state;
+                object unshelveTimeObject = new object();
+                OnReadUnshelveTime(context, null, ref unshelveTimeObject);
+                double unshelveTime = (double)unshelveTimeObject;
+                if (unshelveTime != this.ShelvingState.UnshelveTime.Value)
+                {
+                    this.ShelvingState.UnshelveTime.Value = unshelveTime;
+                    this.ClearChangeMasks(context, true);
+                }
+            }
+            catch (Exception e)
+            {
+                Utils.Trace(e, "Unexpected error updating UnshelveTime.");
+            }
+        }
+
         #endregion
 
         #region Private Fields
         private DateTime m_unshelveTime;
         private bool m_oneShot;
         private Timer m_unshelveTimer;
+        private Timer m_updateUnshelveTimer;
+        private int m_unshelveTimeUpdateRate = 1000;
         #endregion
     }
 
@@ -686,4 +772,15 @@ namespace Opc.Ua
     public delegate ServiceResult AlarmConditionTimedUnshelveEventHandler(
         ISystemContext context,
         AlarmConditionState alarm);
+
+    /// <summary>
+    /// Used to receive notifications when the shelving state is either OneShotShelved or TimedShelved.
+    /// Updates the value of the UnshelveTime
+    /// </summary>
+    /// <param name="context">The current system context.</param>
+    /// <param name="alarm">The alarm that raised the event.</param>
+    public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
+        ISystemContext context,
+        AlarmConditionState alarm);
+
 }

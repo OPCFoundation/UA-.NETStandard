@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -11,24 +11,12 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
-    /// <summary>
-    /// This is an interface to a channel which supports a factory 
-    /// </summary>
-    public interface ITransportChannelFactory
-    {
-        /// <summary>
-        /// The method creates a new transport channel
-        /// </summary>
-        /// <returns> the transport channel</returns>
-        ITransportChannel Create();
-    }
-
     /// <summary>
     /// This is an interface to a channel which supports 
     /// </summary>
@@ -52,7 +40,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
-        ServiceMessageContext MessageContext { get; }
+        IServiceMessageContext MessageContext { get; }
 
         /// <summary>
         /// Gets the the channel's current security token.
@@ -96,7 +84,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="Open"/>
         IAsyncResult BeginOpen(
-            AsyncCallback callback, 
+            AsyncCallback callback,
             object callbackData);
 
         /// <summary>
@@ -117,13 +105,23 @@ namespace Opc.Ua
         void Reconnect();
 
         /// <summary>
+        /// Closes any existing secure channel and opens a new one.
+        /// </summary>
+        /// <param name="connection">The waiting reverse connection for the reconnect attempt.</param>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        /// <remarks>
+        /// Calling this method will cause outstanding requests over the current secure channel to fail.
+        /// </remarks>
+        void Reconnect(ITransportWaitingConnection connection);
+
+        /// <summary>
         /// Begins an asynchronous operation to close the existing secure channel and open a new one.
         /// </summary>
         /// <param name="callback">The callback to call when the operation completes.</param>
         /// <param name="callbackData">The callback data to return with the callback.</param>
         /// <returns>The result which must be passed to the EndReconnect method.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect" />
+        /// <seealso cref="Reconnect()" />
         IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData);
 
         /// <summary>
@@ -131,7 +129,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="result">The result returned from the BeginReconnect call.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        /// <seealso cref="Reconnect" />
+        /// <seealso cref="Reconnect()" />
         void EndReconnect(IAsyncResult result);
 
         /// <summary>
@@ -165,6 +163,15 @@ namespace Opc.Ua
         /// <returns>The response returned by the server.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         IServiceResponse SendRequest(IServiceRequest request);
+
+        /// <summary>
+        /// Sends a request over the secure channel, async version.
+        /// </summary>
+        /// <param name="request">The request to send.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The response returned by the server.</returns>
+        /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct);
 
         /// <summary>
         /// Begins an asynchronous operation to send a request over the secure channel.
@@ -211,7 +218,7 @@ namespace Opc.Ua
         /// The channel supports Reconnect.
         /// </summary>
         Reconnect = 0x0004,
-        
+
         /// <summary>
         /// The channel supports asynchronous Reconnect.
         /// </summary>
@@ -225,6 +232,16 @@ namespace Opc.Ua
         /// <summary>
         /// The channel supports asynchronous SendRequest.
         /// </summary>
-        BeginSendRequest = 0x0020
+        BeginSendRequest = 0x0020,
+
+        /// <summary>
+        /// The channel supports Reconnect.
+        /// </summary>
+        ReverseConnect = 0x0040,
+
+        /// <summary>
+        /// The channel supports asynchronous SendRequestAsync.
+        /// </summary>
+        SendRequestAsync = 0x0080,
     }
 }

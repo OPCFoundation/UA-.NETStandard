@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <summary>
     /// Stores a collection of nodes.
     /// </summary>
-    public class NodeStateCollection : List<NodeState>
+    public partial class NodeStateCollection : List<NodeState>
     {
         #region Constructors
         /// <summary>
@@ -142,7 +142,18 @@ namespace Opc.Ua
             new AliasToUse(BrowseNames.HasTypeDefinition, ReferenceTypeIds.HasTypeDefinition),
             new AliasToUse(BrowseNames.HasModellingRule, ReferenceTypeIds.HasModellingRule),
             new AliasToUse(BrowseNames.HasEncoding, ReferenceTypeIds.HasEncoding),
-            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription)
+            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription),
+            new AliasToUse(BrowseNames.HasCause, ReferenceTypeIds.HasCause),
+            new AliasToUse(BrowseNames.ToState, ReferenceTypeIds.ToState),
+            new AliasToUse(BrowseNames.FromState, ReferenceTypeIds.FromState),
+            new AliasToUse(BrowseNames.HasEffect, ReferenceTypeIds.HasEffect),
+            new AliasToUse(BrowseNames.HasTrueSubState, ReferenceTypeIds.HasTrueSubState),
+            new AliasToUse(BrowseNames.HasFalseSubState, ReferenceTypeIds.HasFalseSubState),
+            new AliasToUse(BrowseNames.HasDictionaryEntry, ReferenceTypeIds.HasDictionaryEntry),
+            new AliasToUse(BrowseNames.HasCondition, ReferenceTypeIds.HasCondition),
+            new AliasToUse(BrowseNames.HasGuard, ReferenceTypeIds.HasGuard),
+            new AliasToUse(BrowseNames.HasAddIn, ReferenceTypeIds.HasAddIn),
+            new AliasToUse(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface)
         };
         #endregion
         
@@ -333,7 +344,7 @@ namespace Opc.Ua
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (XmlReader reader = XmlReader.Create(istrm))
+            using (XmlReader reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
             {
                 XmlQualifiedName root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
                 XmlDecoder decoder = new XmlDecoder(null, reader, messageContext);

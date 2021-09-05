@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -102,11 +102,37 @@ namespace Opc.Ua
         /// Communicates with UA TCP, UA Security and UA Binary.
         /// </summary>
         public const string UaTcpTransport = "http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary";
-        
+
+        /// <summary>
+        /// Communicates with UA TCP over secure Websockets, UA Security and UA Binary.
+        /// </summary>
+        public const string UaWssTransport = "http://opcfoundation.org/UA-Profile/Transport/uawss-uasc-uabinary";
+
         /// <summary>
         /// Communicates with UA Binary over HTTPS.
         /// </summary>
         public const string HttpsBinaryTransport = "http://opcfoundation.org/UA-Profile/Transport/https-uabinary";
+
+        /// <summary>
+        /// Uri for "PubSub UDP UADP" Profile.
+        /// This PubSub transport Facet defines a combination of the UDP transport protocol mapping with UADP message mapping
+        /// </summary>
+        public const string PubSubUdpUadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp";
+
+        /// <summary>
+        /// Uri for "PubSub MQTT UADP" Profile.
+        /// This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with UADP message mapping.
+        /// This Facet is used for broker-based messaging.
+        /// </summary>
+        public const string PubSubMqttUadpTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-uadp";
+
+        /// <summary>
+        /// Uri for "PubSub MQTT JSON" Profile.
+        /// This PubSub transport Facet defines a combination of the MQTT transport protocol mapping with JSON message mapping.
+        /// This Facet is used for broker-based messaging.
+        /// </summary>
+        public const string PubSubMqttJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
+
 
         /// <summary>
         /// An Issued User Token that complies with the JWT specification.

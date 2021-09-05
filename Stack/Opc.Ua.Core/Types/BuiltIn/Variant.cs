@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -61,7 +61,7 @@ namespace Opc.Ua
             m_typeInfo = typeInfo;
             Set(value, typeInfo);
 
-            #if DEBUG
+#if DEBUG
 
             TypeInfo sanityCheck = TypeInfo.Construct(m_value);
 
@@ -70,6 +70,13 @@ namespace Opc.Ua
                 sanityCheck.ValueRank == ValueRanks.Scalar &&
                 typeInfo.BuiltInType == BuiltInType.Byte &&
                 typeInfo.ValueRank == ValueRanks.OneDimension)
+            {
+                return;
+            }
+
+            // An enumeration can contain Int32
+            if (sanityCheck.BuiltInType == BuiltInType.Int32 &&
+                typeInfo.BuiltInType == BuiltInType.Enumeration)
             {
                 return;
             }
@@ -773,7 +780,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
+                document.LoadInnerXml(encoder.Close());
 
                 // return element.
                 return document.DocumentElement;
@@ -892,7 +899,7 @@ namespace Opc.Ua
 
             if (array != null && m_typeInfo.ValueRank <= 1)
             {
-                buffer.Append("{");
+                buffer.Append('{');
 
                 if (array.Length > 0)
                 {
@@ -905,7 +912,7 @@ namespace Opc.Ua
                     AppendFormat(buffer, array.GetValue(ii), formatProvider);
                 }
 
-                buffer.Append("}");
+                buffer.Append('}');
                 return;
             }
 
@@ -1509,11 +1516,6 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
             Variant? variant = obj as Variant?;
 
             if (variant != null)
@@ -2636,7 +2638,10 @@ namespace Opc.Ua
 
 #if DEBUG
             TypeInfo sanityCheck = TypeInfo.Construct(m_elements);
-            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType || (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte));
+            System.Diagnostics.Debug.Assert(sanityCheck.BuiltInType == builtInType ||
+                (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
+                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
+                (builtInType == BuiltInType.Variant));
 #endif
         }
         #endregion
@@ -2691,6 +2696,59 @@ namespace Opc.Ua
         }
         #endregion
 
+        #region Overridden Methods
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// </summary>
+        /// <remarks>
+        /// Determines if the specified object is equal to the object.
+        /// </remarks>
+        public override bool Equals(object obj)
+        {
+            if (Object.ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            Matrix matrix = obj as Matrix;
+
+            if (matrix != null)
+            {
+                if (!m_typeInfo.Equals(matrix.TypeInfo))
+                {
+                    return false;
+                }
+                if (!Utils.IsEqual(m_dimensions, matrix.Dimensions))
+                {
+                    return false;
+                }
+                return Utils.IsEqual(m_elements, matrix.Elements);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns a unique hashcode for the object.
+        /// </summary>
+        public override int GetHashCode()
+        {
+            if (m_elements != null)
+            {
+                return m_elements.GetHashCode();
+            }
+            if (m_typeInfo != null)
+            {
+                return m_typeInfo.GetHashCode();
+            }
+            if (m_dimensions != null)
+            {
+                return m_dimensions.GetHashCode();
+            }
+            return base.GetHashCode();
+        }
+        #endregion
+
         #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
@@ -2716,7 +2774,7 @@ namespace Opc.Ua
                 {
                     if (ii > 0)
                     {
-                        buffer.Append(",");
+                        buffer.Append(',');
                     }
 
                     buffer.AppendFormat(formatProvider, "{0}", m_dimensions[ii]);

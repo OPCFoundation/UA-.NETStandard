@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// A class that defines constants used by UA applications.
     /// </summary>
     /// <exclude />
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.CodeGenerator", "1.0.0.0")]
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
     public static partial class Attributes
     {
         /// <summary>

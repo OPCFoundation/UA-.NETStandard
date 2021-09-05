@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -106,7 +106,7 @@ namespace Opc.Ua
         #endregion
         #region public NodeId(uint value, ushort namespaceIndex)
         /// <summary>
-        /// Initializes a guid node identifier with a namespace index.
+        /// Initializes a numeric node identifier with a namespace index.
         /// </summary>
         /// <remarks>
         /// Creates a new NodeId that will use a numeric (unsigned int) for its Id, but also
@@ -178,7 +178,7 @@ namespace Opc.Ua
 
         #region public NodeId(byte[] value)
         /// <summary>
-        /// Initializes a guid node identifier.
+        /// Initializes an opaque node identifier.
         /// </summary>
         /// <remarks>
         /// Creates a new node whose Id will be a series of <see cref="Byte"/>.
@@ -799,7 +799,7 @@ namespace Opc.Ua
 
             ExpandedNodeId expandedId = new ExpandedNodeId(nodeId);
 
-            if (nodeId.NamespaceIndex > 1)
+            if (nodeId.NamespaceIndex > 0)
             {
                 string uri = namespaceTable.GetString(nodeId.NamespaceIndex);
 

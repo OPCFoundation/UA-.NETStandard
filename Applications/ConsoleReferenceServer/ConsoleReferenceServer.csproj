@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(AppTargetFrameWork)</TargetFramework>
+    <AssemblyName>ConsoleReferenceServer</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <PackageId>ConsoleReferenceServer</PackageId>
+    <Company>OPC Foundation</Company>
+    <Description>.NET Core Reference Server</Description>
+    <Copyright>Copyright © 2004-2021 OPC Foundation, Inc</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Quickstarts.MonoReferenceServer.Config.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ReferenceServer\SerilogTraceLogger.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Mono.Options" Version="6.12.0.148" />
+    <PackageReference Include="Serilog" Version="2.10.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="4.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="2.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Quickstarts.ReferenceServer.Config.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

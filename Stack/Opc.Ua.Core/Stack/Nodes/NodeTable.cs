@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -114,64 +114,37 @@ namespace Opc.Ua
         #endregion
  
         #region INodeTable Methods
-        /// <summary>
-        /// The table of Namespace URIs used by the table.
-        /// </summary>
-        /// <value>The namespace URIs.</value>
+        /// <inheritdoc/>
         public NamespaceTable NamespaceUris 
         { 
             get { return m_namespaceUris; } 
         }
 
-        /// <summary>
-        /// The table of Server URIs used by the table.
-        /// </summary>
-        /// <value>The server URIs.</value>
+        /// <inheritdoc/>
         public StringTable ServerUris 
         { 
             get { return m_serverUris; } 
         }
 
-        /// <summary>
-        /// The type model that describes the nodes in the table.
-        /// </summary>
-        /// <value>The type tree.</value>
+        /// <inheritdoc/>
         public ITypeTable TypeTree 
         { 
             get { return m_typeTree; } 
         }
 
-        /// <summary>
-        /// Returns true if the node is in the table.
-        /// </summary>
-        /// <param name="nodeId">The node identifier.</param>
-        /// <returns></returns>
+        /// <inheritdoc/>
         public bool Exists(ExpandedNodeId nodeId)
         {
             return InternalFind(nodeId) != null;
         }
 
-        /// <summary>
-        /// Finds a node in the node set.
-        /// </summary>
-        /// <param name="nodeId">The node identifier.</param>
-        /// <returns>Returns null if the node does not exist.</returns>
+        /// <inheritdoc/>
         public INode Find(ExpandedNodeId nodeId)
         {
             return InternalFind(nodeId);
         }
 
-        /// <summary>
-        /// Follows the reference from the source and returns the first target with the specified browse name.
-        /// </summary>
-        /// <param name="sourceId">The source identifier.</param>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c>  this is inverse reference.</param>
-        /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
-        /// <param name="browseName">Name of the browse.</param>
-        /// <returns>
-        /// Returns null if the source does not exist or if there is no matching target.
-        /// </returns>
+        /// <inheritdoc/>
         public INode Find(
             ExpandedNodeId sourceId, 
             NodeId         referenceTypeId, 
@@ -227,16 +200,7 @@ namespace Opc.Ua
             return null;
         }
 
-        /// <summary>
-        /// Follows the reference from the source and returns all target nodes.
-        /// </summary>
-        /// <param name="sourceId">The source identifier.</param>
-        /// <param name="referenceTypeId">The reference type identifier.</param>
-        /// <param name="isInverse">if set to <c>true</c>  this is inverse reference.</param>
-        /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
-        /// <returns>
-        /// Returns an empty list if the source does not exist or if there are no matching targets.
-        /// </returns>
+        /// <inheritdoc/>
         public IList<INode> Find(
             ExpandedNodeId sourceId, 
             NodeId         referenceTypeId, 

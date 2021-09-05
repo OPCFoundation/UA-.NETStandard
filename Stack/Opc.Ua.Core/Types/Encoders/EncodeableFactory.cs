@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -21,9 +21,9 @@ using System.Threading;
 namespace Opc.Ua
 {
 
-	/// <summary>
-	/// Creates encodeable objects based on the type id.
-	/// </summary>
+    /// <summary>
+    /// Creates encodeable objects based on the type id.
+    /// </summary>
     /// <remarks>
     /// <para>
     /// This factory is used to store and retrieve underlying OPC UA system types.
@@ -33,55 +33,55 @@ namespace Opc.Ua
     /// Once the types exist within the factory, these types can be then easily queried.
     /// <br/></para>
     /// </remarks>
-	public class EncodeableFactory
-	{	
-		#region Constructors
-		/// <summary>
-		/// Creates a factory initialized with the types in the core library.
-		/// </summary>
-		public EncodeableFactory()
+    public class EncodeableFactory : IEncodeableFactory
+    {
+        #region Constructors
+        /// <summary>
+        /// Creates a factory initialized with the types in the core library.
+        /// </summary>
+        public EncodeableFactory()
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
             AddEncodeableTypes(this.GetType().GetTypeInfo().Assembly);
 
-            #if DEBUG
+#if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
-            #endif
-		}
+#endif
+        }
 
-		/// <summary>
-		/// Creates a factory which is marked as shared and initialized with the types in the core library.
-		/// </summary>
-		public EncodeableFactory(bool shared)
+        /// <summary>
+        /// Creates a factory which is marked as shared and initialized with the types in the core library.
+        /// </summary>
+        public EncodeableFactory(bool shared)
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
-            AddEncodeableTypes("Opc.Ua.Core");
+            AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 
-            #if DEBUG
+#if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
             m_shared = true;
-            #endif
-		}
+#endif
+        }
 
-		/// <summary>
-		/// Creates a factory by copying the table from another factory.
-		/// </summary>
-		public EncodeableFactory(EncodeableFactory factory)
+        /// <summary>
+        /// Creates a factory by copying the table from another factory.
+        /// </summary>
+        public EncodeableFactory(IEncodeableFactory factory)
         {
             m_encodeableTypes = new Dictionary<ExpandedNodeId, System.Type>();
 
-            #if DEBUG
+#if DEBUG
             m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
-            #endif
+#endif
 
-            lock (factory.m_lock)
+            lock (factory.SyncRoot)
             {
-                foreach (KeyValuePair<ExpandedNodeId,System.Type> current in factory.m_encodeableTypes)
+                foreach (KeyValuePair<ExpandedNodeId, System.Type> current in factory.EncodeableTypes)
                 {
                     m_encodeableTypes.Add(current.Key, current.Value);
                 }
             }
-		}
+        }
 
         /// <summary>
         /// Loads the types from an assembly.
@@ -99,9 +99,9 @@ namespace Opc.Ua
                 Utils.Trace("Could not load encodeable types from assembly: {0}", assemblyName);
             }
         }
-		#endregion
+        #endregion
 
-		#region Static Members
+        #region Static Members
         /// <summary>
         /// The default factory for the process.
         /// </summary>
@@ -112,23 +112,23 @@ namespace Opc.Ua
         {
             get { return s_globalFactory; }
         }
-                
-		/// <summary>
-		/// Returns the xml qualified name for the specified system type id.
-		/// </summary>
+
+        /// <summary>
+        /// Returns the xml qualified name for the specified system type id.
+        /// </summary>
         /// <remarks>
         /// Returns the xml qualified name for the specified system type id.
         /// </remarks>
         /// <param name="systemType">The underlying type to query and return the Xml qualified name of</param>
         public static XmlQualifiedName GetXmlName(System.Type systemType)
-		{
+        {
             if (systemType == null)
             {
                 return null;
             }
 
             object[] attributes = systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true).ToArray();
-            
+
             if (attributes != null)
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
@@ -141,14 +141,14 @@ namespace Opc.Ua
                         {
                             return new XmlQualifiedName(systemType.Name, contract.Namespace);
                         }
-                         
+
                         return new XmlQualifiedName(contract.Name, contract.Namespace);
                     }
-                }                            
+                }
             }
 
             attributes = systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true).ToArray();
-            
+
             if (attributes != null)
             {
                 for (int ii = 0; ii < attributes.Length; ii++)
@@ -161,10 +161,10 @@ namespace Opc.Ua
                         {
                             return new XmlQualifiedName(systemType.Name, contract.Namespace);
                         }
-                         
+
                         return new XmlQualifiedName(contract.Name, contract.Namespace);
                     }
-                }                            
+                }
             }
 
             if (systemType == typeof(System.Byte[]))
@@ -173,31 +173,31 @@ namespace Opc.Ua
             }
 
             return new XmlQualifiedName(systemType.FullName);
-		}
-		#endregion
+        }
+        #endregion
 
-		#region Public Members
-		/// <summary>
-		/// Returns the object used to synchronize access to the factory.
-		/// </summary>
+        #region Public Members
+        /// <summary>
+        /// Returns the object used to synchronize access to the factory.
+        /// </summary>
         /// <remarks>
         /// Returns the object used to synchronize access to the factory.
         /// </remarks>
-		public object SyncRoot
-		{
-			get { return m_lock; }
-		}
+        public object SyncRoot
+        {
+            get { return m_lock; }
+        }
 
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
         public int InstanceId
         {
-            #if DEBUG
+#if DEBUG
             get { return m_instanceId; }
-            #else
+#else
             get { return 0; }
-            #endif
+#endif
         }
 
         /// <summary>
@@ -227,16 +227,16 @@ namespace Opc.Ua
                 {
                     return;
                 }
-                
-                #if DEBUG
+
+#if DEBUG
                 if (m_shared)
                 {
                     Utils.Trace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
                 }
-                #endif
-                
+#endif
+
                 ExpandedNodeId nodeId = encodeable.TypeId;
-                        
+
                 if (!NodeId.IsNull(nodeId))
                 {
                     // check for default namespace.
@@ -249,7 +249,7 @@ namespace Opc.Ua
                 }
 
                 nodeId = encodeable.BinaryEncodingId;
-                        
+
                 if (!NodeId.IsNull(nodeId))
                 {
                     // check for default namespace.
@@ -262,7 +262,7 @@ namespace Opc.Ua
                 }
 
                 nodeId = encodeable.XmlEncodingId;
-                
+
                 if (!NodeId.IsNull(nodeId))
                 {
                     // check for default namespace.
@@ -287,18 +287,18 @@ namespace Opc.Ua
             {
                 if (systemType != null && !NodeId.IsNull(encodingId))
                 {
-                    #if DEBUG
+#if DEBUG
                     if (m_shared)
                     {
                         Utils.Trace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
                     }
-                    #endif
+#endif
 
                     m_encodeableTypes[encodingId] = systemType;
                 }
             }
         }
-               
+
         /// <summary>
         /// Adds all encodable types exported from an assembly to the factory.
         /// </summary>
@@ -317,12 +317,12 @@ namespace Opc.Ua
         {
             if (assembly != null)
             {
-                #if DEBUG
+#if DEBUG
                 if (m_shared)
                 {
                     Utils.Trace("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, m_instanceId);
                 }
-                #endif
+#endif
 
                 lock (m_lock)
                 {
@@ -340,19 +340,19 @@ namespace Opc.Ua
                 }
             }
         }
-        
-		/// <summary>
-		/// Returns the system type for the specified type id.
-		/// </summary>
+
+        /// <summary>
+        /// Returns the system type for the specified type id.
+        /// </summary>
         /// <remarks>
         /// Returns the system type for the specified type id.
         /// </remarks>
         /// <param name="typeId">The type id to return the system-type of</param>
         public System.Type GetSystemType(ExpandedNodeId typeId)
-		{
-			lock (m_lock)
-			{
-                System.Type systemType = null; 
+        {
+            lock (m_lock)
+            {
+                System.Type systemType = null;
 
                 if (NodeId.IsNull(typeId) || !m_encodeableTypes.TryGetValue(typeId, out systemType))
                 {
@@ -360,22 +360,27 @@ namespace Opc.Ua
                 }
 
                 return systemType;
-			}
-		}
+            }
+        }
+
+        /// <summary>
+        /// The dictionary of encodeabe types.
+        /// </summary>
+        public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes => m_encodeableTypes;
         #endregion
 
-		#region Private Fields
-		private object m_lock = new object();
-		private Dictionary<ExpandedNodeId,System.Type> m_encodeableTypes;
+        #region Private Fields
+        private object m_lock = new object();
+        private Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
         private static EncodeableFactory s_globalFactory = new EncodeableFactory();
 
-        #if DEBUG
+#if DEBUG
         private bool m_shared;
         private int m_instanceId;
         private static int m_globalInstanceCount;
-        #endif
-		#endregion
+#endif
+        #endregion
 
-	}//class
+    }//class
 
 }//namespace

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -146,18 +146,21 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation = operation;
 
                 State = TcpChannelState.Connecting;
-                if (Socket != null)
+                if (ReverseSocket)
                 {
-                    // send the hello message.
-                    SendHelloMessage(operation);
+                    if (Socket != null)
+                    {
+                        // send the hello message as response to the reverse hello message.
+                        SendHelloMessage(operation);
+                    }
                 }
                 else
                 {
                     Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
                     task = Task.Run(async () =>
-                        await Socket.BeginConnect(
+                        await (Socket?.BeginConnect(
                             m_via, m_ConnectCallback, operation,
-                            new CancellationTokenSource(timeout).Token));
+                            new CancellationTokenSource(timeout).Token) ?? Task.FromResult(false)).ConfigureAwait(false));
                 }
             }
 
@@ -672,7 +675,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a socket error.
         /// </summary>
-        protected override void HandleSocketError(ServiceResult result) => ForceReconnect(result);
+        protected override void HandleSocketError(ServiceResult result)
+        {
+            ForceReconnect(result);
+        }
 
         /// <summary>
         /// Called when a write operation completes.
@@ -810,7 +816,7 @@ namespace Opc.Ua.Bindings
 
                     if (token == CurrentToken)
                     {
-                        Utils.Trace("TCP CHANNEL {0}: Attempting Renew Token Now: TokenId={1}", ChannelId, token.TokenId);
+                        Utils.Trace("TCP CHANNEL {0}: Attempting Renew Token Now: TokenId={1}", ChannelId, token?.TokenId);
 
                         // do nothing if not connected.
                         if (State != TcpChannelState.Open)
@@ -851,15 +857,18 @@ namespace Opc.Ua.Bindings
                         Socket = null;
                     }
 
-                    // create an operation.
-                    m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, null);
+                    if (!ReverseSocket)
+                    {
+                        // create an operation.
+                        m_handshakeOperation = BeginOperation(Int32.MaxValue, m_HandshakeComplete, null);
 
-                    State = TcpChannelState.Connecting;
-                    Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
-                    task = Task.Run(async () =>
-                        await Socket.BeginConnect(m_via, m_ConnectCallback, m_handshakeOperation,
-                            CancellationToken.None).ConfigureAwait(false)
-                            );
+                        State = TcpChannelState.Connecting;
+                        Socket = m_socketFactory.Create(this, BufferManager, Quotas.MaxBufferSize);
+                        task = Task.Run(async () =>
+                            await (Socket?.BeginConnect(
+                                m_via, m_ConnectCallback, m_handshakeOperation,
+                                CancellationToken.None) ?? Task.FromResult(false)).ConfigureAwait(false));
+                    }
                 }
             }
             catch (Exception e)
@@ -1017,6 +1026,9 @@ namespace Opc.Ua.Bindings
 
                 uint channelId = ChannelId;
 
+                // close the socket.
+                State = TcpChannelState.Closed;
+
                 // dispose of the tokens.
                 ChannelId = 0;
                 DiscardTokens();
@@ -1025,9 +1037,6 @@ namespace Opc.Ua.Bindings
                 m_handshakeOperation = null;
                 m_requestedToken = null;
                 m_reconnecting = false;
-
-                // close the socket.
-                State = TcpChannelState.Closed;
 
                 if (Socket != null)
                 {
@@ -1413,6 +1422,8 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                // log a callstack to get a hint on where the decoder failed.
+                Utils.Trace(e, "Unexpected error processing response.");
                 operation.Fault(true, e, StatusCodes.BadUnknownResponse, "Unexpected error processing response.");
                 return true;
             }

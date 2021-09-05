@@ -1,0 +1,1052 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.30729</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Opc.Ua.Client.Controls</RootNamespace>
+    <AssemblyName>Opc.Ua.ClientControls</AssemblyName>
+    <SignAssembly>false</SignAssembly>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <OldToolsVersion>3.5</OldToolsVersion>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DocumentationFile>
+    </DocumentationFile>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DocumentationFile>
+    </DocumentationFile>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Runtime.Serialization">
+      <RequiredTargetFramework>3.0</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Browse\AttrbuteListCtrl.Designer.cs">
+      <DependentUpon>AttributeListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Browse\AttributeListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Browse\BrowseListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Browse\BrowseListCtrl.Designer.cs">
+      <DependentUpon>BrowseListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Browse\BrowseTreeCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Browse\BrowseTreeCtrl.Designer.cs">
+      <DependentUpon>BrowseTreeCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Browse\NodeListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Browse\NodeListCtrl.Designer.cs">
+      <DependentUpon>NodeListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Browse\SelectNodesDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Browse\SelectNodesDlg.Designer.cs">
+      <DependentUpon>SelectNodesDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ClientUtils.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\ClientUtils.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\ClientUtils.Designer.cs">
+      <DependentUpon>ClientUtils.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\AttrributesListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\AttrributesListViewCtrl.Designer.cs">
+      <DependentUpon>AttrributesListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\BrowseNodeCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\BrowseNodeCtrl.Designer.cs">
+      <DependentUpon>BrowseNodeCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\BrowseTreeViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\BrowseTreeViewCtrl.Designer.cs">
+      <DependentUpon>BrowseTreeViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\CallRequestDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\CallRequestDlg.Designer.cs">
+      <DependentUpon>CallRequestDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\CallRequestListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\CallRequestListViewCtrl.Designer.cs">
+      <DependentUpon>CallRequestListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\ConnectServerCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\ConnectServerCtrl.Designer.cs">
+      <DependentUpon>ConnectServerCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditAnnotationDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditAnnotationDlg.Designer.cs">
+      <DependentUpon>EditAnnotationDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditComplexValue2Dlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditComplexValue2Dlg.Designer.cs">
+      <DependentUpon>EditComplexValue2Dlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditComplexValueCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditComplexValueCtrl.Designer.cs">
+      <DependentUpon>EditComplexValueCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditComplexValueDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditComplexValueDlg.Designer.cs">
+      <DependentUpon>EditComplexValueDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditMonitoredItemDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditMonitoredItemDlg.Designer.cs">
+      <DependentUpon>EditMonitoredItemDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditReadValueIdDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditReadValueIdDlg.Designer.cs">
+      <DependentUpon>EditReadValueIdDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditSubscriptionDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditSubscriptionDlg.Designer.cs">
+      <DependentUpon>EditSubscriptionDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditValueCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditValueCtrl.Designer.cs">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EditWriteValueDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EditWriteValueDlg.Designer.cs">
+      <DependentUpon>EditWriteValueDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EventFilterListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EventFilterListViewCtrl.Designer.cs">
+      <DependentUpon>EventFilterListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\EventListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\EventListViewCtrl.Designer.cs">
+      <DependentUpon>EventListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\GdsDiscoverServersDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\GdsDiscoverServersDlg.Designer.cs">
+      <DependentUpon>GdsDiscoverServersDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\HistoryDataDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\HistoryDataDlg.Designer.cs">
+      <DependentUpon>HistoryDataDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\HistoryDataListView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\HistoryDataListView.Designer.cs">
+      <DependentUpon>HistoryDataListView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\HistoryEventCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\HistoryEventCtrl.Designer.cs">
+      <DependentUpon>HistoryEventCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\ISessionForm.cs" />
+    <Compile Include="Common\Client\ReadRequestDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\ReadRequestDlg.Designer.cs">
+      <DependentUpon>ReadRequestDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\ReadRequestListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\ReadRequestListViewCtrl.Designer.cs">
+      <DependentUpon>ReadRequestListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SelectLocaleDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SelectLocaleDlg.Designer.cs">
+      <DependentUpon>SelectLocaleDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SelectNodeCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SelectNodeCtrl.Designer.cs">
+      <DependentUpon>SelectNodeCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SelectNodeDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SelectNodeDlg.Designer.cs">
+      <DependentUpon>SelectNodeDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SetFilterOperatorDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SetFilterOperatorDlg.Designer.cs">
+      <DependentUpon>SetFilterOperatorDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SetTypeDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SetTypeDlg.Designer.cs">
+      <DependentUpon>SetTypeDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SubscribeDataDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SubscribeDataDlg.Designer.cs">
+      <DependentUpon>SubscribeDataDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SubscribeDataListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SubscribeDataListViewCtrl.Designer.cs">
+      <DependentUpon>SubscribeDataListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\SubscribeEventsDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\SubscribeEventsDlg.Designer.cs">
+      <DependentUpon>SubscribeEventsDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\TypeFieldsListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\TypeFieldsListViewCtrl.Designer.cs">
+      <DependentUpon>TypeFieldsListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\UserNamePasswordDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\UserNamePasswordDlg.Designer.cs">
+      <DependentUpon>UserNamePasswordDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\ViewEventDetailsDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\ViewEventDetailsDlg.Designer.cs">
+      <DependentUpon>ViewEventDetailsDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\WriteRequestDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\Client\WriteRequestDlg.Designer.cs">
+      <DependentUpon>WriteRequestDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\Client\WriteRequestListViewCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\Client\WriteRequestListViewCtrl.Designer.cs">
+      <DependentUpon>WriteRequestListViewCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListCtrl.Designer.cs">
+      <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerOnNetworkListDlg.Designer.cs">
+      <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\SelectHostCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\SelectHostCtrl.Designer.cs">
+      <DependentUpon>SelectHostCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerListCtrl.Designer.cs">
+      <DependentUpon>DiscoveredServerListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoveredServerListDlg.Designer.cs">
+      <DependentUpon>DiscoveredServerListDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\HostListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\HostListCtrl.Designer.cs">
+      <DependentUpon>HostListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\HostListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\HostListDlg.Designer.cs">
+      <DependentUpon>HostListDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\FilterDeclaration.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\GuiUtils.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\GuiUtils.Designer.cs">
+      <DependentUpon>GuiUtils.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\EditArrayDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\EditArrayDlg.Designer.cs">
+      <DependentUpon>EditArrayDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\DiscoverServerDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\DiscoverServerDlg.Designer.cs">
+      <DependentUpon>DiscoverServerDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\EditDataValueCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\EditDataValueCtrl.Designer.cs">
+      <DependentUpon>EditDataValueCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\EditDataValueDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\EditDataValueDlg.Designer.cs">
+      <DependentUpon>EditDataValueDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\EditValueCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\EditValueCtrl.Designer.cs">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\EventListView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\EventListView.Designer.cs">
+      <DependentUpon>EventListView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\ReferenceListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Common\ReferenceListCtrl.Designer.cs">
+      <DependentUpon>ReferenceListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Common\ViewNodeStateDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Common\ViewNodeStateDlg.Designer.cs">
+      <DependentUpon>ViewNodeStateDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\BaseListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\BaseListCtrl.Designer.cs">
+      <DependentUpon>BaseListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\BaseTreeCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\BaseTreeCtrl.Designer.cs">
+      <DependentUpon>BaseTreeCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\ClipboardHack.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\ComplexValueEditDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\ComplexValueEditDlg.Designer.cs">
+      <DependentUpon>ComplexValueEditDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\DataListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\DataListCtrl.Designer.cs">
+      <DependentUpon>DataListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\DateTimeValueEditDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\DateTimeValueEditDlg.Designer.cs">
+      <DependentUpon>DateTimeValueEditDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\NodeIdCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\NodeIdCtrl.Designer.cs">
+      <DependentUpon>NodeIdCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\NodeIdValueEditDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\NodeIdValueEditDlg.Designer.cs">
+      <DependentUpon>NodeIdValueEditDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\NumericValueEditDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\NumericValueEditDlg.Designer.cs">
+      <DependentUpon>NumericValueEditDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\ReferenceTypeCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\ReferenceTypeCtrl.Designer.cs">
+      <DependentUpon>ReferenceTypeCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\SimpleValueEditDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\SimpleValueEditDlg.Designer.cs">
+      <DependentUpon>SimpleValueEditDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\StringValueEditDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\Common %28OLD%29\StringValueEditDlg.Designer.cs">
+      <DependentUpon>StringValueEditDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateDlg.Designer.cs">
+      <DependentUpon>CertificateDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateListCtrl.Designer.cs">
+      <DependentUpon>CertificateListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateListDlg.Designer.cs">
+      <DependentUpon>CertificateListDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateListFilter.cs" />
+    <Compile Include="Configuration\CertificatePropertiesListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificatePropertiesListCtrl.Designer.cs">
+      <DependentUpon>CertificatePropertiesListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreCtrl.Designer.cs">
+      <DependentUpon>CertificateStoreCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreDlg.Designer.cs">
+      <DependentUpon>CertificateStoreDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreTreeCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreTreeCtrl.Designer.cs">
+      <DependentUpon>CertificateStoreTreeCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreTreeDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\CertificateStoreTreeDlg.Designer.cs">
+      <DependentUpon>CertificateStoreTreeDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\SelectUrlsCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\SelectUrlsCtrl.Designer.cs">
+      <DependentUpon>SelectUrlsCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\SelectProfileDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\SelectProfileDlg.Designer.cs">
+      <DependentUpon>SelectProfileDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\SelectProfileCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\SelectProfileCtrl.Designer.cs">
+      <DependentUpon>SelectProfileCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\SelectCertificateStoreCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\SelectCertificateStoreCtrl.Designer.cs">
+      <DependentUpon>SelectCertificateStoreCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\SelectFileCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\SelectFileCtrl.Designer.cs">
+      <DependentUpon>SelectFileCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\ViewCertificateDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\ViewCertificateDlg.Designer.cs">
+      <DependentUpon>ViewCertificateDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\YesNoDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\YesNoDlg.Designer.cs">
+      <DependentUpon>YesNoDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Endpoints\ConfiguredServerDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Endpoints\ConfiguredServerDlg.Designer.cs">
+      <DependentUpon>ConfiguredServerDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Endpoints\ConfiguredServerListCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Endpoints\ConfiguredServerListCtrl.Designer.cs">
+      <DependentUpon>ConfiguredServerListCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Endpoints\ConfiguredServerListDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Endpoints\ConfiguredServerListDlg.Designer.cs">
+      <DependentUpon>ConfiguredServerListDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Endpoints\EndpointSelectorCtrl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Endpoints\EndpointSelectorCtrl.Designer.cs">
+      <DependentUpon>EndpointSelectorCtrl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Endpoints\UsernameTokenDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Endpoints\UsernameTokenDlg.Designer.cs">
+      <DependentUpon>UsernameTokenDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ExceptionDlg.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ExceptionDlg.designer.cs">
+      <DependentUpon>ExceptionDlg.cs</DependentUpon>
+    </Compile>
+    <Compile Include="HeaderBranding.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="HeaderBranding.designer.cs">
+      <DependentUpon>HeaderBranding.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MessageDlg.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\AssemblyVersionInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Browse\BrowseTreeCtrl.resx">
+      <DependentUpon>BrowseTreeCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Browse\NodeListCtrl.resx">
+      <DependentUpon>NodeListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Browse\SelectNodesDlg.resx">
+      <DependentUpon>SelectNodesDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\ClientUtils.resx">
+      <DependentUpon>ClientUtils.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\AttrributesListViewCtrl.resx">
+      <DependentUpon>AttrributesListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\BrowseNodeCtrl.resx">
+      <DependentUpon>BrowseNodeCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\BrowseTreeViewCtrl.resx">
+      <DependentUpon>BrowseTreeViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\CallRequestDlg.resx">
+      <DependentUpon>CallRequestDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\CallRequestListViewCtrl.resx">
+      <DependentUpon>CallRequestListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ConnectServerCtrl.resx">
+      <DependentUpon>ConnectServerCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditAnnotationDlg.resx">
+      <DependentUpon>EditAnnotationDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditComplexValue2Dlg.resx">
+      <DependentUpon>EditComplexValue2Dlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditComplexValueCtrl.resx">
+      <DependentUpon>EditComplexValueCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditComplexValueDlg.resx">
+      <DependentUpon>EditComplexValueDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditMonitoredItemDlg.resx">
+      <DependentUpon>EditMonitoredItemDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditReadValueIdDlg.resx">
+      <DependentUpon>EditReadValueIdDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditSubscriptionDlg.resx">
+      <DependentUpon>EditSubscriptionDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditValueCtrl.resx">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EditWriteValueDlg.resx">
+      <DependentUpon>EditWriteValueDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EventFilterListViewCtrl.resx">
+      <DependentUpon>EventFilterListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\EventListViewCtrl.resx">
+      <DependentUpon>EventListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\GdsDiscoverServersDlg.resx">
+      <DependentUpon>GdsDiscoverServersDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\HistoryDataDlg.resx">
+      <DependentUpon>HistoryDataDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\HistoryDataListView.resx">
+      <DependentUpon>HistoryDataListView.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\HistoryEventCtrl.resx">
+      <DependentUpon>HistoryEventCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ReadRequestDlg.resx">
+      <DependentUpon>ReadRequestDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ReadRequestListViewCtrl.resx">
+      <DependentUpon>ReadRequestListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SelectLocaleDlg.resx">
+      <DependentUpon>SelectLocaleDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SelectNodeCtrl.resx">
+      <DependentUpon>SelectNodeCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SelectNodeDlg.resx">
+      <DependentUpon>SelectNodeDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SetFilterOperatorDlg.resx">
+      <DependentUpon>SetFilterOperatorDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SetTypeDlg.resx">
+      <DependentUpon>SetTypeDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SubscribeDataDlg.resx">
+      <DependentUpon>SubscribeDataDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SubscribeDataListViewCtrl.resx">
+      <DependentUpon>SubscribeDataListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\SubscribeEventsDlg.resx">
+      <DependentUpon>SubscribeEventsDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\TypeFieldsListViewCtrl.resx">
+      <DependentUpon>TypeFieldsListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\UserNamePasswordDlg.resx">
+      <DependentUpon>UserNamePasswordDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\ViewEventDetailsDlg.resx">
+      <DependentUpon>ViewEventDetailsDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\WriteRequestDlg.resx">
+      <DependentUpon>WriteRequestDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\Client\WriteRequestListViewCtrl.resx">
+      <DependentUpon>WriteRequestListViewCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerOnNetworkListCtrl.resx">
+      <DependentUpon>DiscoveredServerOnNetworkListCtrl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerOnNetworkListDlg.resx">
+      <DependentUpon>DiscoveredServerOnNetworkListDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\SelectHostCtrl.resx">
+      <DependentUpon>SelectHostCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerListCtrl.resx">
+      <DependentUpon>DiscoveredServerListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoveredServerListDlg.resx">
+      <DependentUpon>DiscoveredServerListDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\HostListCtrl.resx">
+      <DependentUpon>HostListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\HostListDlg.resx">
+      <DependentUpon>HostListDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\GuiUtils.resx">
+      <DependentUpon>GuiUtils.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\EditArrayDlg.resx">
+      <DependentUpon>EditArrayDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\DiscoverServerDlg.resx">
+      <DependentUpon>DiscoverServerDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\EditDataValueCtrl.resx">
+      <DependentUpon>EditDataValueCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\EditDataValueDlg.resx">
+      <DependentUpon>EditDataValueDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\EditValueCtrl.resx">
+      <DependentUpon>EditValueCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\EventListView.resx">
+      <DependentUpon>EventListView.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\ReferenceListCtrl.resx">
+      <DependentUpon>ReferenceListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Common\ViewNodeStateDlg.resx">
+      <DependentUpon>ViewNodeStateDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\BaseListCtrl.resx">
+      <DependentUpon>BaseListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\BaseTreeCtrl.resx">
+      <DependentUpon>BaseTreeCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\ComplexValueEditDlg.resx">
+      <DependentUpon>ComplexValueEditDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\DataListCtrl.resx">
+      <DependentUpon>DataListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\DateTimeValueEditDlg.resx">
+      <DependentUpon>DateTimeValueEditDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\NodeIdCtrl.resx">
+      <DependentUpon>NodeIdCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\NodeIdValueEditDlg.resx">
+      <DependentUpon>NodeIdValueEditDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\NumericValueEditDlg.resx">
+      <DependentUpon>NumericValueEditDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\ReferenceTypeCtrl.resx">
+      <DependentUpon>ReferenceTypeCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\SimpleValueEditDlg.resx">
+      <DependentUpon>SimpleValueEditDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\Common %28OLD%29\StringValueEditDlg.resx">
+      <DependentUpon>StringValueEditDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateDlg.resx">
+      <DependentUpon>CertificateDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateListCtrl.resx">
+      <DependentUpon>CertificateListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateListDlg.resx">
+      <DependentUpon>CertificateListDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateStoreCtrl.resx">
+      <DependentUpon>CertificateStoreCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateStoreDlg.resx">
+      <DependentUpon>CertificateStoreDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateStoreTreeCtrl.resx">
+      <DependentUpon>CertificateStoreTreeCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\CertificateStoreTreeDlg.resx">
+      <DependentUpon>CertificateStoreTreeDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\SelectUrlsCtrl.resx">
+      <DependentUpon>SelectUrlsCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\SelectProfileDlg.resx">
+      <DependentUpon>SelectProfileDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\SelectProfileCtrl.resx">
+      <DependentUpon>SelectProfileCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\SelectCertificateStoreCtrl.resx">
+      <DependentUpon>SelectCertificateStoreCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\SelectFileCtrl.resx">
+      <DependentUpon>SelectFileCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\ViewCertificateDlg.resx">
+      <DependentUpon>ViewCertificateDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\YesNoDlg.resx">
+      <DependentUpon>YesNoDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Endpoints\ConfiguredServerDlg.resx">
+      <DependentUpon>ConfiguredServerDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Endpoints\ConfiguredServerListCtrl.resx">
+      <DependentUpon>ConfiguredServerListCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Endpoints\ConfiguredServerListDlg.resx">
+      <DependentUpon>ConfiguredServerListDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Endpoints\EndpointSelectorCtrl.resx">
+      <DependentUpon>EndpointSelectorCtrl.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Endpoints\UsernameTokenDlg.resx">
+      <DependentUpon>UsernameTokenDlg.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ExceptionDlg.resx">
+      <DependentUpon>ExceptionDlg.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="HeaderBranding.resx">
+      <DependentUpon>HeaderBranding.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Images\" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj">
+      <Project>{4b72937f-5a57-4cea-b9fe-b4c45cf7b284}</Project>
+      <Name>Opc.Ua.Security.Certificates</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj">
+      <Project>{d918c0f6-39bd-4ed0-8323-e5a2eb9a85da}</Project>
+      <Name>Opc.Ua.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj">
+      <Project>{fe9eeb39-0698-4a19-b770-e66836ce0002}</Project>
+      <Name>Opc.Ua.Client.ComplexTypes</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Client\Opc.Ua.Client.csproj">
+      <Project>{15100583-bfef-431b-a1ea-1e5a843a39b1}</Project>
+      <Name>Opc.Ua.Client</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj">
+      <Project>{a39614ca-8ebe-4408-a9d2-38c7e5ae2a1d}</Project>
+      <Name>Opc.Ua.Configuration</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+    <PreBuildEvent>
+    </PreBuildEvent>
+  </PropertyGroup>
+</Project>

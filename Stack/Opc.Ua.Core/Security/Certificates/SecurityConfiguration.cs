@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -70,6 +70,12 @@ namespace Opc.Ua
 
             return new CertificateTrustList();
         }
+
+        /// <summary>
+        /// Get the provider which is invoked when a password
+        /// for a private key is requested.
+        /// </summary>
+        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
         #endregion
     }
     #endregion

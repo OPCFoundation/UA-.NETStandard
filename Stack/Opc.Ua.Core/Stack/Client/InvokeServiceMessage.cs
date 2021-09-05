@@ -10,30 +10,27 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.ServiceModel;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// The message contract for the InvokeService service.
     /// </summary>
-    [MessageContract(IsWrapped=false)]
     public class InvokeServiceMessage
-    {    
+    {
         /// <summary>
         /// The body of the message.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        [MessageBodyMember(Namespace=Namespaces.OpcUaXsd, Order=0)]
         public byte[] InvokeServiceRequest;
-        
+
         /// <summary>
         /// Initializes an empty message.
         /// </summary>    
         public InvokeServiceMessage()
         {
         }
-            
+
         /// <summary>
         /// Initializes the message with the body.
         /// </summary>
@@ -47,23 +44,21 @@ namespace Opc.Ua
     /// <summary>
     /// The message contract for the InvokeService service response.
     /// </summary>
-    [MessageContract(IsWrapped=false)]
     public class InvokeServiceResponseMessage
-    {    
+    {
         /// <summary>
         /// The body of the message.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields")]
-        [MessageBodyMember(Namespace=Namespaces.OpcUaXsd, Order=0)]
         public byte[] InvokeServiceResponse;
-        
+
         /// <summary>
         /// Initializes an empty message.
         /// </summary>
         public InvokeServiceResponseMessage()
         {
         }
-            
+
         /// <summary>
         /// Initializes the message with the body.
         /// </summary>

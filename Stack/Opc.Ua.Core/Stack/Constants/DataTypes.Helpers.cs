@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -136,7 +136,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the system type for the datatype.
         /// </summary>
-        public static Type GetSystemType(NodeId datatypeId, EncodeableFactory factory)
+        public static Type GetSystemType(NodeId datatypeId, IEncodeableFactory factory)
         {
             return TypeInfo.GetSystemType(datatypeId, factory);
         }

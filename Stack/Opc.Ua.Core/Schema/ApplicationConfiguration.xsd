@@ -161,6 +161,7 @@
           <xs:element name="MaxTrustListSize" type="xs:int" minOccurs="0" />
           <xs:element name="MultiCastDnsEnabled" type="xs:boolean" minOccurs="0" />
           <xs:element name="ReverseConnect" type="ReverseConnectServerConfiguration" minOccurs="0" />
+          <xs:element name="OperationLimits" type="OperationLimits" minOccurs="0" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -185,6 +186,25 @@
     <xs:sequence>
       <xs:element name="EndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="Timeout" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxSessionCount" type="xs:int" minOccurs="0" />
+      <xs:element name="Enabled" type="xs:boolean" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  
+  <xs:complexType name="OperationLimits">
+    <xs:sequence>
+      <xs:element name="MaxNodesPerRead" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerHistoryReadData" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerHistoryReadEvents" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerWrite" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerHistoryUpdateData" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerHistoryUpdateEvents" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerMethodCall" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerBrowse" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerRegisterNodes" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerTranslateBrowsePathsToNodeIds" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxNodesPerNodeManagement" type="xs:int" minOccurs="0" />
+      <xs:element name="MaxMonitoredItemsPerCall" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 
@@ -227,6 +247,8 @@
   <xs:complexType name="ReverseConnectClientConfiguration">
     <xs:sequence>
       <xs:element name="ClientEndpoints" type="ListOfReverseConnectClientEndpoint" minOccurs="0" nillable="true" />
+      <xs:element name="HoldTime" type="xs:int" minOccurs="0" />
+      <xs:element name="WaitTimeout" type="xs:int" minOccurs="0" />
     </xs:sequence>
   </xs:complexType>
 

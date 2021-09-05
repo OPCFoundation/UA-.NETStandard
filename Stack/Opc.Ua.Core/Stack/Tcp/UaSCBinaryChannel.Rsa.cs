@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -33,11 +33,9 @@ namespace Opc.Ua.Bindings
             HashAlgorithmName algorithm,
             RSASignaturePadding padding)
         {
-            RSA rsa = null;
-            try
+            // extract the private key.
+            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
             {
-                // extract the private key.
-                rsa = signingCertificate.GetRSAPrivateKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -45,10 +43,6 @@ namespace Opc.Ua.Bindings
 
                 // create the signature.
                 return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, padding);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -62,11 +56,9 @@ namespace Opc.Ua.Bindings
             HashAlgorithmName algorithm,
             RSASignaturePadding padding)
         {
-            RSA rsa = null;
-            try
+            // extract the public key.
+            using (RSA rsa = signingCertificate.GetRSAPublicKey())
             {
-                // extract the public key.
-                rsa = signingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -78,21 +70,17 @@ namespace Opc.Ua.Bindings
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string actualSignature = Utils.ToHexString(signature);
-
-                    Utils.Trace(
-                        "Could not validate signature.\r\nCertificate={0}, MessageType={1}, Length={2}\r\nActualSignature={3}",
-                        signingCertificate.Subject,
-                        messageType,
-                        messageLength,
-                        actualSignature);
+                    var message = new StringBuilder();
+                    message.AppendLine("Could not validate signature.");
+                    message.AppendLine("Certificate ={0}, MessageType ={1}, Length ={2}");
+                    message.AppendLine("ActualSignature={3}");
+                    Utils.Trace(message.ToString(), signingCertificate.Subject,
+                        messageType, messageLength, actualSignature
+                        );
 
                     return false;
                 }
                 return true;
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
 
@@ -105,11 +93,9 @@ namespace Opc.Ua.Bindings
             X509Certificate2 encryptingCertificate,
             RsaUtils.Padding padding)
         {
-            RSA rsa = null;
-            try
+            // get the encrypting key.
+            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
             {
-                // get the encrypting key.
-                rsa = encryptingCertificate.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
@@ -147,10 +133,6 @@ namespace Opc.Ua.Bindings
                 // return buffer
                 return new ArraySegment<byte>(encryptedBuffer, 0, (dataToEncrypt.Count / inputBlockSize) * outputBlockSize + headerToCopy.Count);
             }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
-            }
         }
 
         /// <summary>
@@ -162,11 +144,10 @@ namespace Opc.Ua.Bindings
             X509Certificate2 encryptingCertificate,
             RsaUtils.Padding padding)
         {
-            RSA rsa = null;
-            try
+            // get the encrypting key.
+            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
             {
-                // get the encrypting key.
-                rsa = encryptingCertificate.GetRSAPrivateKey();
+
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -203,10 +184,6 @@ namespace Opc.Ua.Bindings
 
                 // return buffers.
                 return new ArraySegment<byte>(decryptedBuffer, 0, (dataToDecrypt.Count / inputBlockSize) * outputBlockSize + headerToCopy.Count);
-            }
-            finally
-            {
-                RsaUtils.RSADispose(rsa);
             }
         }
     }

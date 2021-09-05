@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua
@@ -19,7 +18,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reverse Connect Client Host.
     /// </summary>
-    public class ReverseConnectHost 
+    public class ReverseConnectHost
     {
         #region Constructors
         /// <summary>
@@ -27,21 +26,32 @@ namespace Opc.Ua
         /// </summary>
         public void CreateListener(
             Uri url,
-            EventHandler<ConnectionWaitingEventArgs> OnConnectionWaiting,
+            ConnectionWaitingHandlerAsync OnConnectionWaiting,
             EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
             )
         {
             if (url == null) throw new ArgumentNullException(nameof(url));
 
-            var listener = TransportListenerBindings.GetTransportListener(url.Scheme);
-
-            if (listener == null) throw new ArgumentException(nameof(url), "No suitable listener found.");
+            var listener = TransportBindings.Listeners.GetListener(url.Scheme);
+            if (listener == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadProtocolVersionUnsupported,
+                    "Unsupported transport profile for scheme {0}.", url.Scheme);
+            }
 
             m_listener = listener;
             Url = url;
             m_onConnectionWaiting = OnConnectionWaiting;
             m_onConnectionStatusChanged = OnConnectionStatusChanged;
         }
+        #endregion
+
+        #region Public Methods
+        /// <summary>
+        /// The Url which is used by the transport listener.
+        /// </summary>
+        public Uri Url { get; private set; }
 
         /// <summary>
         /// Opens a reverse listener host.
@@ -78,17 +88,21 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Close the reverse connect listener.
+        /// </summary>
         public void Close()
         {
             m_listener.ConnectionWaiting -= m_onConnectionWaiting;
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
             m_listener.Close();
         }
+        #endregion
 
-        public Uri Url { get; private set; }
+        #region Private Fields
         private ITransportListener m_listener;
-        private EventHandler<ConnectionWaitingEventArgs> m_onConnectionWaiting;
+        private ConnectionWaitingHandlerAsync m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
+        #endregion
     }
-    #endregion
 }

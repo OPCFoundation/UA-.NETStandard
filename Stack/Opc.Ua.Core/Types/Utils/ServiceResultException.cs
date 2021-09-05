@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -98,7 +98,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0} {1}", m_status, message);
+                Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0}", m_status);
             }
         }
 
@@ -143,7 +143,7 @@ namespace Opc.Ua
             }
 
             // avoid false warnings in the log file when closing the channel.
-            if (((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0) && (status == null || (status != null && status.Code != StatusCodes.BadSecureChannelClosed)))
+            if (((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0) && (status == null || (status.Code != StatusCodes.BadSecureChannelClosed)))
             {
                 Utils.Trace(Utils.TraceMasks.StackTrace, "***EXCEPTION*** {0}", m_status);
             }
@@ -189,14 +189,13 @@ namespace Opc.Ua
 
         #region Public Methods
         /// <summary>
-        /// Returns a formatted string with the contents of exeception.
+        /// Returns a formatted string with the contents of exception.
         /// </summary>
         public string ToLongString()
         {
             StringBuilder buffer = new StringBuilder();
 
-            buffer.Append(Message);
-            buffer.Append("\r\n");
+            buffer.AppendLine(Message);
             buffer.Append(m_status.ToLongString());
 
             return buffer.ToString();

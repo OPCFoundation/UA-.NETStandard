@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -99,7 +99,7 @@ namespace Opc.Ua
 
             return clone;
         }
-        
+
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>
@@ -183,7 +183,7 @@ namespace Opc.Ua
                 viewNode.ContainsNoLoops = this.ContainsNoLoops;
             }
         }
-        
+
         /// <summary>
         /// Saves the attributes from the stream.
         /// </summary>
@@ -418,13 +418,13 @@ namespace Opc.Ua
                     }
 
                     return result;
-                }              
+                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
         #endregion
-        
+
         #region Private Fields
         private byte m_eventNotifier;
         private bool m_containsNoLoops;

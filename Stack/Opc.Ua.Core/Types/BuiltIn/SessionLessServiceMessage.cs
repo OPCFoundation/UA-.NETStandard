@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -14,13 +14,27 @@ using System;
 
 namespace Opc.Ua
 {
-
+    /// <summary>
+    /// A session-less service message.
+    /// </summary>
     public class SessionLessServiceMessage 
     {
+        /// <summary>
+        /// The namespaces URIs referenced by the message.
+        /// </summary>
         public NamespaceTable NamespaceUris;
+
+        /// <summary>
+        /// The server URIs referenced by the message.
+        /// </summary>
         public StringTable ServerUris;
+
+        /// <summary>
+        /// The message to encode or the decoded message.
+        /// </summary>
         public IEncodeable Message;
 
+        /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
             if (NamespaceUris != null && NamespaceUris.Count > 1)
@@ -36,14 +50,14 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteStringArray("NamespaceUris", new string[0]);
+                encoder.WriteStringArray("NamespaceUris", Array.Empty<string>());
             }
 
             if (ServerUris != null && ServerUris.Count > 1)
             {
                 string[] uris = new string[ServerUris.Count - 1];
 
-                for (int ii = 1; ii < NamespaceUris.Count; ii++)
+                for (int ii = 1; ii < ServerUris.Count; ii++)
                 {
                     uris[ii - 1] = ServerUris.GetString((uint)ii);
                 }
@@ -52,7 +66,7 @@ namespace Opc.Ua
             }
             else
             {
-                encoder.WriteStringArray("ServerUris", new string[0]);
+                encoder.WriteStringArray("ServerUris", Array.Empty<string>());
             }
 
             if (Message != null)
@@ -73,6 +87,7 @@ namespace Opc.Ua
             }
         }
 
+        /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
             NamespaceUris = new NamespaceTable();

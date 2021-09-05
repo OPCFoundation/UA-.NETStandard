@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -34,7 +34,6 @@ namespace Opc.Ua.Bindings
         :
             base(contextId, listener, bufferManager, quotas, null, null, endpoints)
         {
-            m_listener = listener;
         }
         #endregion
 
@@ -54,7 +53,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_responseRequired = true;
+                SetResponseRequired(true);
 
                 try
                 {
@@ -75,7 +74,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    m_responseRequired = false;
+                    SetResponseRequired(false);
                 }
             }
         }
@@ -107,12 +106,12 @@ namespace Opc.Ua.Bindings
 
                 State = TcpChannelState.Connecting;
 
-                Task t = Task.Run(() => {
+                Task t = Task.Run(async () => {
                     try
                     {
-                        if (!m_listener.TransferListenerChannel(Id, serverUri, endpointUri))
+                        if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri).ConfigureAwait(false))
                         {
-                            m_responseRequired = true;
+                            SetResponseRequired(true);
                             ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
                         }
                         else
@@ -123,7 +122,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception)
                     {
-                        m_responseRequired = true;
+                        SetResponseRequired(true);
                         ForceChannelFault(StatusCodes.BadInternalError, "Internal error approving the reverse connection.");
                     }
                 });

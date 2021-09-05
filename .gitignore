@@ -125,6 +125,10 @@ AutoTest.Net/
 # Installshield output folder
 [Ee]xpress/
 
+# CodeCoverage
+CodeCoverage/
+TestResults/
+
 # DocProject is a documentation generator add-in
 DocProject/buildhelp/
 DocProject/Help/*.HxT
@@ -237,6 +241,10 @@ _Pvt_Extensions
 # FAKE - F# Make
 .fake/
 
+
+# BenchmarkDotNet Artifacts
+BenchmarkDotNet.Artifacts
+
 # OPC UA Sample app certificate stores
 OPC\ Foundation/
 *.der
@@ -248,3 +256,4 @@ OPC\ Foundation/
 /Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll
 /Microsoft.CodeDom.Providers.DotNetCompilerPlatform.xml
 /SampleApplications/Samples/OPCOutput
+!**/Assets/*.*

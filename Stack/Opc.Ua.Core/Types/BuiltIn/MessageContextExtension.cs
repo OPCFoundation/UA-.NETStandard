@@ -10,46 +10,31 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.ServiceModel;
-
 namespace Opc.Ua
 {
     #region MessageContextExtension Class
     /// <summary>
-    /// Uses to add the service message context to the WCF operation context.
+    /// Uses to add the service message context to the operation context.
     /// </summary>
-    public class MessageContextExtension : IExtension<OperationContext>
+    public class MessageContextExtension
     {
         /// <summary>
         /// Initializes the object with the message context to use.
         /// </summary>
-        public MessageContextExtension(ServiceMessageContext messageContext)
+        public MessageContextExtension(IServiceMessageContext messageContext)
         {
-            m_messageContext = messageContext;
+            MessageContext = messageContext;
         }
 
         /// <summary>
-        /// Returns the message context associated with the current WCF operation context.
+        /// Returns the message context associated with the current operation context.
         /// </summary>
-        public static MessageContextExtension Current
-        {
-            get
-            {
-                OperationContext context = OperationContext.Current;
-
-                if (context != null)
-                {
-                    return OperationContext.Current.Extensions.Find<MessageContextExtension>();
-                }
-
-                return null;
-            }
-        }
+        public static MessageContextExtension Current => null;
 
         /// <summary>
-        /// Returns the message context associated with the current WCF operation context.
+        /// Returns the message context associated with the current operation context.
         /// </summary>
-        public static ServiceMessageContext CurrentContext
+        public static IServiceMessageContext CurrentContext
         {
             get
             {
@@ -67,21 +52,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context to use.
         /// </summary>
-        public ServiceMessageContext MessageContext => m_messageContext;
-
-        #region IExtension<OperationContext> Members
-        /// <summary cref="IExtension{T}.Attach" />
-        public void Attach(OperationContext owner)
-        {
-        }
-
-        /// <summary cref="IExtension{T}.Detach" />
-        public void Detach(OperationContext owner)
-        {
-        }
-        #endregion
-
-        private ServiceMessageContext m_messageContext;
+        public IServiceMessageContext MessageContext { get; private set; }
     }
     #endregion
 }

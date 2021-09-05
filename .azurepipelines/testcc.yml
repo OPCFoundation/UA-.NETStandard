@@ -3,11 +3,13 @@
 #
 parameters:
   configuration: 'Release'
+  framework: 'netcoreapp3.1'
   agent: 'linux'
   poolImage: 'ubuntu-18.04'
+  jobnamesuffix: 'netcore31'
 jobs:
-- job: testcc
-  displayName: Run Code Coverage for ${{ parameters.agent }}
+- job: testcc${{ parameters.jobnamesuffix }}
+  displayName: Coverage ${{ parameters.agent }} ${{ parameters.configuration }}
   variables:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -15,33 +17,36 @@ jobs:
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:
-  - task: UseDotNet@2
-    displayName: 'Install .NET Core SDK'
-    inputs:
-      packageType: sdk
-      version: 2.1.x
-      includePreviewVersions: false
-      installationPath: $(Agent.ToolsDirectory)/dotnet
   - task: NuGetToolInstaller@1
     inputs:
-      versionSpec: '>=5.4.x'
+      versionSpec: '>=5.8.x'
+  - task: PowerShell@2
+    displayName: Versioning
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/set-version.ps1
   - task: DotNetCoreCLI@2
-    displayName: Restore ${{ parameters.configuration }}
+    displayName: Restore ${{ parameters.framework }}
     inputs:
       command: restore
-      projects: '**/*[.t]Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }}'
+      projects: 'UA Core Library.sln'
+      arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
-    displayName: Test ${{ parameters.configuration }}
+    displayName: Test ${{ parameters.framework }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: '**/*[.t]Tests.csproj'
-      arguments: '--configuration ${{ parameters.configuration }} /p:CollectCoverage=true /p:Exclude="[*.Tests]*" /p:CoverletOutputFormat=cobertura'
+      projects: 'UA Core Library.sln'
+      # note: /p:CollectCoverage=true is only used to disable deterministc builds
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
+      publishTestResults: false
   - script: |
-      bash <(curl -s https://codecov.io/bash)
+      bash <(curl -s https://codecov.io/bash) -s $(Agent.TempDirectory)
 
     continueOnError: true
+    condition: ne( variables['CODECOV_TOKEN'], '')
+    env:
+      CODECOV_TOKEN: $(CODECOV_TOKEN)
     displayName: 'Upload to codecov.io'
   - task: DotNetCoreCLI@2
     inputs:
@@ -50,7 +55,7 @@ jobs:
       arguments: install --tool-path tools dotnet-reportgenerator-globaltool 
     displayName: Install ReportGenerator tool
   - script: |
-      tools/reportgenerator -reports:$(Build.SourcesDirectory)/**/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
+      tools/reportgenerator -reports:$(Agent.TempDirectory)/**/????????-*/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
       mv $(Build.SourcesDirectory)/CodeCoverage/summary.htm $(Build.SourcesDirectory)/CodeCoverage/index.htm 
 
     displayName: Create Code Coverage Report

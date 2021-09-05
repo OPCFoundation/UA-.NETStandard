@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -542,7 +542,7 @@ namespace Opc.Ua
                             {
                                 if (body.Length == 0)
                                 {
-                                    body.Append("{");
+                                    body.Append('{');
                                 }
                                 else
                                 {
@@ -556,7 +556,7 @@ namespace Opc.Ua
 
                     if (body.Length > 0)
                     {
-                        body.Append("}");
+                        body.Append('}');
                     }
 
                     return String.Format(formatProvider, "{0}", body);
@@ -629,7 +629,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array of extension objects to an array of the specified type.
         /// </summary>
-        /// <param name="extensions">The array to convert.</param>
+        /// <param name="source">The array to convert.</param>
         /// <param name="elementType">The type of each element.</param>
         /// <returns>The new array</returns>
         /// <remarks>
@@ -662,7 +662,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array of extension objects to a List of the specified type.
         /// </summary>
-        /// <param name="extensions">The array to convert.</param>
+        /// <param name="source">The array to convert.</param>
         /// <returns>The new typed List</returns>
         /// <remarks>
         /// Will add null elements if individual elements cannot be converted.
@@ -750,7 +750,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 XmlDocument document = new XmlDocument();
-                document.InnerXml = encoder.Close();
+                document.LoadInnerXml(encoder.Close());
 
                 // return root element.
                 return document.DocumentElement;
@@ -799,7 +799,7 @@ namespace Opc.Ua
         private ExpandedNodeId m_typeId;
         private ExtensionObjectEncoding m_encoding;
         private object m_body;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         #endregion
     }
 

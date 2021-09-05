@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -24,19 +24,19 @@ namespace Opc.Ua
     public abstract class EncodeableObject : IEncodeable
     {
         #region IEncodeable Methods
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public abstract ExpandedNodeId TypeId { get; }
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public abstract ExpandedNodeId BinaryEncodingId { get; }
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public abstract ExpandedNodeId XmlEncodingId { get; }
 
-        /// <summary cref="IEncodeable.Encode" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder) { }
 
-        /// <summary cref="IEncodeable.Decode" />
+        /// <inheritdoc/>
 		public virtual void Decode(IDecoder decoder) { }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the data encoding to the value.
         /// </summary>
-        public static ServiceResult ApplyDataEncoding(ServiceMessageContext context, QualifiedName dataEncoding, ref object value)
+        public static ServiceResult ApplyDataEncoding(IServiceMessageContext context, QualifiedName dataEncoding, ref object value)
         {
             // check if nothing to do.
             if (QualifiedName.IsNull(dataEncoding) || value == null)
@@ -155,7 +155,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in XML or Binary
         /// </summary>
-        public static ExtensionObject Encode(ServiceMessageContext context, IEncodeable encodeable, bool useXml)
+        public static ExtensionObject Encode(IServiceMessageContext context, IEncodeable encodeable, bool useXml)
         {
             if (useXml)
             {
@@ -172,7 +172,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in XML.
         /// </summary>
-        public static XmlElement EncodeXml(IEncodeable encodeable, ServiceMessageContext context)
+        public static XmlElement EncodeXml(IEncodeable encodeable, IServiceMessageContext context)
         {
             // create encoder.
             XmlEncoder encoder = new XmlEncoder(context);
@@ -182,7 +182,7 @@ namespace Opc.Ua
 
             // create document from encoder.
             XmlDocument document = new XmlDocument();
-            document.InnerXml = encoder.Close();
+            document.LoadInnerXml(encoder.Close());
 
             // return root element.
             return document.DocumentElement;
@@ -191,7 +191,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes the object in binary
         /// </summary>
-        public static byte[] EncodeBinary(IEncodeable encodeable, ServiceMessageContext context)
+        public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
             BinaryEncoder encoder = new BinaryEncoder(context);
             encoder.WriteEncodeable(null, encodeable, null);

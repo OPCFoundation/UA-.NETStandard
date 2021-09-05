@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -105,7 +105,7 @@ namespace Opc.Ua
         /// The message context used when serializing messages.
         /// </summary>
         /// <value>The message context.</value>
-        public ServiceMessageContext MessageContext
+        public IServiceMessageContext MessageContext
         {
             get
             {
@@ -153,7 +153,7 @@ namespace Opc.Ua
                         channel.Close();
                         channel.Dispose();
                     }
-                    catch (Exception)
+                    catch
                     {
                         // ignore errors.
                     }

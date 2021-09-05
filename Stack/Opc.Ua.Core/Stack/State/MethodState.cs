@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -583,6 +583,24 @@ namespace Opc.Ua
             IList<ServiceResult> argumentErrors,
             IList<Variant> outputArguments)
         {
+            // check if executable.
+            object executable = null;
+            ReadNonValueAttribute(context, Attributes.Executable, ref executable);
+
+            if (executable is bool && (bool)executable == false)
+            {
+                return StatusCodes.BadNotExecutable;
+            }
+
+            // check if user executable.
+            object userExecutable = null;
+            ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
+
+            if (userExecutable is bool && (bool)userExecutable == false)
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
             // validate input arguments.
             List<object> inputs = new List<object>();
 

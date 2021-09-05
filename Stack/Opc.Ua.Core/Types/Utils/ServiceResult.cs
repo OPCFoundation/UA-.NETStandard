@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -51,6 +51,19 @@ namespace Opc.Ua
             LocalizedText = localizedText;
             AdditionalInfo = additionalInfo;
             InnerResult = innerResult;
+        }
+
+        /// <summary>
+        /// Copy constructor taking an inner result as second argument, to build chains of service results.
+        /// </summary>
+        /// <param name="outerResult"></param>
+        /// <param name="innerResult"></param>
+        public ServiceResult(
+            ServiceResult outerResult,
+            ServiceResult innerResult = null)
+            :
+            this(outerResult.Code, outerResult.SymbolicId, outerResult.NamespaceUri, outerResult.LocalizedText, outerResult.AdditionalInfo, innerResult)
+        {
         }
 
         /// <summary>
@@ -321,7 +334,7 @@ namespace Opc.Ua
             Exception exception,
             uint defaultCode)
         :
-            this(exception, defaultCode, null, null, exception.Message)
+            this(exception, defaultCode, null, null, GetDefaultMessage(exception))
         {
         }
 
@@ -330,7 +343,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult(Exception exception)
         :
-            this(exception, StatusCodes.Bad, null, null, exception.Message)
+            this(exception, StatusCodes.Bad, null, null, GetDefaultMessage(exception))
         {
         }
 
@@ -602,20 +615,21 @@ namespace Opc.Ua
             {
                 if (buffer.Length > 0)
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n\r\n");
+                    buffer.AppendLine();
+                    buffer.AppendLine();
                 }
 
                 buffer.AppendFormat(CultureInfo.InvariantCulture, ">>> {0}", exception.Message);
 
                 if (!String.IsNullOrEmpty(exception.StackTrace))
                 {
-                    string[] trace = exception.StackTrace.Split(new char[] { '\r', '\n' });
-
+                    string[] trace = exception.StackTrace.Split(Environment.NewLine.ToCharArray());
                     for (int ii = 0; ii < trace.Length; ii++)
                     {
                         if (trace[ii] != null && trace[ii].Length > 0)
                         {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "\r\n--- {0}", trace[ii]);
+                            buffer.AppendLine();
+                            buffer.AppendFormat(CultureInfo.InvariantCulture, "--- {0}", trace[ii]);
                         }
                     }
                 }
@@ -734,7 +748,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a formatted string with the contents of exeception.
+        /// Returns a formatted string with the contents of exception.
         /// </summary>
         public string ToLongString()
         {
@@ -745,21 +759,21 @@ namespace Opc.Ua
 
             if (!String.IsNullOrEmpty(m_symbolicId))
             {
-                buffer.Append("\r\n");
+                buffer.AppendLine();
                 buffer.Append("SymbolicId: ");
                 buffer.Append(m_symbolicId);
             }
 
             if (!LocalizedText.IsNullOrEmpty(m_localizedText))
             {
-                buffer.Append("\r\n");
+                buffer.AppendLine();
                 buffer.Append("Description: ");
                 buffer.Append(m_localizedText);
             }
 
             if (AdditionalInfo != null && AdditionalInfo.Length > 0)
             {
-                buffer.Append("\r\n");
+                buffer.AppendLine();
                 buffer.Append(AdditionalInfo);
             }
 
@@ -767,7 +781,9 @@ namespace Opc.Ua
 
             if (innerResult != null)
             {
-                buffer.Append("\r\n===\r\n");
+                buffer.AppendLine();
+                buffer.Append("===");
+                buffer.AppendLine();
                 buffer.Append(innerResult.ToLongString());
             }
 
@@ -787,6 +803,25 @@ namespace Opc.Ua
             }
 
             return stringTable[index];
+        }
+
+        /// <summary>
+        /// Extract a default message from an exception.
+        /// </summary>
+        /// <param name="exception"></param>
+        private static string GetDefaultMessage(Exception exception)
+        {
+            if (exception != null && exception.Message != null)
+            {
+                if (exception.Message.StartsWith("[") || exception is ServiceResultException)
+                {
+                    return exception.Message;
+                }
+
+                return String.Format(CultureInfo.InvariantCulture, "[{0}] {1}", exception.GetType().Name, exception.Message);
+            }
+
+            return String.Empty;
         }
         #endregion
 

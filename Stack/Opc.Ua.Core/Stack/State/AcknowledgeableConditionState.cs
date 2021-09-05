@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -149,7 +149,10 @@ namespace Opc.Ua
             if (ServiceResult.IsGood(error))
             {
                 SetAcknowledgedState(context, true);
-                SetComment(context, comment, GetCurrentUserId(context));
+                if (CanSetComment(comment))
+                {
+                    SetComment(context, comment, GetCurrentUserId(context));
+                }
             }
 
             if (this.AreEventsMonitored)
@@ -291,7 +294,10 @@ namespace Opc.Ua
             if (ServiceResult.IsGood(error))
             {
                 SetConfirmedState(context, true);
-                SetComment(context, comment, GetCurrentUserId(context));
+                if (CanSetComment(comment))
+                {
+                    SetComment(context, comment, GetCurrentUserId(context));
+                }
             }
 
             if (this.AreEventsMonitored)
@@ -416,6 +422,38 @@ namespace Opc.Ua
 
                 UpdateEffectiveState(context);
             }
+        }
+
+        /// <summary>
+        /// Determines if a comment should be added on Acknowledgement or Confirm.
+        /// </summary>
+        /// <param name="comment">The client provided comment.</param>
+        /// <returns>Boolean stating whether the comment should be set</returns>
+        /// <remarks>
+        /// According to the specification for Alarms, the Acknowledgement states that
+        /// "If the comment field is NULL (both locale and text are empty) it will be
+        /// ignored and any existing comments will remain unchanged."
+        /// This also applies to the Confirm method, although the spec needs updating
+        /// (Mantis issue 6405)
+        /// </remarks>
+        private bool CanSetComment(LocalizedText comment)
+        {
+            bool canSetComment = false;
+
+            if (comment != null)
+            {
+                canSetComment = true;
+
+                bool emptyComment = comment.Text == null || comment.Text.Length == 0;
+                bool emptyLocale = comment.Locale == null || comment.Locale.Length == 0;
+
+                if (emptyComment && emptyLocale)
+                {
+                    canSetComment = false;
+                }
+            }
+
+            return canSetComment;
         }
         #endregion
 

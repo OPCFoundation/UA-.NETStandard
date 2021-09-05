@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2019 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -740,10 +740,8 @@ namespace Opc.Ua
 
                 int last = reader.Peek();
 
-                for (int next = last; next != -1; next = reader.Peek())
+                for (int next = last; next != -1; next = reader.Peek(), last=next)
                 {
-                    last = next;
-
                     if (!Char.IsDigit((char)next))
                     {
                         if (next == ':')
