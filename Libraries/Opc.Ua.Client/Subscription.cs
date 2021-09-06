@@ -718,7 +718,7 @@ namespace Opc.Ua.Client
                 out revisedLifetimeCounter,
                 out revisedKeepAliveCount);
 
-            UpdateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+            UpdateSubscription(true, subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
 
             CreateItems();
 
@@ -756,7 +756,6 @@ namespace Opc.Ua.Client
                 StatusCodeCollection results;
                 DiagnosticInfoCollection diagnosticInfos;
 
-                // TODO: create async version
                 ResponseHeader responseHeader = m_session.DeleteSubscriptions(
                     null,
                     subscriptionIds,
@@ -785,24 +784,7 @@ namespace Opc.Ua.Client
             // always put object in disconnected state even if an error occurs.
             finally
             {
-                m_id = 0;
-                m_currentPublishingInterval = 0;
-                m_currentKeepAliveCount = 0;
-                m_currentPublishingEnabled = false;
-                m_currentPriority = 0;
-
-                // update items.
-                lock (m_cache)
-                {
-                    foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                    {
-                        monitoredItem.SetDeleteResult(StatusCodes.Good, -1, null, null);
-                    }
-                }
-
-                m_deletedItems.Clear();
-
-                m_changeMask |= SubscriptionChangeMask.Deleted;
+                DeleteSubscription();
             }
 
             ChangesCompleted();
@@ -822,7 +804,6 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
 
-            // TODO: create async version
             m_session.ModifySubscription(
                 null,
                 m_id,
@@ -836,12 +817,11 @@ namespace Opc.Ua.Client
                 out revisedKeepAliveCount);
 
             // update current state.
-            m_currentPublishingInterval = revisedPublishingInterval;
-            m_currentKeepAliveCount = revisedKeepAliveCount;
-            m_currentLifetimeCount = revisedLifetimeCounter;
-            m_currentPriority = m_priority;
+            UpdateSubscription(false, 0,
+                revisedPublishingInterval,
+                revisedKeepAliveCount,
+                revisedLifetimeCounter);
 
-            m_changeMask |= SubscriptionChangeMask.Modified;
             ChangesCompleted();
         }
 
@@ -858,7 +838,6 @@ namespace Opc.Ua.Client
             StatusCodeCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            // TODO: create async version
             ResponseHeader responseHeader = m_session.SetPublishingMode(
                 null,
                 enabled,
@@ -904,7 +883,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Applies any changes to the subscription items.
         /// </summary>
-        /// TODO: create async version?
         public void ApplyChanges()
         {
             DeleteItems();
@@ -1149,7 +1127,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Deletes all items that have been marked for deletion.
+        /// Set monitoring mode of items..
         /// </summary>
         public List<ServiceResult> SetMonitoringMode(
             MonitoringMode monitoringMode,
@@ -1166,7 +1144,6 @@ namespace Opc.Ua.Client
 
             // get list of items to update.
             UInt32Collection monitoredItemIds = new UInt32Collection();
-
             foreach (MonitoredItem monitoredItem in monitoredItems)
             {
                 monitoredItemIds.Add(monitoredItem.Status.Id);
@@ -1514,20 +1491,6 @@ namespace Opc.Ua.Client
                 MethodIds.ConditionType_ConditionRefresh,
                 m_id);
         }
-
-        /// <summary>
-        /// Tells the server to refresh specific conditions being monitored by the subscription.
-        /// </summary>
-        public void ConditionRefresh2()
-        {
-            VerifySubscriptionState(true);
-
-            m_session.Call(
-                ObjectTypeIds.ConditionType,
-                MethodIds.ConditionType_ConditionRefresh2,
-                // TODO: parameter
-                m_id);
-        }
         #endregion
 
         #region Private Methods
@@ -1624,22 +1587,30 @@ namespace Opc.Ua.Client
         /// Update the subscription with the given revised settings.
         /// </summary>
         private void UpdateSubscription(
+            bool created,
             uint subscriptionId,
             double revisedPublishingInterval,
             uint revisedKeepAliveCount,
-            uint revisedLifetimeCounter)
+            uint revisedLifetimeCounter
+            )
         {
             // update current state.
-            m_id = subscriptionId;
             m_currentPublishingInterval = revisedPublishingInterval;
             m_currentKeepAliveCount = revisedKeepAliveCount;
             m_currentLifetimeCount = revisedLifetimeCounter;
-            m_currentPublishingEnabled = m_publishingEnabled;
             m_currentPriority = m_priority;
 
-            StartKeepAliveTimer();
-
-            m_changeMask |= SubscriptionChangeMask.Created;
+            if (!created)
+            {
+                m_changeMask |= SubscriptionChangeMask.Modified;
+            }
+            else
+            {
+                m_currentPublishingEnabled = m_publishingEnabled;
+                m_id = subscriptionId;
+                StartKeepAliveTimer();
+                m_changeMask |= SubscriptionChangeMask.Created;
+            }
 
             if (m_keepAliveCount != revisedKeepAliveCount)
             {
@@ -1665,6 +1636,33 @@ namespace Opc.Ua.Client
             {
                 Utils.Trace("For subscription {0}, the priority was set to 0.", Id);
             }
+        }
+
+        /// <summary>
+        /// Delete the subscription.
+        /// Ignore errors, always reset all parameter.
+        /// </summary>
+
+        private void DeleteSubscription()
+        {
+            m_id = 0;
+            m_currentPublishingInterval = 0;
+            m_currentKeepAliveCount = 0;
+            m_currentPublishingEnabled = false;
+            m_currentPriority = 0;
+
+            // update items.
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, null, null);
+                }
+            }
+
+            m_deletedItems.Clear();
+
+            m_changeMask |= SubscriptionChangeMask.Deleted;
         }
 
         /// <summary>
