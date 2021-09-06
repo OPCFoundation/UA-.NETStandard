@@ -718,7 +718,7 @@ namespace Opc.Ua.Client
                 out revisedLifetimeCounter,
                 out revisedKeepAliveCount);
 
-            UpdateSubscription(true, subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+            CreateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
 
             CreateItems();
 
@@ -817,7 +817,7 @@ namespace Opc.Ua.Client
                 out revisedKeepAliveCount);
 
             // update current state.
-            UpdateSubscription(false, 0,
+            ModifySubscription(
                 revisedPublishingInterval,
                 revisedKeepAliveCount,
                 revisedLifetimeCounter);
@@ -870,7 +870,6 @@ namespace Opc.Ua.Client
 
             NotificationMessage message;
 
-            // TODO: create async version
             m_session.Republish(
                 null,
                 m_id,
@@ -901,38 +900,7 @@ namespace Opc.Ua.Client
             BrowsePathCollection browsePaths = new BrowsePathCollection();
             List<MonitoredItem> itemsToBrowse = new List<MonitoredItem>();
 
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                {
-                    if (!String.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
-                    {
-                        // cannot change the relative path after an item is created.
-                        if (monitoredItem.Created)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot modify item path after it is created.");
-                        }
-
-                        BrowsePath browsePath = new BrowsePath();
-
-                        browsePath.StartingNode = monitoredItem.StartNodeId;
-
-                        // parse the relative path.
-                        try
-                        {
-                            browsePath.RelativePath = RelativePath.Parse(monitoredItem.RelativePath, m_session.TypeTree);
-                        }
-                        catch (Exception e)
-                        {
-                            monitoredItem.SetError(new ServiceResult(e));
-                            continue;
-                        }
-
-                        browsePaths.Add(browsePath);
-                        itemsToBrowse.Add(monitoredItem);
-                    }
-                }
-            }
+            PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
 
             // nothing to do.
             if (browsePaths.Count == 0)
@@ -944,7 +912,6 @@ namespace Opc.Ua.Client
             BrowsePathResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            // TODO: create async version
             ResponseHeader responseHeader = m_session.TranslateBrowsePathsToNodeIds(
                 null,
                 browsePaths,
@@ -976,7 +943,7 @@ namespace Opc.Ua.Client
                 return itemsToCreate;
             }
 
-            // modify the subscription.
+            // create monitored items.
             MonitoredItemCreateResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
@@ -1014,34 +981,7 @@ namespace Opc.Ua.Client
             MonitoredItemModifyRequestCollection requestItems = new MonitoredItemModifyRequestCollection();
             List<MonitoredItem> itemsToModify = new List<MonitoredItem>();
 
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                {
-                    // ignore items that have been created or modified.
-                    if (!monitoredItem.Status.Created || !monitoredItem.AttributesModified)
-                    {
-                        continue;
-                    }
-
-                    // build item request.
-                    MonitoredItemModifyRequest request = new MonitoredItemModifyRequest();
-
-                    request.MonitoredItemId = monitoredItem.Status.Id;
-                    request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
-                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
-                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
-                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
-
-                    if (monitoredItem.Filter != null)
-                    {
-                        request.RequestedParameters.Filter = new ExtensionObject(monitoredItem.Filter);
-                    }
-
-                    requestItems.Add(request);
-                    itemsToModify.Add(monitoredItem);
-                }
-            }
+            PrepareItemsToModify(requestItems, itemsToModify);
 
             if (requestItems.Count == 0)
             {
@@ -1052,7 +992,6 @@ namespace Opc.Ua.Client
             MonitoredItemModifyResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            // TODO: create async version
             ResponseHeader responseHeader = m_session.ModifyMonitoredItems(
                 null,
                 m_id,
@@ -1070,7 +1009,7 @@ namespace Opc.Ua.Client
                 itemsToModify[ii].SetModifyResult(requestItems[ii], results[ii], ii, diagnosticInfos, responseHeader);
             }
 
-            m_changeMask |= SubscriptionChangeMask.ItemsCreated;
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
             ChangesCompleted();
 
             // return the list of items affected by the change.
@@ -1102,7 +1041,6 @@ namespace Opc.Ua.Client
             StatusCodeCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            // TODO: create async version
             ResponseHeader responseHeader = m_session.DeleteMonitoredItems(
                 null,
                 m_id,
@@ -1127,7 +1065,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Set monitoring mode of items..
+        /// Set monitoring mode of items.
         /// </summary>
         public List<ServiceResult> SetMonitoringMode(
             MonitoringMode monitoringMode,
@@ -1152,7 +1090,6 @@ namespace Opc.Ua.Client
             StatusCodeCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            // TODO: create async version
             ResponseHeader responseHeader = m_session.SetMonitoringMode(
                 null,
                 m_id,
@@ -1165,26 +1102,11 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
 
             // update results.
-            bool noErrors = true;
             List<ServiceResult> errors = new List<ServiceResult>();
-
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                ServiceResult error = null;
-
-                if (StatusCode.IsBad(results[ii]))
-                {
-                    error = ClientBase.GetResult(results[ii], ii, diagnosticInfos, responseHeader);
-                    noErrors = false;
-                }
-                else
-                {
-                    monitoredItems[ii].MonitoringMode = monitoringMode;
-                    monitoredItems[ii].Status.SetMonitoringMode(monitoringMode);
-                }
-
-                errors.Add(error);
-            }
+            bool noErrors = UpdateMonitoringMode(
+                monitoredItems, errors, results,
+                diagnosticInfos, responseHeader,
+                monitoringMode);
 
             // raise state changed event.
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -1586,7 +1508,34 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Update the subscription with the given revised settings.
         /// </summary>
-        private void UpdateSubscription(
+        private void ModifySubscription(
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            uint revisedLifetimeCounter
+            )
+        {
+            CreateOrModifySubscription(false, 0,
+                revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+        }
+
+        /// <summary>
+        /// Update the subscription with the given revised settings.
+        /// </summary>
+        private void CreateSubscription(
+            uint subscriptionId,
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            uint revisedLifetimeCounter
+            )
+        {
+            CreateOrModifySubscription(true, subscriptionId,
+                revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+        }
+
+        /// <summary>
+        /// Update the subscription with the given revised settings.
+        /// </summary>
+        private void CreateOrModifySubscription(
             bool created,
             uint subscriptionId,
             double revisedPublishingInterval,
@@ -1642,7 +1591,6 @@ namespace Opc.Ua.Client
         /// Delete the subscription.
         /// Ignore errors, always reset all parameter.
         /// </summary>
-
         private void DeleteSubscription()
         {
             m_id = 0;
@@ -1895,6 +1843,42 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Update the results to monitored items
+        /// after updating the monitoring mode.
+        /// </summary>
+        private bool UpdateMonitoringMode(
+            IList<MonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            StatusCodeCollection results,
+            DiagnosticInfoCollection diagnosticInfos,
+            ResponseHeader responseHeader,
+            MonitoringMode monitoringMode)
+        {
+            // update results.
+            bool noErrors = true;
+
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                ServiceResult error = null;
+
+                if (StatusCode.IsBad(results[ii]))
+                {
+                    error = ClientBase.GetResult(results[ii], ii, diagnosticInfos, responseHeader);
+                    noErrors = false;
+                }
+                else
+                {
+                    monitoredItems[ii].MonitoringMode = monitoringMode;
+                    monitoredItems[ii].Status.SetMonitoringMode(monitoringMode);
+                }
+
+                errors.Add(error);
+            }
+
+            return noErrors;
+        }
+
+        /// <summary>
         /// Prepare the creation requests for all monitored items that have not yet been created.
         /// </summary>
         private MonitoredItemCreateRequestCollection PrepareItemsToCreate(out List<MonitoredItem> itemsToCreate)
@@ -1941,6 +1925,85 @@ namespace Opc.Ua.Client
                 }
             }
             return requestItems;
+        }
+
+        /// <summary>
+        /// Prepare the modify requests for all monitored items
+        /// that need modification.
+        /// </summary>
+        private void PrepareItemsToModify(
+            MonitoredItemModifyRequestCollection requestItems,
+            IList<MonitoredItem> itemsToModify)
+        {
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    // ignore items that have been created or modified.
+                    if (!monitoredItem.Status.Created || !monitoredItem.AttributesModified)
+                    {
+                        continue;
+                    }
+
+                    // build item request.
+                    MonitoredItemModifyRequest request = new MonitoredItemModifyRequest();
+
+                    request.MonitoredItemId = monitoredItem.Status.Id;
+                    request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
+                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
+                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
+                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
+
+                    if (monitoredItem.Filter != null)
+                    {
+                        request.RequestedParameters.Filter = new ExtensionObject(monitoredItem.Filter);
+                    }
+
+                    requestItems.Add(request);
+                    itemsToModify.Add(monitoredItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Prepare the ResolveItem to NodeId service call.
+        /// </summary>
+        private void PrepareResolveItemNodeIds(
+            BrowsePathCollection browsePaths,
+            IList<MonitoredItem> itemsToBrowse)
+        {
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    if (!String.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
+                    {
+                        // cannot change the relative path after an item is created.
+                        if (monitoredItem.Created)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot modify item path after it is created.");
+                        }
+
+                        BrowsePath browsePath = new BrowsePath();
+
+                        browsePath.StartingNode = monitoredItem.StartNodeId;
+
+                        // parse the relative path.
+                        try
+                        {
+                            browsePath.RelativePath = RelativePath.Parse(monitoredItem.RelativePath, m_session.TypeTree);
+                        }
+                        catch (Exception e)
+                        {
+                            monitoredItem.SetError(new ServiceResult(e));
+                            continue;
+                        }
+
+                        browsePaths.Add(browsePath);
+                        itemsToBrowse.Add(monitoredItem);
+                    }
+                }
+            }
         }
 
         /// <summary>

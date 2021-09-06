@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if CLIENT_ASYNC
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
-
-#if NET_STANDARD_ASYNC
 
 namespace Opc.Ua.Client
 {
@@ -42,6 +42,9 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Subscription
     {
+
+#if CLIENT_ASYNC_APM
+
         #region Public Async Methods (APM)
         /// <summary>
         /// Begin an asynchronous invocation of the CreateSubscription service.
@@ -154,8 +157,6 @@ namespace Opc.Ua.Client
             ChangesCompleted();
         }
 
-        // TODO: BeginDelete/EndDelete
-
         /// <summary>
         /// Modifies a subscription on the server.
         /// </summary>
@@ -200,7 +201,6 @@ namespace Opc.Ua.Client
 
             // update current state.
             UpdateSubscription(
-                false, 0,
                 revisedPublishingInterval,
                 revisedMaxKeepAliveCount,
                 revisedLifetimeCount);
@@ -209,30 +209,47 @@ namespace Opc.Ua.Client
         // TODO: SetPublishingMode
         #endregion
 
+#endif
+
         #region Public Async Methods (TPL)
         /// <summary>
         /// Creates a subscription on the server and adds all monitored items.
         /// </summary>
-        // TODO: ct token?
-        public async Task CreateAsync()
+        public async Task CreateAsync(CancellationToken ct = default)
         {
-            await Task.Factory.FromAsync(BeginCreate(EndCreate), EndCreate).ConfigureAwait(false);
-            await CreateItemsAsync().ConfigureAwait(false);
-        }
+            VerifySubscriptionState(false);
 
-        /// <summary>
-        /// Creates all items on the server that have not already been created.
-        /// </summary>
-        // TODO: How to add a ct token?
-        public Task CreateItemsAsync()
-        {
-            return Task.Factory.FromAsync(BeginCreateMonitoredItems(EndCreateMonitoredItems), EndCreateMonitoredItems);
+            // create the subscription.
+            uint revisedMaxKeepAliveCount = m_keepAliveCount;
+            uint revisedLifetimeCount = m_lifetimeCount;
+
+            AdjustCounts(ref revisedMaxKeepAliveCount, ref revisedLifetimeCount);
+
+            var response = await m_session.CreateSubscriptionAsync(
+                null,
+                m_publishingInterval,
+                revisedLifetimeCount,
+                revisedMaxKeepAliveCount,
+                m_maxNotificationsPerPublish,
+                m_publishingEnabled,
+                m_priority,
+                ct).ConfigureAwait(false);
+
+            CreateSubscription(
+                response.SubscriptionId,
+                response.RevisedPublishingInterval,
+                response.RevisedMaxKeepAliveCount,
+                response.RevisedLifetimeCount);
+
+            await CreateItemsAsync(ct).ConfigureAwait(false);
+
+            ChangesCompleted();
         }
 
         /// <summary>
         /// Deletes a subscription on the server.
         /// </summary>
-        public async Task DeleteAsync(bool silent, CancellationToken ct = default(CancellationToken))
+        public async Task DeleteAsync(bool silent, CancellationToken ct = default)
         {
             if (!silent)
             {
@@ -293,7 +310,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Modifies a subscription on the server.
         /// </summary>
-        public async Task ModifyAsync(CancellationToken ct = default(CancellationToken))
+        public async Task ModifyAsync(CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
@@ -314,8 +331,7 @@ namespace Opc.Ua.Client
                 ct).ConfigureAwait(false);
 
             // update current state.
-            UpdateSubscription(
-                false, 0,
+            ModifySubscription(
                 response.RevisedPublishingInterval,
                 response.RevisedMaxKeepAliveCount,
                 response.RevisedLifetimeCount);
@@ -326,7 +342,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Changes the publishing enabled state for the subscription.
         /// </summary>
-        public async Task SetPublishingModeAsync(bool enabled, CancellationToken ct = default(CancellationToken))
+        public async Task SetPublishingModeAsync(bool enabled, CancellationToken ct = default)
         {
             VerifySubscriptionState(true);
 
@@ -356,18 +372,249 @@ namespace Opc.Ua.Client
             ChangesCompleted();
         }
 
+        /// <summary>
+        /// Republishes the specified notification message.
+        /// </summary>
+        public async Task<NotificationMessage> RepublishAsync(uint sequenceNumber, CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
 
-#if TODO
+            var response = await m_session.RepublishAsync(
+                null,
+                m_id,
+                sequenceNumber,
+                ct).ConfigureAwait(false);
+
+            return response.NotificationMessage;
+        }
+
         /// <summary>
         /// Applies any changes to the subscription items.
         /// </summary>
-        public async Task ApplyChangesAsync()
+        public async Task ApplyChangesAsync(CancellationToken ct = default)
         {
-            await DeleteItemsAsync();
-            await ModifyItemsAsync();
-            return await CreateItemsAsync();
+            await DeleteItemsAsync(ct).ConfigureAwait(false);
+            await ModifyItemsAsync(ct).ConfigureAwait(false);
+            await CreateItemsAsync(ct).ConfigureAwait(false);
         }
-#endif
+
+        /// <summary>
+        /// Resolves all relative paths to nodes on the server.
+        /// </summary>
+        public async Task ResolveItemNodeIdsAsync(CancellationToken ct)
+        {
+            VerifySubscriptionState(true);
+
+            // collect list of browse paths.
+            BrowsePathCollection browsePaths = new BrowsePathCollection();
+            List<MonitoredItem> itemsToBrowse = new List<MonitoredItem>();
+
+            PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
+
+            // nothing to do.
+            if (browsePaths.Count == 0)
+            {
+                return;
+            }
+
+            // translate browse paths.
+            var response = await m_session.TranslateBrowsePathsToNodeIdsAsync(
+                null,
+                browsePaths,
+                ct).ConfigureAwait(false);
+
+            BrowsePathResultCollection results = response.Results;
+            ClientBase.ValidateResponse(results, browsePaths);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToBrowse[ii].SetResolvePathResult(results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+        }
+
+        /// <summary>
+        /// Creates all items on the server that have not already been created.
+        /// </summary>
+        public async Task<IList<MonitoredItem>> CreateItemsAsync(CancellationToken ct = default)
+        {
+            List<MonitoredItem> itemsToCreate;
+            MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(out itemsToCreate);
+
+            if (requestItems.Count == 0)
+            {
+                return itemsToCreate;
+            }
+
+            // create monitored items.
+            var response = await m_session.CreateMonitoredItemsAsync(
+                null,
+                m_id,
+                m_timestampsToReturn,
+                requestItems,
+                ct).ConfigureAwait(false);
+
+            MonitoredItemCreateResultCollection results = response.Results;
+            ClientBase.ValidateResponse(results, itemsToCreate);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToCreate);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToCreate[ii].SetCreateResult(requestItems[ii], results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsCreated;
+            ChangesCompleted();
+
+            // return the list of items affected by the change.
+            return itemsToCreate;
+        }
+
+        /// <summary>
+        /// Modies all items that have been changed.
+        /// </summary>
+        public async Task<IList<MonitoredItem>> ModifyItemsAsync(CancellationToken ct = default)
+        {
+            VerifySubscriptionState(true);
+
+            MonitoredItemModifyRequestCollection requestItems = new MonitoredItemModifyRequestCollection();
+            List<MonitoredItem> itemsToModify = new List<MonitoredItem>();
+
+            PrepareItemsToModify(requestItems, itemsToModify);
+
+            if (requestItems.Count == 0)
+            {
+                return itemsToModify;
+            }
+
+            // modify the subscription.
+            var response = await m_session.ModifyMonitoredItemsAsync(
+                null,
+                m_id,
+                m_timestampsToReturn,
+                requestItems,
+                ct).ConfigureAwait(false);
+
+            MonitoredItemModifyResultCollection results = response.Results;
+            ClientBase.ValidateResponse(results, itemsToModify);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, itemsToModify);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToModify[ii].SetModifyResult(requestItems[ii], results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+            ChangesCompleted();
+
+            // return the list of items affected by the change.
+            return itemsToModify;
+        }
+
+        /// <summary>
+        /// Deletes all items that have been marked for deletion.
+        /// </summary>
+        public async Task<IList<MonitoredItem>> DeleteItemsAsync(CancellationToken ct)
+        {
+            VerifySubscriptionState(true);
+
+            if (m_deletedItems.Count == 0)
+            {
+                return new List<MonitoredItem>();
+            }
+
+            List<MonitoredItem> itemsToDelete = m_deletedItems;
+            m_deletedItems = new List<MonitoredItem>();
+
+            UInt32Collection monitoredItemIds = new UInt32Collection();
+
+            foreach (MonitoredItem monitoredItem in itemsToDelete)
+            {
+                monitoredItemIds.Add(monitoredItem.Status.Id);
+            }
+
+            var response = await m_session.DeleteMonitoredItemsAsync(
+                null,
+                m_id,
+                monitoredItemIds,
+                ct).ConfigureAwait(false);
+
+            StatusCodeCollection results = response.Results;
+            ClientBase.ValidateResponse(results, monitoredItemIds);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
+
+            // update results.
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToDelete[ii].SetDeleteResult(results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsDeleted;
+            ChangesCompleted();
+
+            // return the list of items affected by the change.
+            return itemsToDelete;
+        }
+
+        /// <summary>
+        /// Set monitoring mode of items.
+        /// </summary>
+        public async Task<List<ServiceResult>> SetMonitoringModeAsync(
+            MonitoringMode monitoringMode,
+            IList<MonitoredItem> monitoredItems,
+            CancellationToken ct = default)
+        {
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            VerifySubscriptionState(true);
+
+            if (monitoredItems.Count == 0)
+            {
+                return null;
+            }
+
+            // get list of items to update.
+            UInt32Collection monitoredItemIds = new UInt32Collection();
+            foreach (MonitoredItem monitoredItem in monitoredItems)
+            {
+                monitoredItemIds.Add(monitoredItem.Status.Id);
+            }
+
+            var response = await m_session.SetMonitoringModeAsync(
+                null,
+                m_id,
+                monitoringMode,
+                monitoredItemIds,
+                ct).ConfigureAwait(false);
+
+            StatusCodeCollection results = response.Results;
+            ClientBase.ValidateResponse(results, monitoredItemIds);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
+
+            // update results.
+            List<ServiceResult> errors = new List<ServiceResult>();
+            bool noErrors = UpdateMonitoringMode(
+                monitoredItems, errors, results,
+                response.DiagnosticInfos, response.ResponseHeader,
+                monitoringMode);
+
+            // raise state changed event.
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+            ChangesCompleted();
+
+            // return null list if no errors occurred.
+            if (noErrors)
+            {
+                return null;
+            }
+
+            return errors;
+        }
 
         /// <summary>
         /// Tells the server to refresh all conditions being monitored by the subscription.
@@ -386,9 +633,8 @@ namespace Opc.Ua.Client
                 null,
                 methodsToCall,
                 ct).ConfigureAwait(false);
-
-            // TODO: check response
         }
+
         #endregion
     }
 }
