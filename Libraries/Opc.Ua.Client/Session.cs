@@ -3340,7 +3340,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return true;
+            return removed;
         }
         #endregion
 

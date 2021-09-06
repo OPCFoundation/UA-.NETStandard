@@ -230,7 +230,19 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
-            bool result = m_session.AddSubscription(subscription);
+            bool result = await m_session.RemoveSubscriptionAsync(subscription);
+            Assert.False(result);
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            Assert.False(result);
+            result = m_session.AddSubscription(subscription);
+            Assert.True(result);
+            result = m_session.AddSubscription(subscription);
+            Assert.False(result);
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            Assert.True(result);
+            result = await m_session.RemoveSubscriptionAsync(subscription);
+            Assert.False(result);
+            result = m_session.AddSubscription(subscription);
             Assert.True(result);
             await subscription.CreateAsync().ConfigureAwait(false);
 
