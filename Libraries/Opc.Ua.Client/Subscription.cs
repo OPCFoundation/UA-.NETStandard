@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -37,10 +37,10 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A subscription
+    /// A subscription.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class Subscription : IDisposable
+    public partial class Subscription : IDisposable
     {
         #region Constructors
         /// <summary>
@@ -237,12 +237,9 @@ namespace Opc.Ua.Client
         [DataMember(Order = 1)]
         public string DisplayName
         {
-            get { return m_displayName; }
+            get => m_displayName;
 
-            set
-            {
-                m_displayName = value;
-            }
+            set => m_displayName = value;
         }
 
         /// <summary>
@@ -251,8 +248,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 2)]
         public int PublishingInterval
         {
-            get { return m_publishingInterval; }
-            set { m_publishingInterval = value; }
+            get => m_publishingInterval;
+            set => m_publishingInterval = value;
         }
 
         /// <summary>
@@ -261,8 +258,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 3)]
         public uint KeepAliveCount
         {
-            get { return m_keepAliveCount; }
-            set { m_keepAliveCount = value; }
+            get => m_keepAliveCount;
+            set => m_keepAliveCount = value;
         }
 
         /// <summary>
@@ -271,8 +268,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 4)]
         public uint LifetimeCount
         {
-            get { return m_lifetimeCount; }
-            set { m_lifetimeCount = value; }
+            get => m_lifetimeCount;
+            set => m_lifetimeCount = value;
         }
 
         /// <summary>
@@ -281,8 +278,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 5)]
         public uint MaxNotificationsPerPublish
         {
-            get { return m_maxNotificationsPerPublish; }
-            set { m_maxNotificationsPerPublish = value; }
+            get => m_maxNotificationsPerPublish;
+            set => m_maxNotificationsPerPublish = value;
         }
 
         /// <summary>
@@ -291,8 +288,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 6)]
         public bool PublishingEnabled
         {
-            get { return m_publishingEnabled; }
-            set { m_publishingEnabled = value; }
+            get => m_publishingEnabled;
+            set => m_publishingEnabled = value;
         }
 
         /// <summary>
@@ -301,8 +298,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 7)]
         public byte Priority
         {
-            get { return m_priority; }
-            set { m_priority = value; }
+            get => m_priority;
+            set => m_priority = value;
         }
 
         /// <summary>
@@ -311,8 +308,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 8)]
         public TimestampsToReturn TimestampsToReturn
         {
-            get { return m_timestampsToReturn; }
-            set { m_timestampsToReturn = value; }
+            get => m_timestampsToReturn;
+            set => m_timestampsToReturn = value;
         }
 
         /// <summary>
@@ -344,8 +341,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 10)]
         public MonitoredItem DefaultItem
         {
-            get { return m_defaultItem; }
-            set { m_defaultItem = value; }
+            get => m_defaultItem;
+            set => m_defaultItem = value;
         }
 
         /// <summary>
@@ -354,8 +351,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 11)]
         public uint MinLifetimeInterval
         {
-            get { return m_minLifetimeInterval; }
-            set { m_minLifetimeInterval = value; }
+            get => m_minLifetimeInterval;
+            set => m_minLifetimeInterval = value;
         }
 
         /// <summary>
@@ -371,8 +368,8 @@ namespace Opc.Ua.Client
         [DataMember(Order = 12)]
         public bool DisableMonitoredItemCache
         {
-            get { return m_disableMonitoredItemCache; }
-            set { m_disableMonitoredItemCache = value; }
+            get => m_disableMonitoredItemCache;
+            set => m_disableMonitoredItemCache = value;
         }
 
         /// <summary>
@@ -448,8 +445,8 @@ namespace Opc.Ua.Client
         /// </remarks>
         public FastDataChangeNotificationEventHandler FastDataChangeCallback
         {
-            get { return m_fastDataChangeCallback; }
-            set { m_fastDataChangeCallback = value; }
+            get => m_fastDataChangeCallback;
+            set => m_fastDataChangeCallback = value;
         }
 
         /// <summary>
@@ -461,8 +458,8 @@ namespace Opc.Ua.Client
         /// </remarks>
         public FastEventNotificationEventHandler FastEventCallback
         {
-            get { return m_fastEventCallback; }
-            set { m_fastEventCallback = value; }
+            get => m_fastEventCallback;
+            set => m_fastEventCallback = value;
         }
 
         /// <summary>
@@ -563,8 +560,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public Session Session
         {
-            get { return m_session; }
-            internal set { m_session = value; }
+            get => m_session;
+            internal set => m_session = value;
         }
 
         /// <summary>
@@ -572,8 +569,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public object Handle
         {
-            get { return m_handle; }
-            set { m_handle = value; }
+            get => m_handle;
+            set => m_handle = value;
         }
 
         /// <summary>
@@ -767,55 +764,7 @@ namespace Opc.Ua.Client
 
         #region Public Methods
         /// <summary>
-        /// Ensures sensible values for the counts.
-        /// </summary>
-        private void AdjustCounts(ref uint keepAliveCount, ref uint lifetimeCount)
-        {
-            const uint kDefaultKeepAlive = 10;
-            const uint kDefaultLifeTime = 1000;
-            // keep alive count must be at least 1, 10 is a good default.
-            if (keepAliveCount == 0)
-            {
-                Utils.Trace("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}. ", keepAliveCount, kDefaultKeepAlive, Id);
-                keepAliveCount = kDefaultKeepAlive;
-            }
-
-            // ensure the lifetime is sensible given the sampling interval.
-            if (m_publishingInterval > 0)
-            {
-                uint minLifetimeCount = (uint)(m_minLifetimeInterval / m_publishingInterval);
-
-                if (lifetimeCount < minLifetimeCount)
-                {
-                    lifetimeCount = minLifetimeCount;
-
-                    if (m_minLifetimeInterval % m_publishingInterval != 0)
-                    {
-                        lifetimeCount++;
-                    }
-
-                    Utils.Trace("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
-                }
-            }
-            else if (lifetimeCount == 0)
-            {
-                // don't know what the sampling interval will be - use something large enough
-                // to ensure the user does not experience unexpected drop outs.
-                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, kDefaultLifeTime, Id);
-                lifetimeCount = kDefaultLifeTime;
-            }
-
-            // validate spec: lifetimecount shall be at least 3*keepAliveCount
-            uint minLifeTimeCount = 3 * keepAliveCount;
-            if (lifetimeCount < minLifeTimeCount)
-            {
-                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, minLifeTimeCount, Id);
-                lifetimeCount = minLifeTimeCount;
-            }
-        }
-
-        /// <summary>
-        /// Creates a subscription on the server.
+        /// Creates a subscription on the server and adds all monitored items.
         /// </summary>
         public void Create()
         {
@@ -844,42 +793,7 @@ namespace Opc.Ua.Client
                 out revisedLifetimeCounter,
                 out revisedKeepAliveCount);
 
-            // update current state.
-            m_id = subscriptionId;
-            m_currentPublishingInterval = revisedPublishingInterval;
-            m_currentKeepAliveCount = revisedKeepAliveCount;
-            m_currentLifetimeCount = revisedLifetimeCounter;
-            m_currentPublishingEnabled = m_publishingEnabled;
-            m_currentPriority = m_priority;
-
-            StartKeepAliveTimer();
-
-            m_changeMask |= SubscriptionChangeMask.Created;
-
-            if (m_keepAliveCount != revisedKeepAliveCount)
-            {
-                Utils.Trace("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
-            }
-
-            if (m_lifetimeCount != revisedLifetimeCounter)
-            {
-                Utils.Trace("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
-            }
-
-            if (m_publishingInterval != revisedPublishingInterval)
-            {
-                Utils.Trace("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
-            }
-
-            if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
-            {
-                Utils.Trace("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
-            }
-
-            if (m_currentPriority == 0)
-            {
-                Utils.Trace("For subscription {0}, the priority was set to 0.", Id);
-            }
+            CreateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
 
             CreateItems();
 
@@ -907,95 +821,6 @@ namespace Opc.Ua.Client
                     //If the semaphore is updated while the subscription is running workers, it's possible to temporarily have too many workers while old waiting workers still use the old semaphore object.
                 }
             }
-        }
-
-        /// <summary>
-        /// Starts a timer to ensure publish requests are sent frequently enough to detect network interruptions.
-        /// </summary>
-        private void StartKeepAliveTimer()
-        {
-            // stop the publish timer.
-            if (m_publishTimer != null)
-            {
-                m_publishTimer.Dispose();
-                m_publishTimer = null;
-            }
-
-            lock (m_cache)
-            {
-                m_lastNotificationTime = DateTime.MinValue;
-            }
-
-            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
-
-            m_lastNotificationTime = DateTime.UtcNow;
-            m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
-
-            // send initial publish.
-            m_session.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue / 3) * 3);
-        }
-
-        /// <summary>
-        /// Checks if a notification has arrived. Sends a publish if it has not.
-        /// </summary>
-        private void OnKeepAlive(object state)
-        {
-            // check if a publish has arrived.
-            EventHandler callback = null;
-
-            lock (m_cache)
-            {
-                if (!PublishingStopped)
-                {
-                    return;
-                }
-
-                callback = m_PublishStatusChanged;
-                m_publishLateCount++;
-            }
-
-            TraceState("PUBLISHING STOPPED");
-
-            if (callback != null)
-            {
-                try
-                {
-                    callback(this, null);
-                }
-                catch (Exception e)
-                {
-                    Utils.Trace(e, "Error while raising PublishStateChanged event.");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Dumps the current state of the session queue.
-        /// </summary>
-        internal void TraceState(string context)
-        {
-            if ((Utils.TraceMask & Utils.TraceMasks.Information) == 0)
-            {
-                return;
-            }
-
-            StringBuilder buffer = new StringBuilder();
-
-            buffer.AppendFormat("Subscription {0}", context);
-            buffer.AppendFormat(", Id={0}", m_id);
-            buffer.AppendFormat(", LastNotificationTime={0:HH:mm:ss}", m_lastNotificationTime);
-
-            if (m_session != null)
-            {
-                buffer.AppendFormat(", GoodPublishRequestCount={0}", m_session.GoodPublishRequestCount);
-            }
-
-            buffer.AppendFormat(", PublishingInterval={0}", m_currentPublishingInterval);
-            buffer.AppendFormat(", KeepAliveCount={0}", m_currentKeepAliveCount);
-            buffer.AppendFormat(", PublishingEnabled={0}", m_currentPublishingEnabled);
-            buffer.AppendFormat(", MonitoredItemCount={0}", MonitoredItemCount);
-
-            Utils.Trace("{0}", buffer.ToString());
         }
 
         /// <summary>
@@ -1057,24 +882,7 @@ namespace Opc.Ua.Client
             // always put object in disconnected state even if an error occurs.
             finally
             {
-                m_id = 0;
-                m_currentPublishingInterval = 0;
-                m_currentKeepAliveCount = 0;
-                m_currentPublishingEnabled = false;
-                m_currentPriority = 0;
-
-                // update items.
-                lock (m_cache)
-                {
-                    foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                    {
-                        monitoredItem.SetDeleteResult(StatusCodes.Good, -1, null, null);
-                    }
-                }
-
-                m_deletedItems.Clear();
-
-                m_changeMask |= SubscriptionChangeMask.Deleted;
+                DeleteSubscription();
             }
 
             ChangesCompleted();
@@ -1107,12 +915,11 @@ namespace Opc.Ua.Client
                 out revisedKeepAliveCount);
 
             // update current state.
-            m_currentPublishingInterval = revisedPublishingInterval;
-            m_currentKeepAliveCount = revisedKeepAliveCount;
-            m_currentLifetimeCount = revisedLifetimeCounter;
-            m_currentPriority = m_priority;
+            ModifySubscription(
+                revisedPublishingInterval,
+                revisedKeepAliveCount,
+                revisedLifetimeCounter);
 
-            m_changeMask |= SubscriptionChangeMask.Modified;
             ChangesCompleted();
         }
 
@@ -1191,38 +998,7 @@ namespace Opc.Ua.Client
             BrowsePathCollection browsePaths = new BrowsePathCollection();
             List<MonitoredItem> itemsToBrowse = new List<MonitoredItem>();
 
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                {
-                    if (!String.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
-                    {
-                        // cannot change the relative path after an item is created.
-                        if (monitoredItem.Created)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot modify item path after it is created.");
-                        }
-
-                        BrowsePath browsePath = new BrowsePath();
-
-                        browsePath.StartingNode = monitoredItem.StartNodeId;
-
-                        // parse the relative path.
-                        try
-                        {
-                            browsePath.RelativePath = RelativePath.Parse(monitoredItem.RelativePath, m_session.TypeTree);
-                        }
-                        catch (Exception e)
-                        {
-                            monitoredItem.SetError(new ServiceResult(e));
-                            continue;
-                        }
-
-                        browsePaths.Add(browsePath);
-                        itemsToBrowse.Add(monitoredItem);
-                    }
-                }
-            }
+            PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
 
             // nothing to do.
             if (browsePaths.Count == 0)
@@ -1257,54 +1033,15 @@ namespace Opc.Ua.Client
         /// </summary>
         public IList<MonitoredItem> CreateItems()
         {
-            VerifySubscriptionState(true);
-
-            ResolveItemNodeIds();
-
-            MonitoredItemCreateRequestCollection requestItems = new MonitoredItemCreateRequestCollection();
-            List<MonitoredItem> itemsToCreate = new List<MonitoredItem>();
-
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                {
-                    // ignore items that have been created.
-                    if (monitoredItem.Status.Created)
-                    {
-                        continue;
-                    }
-
-                    // build item request.
-                    MonitoredItemCreateRequest request = new MonitoredItemCreateRequest();
-
-                    request.ItemToMonitor.NodeId = monitoredItem.ResolvedNodeId;
-                    request.ItemToMonitor.AttributeId = monitoredItem.AttributeId;
-                    request.ItemToMonitor.IndexRange = monitoredItem.IndexRange;
-                    request.ItemToMonitor.DataEncoding = monitoredItem.Encoding;
-
-                    request.MonitoringMode = monitoredItem.MonitoringMode;
-
-                    request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
-                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
-                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
-                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
-
-                    if (monitoredItem.Filter != null)
-                    {
-                        request.RequestedParameters.Filter = new ExtensionObject(monitoredItem.Filter);
-                    }
-
-                    requestItems.Add(request);
-                    itemsToCreate.Add(monitoredItem);
-                }
-            }
+            List<MonitoredItem> itemsToCreate;
+            MonitoredItemCreateRequestCollection requestItems = PrepareItemsToCreate(out itemsToCreate);
 
             if (requestItems.Count == 0)
             {
                 return itemsToCreate;
             }
 
-            // modify the subscription.
+            // create monitored items.
             MonitoredItemCreateResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
@@ -1342,34 +1079,7 @@ namespace Opc.Ua.Client
             MonitoredItemModifyRequestCollection requestItems = new MonitoredItemModifyRequestCollection();
             List<MonitoredItem> itemsToModify = new List<MonitoredItem>();
 
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
-                {
-                    // ignore items that have been created or modified.
-                    if (!monitoredItem.Status.Created || !monitoredItem.AttributesModified)
-                    {
-                        continue;
-                    }
-
-                    // build item request.
-                    MonitoredItemModifyRequest request = new MonitoredItemModifyRequest();
-
-                    request.MonitoredItemId = monitoredItem.Status.Id;
-                    request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
-                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
-                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
-                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
-
-                    if (monitoredItem.Filter != null)
-                    {
-                        request.RequestedParameters.Filter = new ExtensionObject(monitoredItem.Filter);
-                    }
-
-                    requestItems.Add(request);
-                    itemsToModify.Add(monitoredItem);
-                }
-            }
+            PrepareItemsToModify(requestItems, itemsToModify);
 
             if (requestItems.Count == 0)
             {
@@ -1397,7 +1107,7 @@ namespace Opc.Ua.Client
                 itemsToModify[ii].SetModifyResult(requestItems[ii], results[ii], ii, diagnosticInfos, responseHeader);
             }
 
-            m_changeMask |= SubscriptionChangeMask.ItemsCreated;
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
             ChangesCompleted();
 
             // return the list of items affected by the change.
@@ -1453,7 +1163,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Deletes all items that have been marked for deletion.
+        /// Set monitoring mode of items.
         /// </summary>
         public List<ServiceResult> SetMonitoringMode(
             MonitoringMode monitoringMode,
@@ -1470,7 +1180,6 @@ namespace Opc.Ua.Client
 
             // get list of items to update.
             UInt32Collection monitoredItemIds = new UInt32Collection();
-
             foreach (MonitoredItem monitoredItem in monitoredItems)
             {
                 monitoredItemIds.Add(monitoredItem.Status.Id);
@@ -1491,26 +1200,11 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
 
             // update results.
-            bool noErrors = true;
             List<ServiceResult> errors = new List<ServiceResult>();
-
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                ServiceResult error = null;
-
-                if (StatusCode.IsBad(results[ii]))
-                {
-                    error = ClientBase.GetResult(results[ii], ii, diagnosticInfos, responseHeader);
-                    noErrors = false;
-                }
-                else
-                {
-                    monitoredItems[ii].MonitoringMode = monitoringMode;
-                    monitoredItems[ii].Status.SetMonitoringMode(monitoringMode);
-                }
-
-                errors.Add(error);
-            }
+            bool noErrors = UpdateMonitoringMode(
+                monitoredItems, errors, results,
+                diagnosticInfos, responseHeader,
+                monitoringMode);
 
             // raise state changed event.
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -1673,6 +1367,400 @@ namespace Opc.Ua.Client
                 {
                     Utils.Trace(e, "Error while raising PublishStateChanged event.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Get the number of outstanding message workers
+        /// </summary>
+        public int OutstandingMessageWorkers => m_outstandingMessageWorkers;
+
+        /// <summary>
+        /// Adds an item to the subscription.
+        /// </summary>
+        public void AddItem(MonitoredItem monitoredItem)
+        {
+            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
+
+            lock (m_cache)
+            {
+                if (m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
+                {
+                    return;
+                }
+
+                m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
+                monitoredItem.Subscription = this;
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsAdded;
+            ChangesCompleted();
+        }
+
+        /// <summary>
+        /// Adds an item to the subscription.
+        /// </summary>
+        public void AddItems(IEnumerable<MonitoredItem> monitoredItems)
+        {
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            bool added = false;
+
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in monitoredItems)
+                {
+                    if (!m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
+                    {
+                        m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
+                        monitoredItem.Subscription = this;
+                        added = true;
+                    }
+                }
+            }
+
+            if (added)
+            {
+                m_changeMask |= SubscriptionChangeMask.ItemsAdded;
+                ChangesCompleted();
+            }
+        }
+
+        /// <summary>
+        /// Removes an item from the subscription.
+        /// </summary>
+        public void RemoveItem(MonitoredItem monitoredItem)
+        {
+            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
+
+            lock (m_cache)
+            {
+                if (!m_monitoredItems.Remove(monitoredItem.ClientHandle))
+                {
+                    return;
+                }
+
+                monitoredItem.Subscription = null;
+            }
+
+            if (monitoredItem.Status.Created)
+            {
+                m_deletedItems.Add(monitoredItem);
+            }
+
+            m_changeMask |= SubscriptionChangeMask.ItemsRemoved;
+            ChangesCompleted();
+        }
+
+        /// <summary>
+        /// Removes an item from the subscription.
+        /// </summary>
+        public void RemoveItems(IEnumerable<MonitoredItem> monitoredItems)
+        {
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+
+            bool changed = false;
+
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in monitoredItems)
+                {
+                    if (m_monitoredItems.Remove(monitoredItem.ClientHandle))
+                    {
+                        monitoredItem.Subscription = null;
+
+                        if (monitoredItem.Status.Created)
+                        {
+                            m_deletedItems.Add(monitoredItem);
+                        }
+
+                        changed = true;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                m_changeMask |= SubscriptionChangeMask.ItemsRemoved;
+                ChangesCompleted();
+            }
+        }
+
+        /// <summary>
+        /// Returns the monitored item identified by the client handle.
+        /// </summary>
+        public MonitoredItem FindItemByClientHandle(uint clientHandle)
+        {
+            lock (m_cache)
+            {
+                MonitoredItem monitoredItem = null;
+
+                if (m_monitoredItems.TryGetValue(clientHandle, out monitoredItem))
+                {
+                    return monitoredItem;
+                }
+
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Tells the server to refresh all conditions being monitored by the subscription.
+        /// </summary>
+        public void ConditionRefresh()
+        {
+            VerifySubscriptionState(true);
+
+            m_session.Call(
+                ObjectTypeIds.ConditionType,
+                MethodIds.ConditionType_ConditionRefresh,
+                m_id);
+        }
+        #endregion
+
+        #region Private Methods
+        /// <summary>
+        /// Starts a timer to ensure publish requests are sent frequently enough to detect network interruptions.
+        /// </summary>
+        private void StartKeepAliveTimer()
+        {
+            // stop the publish timer.
+            if (m_publishTimer != null)
+            {
+                m_publishTimer.Dispose();
+                m_publishTimer = null;
+            }
+
+            lock (m_cache)
+            {
+                m_lastNotificationTime = DateTime.MinValue;
+            }
+
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
+
+            m_lastNotificationTime = DateTime.UtcNow;
+            m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
+
+            // send initial publish.
+            m_session.BeginPublish(Math.Min(keepAliveInterval, Int32.MaxValue / 3) * 3);
+        }
+
+        /// <summary>
+        /// Checks if a notification has arrived. Sends a publish if it has not.
+        /// </summary>
+        private void OnKeepAlive(object state)
+        {
+            // check if a publish has arrived.
+            EventHandler callback = null;
+
+            lock (m_cache)
+            {
+                if (!PublishingStopped)
+                {
+                    return;
+                }
+
+                callback = m_PublishStatusChanged;
+                m_publishLateCount++;
+            }
+
+            TraceState("PUBLISHING STOPPED");
+
+            if (callback != null)
+            {
+                try
+                {
+                    callback(this, null);
+                }
+                catch (Exception e)
+                {
+                    Utils.Trace(e, "Error while raising PublishStateChanged event.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Dumps the current state of the session queue.
+        /// </summary>
+        internal void TraceState(string context)
+        {
+            if ((Utils.TraceMask & Utils.TraceMasks.Information) == 0)
+            {
+                return;
+            }
+
+            StringBuilder buffer = new StringBuilder();
+
+            buffer.AppendFormat("Subscription {0}", context);
+            buffer.AppendFormat(", Id={0}", m_id);
+            buffer.AppendFormat(", LastNotificationTime={0:HH:mm:ss}", m_lastNotificationTime);
+
+            if (m_session != null)
+            {
+                buffer.AppendFormat(", GoodPublishRequestCount={0}", m_session.GoodPublishRequestCount);
+            }
+
+            buffer.AppendFormat(", PublishingInterval={0}", m_currentPublishingInterval);
+            buffer.AppendFormat(", KeepAliveCount={0}", m_currentKeepAliveCount);
+            buffer.AppendFormat(", PublishingEnabled={0}", m_currentPublishingEnabled);
+            buffer.AppendFormat(", MonitoredItemCount={0}", MonitoredItemCount);
+
+            Utils.Trace("{0}", buffer.ToString());
+        }
+
+        /// <summary>
+        /// Update the subscription with the given revised settings.
+        /// </summary>
+        private void ModifySubscription(
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            uint revisedLifetimeCounter
+            )
+        {
+            CreateOrModifySubscription(false, 0,
+                revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+        }
+
+        /// <summary>
+        /// Update the subscription with the given revised settings.
+        /// </summary>
+        private void CreateSubscription(
+            uint subscriptionId,
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            uint revisedLifetimeCounter
+            )
+        {
+            CreateOrModifySubscription(true, subscriptionId,
+                revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+        }
+
+        /// <summary>
+        /// Update the subscription with the given revised settings.
+        /// </summary>
+        private void CreateOrModifySubscription(
+            bool created,
+            uint subscriptionId,
+            double revisedPublishingInterval,
+            uint revisedKeepAliveCount,
+            uint revisedLifetimeCounter
+            )
+        {
+            // update current state.
+            m_currentPublishingInterval = revisedPublishingInterval;
+            m_currentKeepAliveCount = revisedKeepAliveCount;
+            m_currentLifetimeCount = revisedLifetimeCounter;
+            m_currentPriority = m_priority;
+
+            if (!created)
+            {
+                m_changeMask |= SubscriptionChangeMask.Modified;
+            }
+            else
+            {
+                m_currentPublishingEnabled = m_publishingEnabled;
+                m_id = subscriptionId;
+                StartKeepAliveTimer();
+                m_changeMask |= SubscriptionChangeMask.Created;
+            }
+
+            if (m_keepAliveCount != revisedKeepAliveCount)
+            {
+                Utils.Trace("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
+            }
+
+            if (m_lifetimeCount != revisedLifetimeCounter)
+            {
+                Utils.Trace("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
+            }
+
+            if (m_publishingInterval != revisedPublishingInterval)
+            {
+                Utils.Trace("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
+            }
+
+            if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
+            {
+                Utils.Trace("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
+            }
+
+            if (m_currentPriority == 0)
+            {
+                Utils.Trace("For subscription {0}, the priority was set to 0.", Id);
+            }
+        }
+
+        /// <summary>
+        /// Delete the subscription.
+        /// Ignore errors, always reset all parameter.
+        /// </summary>
+        private void DeleteSubscription()
+        {
+            m_id = 0;
+            m_currentPublishingInterval = 0;
+            m_currentKeepAliveCount = 0;
+            m_currentPublishingEnabled = false;
+            m_currentPriority = 0;
+
+            // update items.
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, null, null);
+                }
+            }
+
+            m_deletedItems.Clear();
+
+            m_changeMask |= SubscriptionChangeMask.Deleted;
+        }
+
+        /// <summary>
+        /// Ensures sensible values for the counts.
+        /// </summary>
+        private void AdjustCounts(ref uint keepAliveCount, ref uint lifetimeCount)
+        {
+            const uint kDefaultKeepAlive = 10;
+            const uint kDefaultLifeTime = 1000;
+            // keep alive count must be at least 1, 10 is a good default.
+            if (keepAliveCount == 0)
+            {
+                Utils.Trace("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}. ", keepAliveCount, kDefaultKeepAlive, Id);
+                keepAliveCount = kDefaultKeepAlive;
+            }
+
+            // ensure the lifetime is sensible given the sampling interval.
+            if (m_publishingInterval > 0)
+            {
+                uint minLifetimeCount = (uint)(m_minLifetimeInterval / m_publishingInterval);
+
+                if (lifetimeCount < minLifetimeCount)
+                {
+                    lifetimeCount = minLifetimeCount;
+
+                    if (m_minLifetimeInterval % m_publishingInterval != 0)
+                    {
+                        lifetimeCount++;
+                    }
+
+                    Utils.Trace("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
+                }
+            }
+            else if (lifetimeCount == 0)
+            {
+                // don't know what the sampling interval will be - use something large enough
+                // to ensure the user does not experience unexpected drop outs.
+                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, kDefaultLifeTime, Id);
+                lifetimeCount = kDefaultLifeTime;
+            }
+
+            // validate spec: lifetimecount shall be at least 3*keepAliveCount
+            uint minLifeTimeCount = 3 * keepAliveCount;
+            if (lifetimeCount < minLifeTimeCount)
+            {
+                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, minLifeTimeCount, Id);
+                lifetimeCount = minLifeTimeCount;
             }
         }
 
@@ -1890,164 +1978,10 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Get the number of outstanding message workers
-        /// </summary>
-        public int OutstandingMessageWorkers => m_outstandingMessageWorkers;
-
-        /// <summary>
-        /// Adds an item to the subscription.
-        /// </summary>
-        public void AddItem(MonitoredItem monitoredItem)
-        {
-            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
-
-            lock (m_cache)
-            {
-                if (m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
-                {
-                    return;
-                }
-
-                m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
-                monitoredItem.Subscription = this;
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsAdded;
-            ChangesCompleted();
-        }
-
-        /// <summary>
-        /// Adds an item to the subscription.
-        /// </summary>
-        public void AddItems(IEnumerable<MonitoredItem> monitoredItems)
-        {
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-
-            bool added = false;
-
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in monitoredItems)
-                {
-                    if (!m_monitoredItems.ContainsKey(monitoredItem.ClientHandle))
-                    {
-                        m_monitoredItems.Add(monitoredItem.ClientHandle, monitoredItem);
-                        monitoredItem.Subscription = this;
-                        added = true;
-                    }
-                }
-            }
-
-            if (added)
-            {
-                m_changeMask |= SubscriptionChangeMask.ItemsAdded;
-                ChangesCompleted();
-            }
-        }
-
-        /// <summary>
-        /// Removes an item from the subscription.
-        /// </summary>
-        public void RemoveItem(MonitoredItem monitoredItem)
-        {
-            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
-
-            lock (m_cache)
-            {
-                if (!m_monitoredItems.Remove(monitoredItem.ClientHandle))
-                {
-                    return;
-                }
-
-                monitoredItem.Subscription = null;
-            }
-
-            if (monitoredItem.Status.Created)
-            {
-                m_deletedItems.Add(monitoredItem);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsRemoved;
-            ChangesCompleted();
-        }
-
-        /// <summary>
-        /// Removes an item from the subscription.
-        /// </summary>
-        public void RemoveItems(IEnumerable<MonitoredItem> monitoredItems)
-        {
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-
-            bool changed = false;
-
-            lock (m_cache)
-            {
-                foreach (MonitoredItem monitoredItem in monitoredItems)
-                {
-                    if (m_monitoredItems.Remove(monitoredItem.ClientHandle))
-                    {
-                        monitoredItem.Subscription = null;
-
-                        if (monitoredItem.Status.Created)
-                        {
-                            m_deletedItems.Add(monitoredItem);
-                        }
-
-                        changed = true;
-                    }
-                }
-            }
-
-            if (changed)
-            {
-                m_changeMask |= SubscriptionChangeMask.ItemsRemoved;
-                ChangesCompleted();
-            }
-        }
-
-        /// <summary>
-        /// Returns the monitored item identified by the client handle.
-        /// </summary>
-        public MonitoredItem FindItemByClientHandle(uint clientHandle)
-        {
-            lock (m_cache)
-            {
-                MonitoredItem monitoredItem = null;
-
-                if (m_monitoredItems.TryGetValue(clientHandle, out monitoredItem))
-                {
-                    return monitoredItem;
-                }
-
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Tells the server to refresh all conditions being monitored by the subscription.
-        /// </summary>
-        public void ConditionRefresh()
-        {
-            VerifySubscriptionState(true);
-
-            m_session.Call(
-                ObjectTypeIds.ConditionType,
-                MethodIds.ConditionType_ConditionRefresh,
-                m_id);
-        }
-        #endregion
-
-        #region Private Methods
-        /// <summary>
         /// Throws an exception if the subscription is not in the correct state.
         /// </summary>
         private void VerifySubscriptionState(bool created)
         {
-            if (m_session == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Session has not been set.");
-            }
-
             if (created && m_id == 0)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been created.");
@@ -2056,6 +1990,170 @@ namespace Opc.Ua.Client
             if (!created && m_id != 0)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has alredy been created.");
+            }
+        }
+
+        /// <summary>
+        /// Update the results to monitored items
+        /// after updating the monitoring mode.
+        /// </summary>
+        private bool UpdateMonitoringMode(
+            IList<MonitoredItem> monitoredItems,
+            IList<ServiceResult> errors,
+            StatusCodeCollection results,
+            DiagnosticInfoCollection diagnosticInfos,
+            ResponseHeader responseHeader,
+            MonitoringMode monitoringMode)
+        {
+            // update results.
+            bool noErrors = true;
+
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                ServiceResult error = null;
+
+                if (StatusCode.IsBad(results[ii]))
+                {
+                    error = ClientBase.GetResult(results[ii], ii, diagnosticInfos, responseHeader);
+                    noErrors = false;
+                }
+                else
+                {
+                    monitoredItems[ii].MonitoringMode = monitoringMode;
+                    monitoredItems[ii].Status.SetMonitoringMode(monitoringMode);
+                }
+
+                errors.Add(error);
+            }
+
+            return noErrors;
+        }
+
+        /// <summary>
+        /// Prepare the creation requests for all monitored items that have not yet been created.
+        /// </summary>
+        private MonitoredItemCreateRequestCollection PrepareItemsToCreate(out List<MonitoredItem> itemsToCreate)
+        {
+            VerifySubscriptionState(true);
+
+            ResolveItemNodeIds();
+
+            MonitoredItemCreateRequestCollection requestItems = new MonitoredItemCreateRequestCollection();
+            itemsToCreate = new List<MonitoredItem>();
+
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    // ignore items that have been created.
+                    if (monitoredItem.Status.Created)
+                    {
+                        continue;
+                    }
+
+                    // build item request.
+                    MonitoredItemCreateRequest request = new MonitoredItemCreateRequest();
+
+                    request.ItemToMonitor.NodeId = monitoredItem.ResolvedNodeId;
+                    request.ItemToMonitor.AttributeId = monitoredItem.AttributeId;
+                    request.ItemToMonitor.IndexRange = monitoredItem.IndexRange;
+                    request.ItemToMonitor.DataEncoding = monitoredItem.Encoding;
+
+                    request.MonitoringMode = monitoredItem.MonitoringMode;
+
+                    request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
+                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
+                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
+                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
+
+                    if (monitoredItem.Filter != null)
+                    {
+                        request.RequestedParameters.Filter = new ExtensionObject(monitoredItem.Filter);
+                    }
+
+                    requestItems.Add(request);
+                    itemsToCreate.Add(monitoredItem);
+                }
+            }
+            return requestItems;
+        }
+
+        /// <summary>
+        /// Prepare the modify requests for all monitored items
+        /// that need modification.
+        /// </summary>
+        private void PrepareItemsToModify(
+            MonitoredItemModifyRequestCollection requestItems,
+            IList<MonitoredItem> itemsToModify)
+        {
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    // ignore items that have been created or modified.
+                    if (!monitoredItem.Status.Created || !monitoredItem.AttributesModified)
+                    {
+                        continue;
+                    }
+
+                    // build item request.
+                    MonitoredItemModifyRequest request = new MonitoredItemModifyRequest();
+
+                    request.MonitoredItemId = monitoredItem.Status.Id;
+                    request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
+                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
+                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
+                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
+
+                    if (monitoredItem.Filter != null)
+                    {
+                        request.RequestedParameters.Filter = new ExtensionObject(monitoredItem.Filter);
+                    }
+
+                    requestItems.Add(request);
+                    itemsToModify.Add(monitoredItem);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Prepare the ResolveItem to NodeId service call.
+        /// </summary>
+        private void PrepareResolveItemNodeIds(
+            BrowsePathCollection browsePaths,
+            IList<MonitoredItem> itemsToBrowse)
+        {
+            lock (m_cache)
+            {
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    if (!String.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
+                    {
+                        // cannot change the relative path after an item is created.
+                        if (monitoredItem.Created)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot modify item path after it is created.");
+                        }
+
+                        BrowsePath browsePath = new BrowsePath();
+
+                        browsePath.StartingNode = monitoredItem.StartNodeId;
+
+                        // parse the relative path.
+                        try
+                        {
+                            browsePath.RelativePath = RelativePath.Parse(monitoredItem.RelativePath, m_session.TypeTree);
+                        }
+                        catch (Exception e)
+                        {
+                            monitoredItem.SetError(new ServiceResult(e));
+                            continue;
+                        }
+
+                        browsePaths.Add(browsePath);
+                        itemsToBrowse.Add(monitoredItem);
+                    }
+                }
             }
         }
 

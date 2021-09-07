@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);NET_STANDARD</DefineConstants>
+    <DefineConstants>$(DefineConstants);NET_STANDARD;NET_STANDARD_ASYNC</DefineConstants>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <AssemblyName>Opc.Ua.Core</AssemblyName>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Core</PackageId>
