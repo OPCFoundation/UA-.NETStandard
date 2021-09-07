@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public class Session : SessionClient, IDisposable
+    public partial class Session : SessionClient, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -3324,24 +3324,8 @@ namespace Opc.Ua.Client
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
-            bool removed = false;
             List<Subscription> subscriptionsToDelete = new List<Subscription>();
-
-            lock (SyncRoot)
-            {
-                foreach (Subscription subscription in subscriptions)
-                {
-                    if (m_subscriptions.Remove(subscription))
-                    {
-                        if (subscription.Created)
-                        {
-                            subscriptionsToDelete.Add(subscription);
-                        }
-
-                        removed = true;
-                    }
-                }
-            }
+            bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
 
             foreach (Subscription subscription in subscriptionsToDelete)
             {
@@ -3356,7 +3340,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return true;
+            return removed;
         }
         #endregion
 
@@ -4005,6 +3989,30 @@ namespace Opc.Ua.Client
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Prepare a list of subscriptions to delete.
+        /// </summary>
+        private bool PrepareSubscriptionsToDelete(IEnumerable<Subscription> subscriptions, IList<Subscription> subscriptionsToDelete)
+        {
+            bool removed = false;
+            lock (SyncRoot)
+            {
+                foreach (Subscription subscription in subscriptions)
+                {
+                    if (m_subscriptions.Remove(subscription))
+                    {
+                        if (subscription.Created)
+                        {
+                            subscriptionsToDelete.Add(subscription);
+                        }
+
+                        removed = true;
+                    }
+                }
+            }
+            return removed;
         }
         #endregion
 
