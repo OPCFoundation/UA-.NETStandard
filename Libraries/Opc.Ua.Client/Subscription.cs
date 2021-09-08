@@ -435,7 +435,6 @@ namespace Opc.Ua.Client
             }
         }
 
-
         /// <summary>
         /// Gets or sets the fast data change callback.
         /// </summary>
@@ -798,29 +797,6 @@ namespace Opc.Ua.Client
             CreateItems();
 
             ChangesCompleted();
-        }
-        private void ManageMessageWorkerSemaphore()
-        {
-            lock (m_cache)
-            {
-                var maxWorkers = m_sequentialPublishing
-                    ? 1 //Sequential publishing means only one worker can be active, or else sequence can be violated.
-                    : m_maxMessageWorkers;
-
-                if (maxWorkers < 0)
-                    maxWorkers = 0; //Changing from one invalid value to another shouldn't make it update the semaphore
-
-                //Update the semaphore only if needed.
-                if (maxWorkers != m_messageWorkersSemaphoreCurrentMax)
-                {
-                    m_messageWorkersSemaphore?.Dispose();
-                    m_messageWorkersSemaphore = maxWorkers > 0
-                        ? new SemaphoreSlim(maxWorkers) //Use a semaphore to manage the number of workers
-                        : null; //No semaphore needed since no limit is in place
-                    m_messageWorkersSemaphoreCurrentMax = maxWorkers; //Track it so semaphore is not re-created unless necessary to change the maximum workers it can support
-                    //If the semaphore is updated while the subscription is running workers, it's possible to temporarily have too many workers while old waiting workers still use the old semaphore object.
-                }
-            }
         }
 
         /// <summary>
@@ -2223,6 +2199,33 @@ namespace Opc.Ua.Client
 
                 // save in cache.                                             
                 monitoredItem.SaveValueInCache(eventFields);
+            }
+        }
+
+        /// <summary>
+        /// Manages the semaphore used to limit message workers for handling incoming messages
+        /// </summary>
+        private void ManageMessageWorkerSemaphore()
+        {
+            lock (m_cache)
+            {
+                var maxWorkers = m_sequentialPublishing
+                    ? 1 //Sequential publishing means only one worker can be active, or else sequence can be violated.
+                    : m_maxMessageWorkers;
+
+                if (maxWorkers < 0)
+                    maxWorkers = 0; //Changing from one invalid value to another shouldn't make it update the semaphore
+
+                //Update the semaphore only if needed.
+                if (maxWorkers != m_messageWorkersSemaphoreCurrentMax)
+                {
+                    m_messageWorkersSemaphore?.Dispose();
+                    m_messageWorkersSemaphore = maxWorkers > 0
+                        ? new SemaphoreSlim(maxWorkers) //Use a semaphore to manage the number of workers
+                        : null; //No semaphore needed since no limit is in place
+                    m_messageWorkersSemaphoreCurrentMax = maxWorkers; //Track it so semaphore is not re-created unless necessary to change the maximum workers it can support
+                    //If the semaphore is updated while the subscription is running workers, it's possible to temporarily have too many workers while old waiting workers still use the old semaphore object.
+                }
             }
         }
         #endregion
