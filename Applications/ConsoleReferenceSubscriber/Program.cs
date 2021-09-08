@@ -226,7 +226,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 foreach (UaDataSetMessage dataSetMessage in e.NetworkMessage.DataSetMessages)
                 {
                     DataSet dataSet = dataSetMessage.DataSet;
-                    Console.WriteLine("\tDataSet.Name={0}, DataSetWriterId={1}", dataSet.Name, dataSet.DataSetWriterId);
+                    Console.WriteLine("\tDataSet.Name={0}, DataSetWriterId={1}, SequenceNumber={2}", dataSet.Name, dataSet.DataSetWriterId, dataSetMessage.SequenceNumber);
 
                     for (int i = 0; i < dataSet.Fields.Length; i++)
                     {
@@ -290,7 +290,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         {
             // Define a PubSub connection with PublisherId 1
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Subscriber Connection1 UDP UADP";
+            pubSubConnection1.Name = "Subscriber Connection UDP UADP";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)1;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubUdpUadpTransport;
@@ -394,7 +394,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         {
             // Define a PubSub connection with PublisherId 2
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Subscriber Connection3 MQTT Json";
+            pubSubConnection1.Name = "Subscriber Connection MQTT Json";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)2;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
@@ -429,15 +429,8 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderSimple.WriterGroupId = 1;
             dataSetReaderSimple.DataSetWriterId = 1;
             dataSetReaderSimple.Enabled = true;
-            dataSetReaderSimple.DataSetFieldContentMask = 0;// Variant encoding;
-            dataSetReaderSimple.KeyFrameCount = 1;
-
-            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
-                QueueName = brokerQueueName,
-                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-            };
-
-            dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
+            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.None;// Variant encoding;
+            dataSetReaderSimple.KeyFrameCount = 3;
 
             JsonDataSetReaderMessageDataType jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
                 NetworkMessageContentMask = (uint)(uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
@@ -451,8 +444,14 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | JsonDataSetMessageContentMask.Status
                         | JsonDataSetMessageContentMask.Timestamp),
             };
-
             dataSetReaderSimple.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+
+            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = brokerQueueName,
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
+            };
+            dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
 
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
@@ -464,10 +463,9 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             dataSetReaderAllTypes.WriterGroupId = 1;
             dataSetReaderAllTypes.DataSetWriterId = 2;
             dataSetReaderAllTypes.Enabled = true;
-            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
+            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;// RawData encoding;
             dataSetReaderAllTypes.KeyFrameCount = 1;
-            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
-
+            
             jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType() {
                 NetworkMessageContentMask = (uint)(JsonNetworkMessageContentMask.NetworkMessageHeader
                         | JsonNetworkMessageContentMask.DataSetMessageHeader
@@ -481,6 +479,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         | JsonDataSetMessageContentMask.Timestamp),
             };
             dataSetReaderAllTypes.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
+
+            brokerTransportSettings = new BrokerDataSetReaderTransportDataType() {
+                QueueName = brokerQueueName,
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
+                MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
+            };
+            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
 
             #endregion
             readerGroup1.DataSetReaders.Add(dataSetReaderAllTypes);
@@ -504,9 +509,9 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <returns></returns>
         private static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttUadp(string urlAddress)
         {
-            // Define a PubSub connection with PublisherId 1
+            // Define a PubSub connection with PublisherId 3
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Subscriber Connection1 MQTT UADP";
+            pubSubConnection1.Name = "Subscriber Connection MQTT UADP";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)3;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;

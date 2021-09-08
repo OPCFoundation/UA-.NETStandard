@@ -170,7 +170,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         {
             // Define a PubSub connection with PublisherId 1
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Publisher Connection1 UDP UADP";
+            pubSubConnection1.Name = "Publisher Connection UDP UADP";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)1;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubUdpUadpTransport;
@@ -279,9 +279,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <returns></returns>
         private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttJson(string urlAddress)
         {
-            // Define a PubSub connection with PublisherId 100
+            // Define a PubSub connection with PublisherId 2
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Publisher Connection3 MQTT Json";
+            pubSubConnection1.Name = "Publisher Connection MQTT Json";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)2;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
@@ -321,15 +321,14 @@ namespace Quickstarts.ConsoleReferencePublisher
             writerGroup1.MessageSettings = new ExtensionObject(jsonMessageSettings);
             writerGroup1.TransportSettings = new ExtensionObject(new BrokerWriterGroupTransportDataType() {
                 QueueName = brokerQueueName,
-            }
-            );
+            });
 
             // Define DataSetWriter 'Simple' Variant encoding
             DataSetWriterDataType dataSetWriter1 = new DataSetWriterDataType();
             dataSetWriter1.Name = "Writer Variant Encoding";
             dataSetWriter1.DataSetWriterId = 1;
             dataSetWriter1.Enabled = true;
-            dataSetWriter1.DataSetFieldContentMask = 0;// Variant encoding;
+            dataSetWriter1.DataSetFieldContentMask = (uint)DataSetFieldContentMask.None;// Variant encoding;
             dataSetWriter1.DataSetName = "Simple";
             dataSetWriter1.KeyFrameCount = 3;
 
@@ -340,13 +339,13 @@ namespace Quickstarts.ConsoleReferencePublisher
                 | JsonDataSetMessageContentMask.Status
                 | JsonDataSetMessageContentMask.Timestamp),
             };
-
             dataSetWriter1.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
 
             BrokerDataSetWriterTransportDataType jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType() {
                 QueueName = brokerQueueName,
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
-                MetaDataUpdateTime = 0
+                MetaDataUpdateTime = 0,
             };
             dataSetWriter1.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
 
@@ -369,13 +368,16 @@ namespace Quickstarts.ConsoleReferencePublisher
                 | JsonDataSetMessageContentMask.Timestamp),
             };
             dataSetWriter2.MessageSettings = new ExtensionObject(jsonDataSetWriterMessage);
+
             jsonDataSetWriterTransport = new BrokerDataSetWriterTransportDataType()
             {
                 QueueName = brokerQueueName,
+                RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
                 MetaDataUpdateTime = 0
             };
             dataSetWriter2.TransportSettings = new ExtensionObject(jsonDataSetWriterTransport);
+
             writerGroup1.DataSetWriters.Add(dataSetWriter2);
 
             pubSubConnection1.WriterGroups.Add(writerGroup1);
@@ -407,9 +409,9 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <returns></returns>
         private static PubSubConfigurationDataType CreatePublisherConfiguration_MqttUadp(string urlAddress)
         {
-            // Define a PubSub connection with PublisherId 1
+            // Define a PubSub connection with PublisherId 3
             PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Publisher Connection1 MQTT UADP";
+            pubSubConnection1.Name = "Publisher Connection MQTT UADP";
             pubSubConnection1.Enabled = true;
             pubSubConnection1.PublisherId = (UInt16)3;
             pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;
