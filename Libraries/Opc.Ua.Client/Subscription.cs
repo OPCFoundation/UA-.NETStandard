@@ -1318,7 +1318,10 @@ namespace Opc.Ua.Client
                         if (entry.SequenceNumber == m_lastSequenceNumberProcessed + 1)
                         {
                             if (!entry.Processed)
+                            {
                                 Utils.Trace("Subscription {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
+                            }
+
                             m_lastSequenceNumberProcessed = entry.SequenceNumber;
                         }
 
@@ -1806,7 +1809,9 @@ namespace Opc.Ua.Client
 
                             //Keep the last sequence number processed going up
                             if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed)
+                            {
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
+                            }
                         }
 
                         // check for missing messages.
@@ -2214,7 +2219,9 @@ namespace Opc.Ua.Client
                     : m_maxMessageWorkers;
 
                 if (maxWorkers < 0)
+                {
                     maxWorkers = 0; //Changing from one invalid value to another shouldn't make it update the semaphore
+                }
 
                 //Update the semaphore only if needed.
                 if (maxWorkers != m_messageWorkersSemaphoreCurrentMax)
