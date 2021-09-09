@@ -113,7 +113,9 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
         [Test, Order(100)]
-        public void AddSubscription()
+        [TestCase(false, 0)]
+        [TestCase(true, 1)]
+        public void AddSubscription(bool sequentialPublishing, int maxMessageWorkers)
         {
             var subscription = new Subscription();
 
@@ -135,7 +137,10 @@ namespace Opc.Ua.Client.Tests
                 }
             });
 
-            subscription = new Subscription(m_session.DefaultSubscription);
+            subscription = new Subscription(m_session.DefaultSubscription) {
+                SequentialPublishing = sequentialPublishing,
+                MaxMessageWorkers = maxMessageWorkers
+            };
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
             TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
             TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);

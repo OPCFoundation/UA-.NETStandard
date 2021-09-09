@@ -1753,14 +1753,14 @@ namespace Opc.Ua.Client
             {
                 //Semaphore is maintained under m_cache lock, avoid semaphore swap issues when possible. The wait call will still sync the message workers properly.
                 semaphore = m_messageWorkersSemaphore;
-            } 
-            
+            }
+
             var needSemaphore = semaphore != null; //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
             if (needSemaphore)
             {
                 try
                 {
-                    await semaphore.WaitAsync();
+                    await semaphore.WaitAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
