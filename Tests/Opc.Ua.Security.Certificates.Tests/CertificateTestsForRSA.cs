@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -349,10 +350,14 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
-#if NET462_OR_GREATER
+#if NET462_OR_GREATER || NETCOREAPP3_1_OR_GREATER
         [Test]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Assert.Ignore("Cng provider only available on windows");
+            }
             X509Certificate2 issuer = null;
             CngKey cngKey = CngKey.Create(CngAlgorithm.Rsa);
             using (RSA rsaKeyPair = new RSACng(cngKey))
