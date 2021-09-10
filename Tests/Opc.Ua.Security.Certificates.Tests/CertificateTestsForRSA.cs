@@ -452,9 +452,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                 });
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         private void WriteCertificate(X509Certificate2 cert, string message)
         {
             TestContext.Out.WriteLine(message);
@@ -464,10 +464,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 TestContext.Out.WriteLine(ext.Format(false));
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
-#endregion
+        #region Private Fields
+        #endregion
     }
 
 }
