@@ -320,6 +320,67 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreNotEqual(cert1.SerialNumber, cert2.SerialNumber);
         }
 
+        [Test]
+        public void CreateIssuerRSAWithSuppliedKeyPair()
+        {
+            X509Certificate2 issuer = null;
+            using (RSA rsaKeyPair = RSA.Create())
+            {
+                // create cert with supplied keys
+                var generator = X509SignatureGenerator.CreateForRSA(rsaKeyPair, RSASignaturePadding.Pkcs1);
+                using (var cert = CertificateBuilder.Create("CN=Root Cert")
+                    .SetCAConstraint(-1)
+                    .SetRSAPublicKey(rsaKeyPair)
+                    .CreateForRSA(generator))
+                {
+                    Assert.NotNull(cert);
+                    issuer = new X509Certificate2(cert.RawData);
+                    WriteCertificate(cert, "Default root cert with supplied RSA cert");
+                }
+
+                // now sign a cert with supplied private key
+                using (var appCert = CertificateBuilder.Create("CN=App Cert")
+                    .SetIssuer(issuer)
+                    .CreateForRSA(generator))
+                {
+                    Assert.NotNull(appCert);
+                    WriteCertificate(appCert, "Signed RSA app cert");
+                }
+            }
+        }
+
+#if NET462_OR_GREATER
+        [Test]
+        public void CreateIssuerRSACngWithSuppliedKeyPair()
+        {
+            X509Certificate2 issuer = null;
+            CngKey cngKey = CngKey.Create(CngAlgorithm.Rsa);
+            using (RSA rsaKeyPair = new RSACng(cngKey))
+            {
+                // create cert with supplied keys
+                var generator = X509SignatureGenerator.CreateForRSA(rsaKeyPair, RSASignaturePadding.Pkcs1);
+                using (var cert = CertificateBuilder.Create("CN=Root Cert")
+                    .SetCAConstraint(-1)
+                    .SetRSAPublicKey(rsaKeyPair)
+                    .CreateForRSA(generator))
+                {
+                    Assert.NotNull(cert);
+                    issuer = new X509Certificate2(cert.RawData);
+                    WriteCertificate(cert, "Default root cert with supplied RSA cert");
+                }
+
+                // now sign a cert with supplied private key
+                using (var appCert = CertificateBuilder.Create("CN=App Cert")
+                    .SetIssuer(issuer)
+                    .CreateForRSA(generator))
+                {
+                    Assert.NotNull(appCert);
+                    WriteCertificate(appCert, "Signed RSA app cert");
+                }
+            }
+        }
+#endif
+
         [Theory]
         public void CreateForRSAWithGeneratorTest(
             KeyHashPair keyHashPair
@@ -391,9 +452,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                 });
             }
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         private void WriteCertificate(X509Certificate2 cert, string message)
         {
             TestContext.Out.WriteLine(message);
@@ -403,10 +464,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 TestContext.Out.WriteLine(ext.Format(false));
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
-        #endregion
+#region Private Fields
+#endregion
     }
 
 }

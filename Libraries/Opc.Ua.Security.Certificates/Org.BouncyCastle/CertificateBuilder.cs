@@ -375,8 +375,7 @@ namespace Opc.Ua.Security.Certificates
         {
             // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey != null, "Need a public key for the certificate.");
-            Debug.Assert(IssuerCAKeyCert != null, "Need a issuer certificate to sign.");
-            if (!IssuerCAKeyCert.HasPrivateKey && signatureFactory == null)
+            if ((IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey) && signatureFactory == null)
             {
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }

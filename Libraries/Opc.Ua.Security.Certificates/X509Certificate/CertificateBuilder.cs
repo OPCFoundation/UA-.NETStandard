@@ -138,9 +138,10 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            if (IssuerCAKeyCert == null)
+            var issuerSubjectName = SubjectName;
+            if (IssuerCAKeyCert != null)
             {
-                throw new NotSupportedException("X509 Signature generator requires an issuer certificate.");
+                issuerSubjectName = IssuerCAKeyCert.SubjectName;
             }
 
             RSA rsaKeyPair = null;
@@ -157,9 +158,8 @@ namespace Opc.Ua.Security.Certificates
 
             X509Certificate2 signedCert;
 
-            var issuerSubjectName = IssuerCAKeyCert.SubjectName;
             signedCert = request.Create(
-                IssuerCAKeyCert.SubjectName,
+                issuerSubjectName,
                 generator,
                 NotBefore,
                 NotAfter,
