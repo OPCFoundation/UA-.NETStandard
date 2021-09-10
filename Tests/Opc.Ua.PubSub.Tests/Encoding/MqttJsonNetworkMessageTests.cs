@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -1116,233 +1117,83 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
             }
 
-            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", metaDataUpdateTime, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
+            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSeconds={2}, deviation[{3}] = {4} has maximum deviation", metaDataUpdateTime, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
         }
-        
-        [Test(Description = "Validate metadata with missing MessageId")]
-        public void ValidateMissingMetaDataMessageId()
+                
+        [Test(Description = "Validate missing or wrong DataSetMetaData fields definition")]
+        public void ValidateMissingDataSetMetaDataDefinitions(
+            [Values("1", null)] string messageId,
+            [Values("1", null)] string publisherId,
+            [Values(1, null)] object dataSetWriterId,
+            [Values(false, true)] bool hasMetaData,
+            [Values("Simple", null)] string metaDataName,
+            [Values("Description text", null)] string metaDataDescription,
+            [Values(false, true)] bool hasMetaDataDataSetClassId,
+            [Values(false, true)] bool hasMetaDataConfigurationVersion,
+            [Values(false, true)] bool hasMetaDataFields)
         {
             DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
             WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
 
             DataSetMetaDataType metadata =
-                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing MessageId", NamespaceIndexAllTypes, metaDataType.Fields);
+                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing metadata fields definition", NamespaceIndexAllTypes, metaDataType.Fields);
             metadata.Description = new LocalizedText("Description text");
             metadata.DataSetClassId = new Uuid();
 
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = null;
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MessageId, "ValidateMissingMessageId should fail due to missing MessageId reason.");
-        }
-
-        [Test(Description = "Validate metadata with wrong MessageType")]
-        public void ValidateMissingMetaDataMessageType()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            // Test wrong MessageType
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(); // do not pass metadata 
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MessageType | MetaDataFailOptions.DataSetMetaData, "ValidateMissingMessageType should fail due to wrong MessageType reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing PublisherId")]
-        public void ValidateMissingMetaDataPublisherId()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata =
-                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing PublisherId", NamespaceIndexAllTypes, metaDataType.Fields, 2, 2);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
+            DataSetMetaDataType dataSetMetaData = hasMetaData ? metadata : null;
 
             JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = null;
-            jsonNetworkMessage.DataSetWriterId = 1;
+            jsonNetworkMessage.MessageId = messageId;
+            jsonNetworkMessage.PublisherId = publisherId;
+            jsonNetworkMessage.DataSetWriterId = MessagesHelper.ConvertToNullable<UInt16>(dataSetWriterId);
 
+            jsonNetworkMessage.DataSetMetaData.Name = metaDataName;
+            jsonNetworkMessage.DataSetMetaData.Description = metaDataDescription!=null ? new LocalizedText(metaDataDescription) : metaDataDescription;
+            jsonNetworkMessage.DataSetMetaData.DataSetClassId = hasMetaDataDataSetClassId ? new Uuid(Guid.NewGuid()) : Uuid.Empty;
+            jsonNetworkMessage.DataSetMetaData.ConfigurationVersion = hasMetaDataConfigurationVersion ?  new ConfigurationVersionDataType() { MajorVersion = 1, MinorVersion = 1 }: new ConfigurationVersionDataType();
+            if (!hasMetaDataFields)
+            {
+                jsonNetworkMessage.DataSetMetaData.Fields = null;
+            }
+            
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.PublisherId, "ValidateMissingPublisherId should fail due to missing PublisherId reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetWriterId")]
-        public void ValidateMissingDataSetWriterId()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata =
-                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetWriterId", NamespaceIndexAllTypes, metaDataType.Fields, 3, 3);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = null;
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.DataSetWriterId, "ValidateMissingDataSetWriterId should fail due to missing DataSetWriterId reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetMetaData")]
-        public void ValidateMissingMetaDataDataSetMetaData()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata = null;
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.DataSetMetaData | MetaDataFailOptions.MessageType, "ValidateMissingDataSetMetaData should fail due to missing DataSetMetaData reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetMetaData.Name")]
-        public void ValidateMissingMetaDataName()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata =
-                MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetMetaData.Name", NamespaceIndexAllTypes, metaDataType.Fields, 4, 4);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            jsonNetworkMessage.DataSetMetaData.Name = null;
-            jsonNetworkMessage.DataSetMetaData.Description = new LocalizedText("Metadata Description text");
-            jsonNetworkMessage.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Name, "ValidateMissingMetaDataName should fail due to missing DataSetMetaData.MetaData.Name reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetMetaDataField.Description")]
-        public void ValidateMissingMetaDataFieldDescription()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing DataSetMetaDatadDescription", NamespaceIndexAllTypes, metaDataType.Fields, 5, 5);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            jsonNetworkMessage.DataSetMetaData.Name = "Simple";
-            jsonNetworkMessage.DataSetMetaData.Description = null;
-            jsonNetworkMessage.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Description, "ValidateMissingMetaDataFieldDescription should fail due to missing DataSetMetaDataFieldDescription reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetMetaDataField.DataSetClassId")]
-        public void ValidateMissingMetaDataFieldDataSetClassId()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing ValidateMissingMetaDataFieldDataSetClassId", NamespaceIndexAllTypes, metaDataType.Fields, 6, 6);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            jsonNetworkMessage.DataSetMetaData.Name = "Simple";
-            jsonNetworkMessage.DataSetMetaData.Description = new LocalizedText("Description text");
-            jsonNetworkMessage.DataSetMetaData.DataSetClassId = Uuid.Empty;
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_DataSetClassId, "ValidateMissingMetaDataFieldDataSetClassId should fail due to missing DataSetMetaDataFieldDataSetClassId reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetMetaDataField.ConfigurationVersion")]
-        public void ValidateMissingMetaDataFieldConfigurationVersion()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing ValidateMissingMetaDataFieldConfigurationVersion", NamespaceIndexAllTypes, metaDataType.Fields, 7, 7);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            jsonNetworkMessage.DataSetMetaData.Name = "Simple";
-            jsonNetworkMessage.DataSetMetaData.Description = new LocalizedText("Description text");
-            jsonNetworkMessage.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
-            jsonNetworkMessage.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType();
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_ConfigurationVersion, "ValidateMissingMetaDataFieldConfigurationVersion should fail due to missing DataSetMetaDataFieldConfigurationVersion reason.");
-        }
-
-        [Test(Description = "Validate metadata with missing DataSetMetaData.Fields")]
-        public void ValidateMissingMetaDataFields()
-        {
-            DataSetMetaDataType metaDataType = MessagesHelper.CreateDataSetMetaData1("DataSet1");
-            WriterGroupDataType writerGroup = MessagesHelper.CreateWriterGroup(1);
-
-            DataSetMetaDataType metadata = MessagesHelper.CreateDataSetMetaData(dataSetName: "Test missing ValidateMissingMetaDataFields", NamespaceIndexAllTypes, metaDataType.Fields, 8, 8);
-            metadata.Description = new LocalizedText("Description text");
-            metadata.DataSetClassId = new Uuid();
-
-            JsonNetworkMessage jsonNetworkMessage = new JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = "1";
-            jsonNetworkMessage.PublisherId = "1";
-            jsonNetworkMessage.DataSetWriterId = 1;
-
-            jsonNetworkMessage.DataSetMetaData.Name = "Simple";
-            jsonNetworkMessage.DataSetMetaData.Description = new LocalizedText("Description text");
-            jsonNetworkMessage.DataSetMetaData.DataSetClassId = new Uuid(Guid.NewGuid());
-            jsonNetworkMessage.DataSetMetaData.ConfigurationVersion = new ConfigurationVersionDataType();
-            jsonNetworkMessage.DataSetMetaData.Fields = null;
-
-            MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
-
-            Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Fields, "ValidateMissingMetaDataFields should fail due to missing DataSetMetaDataFields reason.");
+            if (failOptions != MetaDataFailOptions.Ok)
+            {
+                switch (failOptions)
+                {
+                    case MetaDataFailOptions.MessageId:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.MessageId, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MessageId reason.");
+                        break;
+                    case MetaDataFailOptions.PublisherId:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.PublisherId, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing PublisherId reason.");
+                        break;
+                    case MetaDataFailOptions.DataSetWriterId:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.DataSetWriterId, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing DataSetWriterId reason.");
+                        break;
+                    case MetaDataFailOptions.NonMetadata:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.DataSetMetaData | MetaDataFailOptions.MessageType, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing DataSetMetaData reason.");
+                        break;
+                    case MetaDataFailOptions.MetaData_Name:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Name, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Name reason.");
+                        break;
+                    case MetaDataFailOptions.MetaData_Description:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Description, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Description reason.");
+                        break;
+                    case MetaDataFailOptions.MetaData_DataSetClassId:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_DataSetClassId, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.DataSetClassId reason.");
+                        break;
+                    case MetaDataFailOptions.MetaData_ConfigurationVersion:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_ConfigurationVersion, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.ConfigurationVersion reason.");
+                        break;
+                    case MetaDataFailOptions.MetaData_Fields:
+                        Assert.AreEqual(failOptions, MetaDataFailOptions.MetaData_Fields, "ValidateMissingDataSetMetaDataDefinitions should fail due to missing MetaData.Fields reason.");
+                        break;
+                }
+            }
         }
 
         [Test(Description = "Validate missing or wrong NetworkMessage fields definition")]
-        public void ValidateMissingNetworkMessageFields(
+        public void ValidateMissingNetworkMessageDefinitions(
             [Values("1", null)] string messageId,
             [Values("1", null)] string publisherId,
             [Values("1", null)] string dataSetClassId)
@@ -1412,7 +1263,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test(Description = "Validate missing or wrong DataSetMessage fields definition")]
-        public void ValidateMissingDataSetMessagesFields(
+        public void ValidateMissingDataSetMessagesDefinitions(
             [Values(JsonNetworkMessageContentMask.DataSetMessageHeader, JsonNetworkMessageContentMask.SingleDataSetMessage)]
                 JsonNetworkMessageContentMask jsonNetworkMessageContentMask,
             [Values(JsonDataSetMessageContentMask.DataSetWriterId, JsonDataSetMessageContentMask.SequenceNumber,

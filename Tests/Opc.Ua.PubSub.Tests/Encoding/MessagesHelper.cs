@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Xml;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.PubSub.Encoding;
+using System.ComponentModel;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -2728,5 +2729,31 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             pubSubApplication.DataStore.WritePublishedDataItem(new NodeId("DiagnosticInfoMatrix", namespaceIndexAllTypes), Attributes.Value, diagnosticInfoValueMatrix);
             #endregion
         }
+
+        /// <summary>
+        /// Convert a value type to nullable object
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static Nullable<T> ConvertToNullable<T>(object value) where T : struct
+        {
+            string valueString = value != null ? value.ToString() : null;
+            Nullable<T> nullableObject = new Nullable<T>();
+            try
+            {
+                if (!string.IsNullOrEmpty(valueString) && valueString.Trim().Length > 0)
+                {
+                    TypeConverter conv = TypeDescriptor.GetConverter(typeof(T));
+                    nullableObject = (T)conv.ConvertFrom(valueString);
+                }
+            }
+            catch
+            {
+            }
+
+            return nullableObject;
+        }
+        
     }
 }

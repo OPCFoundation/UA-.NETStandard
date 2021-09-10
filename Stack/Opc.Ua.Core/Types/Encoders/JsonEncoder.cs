@@ -667,7 +667,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), true);
         }
 
         /// <summary>
@@ -681,7 +681,7 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), false);
+            WriteSimpleField(fieldName, value.ToString(CultureInfo.InvariantCulture), true);
         }
 
         /// <summary>
