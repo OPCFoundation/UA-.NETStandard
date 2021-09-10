@@ -80,7 +80,6 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
-
             CreateDefaults();
 
             if (m_rsaPublicKey != null &&
@@ -135,8 +134,12 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
         {
-
             CreateDefaults();
+
+            if (m_rsaPublicKey == null && IssuerCAKeyCert == null)
+            {
+                throw new NotSupportedException("Need an issuer certificate or a public key for a signature generator.");
+            }
 
             var issuerSubjectName = SubjectName;
             if (IssuerCAKeyCert != null)
@@ -156,9 +159,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateX509Extensions(request, false);
 
-            X509Certificate2 signedCert;
-
-            signedCert = request.Create(
+            X509Certificate2 signedCert = request.Create(
                 issuerSubjectName,
                 generator,
                 NotBefore,
@@ -335,7 +336,6 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="forECDsa">If the certificate is for ECDsa, not RSA.</param>
         private void CreateX509Extensions(CertificateRequest request, bool forECDsa)
         {
-
             // Basic Constraints
             X509BasicConstraintsExtension bc = GetBasicContraints();
             request.CertificateExtensions.Add(bc);
