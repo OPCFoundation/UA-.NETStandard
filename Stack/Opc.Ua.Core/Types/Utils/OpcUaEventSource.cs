@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Text;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua
 {
@@ -51,7 +52,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="message"></param>
         void Debug(string message);
-
     }
 
     /// <summary>
@@ -82,6 +82,15 @@ namespace Opc.Ua
         private const int ServerCallId = ServiceFaultId + 1;
 
         /// <summary>
+        /// The messages used in event messages.
+        /// </summary>
+        private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
+        private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
+        private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
+        private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
+        private const string ServerCallMessage = "Service Fault Occured. Reason={0}";
+
+        /// <summary>
         /// 
         /// </summary>
         public static class Keywords
@@ -106,7 +115,6 @@ namespace Opc.Ua
             /// Service
             /// </summary>
             public const EventKeywords Security = (EventKeywords)16;
-
         }
 
         /// <summary>
@@ -125,9 +133,15 @@ namespace Opc.Ua
         [Event(CriticalId, Message = null, Level = EventLevel.Critical, Keywords = Keywords.Trace)]
         public void Critical(string message)
         {
-            WriteEvent(CriticalId, message);
+            if (IsEnabled())
+            {
+                WriteEvent(CriticalId, message);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Error, message, false);
+            }
         }
-
 
         /// <summary>
         /// 
@@ -136,7 +150,14 @@ namespace Opc.Ua
         [Event(ErrorId, Message = null, Level = EventLevel.Error, Keywords = Keywords.Trace)]
         public void Error(string message)
         {
-            WriteEvent(ErrorId, message);
+            if (IsEnabled())
+            {
+                WriteEvent(ErrorId, message);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Error, message, false);
+            }
         }
 
         /// <summary>
@@ -146,7 +167,14 @@ namespace Opc.Ua
         [Event(WarningId, Message = null, Level = EventLevel.Warning, Keywords = Keywords.Trace)]
         public void Warning(string message)
         {
-            WriteEvent(WarningId, message);
+            if (IsEnabled())
+            {
+                WriteEvent(WarningId, message);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, message, false);
+            }
         }
 
         /// <summary>
@@ -155,7 +183,14 @@ namespace Opc.Ua
         [Event(TraceId, Message = null, Level = EventLevel.Informational, Keywords = Keywords.Trace)]
         public void Trace(string message)
         {
-            WriteEvent(TraceId, message);
+            if (IsEnabled())
+            {
+                WriteEvent(TraceId, message);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, message, false);
+            }
         }
 
         /// <summary>
@@ -166,7 +201,14 @@ namespace Opc.Ua
         public void Debug(string message)
         {
 #if DEBUG
-            WriteEvent(DebugId, message);
+            if (IsEnabled())
+            {
+                WriteEvent(DebugId, message);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, message, false);
+            }
 #endif
         }
 
@@ -178,9 +220,14 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                Critical(String.Format(format, args));
+                Critical(string.Format(format, args));
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Error, format, false, args);
             }
         }
+
         /// <summary>
         /// 
         /// </summary>
@@ -189,9 +236,14 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                Error(String.Format(format, args));
+                Error(string.Format(format, args));
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Error, format, false, args);
             }
         }
+
         /// <summary>
         /// 
         /// </summary>
@@ -200,9 +252,14 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                Warning(String.Format(format, args));
+                Warning(string.Format(format, args));
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, format, false, args);
             }
         }
+
         /// <summary>
         /// 
         /// </summary>
@@ -211,10 +268,29 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-                Trace(String.Format(format, args));
+                Trace(string.Format(format, args));
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, format, false, args);
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        [NonEvent]
+        public void Trace(int mask, string format, params object[] args)
+        {
+            if (IsEnabled())
+            {
+                Trace(string.Format(format, args));
+            }
+            else
+            {
+                Utils.Trace(mask, format, false, args);
+            }
+        }
 
         /// <summary>
         /// 
@@ -227,13 +303,17 @@ namespace Opc.Ua
             {
                 Debug(String.Format(format, args));
             }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, format, false, args);
+            }
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="message"></param>
-        [Event(ExceptionId, Message = "Exception: {0}", Level = EventLevel.Error, Keywords = Keywords.Exception)]
+        [Event(ExceptionId, Message = null, Level = EventLevel.Error, Keywords = Keywords.Exception)]
         public void Exception(string message)
         {
             WriteEvent(ExceptionId, message);
@@ -282,7 +362,7 @@ namespace Opc.Ua
                 message.AppendLine();
 
                 // append stack trace.
-                if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
+                if ((TraceMask & TraceMasks.StackTrace) != 0)
                 {
                     message.AppendLine();
                     message.AppendLine();
@@ -292,19 +372,24 @@ namespace Opc.Ua
                     message.AppendLine(separator);
                 }
             }
-
             var result = message.ToString();
-            if (sre != null)
+
+            if (IsEnabled())
             {
-                ServiceResultException((int)sre.StatusCode, result);
+                if (sre != null)
+                {
+                    ServiceResultException((int)sre.StatusCode, result);
+                }
+                else
+                {
+                    Exception(result);
+                }
             }
             else
             {
-                Exception(result);
+                // trace message.
+                Utils.Trace(ex, TraceMasks.Error, result, false, null);
             }
-
-            // trace message.
-            Utils.Trace(ex, Utils.TraceMasks.Error, result, false, null);
         }
 
         /// <summary>
@@ -322,10 +407,17 @@ namespace Opc.Ua
         /// <param name="serviceName"></param>
         /// <param name="requestHandle"></param>
         /// <param name="pendingRequestCount"></param>
-        [Event(ServiceCallId, Message = "{0} Called. RequestHandle={1}, PendingRequestCount={2}", Level = EventLevel.Informational, Keywords = Keywords.Service)]
+        [Event(ServiceCallId, Message = ServiceCallMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
         public void ServiceCall(string serviceName, uint requestHandle, int pendingRequestCount)
         {
-            WriteEvent(ServiceCallId, serviceName, requestHandle, pendingRequestCount);
+            if (IsEnabled())
+            {
+                WriteEvent(ServiceCallId, serviceName, requestHandle, pendingRequestCount);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, ServiceCallMessage, false, serviceName, requestHandle, pendingRequestCount);
+            }
         }
 
         /// <summary>
@@ -334,10 +426,17 @@ namespace Opc.Ua
         /// <param name="serviceName"></param>
         /// <param name="requestHandle"></param>
         /// <param name="pendingRequestCount"></param>
-        [Event(ServiceCompletedId, Message = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}", Level = EventLevel.Informational, Keywords = Keywords.Service)]
+        [Event(ServiceCompletedId, Message = ServiceCompletedMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
         public void ServiceCompleted(string serviceName, uint requestHandle, int pendingRequestCount)
         {
-            WriteEvent(ServiceCompletedId, serviceName, requestHandle, pendingRequestCount);
+            if (IsEnabled())
+            {
+                WriteEvent(ServiceCompletedId, serviceName, requestHandle, pendingRequestCount);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, ServiceCompletedMessage, false, serviceName, requestHandle, pendingRequestCount);
+            }
         }
 
         /// <summary>
@@ -347,20 +446,34 @@ namespace Opc.Ua
         /// <param name="requestHandle"></param>
         /// <param name="statusCode"></param>
         /// <param name="pendingRequestCount"></param>
-        [Event(ServiceCompletedBadId, Message = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}", Level = EventLevel.Error, Keywords = Keywords.Service)]
+        [Event(ServiceCompletedBadId, Message = ServiceCompletedBadMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
         public void ServiceCompletedBad(string serviceName, uint requestHandle, uint statusCode, int pendingRequestCount)
         {
-            WriteEvent(ServiceCompletedBadId, serviceName, requestHandle, statusCode, pendingRequestCount);
+            if (IsEnabled())
+            {
+                WriteEvent(ServiceCompletedBadId, serviceName, requestHandle, statusCode, pendingRequestCount);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Information, ServiceCompletedBadMessage, false, serviceName, requestHandle, statusCode, pendingRequestCount);
+            }
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="statusCode"></param>
-        [Event(ServiceFaultId, Message = "Service Fault Occured. Reason={0}", Level = EventLevel.Error, Keywords = Keywords.Service)]
+        [Event(ServiceFaultId, Message = ServiceFaultMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
         public void ServiceFault(uint statusCode)
         {
-            WriteEvent(ServiceFaultId, statusCode);
+            if (IsEnabled())
+            {
+                WriteEvent(ServiceFaultId, statusCode);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Service, ServiceFaultMessage, statusCode);
+            }
         }
 
         /// <summary>
@@ -368,10 +481,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="requestType"></param>
         /// <param name="requestId"></param>
-        [Event(ServerCallId, Message = "{0} Validated. ID={1}", Level = EventLevel.Informational, Keywords = Keywords.Service)]
+        [Event(ServerCallId, Message = ServerCallMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
         public void ServerCall(string requestType, uint requestId)
         {
-            WriteEvent(ServerCallId, requestType, requestId);
+            if (IsEnabled())
+            {
+                WriteEvent(ServerCallId, requestType, requestId);
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Service, ServerCallMessage, false, requestType, requestId);
+            }
         }
 
         /// <summary>
@@ -393,6 +513,10 @@ namespace Opc.Ua
             if (IsEnabled())
             {
                 Security(String.Format(format, args));
+            }
+            else
+            {
+                Utils.Trace(TraceMasks.Security, format, false, args);
             }
         }
 
@@ -422,5 +546,4 @@ namespace Opc.Ua
 
         // Opc.Ua.Client
     }
-
 }

@@ -783,27 +783,27 @@ namespace Opc.Ua.Client
 
             if (m_keepAliveCount != revisedKeepAliveCount)
             {
-                Utils.Trace("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
+                Utils.Log.Warning("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
             }
 
             if (m_lifetimeCount != revisedLifetimeCounter)
             {
-                Utils.Trace("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
+                Utils.Log.Warning("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
             }
 
             if (m_publishingInterval != revisedPublishingInterval)
             {
-                Utils.Trace("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
+                Utils.Log.Warning("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
             }
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
             {
-                Utils.Trace("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
+                Utils.Log.Warning("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
             }
 
             if (m_currentPriority == 0)
             {
-                Utils.Trace("For subscription {0}, the priority was set to 0.", Id);
+                Utils.Log.Warning("For subscription {0}, the priority was set to 0.", Id);
             }
 
             CreateItems();

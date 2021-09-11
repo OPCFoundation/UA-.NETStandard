@@ -144,7 +144,7 @@ namespace Opc.Ua
 
         #region Trace Support
         /// <summary>
-        /// 
+        /// The logger interface.
         /// </summary>
         public static OpcUaEventSource Log => OpcUaEventSource.Log;
 
@@ -250,7 +250,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the output for tracing (thead safe).
+        /// Sets the output for tracing (thread safe).
         /// </summary>
         public static void SetTraceOutput(TraceOutput output)
         {
@@ -506,13 +506,9 @@ namespace Opc.Ua
             {
                 Log.Trace(format, args);
             }
-            else if ((traceMask & TraceMasks.OperationDetail) != 0)
-            {
-                Log.Trace(format, args);
-            }
             else
             {
-                Trace(traceMask, format, false, args);
+                Log.Trace(traceMask, format, args);
             }
         }
 

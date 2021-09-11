@@ -566,7 +566,7 @@ namespace Opc.Ua.Server
                     if (updateCertificate != null)
                     {
                         disconnectSessions = true;
-                        Utils.Trace((int)Utils.TraceMasks.Security, $"Apply Changes for certificate {updateCertificate.CertificateWithPrivateKey}");
+                        Utils.Trace((int)Utils.TraceMasks.Security, "Apply Changes for certificate {0}", updateCertificate.CertificateWithPrivateKey);
                     }
                 }
                 finally
@@ -649,7 +649,6 @@ namespace Opc.Ua.Server
         /// Finds the <see cref="NamespaceMetadataState"/> node for the specified NamespaceUri.
         /// </summary>
         /// <param name="namespaceUri"></param>
-        /// <returns></returns>
         private NamespaceMetadataState FindNamespaceMetadataState(string namespaceUri)
         {
             try

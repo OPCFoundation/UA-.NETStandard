@@ -322,7 +322,8 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.Trace(Utils.TraceMasks.Security,
+                            "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
