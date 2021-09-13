@@ -38,7 +38,11 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs"/>
   </ItemGroup>
-  
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
+    <PackageReference Include="System.Security.Cryptography.Cng" Version="4.4.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="System.Formats.Asn1" Version="5.0.0" />
   </ItemGroup>
