@@ -1,6 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 
@@ -18,6 +17,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void WhenServerUrisAreLessThanNamespaces_ShouldNotThrowAndMustReturnCorrectServerUris()
         {
             //arrange
+            UInt32 uriVersion = 1234;
             var namespaceTable = new NamespaceTable(new List<string> { Namespaces.OpcUa, "http://bar", "http://foo" });
             var expectedServerUri = "http://foobar";
             var serverUris = new StringTable(new[] { Namespaces.OpcUa, expectedServerUri });
@@ -26,6 +26,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             using (var jsonEncoder = new JsonEncoder(context, true))
             {
                 var envelope = new SessionLessServiceMessage {
+                    UriVersion = uriVersion,
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
                     Message = null
@@ -41,6 +42,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             var jObject = JObject.Parse(result);
             Assert.IsNotNull(jObject);
+            UInt32 version = jObject["UriVersion"].ToObject<UInt32>();
+            Assert.AreEqual(uriVersion, version);
             var serverUrisToken = jObject["ServerUris"];
             Assert.IsNotNull(serverUrisToken);
             var serverUrisEncoded = serverUrisToken.ToObject<string[]>();
