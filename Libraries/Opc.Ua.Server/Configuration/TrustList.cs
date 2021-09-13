@@ -435,21 +435,16 @@ namespace Opc.Ua.Server
                 }
 
                 X509Certificate2 cert = null;
-                X509CRL crl = null;
                 try
                 {
                     cert = new X509Certificate2(certificate);
                 }
                 catch
                 {
-                    try
-                    {
-                        crl = new X509CRL(certificate);
-                    }
-                    catch
-                    {
-                        return StatusCodes.BadCertificateInvalid;
-                    }
+                    // note: a previous version of the sample code accepted also CRL,
+                    // but the behaviour was not as specified and removed
+                    // https://mantis.opcfoundation.org/view.php?id=6342
+                    return StatusCodes.BadCertificateInvalid;
                 }
 
                 using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(isTrustedCertificate ? m_trustedStorePath : m_issuerStorePath))
@@ -457,10 +452,6 @@ namespace Opc.Ua.Server
                     if (cert != null)
                     {
                         store.Add(cert).Wait();
-                    }
-                    if (crl != null)
-                    {
-                        store.AddCRL(crl);
                     }
                 }
 

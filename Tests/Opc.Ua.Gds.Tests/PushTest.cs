@@ -223,10 +223,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectPushClient(true);
             TrustListDataType beforeTrustList = m_pushClient.PushClient.ReadTrustList();
             m_pushClient.PushClient.AddCertificate(m_caCert, true);
-            m_pushClient.PushClient.AddCrl(m_caCrl, true);
             TrustListDataType afterAddTrustList = m_pushClient.PushClient.ReadTrustList();
             Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
-            Assert.Greater(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
+            Assert.AreEqual(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
             var serviceResultException = Assert.Throws<ServiceResultException>(() => { m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, false); });
             Assert.AreEqual(StatusCodes.BadInvalidArgument, serviceResultException.StatusCode, serviceResultException.Message);
@@ -243,10 +242,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectPushClient(true);
             TrustListDataType beforeTrustList = m_pushClient.PushClient.ReadTrustList();
             m_pushClient.PushClient.AddCertificate(m_caCert, false);
-            m_pushClient.PushClient.AddCrl(m_caCrl, false);
             TrustListDataType afterAddTrustList = m_pushClient.PushClient.ReadTrustList();
             Assert.Greater(afterAddTrustList.IssuerCertificates.Count, beforeTrustList.IssuerCertificates.Count);
-            Assert.Greater(afterAddTrustList.IssuerCrls.Count, beforeTrustList.IssuerCrls.Count);
+            Assert.AreEqual(afterAddTrustList.IssuerCrls.Count, beforeTrustList.IssuerCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
             Assert.That(() => { m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, true); }, Throws.Exception);
             TrustListDataType afterRemoveTrustList = m_pushClient.PushClient.ReadTrustList();
