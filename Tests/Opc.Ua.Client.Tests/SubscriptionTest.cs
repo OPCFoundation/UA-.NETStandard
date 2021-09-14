@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -113,9 +114,7 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
         [Test, Order(100)]
-        [TestCase(false, 0)]
-        [TestCase(true, 1)]
-        public void AddSubscription(bool sequentialPublishing, int maxMessageWorkers)
+        public void AddSubscription()
         {
             var subscription = new Subscription();
 
@@ -137,10 +136,7 @@ namespace Opc.Ua.Client.Tests
                 }
             });
 
-            subscription = new Subscription(m_session.DefaultSubscription) {
-                SequentialPublishing = sequentialPublishing,
-                MaxMessageWorkers = maxMessageWorkers
-            };
+            subscription = new Subscription(m_session.DefaultSubscription);
             TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
             TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
             TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
@@ -303,7 +299,7 @@ namespace Opc.Ua.Client.Tests
             Assert.True(result);
         }
 
-
+        
         [Test, Order(200)]
         public void LoadSubscription()
         {
@@ -341,6 +337,71 @@ namespace Opc.Ua.Client.Tests
             Assert.True(result);
 
         }
+
+        [Test, Order(300)]
+        //This test doesn't deterministically prove sequential publishing, but rather relies on a subscription not being able to handle the message load.
+        //This test should be re-implemented with a Session that deterministically provides the wrong order of messages to Subscription.
+        public void SequentialPublishingSubscription()
+        {
+            var subscription = new Subscription(m_session.DefaultSubscription)
+            {
+                SequentialPublishing = true,
+                PublishingInterval = 0, //As fast as possible
+                DisableMonitoredItemCache = true, //Not needed
+            };
+            //Create many monitored items on the server status current time, and track the last reported source timestamp
+            var list = Enumerable.Range(0, 500).Select(_ => new MonitoredItem(subscription.DefaultItem)
+            {
+                StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                SamplingInterval = 0, //As fast as possible
+            }).ToList();
+            var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
+            //Need to realize test failed, assert needs to be brought to this thread
+            var sequenceBroken = new AutoResetEvent(false);
+            var numOfNotifications = 0L;
+
+            subscription.AddItems(list);
+            var result = m_session.AddSubscription(subscription);
+            Assert.True(result);
+            subscription.Create();
+            var publishInterval = (int)subscription.CurrentPublishingInterval;
+            TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
+            var stopwatch = Stopwatch.StartNew();
+            subscription.FastDataChangeCallback = (_, notification, __) =>
+            {
+                notification.MonitoredItems.ForEach(item =>
+                {
+                    Interlocked.Increment(ref numOfNotifications);
+                    if (dict[item.ClientHandle] > item.Value.SourceTimestamp)
+                    {
+                        sequenceBroken.Set(); //Out of order encountered
+                    }
+
+                    dict[item.ClientHandle] = item.Value.SourceTimestamp;
+                    Thread.Sleep(50); //Introduce some delay to ensure worker can't finish before next publish comes in (For some reason many small delays work better than one large delay) 
+                });
+                //Thread.Sleep(publishInterval * 10); 
+            };
+
+            //Wait for out-of-order to occur
+            var failed = sequenceBroken.WaitOne(60000); //In testing, out-of-sequence would usually occur after 3-30 seconds in this scenario. (Real-life cases are different) 
+            //Log information
+            var elapsed = stopwatch.Elapsed.TotalSeconds;
+            var totalNotifications = Interlocked.Read(ref numOfNotifications);
+            var notificationRate = totalNotifications / elapsed;
+            int outstandingMessageWorkers = subscription.OutstandingMessageWorkers;
+            TestContext.Out.WriteLine($"Ran for: {elapsed:N} seconds");
+            TestContext.Out.WriteLine($"Outstanding workers: {outstandingMessageWorkers}");
+            TestContext.Out.WriteLine($"Number of notifications: {totalNotifications:N0}");
+            TestContext.Out.WriteLine($"Notifications rate: {notificationRate:N} per second"); //How fast it processed notifications.
+
+            Assert.NotZero(totalNotifications); //No notifications means nothing worked
+            Assert.False(failed); //Out-of-sequence occurred
+
+            result = m_session.RemoveSubscription(subscription);
+            Assert.True(result);
+        }
+
         #endregion
 
         #region Private Methods
