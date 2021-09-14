@@ -1054,6 +1054,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         }
 
         [Test(Description = "Validate that metadata with update time different than 0 is sent periodically for a MQTT Json publisher")]
+        [Ignore("Max deviation instable in this version.")]
         public void ValidateMetaDataUpdateTimeNonZeroIsSentPeriodically([Values(100, 1000, 2000)] double metaDataUpdateTime,
             [Values(30, 40)] double maxDeviation,
             [Values(10)] int publishTimeInSeconds)
