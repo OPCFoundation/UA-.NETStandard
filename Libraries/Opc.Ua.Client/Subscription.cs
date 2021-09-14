@@ -101,7 +101,6 @@ namespace Opc.Ua.Client
                 m_priority = template.m_priority;
                 m_timestampsToReturn = template.m_timestampsToReturn;
                 m_maxMessageCount = template.m_maxMessageCount;
-                m_maxMessageWorkers = template.m_maxMessageWorkers;
                 m_sequentialPublishing = template.m_sequentialPublishing;
                 m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
                 m_defaultItem = template.m_defaultItem;
@@ -152,8 +151,6 @@ namespace Opc.Ua.Client
             m_timestampsToReturn = TimestampsToReturn.Both;
             m_maxMessageCount = 10;
             m_outstandingMessageWorkers = 0;
-            m_maxMessageWorkers = 0; //Unlimited
-            m_messageWorkersSemaphoreCurrentMax = 0;
             m_sequentialPublishing = false;
             m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
@@ -373,49 +370,15 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets or sets the maximum number of worker threads used to handle incoming messages.
-        /// </summary>
-        /// <value>
-        /// '1' if messages are processed synchronously; '0' or negative if number of workers is unlimited; otherwise limited to <paramref name="value"/>.
-        /// </value>
-        /// <remarks>
-        /// <para>
-        /// If <see cref="SequentialPublishing"/> is set to <c>true</c>, only one message worker will be used at all times.
-        /// </para>
-        /// <para>
-        /// Changing this while the <see cref="Subscription"/> is active and processing messages can cause more workers to be created momentarily than this setting allows.
-        /// </para>
-        /// </remarks>
-        [DataMember(Order = 13)]
-        public int MaxMessageWorkers
-        {
-            get
-            {
-                lock (m_cache)
-                {
-                    return m_maxMessageWorkers;
-                }
-            }
-            set
-            {
-                lock (m_cache)
-                {
-                    m_maxMessageWorkers = value;
-                    ManageMessageWorkerSemaphore();
-                }
-            }
-        }
-
-        /// <summary>
         /// Gets or sets the behavior of waiting for sequential order in handling incoming messages.
         /// </summary>
         /// <value>
         /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
         /// </value>
         /// <remarks>
-        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> also limits the effective max message workers to 1, regardless of what <see cref="MaxMessageWorkers"/> is set to.
+        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in a "single-threaded" manner and callbacks will not be invoked in parallel. 
         /// </remarks>
-        [DataMember(Order = 14)]
+        [DataMember(Order = 13)]
         public bool SequentialPublishing
         {
             get
@@ -2214,24 +2177,16 @@ namespace Opc.Ua.Client
         {
             lock (m_cache)
             {
-                var maxWorkers = m_sequentialPublishing
-                    ? 1 //Sequential publishing means only one worker can be active, or else sequence can be violated.
-                    : m_maxMessageWorkers;
-
-                if (maxWorkers < 0)
+                if (m_sequentialPublishing)
                 {
-                    maxWorkers = 0; //Changing from one invalid value to another shouldn't make it update the semaphore
+                    if (m_messageWorkersSemaphore == null) //Only create the semaphore if it isn't already created. (Not already in sequential publishing mode)
+                        m_messageWorkersSemaphore = new SemaphoreSlim(1);//Sequential publishing means only one worker can be active, or else sequence can be violated.
                 }
-
-                //Update the semaphore only if needed.
-                if (maxWorkers != m_messageWorkersSemaphoreCurrentMax)
+                else //Not in sequential publishing mode - no need for semaphore.
                 {
+                    //Semaphore is disposed if needed.
                     m_messageWorkersSemaphore?.Dispose();
-                    m_messageWorkersSemaphore = maxWorkers > 0
-                        ? new SemaphoreSlim(maxWorkers) //Use a semaphore to manage the number of workers
-                        : null; //No semaphore needed since no limit is in place
-                    m_messageWorkersSemaphoreCurrentMax = maxWorkers; //Track it so semaphore is not re-created unless necessary to change the maximum workers it can support
-                    //If the semaphore is updated while the subscription is running workers, it's possible to temporarily have too many workers while old waiting workers still use the old semaphore object.
+                    m_messageWorkersSemaphore = null;
                 }
             }
         }
@@ -2274,9 +2229,7 @@ namespace Opc.Ua.Client
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;
         private int m_outstandingMessageWorkers;
-        private int m_maxMessageWorkers;
         private SemaphoreSlim m_messageWorkersSemaphore;
-        private int m_messageWorkersSemaphoreCurrentMax;
         private bool m_sequentialPublishing;
         private uint m_lastSequenceNumberProcessed;
 
