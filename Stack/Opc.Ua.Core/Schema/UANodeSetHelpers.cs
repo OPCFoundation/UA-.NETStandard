@@ -1341,8 +1341,7 @@ namespace Opc.Ua.Export
             this.NamespaceUris = uris;
 
             // return the new index.
-            // return (ushort)count;
-            return (ushort)(count + 1);
+            return (ushort)count;
         }
 
         /// <summary>
