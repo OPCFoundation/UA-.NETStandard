@@ -383,12 +383,14 @@ namespace Opc.Ua.Client.Tests
                 subscription.FastDataChangeCallback = (_, notification, __) => {
                     notification.MonitoredItems.ForEach(item => {
                         Interlocked.Increment(ref numOfNotifications);
-                        if (dict[item.ClientHandle] > item.Value.SourceTimestamp)
+                        if (enabled)
                         {
-                            sequenceBroken.Set(); //Out of order encountered
+                            if (dict[item.ClientHandle] > item.Value.SourceTimestamp)
+                            {
+                                sequenceBroken.Set(); //Out of order encountered
+                            }
+                            dict[item.ClientHandle] = item.Value.SourceTimestamp;
                         }
-
-                        dict[item.ClientHandle] = item.Value.SourceTimestamp;
                     });
                 };
             }
