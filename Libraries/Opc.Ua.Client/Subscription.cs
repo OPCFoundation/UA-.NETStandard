@@ -1898,7 +1898,7 @@ namespace Opc.Ua.Client
             finally
             {
                 Interlocked.Decrement(ref m_outstandingMessageWorkers);
-                if (needSemaphore)
+                if (needSemaphore && semaphore != null)
                 {
                     //Release semaphore taken earlier
                     try
