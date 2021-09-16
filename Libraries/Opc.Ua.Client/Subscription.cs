@@ -101,6 +101,7 @@ namespace Opc.Ua.Client
                 m_priority = template.m_priority;
                 m_timestampsToReturn = template.m_timestampsToReturn;
                 m_maxMessageCount = template.m_maxMessageCount;
+                m_sequentialPublishing = template.m_sequentialPublishing;
                 m_defaultItem = (MonitoredItem)template.m_defaultItem.MemberwiseClone();
                 m_defaultItem = template.m_defaultItem;
                 m_handle = template.m_handle;
@@ -150,6 +151,8 @@ namespace Opc.Ua.Client
             m_timestampsToReturn = TimestampsToReturn.Both;
             m_maxMessageCount = 10;
             m_outstandingMessageWorkers = 0;
+            m_sequentialPublishing = false;
+            m_lastSequenceNumberProcessed = 0;
             m_messageCache = new LinkedList<NotificationMessage>();
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
@@ -176,11 +179,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_publishTimer")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = nameof(m_publishTimer))]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = nameof(m_messageWorkersSemaphore))]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
+                Utils.SilentDispose(m_messageWorkersSemaphore);
+                m_messageWorkersSemaphore = null;
                 Utils.SilentDispose(m_publishTimer);
                 m_publishTimer = null;
             }
@@ -361,6 +367,35 @@ namespace Opc.Ua.Client
         {
             get => m_disableMonitoredItemCache;
             set => m_disableMonitoredItemCache = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the behavior of waiting for sequential order in handling incoming messages.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
+        /// </value>
+        /// <remarks>
+        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in a "single-threaded" manner and callbacks will not be invoked in parallel. 
+        /// </remarks>
+        [DataMember(Order = 13)]
+        public bool SequentialPublishing
+        {
+            get
+            {
+                lock (m_cache)
+                {
+                    return m_sequentialPublishing;
+                }
+            }
+            set
+            {
+                lock (m_cache)
+                {
+                    m_sequentialPublishing = value;
+                    ManageMessageWorkerSemaphore();
+                }
+            }
         }
 
         /// <summary>
@@ -704,6 +739,8 @@ namespace Opc.Ua.Client
             uint revisedLifetimeCounter = m_lifetimeCount;
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
+
+            ManageMessageWorkerSemaphore();
 
             m_session.CreateSubscription(
                 null,
@@ -1240,6 +1277,17 @@ namespace Opc.Ua.Client
 
                     if (next != null)
                     {
+                        //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
+                        if (entry.SequenceNumber == m_lastSequenceNumberProcessed + 1)
+                        {
+                            if (!entry.Processed)
+                            {
+                                Utils.Trace("Subscription {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
+                            }
+
+                            m_lastSequenceNumberProcessed = entry.SequenceNumber;
+                        }
+
                         m_incomingMessages.Remove(node);
                     }
 
@@ -1247,10 +1295,7 @@ namespace Opc.Ua.Client
                 }
 
                 // process messages.
-                Task.Run(() => {
-                    Interlocked.Increment(ref m_outstandingMessageWorkers);
-                    OnMessageReceived(null);
-                });
+                Task.Run(OnMessageReceived);
             }
 
             // send notification that publishing has recovered.
@@ -1664,10 +1709,33 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Processes the incoming messages.
         /// </summary>
-        private void OnMessageReceived(object state)
+        private async Task OnMessageReceived()
         {
+            SemaphoreSlim semaphore; //Avoid semaphore being replaced for this instance while running, retain reference locally.
+            lock (m_cache)
+            {
+                //Semaphore is maintained under m_cache lock, avoid semaphore swap issues when possible. The wait call will still sync the message workers properly.
+                semaphore = m_messageWorkersSemaphore;
+            }
+
+            var needSemaphore = semaphore != null; //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
+            if (needSemaphore)
+            {
+                try
+                {
+                    await semaphore.WaitAsync().ConfigureAwait(false);
+                }
+                catch (ObjectDisposedException)
+                {
+                    Utils.Trace("Message Workers semaphore replaced, worker released");
+                    needSemaphore = false;
+                    //Semaphore was replaced to change the number of maximum allowed workers - proceed without it, momentarily more workers than allowed may exist.
+                    //Note for sequential publishing, this can only happen if sequential publishing is enabled or disabled, so it will not interrupt it. Changing max workers while sequential publishing is enabled will not trigger a semaphore change.
+                }
+            }
             try
             {
+                Interlocked.Increment(ref m_outstandingMessageWorkers);
                 Session session = null;
                 uint subscriptionId = 0;
                 EventHandler callback = null;
@@ -1683,7 +1751,8 @@ namespace Opc.Ua.Client
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
                         // update monitored items with unprocessed messages.
-                        if (ii.Value.Message != null && !ii.Value.Processed)
+                        if (ii.Value.Message != null && !ii.Value.Processed &&
+                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) //If sequential publishing is enabled, only release messages in perfect sequence. 
                         {
                             if (messagesToProcess == null)
                             {
@@ -1700,6 +1769,12 @@ namespace Opc.Ua.Client
 
                             m_messageCache.AddLast(ii.Value.Message);
                             ii.Value.Processed = true;
+
+                            //Keep the last sequence number processed going up
+                            if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed)
+                            {
+                                m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
+                            }
                         }
 
                         // check for missing messages.
@@ -1823,6 +1898,26 @@ namespace Opc.Ua.Client
             finally
             {
                 Interlocked.Decrement(ref m_outstandingMessageWorkers);
+                if (needSemaphore && semaphore != null)
+                {
+                    //Release semaphore taken earlier
+                    try
+                    {
+                        semaphore.Release(); //Release the right semaphore
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        //Ignore, disposed and handling finished
+                    }
+                    catch (SemaphoreFullException e)
+                    {
+                        Utils.Trace(e, "Released semaphore too many times");
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.Trace(e, "Error while finishing processing of incoming messages.");
+                    }
+                }
             }
         }
 
@@ -2074,6 +2169,27 @@ namespace Opc.Ua.Client
                 monitoredItem.SaveValueInCache(eventFields);
             }
         }
+
+        /// <summary>
+        /// Manages the semaphore used to limit message workers for handling incoming messages
+        /// </summary>
+        private void ManageMessageWorkerSemaphore()
+        {
+            lock (m_cache)
+            {
+                if (m_sequentialPublishing)
+                {
+                    if (m_messageWorkersSemaphore == null) //Only create the semaphore if it isn't already created. (Not already in sequential publishing mode)
+                        m_messageWorkersSemaphore = new SemaphoreSlim(1);//Sequential publishing means only one worker can be active, or else sequence can be violated.
+                }
+                else //Not in sequential publishing mode - no need for semaphore.
+                {
+                    //Semaphore is disposed if needed.
+                    m_messageWorkersSemaphore?.Dispose();
+                    m_messageWorkersSemaphore = null;
+                }
+            }
+        }
         #endregion
 
         #region Private Fields
@@ -2113,6 +2229,9 @@ namespace Opc.Ua.Client
         private FastDataChangeNotificationEventHandler m_fastDataChangeCallback;
         private FastEventNotificationEventHandler m_fastEventCallback;
         private int m_outstandingMessageWorkers;
+        private SemaphoreSlim m_messageWorkersSemaphore;
+        private bool m_sequentialPublishing;
+        private uint m_lastSequenceNumberProcessed;
 
         /// <summary>
         /// A message received from the server cached until is processed or discarded.
