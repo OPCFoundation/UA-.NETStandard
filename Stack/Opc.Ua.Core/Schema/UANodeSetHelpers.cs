@@ -1314,7 +1314,7 @@ namespace Opc.Ua.Export
             }
 
             // find an existing index.
-            int count = 1; ;
+            int count = 1;
 
             if (this.NamespaceUris != null)
             {
@@ -1341,7 +1341,7 @@ namespace Opc.Ua.Export
             this.NamespaceUris = uris;
 
             // return the new index.
-            return (ushort)(count + 1);
+            return (ushort)count;
         }
 
         /// <summary>
