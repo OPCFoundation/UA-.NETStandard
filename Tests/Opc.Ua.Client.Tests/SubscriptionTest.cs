@@ -84,6 +84,7 @@ namespace Opc.Ua.Client.Tests
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
             m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            // start client
             await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
@@ -339,8 +340,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(300)]
-        //This test doesn't deterministically prove sequential publishing, but rather relies on a subscription not being able to handle the message load.
-        //This test should be re-implemented with a Session that deterministically provides the wrong order of messages to Subscription.
+        /// <remarks>
+        /// This test doesn't deterministically prove sequential publishing,
+        /// but rather relies on a subscription not being able to handle the message load.
+        /// This test should be re-implemented with a Session that deterministically
+        /// provides the wrong order of messages to Subscription.
+        ///</remarks>
         public void SequentialPublishingSubscription(bool enabled)
         {
             var subscriptionList = new List<Subscription>();
@@ -435,6 +440,61 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
+        [Test, Order(400)]
+        public async Task PublishRequestCount()
+        {
+            var subscriptionList = new List<Subscription>();
+            var numOfNotifications = 0L;
+            const int TestWaitTime = 10000;
+            const int MonitoredItemsPerSubscription = 50;
+            const int Subscriptions = 50;
+            const int MaxServerPublishRequest = 20;
+
+            for (int i = 0; i < Subscriptions; i++)
+            {
+                var subscription = new Subscription(m_session.DefaultSubscription) {
+                    PublishingInterval = 0,
+                    DisableMonitoredItemCache = true,
+                    PublishingEnabled = true
+                };
+                subscriptionList.Add(subscription);
+
+                var list = Enumerable.Range(1, MonitoredItemsPerSubscription).Select(_ => new MonitoredItem(subscription.DefaultItem) {
+                    StartNodeId = new NodeId("Scalar_Simulation_Int32", 2),
+                    SamplingInterval = 0,
+                }).ToList();
+                var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
+
+                subscription.AddItems(list);
+                var result = m_session.AddSubscription(subscription);
+                Assert.True(result);
+                await subscription.CreateAsync();
+                var publishInterval = (int)subscription.CurrentPublishingInterval;
+                TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
+
+                subscription.FastDataChangeCallback = (_, notification, __) => {
+                    notification.MonitoredItems.ForEach(item => {
+                        Interlocked.Increment(ref numOfNotifications);
+                    });
+                };
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+
+            // verify that number of active publishrequests is never exceeded
+            while (stopwatch.ElapsedMilliseconds < TestWaitTime)
+            {
+                // use the sample server default for max publish request count
+                Assert.GreaterOrEqual(MaxServerPublishRequest, m_session.GoodPublishRequestCount);
+                await Task.Delay(10);
+            }
+
+            foreach (var subscription in subscriptionList)
+            {
+                var result = await m_session.RemoveSubscriptionAsync(subscription);
+                Assert.True(result);
+            }
+        }
         #endregion
 
         #region Private Methods
