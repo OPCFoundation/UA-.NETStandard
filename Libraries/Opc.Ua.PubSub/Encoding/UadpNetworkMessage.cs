@@ -968,7 +968,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="encoder"></param>
         private void EncodePromotedFields(BinaryEncoder encoder)
         {
-            // todo: Promnoted fields not supported
+            // todo: Promoted fields not supported
         }
 
         /// <summary>
@@ -1209,7 +1209,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="decoder"></param>
         private void DecodePromotedFields(BinaryDecoder decoder)
         {
-            // todo:
+            // todo: Promoted fields not supported
         }
 
         /// <summary>

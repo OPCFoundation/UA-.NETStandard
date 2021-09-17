@@ -248,7 +248,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private DataSet DecodePayloadContent(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
-            // todo check for null metadata, it shall not return a decoded message if no metadata
             TargetVariablesDataType targetVariablesData =
                 ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet)
                     as TargetVariablesDataType;

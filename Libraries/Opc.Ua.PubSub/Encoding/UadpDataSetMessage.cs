@@ -543,7 +543,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             try
             {
-                // 01 RawData Field Encoding (TODO: StructuredValue)
+                // 01 RawData Field Encoding 
                 var variant = field.Value.WrappedValue;
 
                 if (variant.TypeInfo == null || variant.TypeInfo.BuiltInType == BuiltInType.Null)
