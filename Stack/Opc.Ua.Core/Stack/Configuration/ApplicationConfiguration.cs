@@ -169,7 +169,7 @@ namespace Opc.Ua
         /// Creates the message context from the configuration.
         /// </summary>
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
-        public ServiceMessageContext CreateMessageContext(bool newFactory = false)
+        public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
             ServiceMessageContext messageContext = new ServiceMessageContext();
 
@@ -183,9 +183,9 @@ namespace Opc.Ua
 
             messageContext.NamespaceUris = new NamespaceTable();
             messageContext.ServerUris = new StringTable();
-            if (newFactory)
+            if (clonedFactory)
             {
-                messageContext.Factory = new EncodeableFactory();
+                messageContext.Factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             }
             return messageContext;
         }
