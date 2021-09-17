@@ -38,6 +38,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public interface ICertificateBuilder
         : ICertificateBuilderConfig
+        , ICertificateBuilderPublicKey
         , ICertificateBuilderSetIssuer
         , ICertificateBuilderParameter
         , ICertificateBuilderCreateForRSA

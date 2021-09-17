@@ -31,16 +31,6 @@ using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Running;
-
-internal static class Benchmarks
-{
-    public static void RunBenchmarks(ManualConfig config)
-    {
-        _ = BenchmarkRunner.Run<Opc.Ua.Security.Certificates.Tests.Benchmarks>(config);
-    }
-}
 
 namespace Opc.Ua.Security.Certificates.Tests
 {

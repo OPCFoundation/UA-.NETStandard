@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -143,7 +144,8 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
-            m_session.AddSubscription(subscription);
+            bool result = m_session.AddSubscription(subscription);
+            Assert.True(result);
             subscription.Create();
 
             // add state
@@ -194,9 +196,109 @@ namespace Opc.Ua.Client.Tests
 
             subscription.RemoveItem(list2.First());
 
-            var result = m_session.RemoveSubscription(subscription);
+            result = m_session.RemoveSubscription(subscription);
             Assert.True(result);
         }
+
+        [Test, Order(110)]
+        public async Task AddSubscriptionAsync()
+        {
+            var subscription = new Subscription();
+
+            // check keepAlive
+            int keepAlive = 0;
+            m_session.KeepAlive += (Session sender, KeepAliveEventArgs e) => { keepAlive++; };
+
+            // add current time
+            var list = new List<MonitoredItem> {
+                new MonitoredItem(subscription.DefaultItem)
+                {
+                    DisplayName = "ServerStatusCurrentTime", StartNodeId = VariableIds.Server_ServerStatus_CurrentTime
+                }
+            };
+            list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                foreach (var value in item.DequeueValues())
+                {
+                    TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                }
+            });
+
+            subscription = new Subscription(m_session.DefaultSubscription);
+            TestContext.Out.WriteLine("MaxMessageCount: {0}", subscription.MaxMessageCount);
+            TestContext.Out.WriteLine("MaxNotificationsPerPublish: {0}", subscription.MaxNotificationsPerPublish);
+            TestContext.Out.WriteLine("MinLifetimeInterval: {0}", subscription.MinLifetimeInterval);
+
+            subscription.AddItem(list.First());
+            Assert.AreEqual(1, subscription.MonitoredItemCount);
+            Assert.True(subscription.ChangesPending);
+            bool result = await m_session.RemoveSubscriptionAsync(subscription);
+            Assert.False(result);
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            Assert.False(result);
+            result = m_session.AddSubscription(subscription);
+            Assert.True(result);
+            result = m_session.AddSubscription(subscription);
+            Assert.False(result);
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            Assert.True(result);
+            result = await m_session.RemoveSubscriptionAsync(subscription);
+            Assert.False(result);
+            result = m_session.AddSubscription(subscription);
+            Assert.True(result);
+            await subscription.CreateAsync().ConfigureAwait(false);
+
+            // add state
+            var list2 = new List<MonitoredItem> {
+                new MonitoredItem(subscription.DefaultItem)
+                {
+                    DisplayName = "ServerStatusState", StartNodeId = VariableIds.Server_ServerStatus_State
+                }
+            };
+            list2.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                foreach (var value in item.DequeueValues())
+                {
+                    TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                }
+            });
+            subscription.AddItems(list);
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
+            Assert.False(subscription.PublishingEnabled);
+            await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
+            Assert.True(subscription.PublishingEnabled);
+            Assert.False(subscription.PublishingStopped);
+
+            subscription.Priority = 200;
+            await subscription.ModifyAsync().ConfigureAwait(false);
+
+            // save
+            m_session.Save(SubscriptionTestXml);
+
+            await Task.Delay(5000).ConfigureAwait(false);
+            TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
+            TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
+            TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
+            TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
+            TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
+            TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
+            TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
+            TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
+            TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
+            TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+
+            await subscription.ConditionRefreshAsync().ConfigureAwait(false);
+            var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
+            Assert.AreEqual(StatusCodes.BadMessageNotAvailable, sre.StatusCode);
+
+            subscription.RemoveItems(list);
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+
+            subscription.RemoveItem(list2.First());
+
+            result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
+            Assert.True(result);
+        }
+
 
         [Test, Order(200)]
         public void LoadSubscription()
@@ -235,6 +337,104 @@ namespace Opc.Ua.Client.Tests
             Assert.True(result);
 
         }
+
+        [Theory, Order(300)]
+        //This test doesn't deterministically prove sequential publishing, but rather relies on a subscription not being able to handle the message load.
+        //This test should be re-implemented with a Session that deterministically provides the wrong order of messages to Subscription.
+        public void SequentialPublishingSubscription(bool enabled)
+        {
+            var subscriptionList = new List<Subscription>();
+            var sequenceBroken = new AutoResetEvent(false);
+            var numOfNotifications = 0L;
+            const int TestWaitTime = 10000;
+            const int MonitoredItemsPerSubscription = 500;
+            const int Subscriptions = 10;
+
+            for (int i = 0; i < Subscriptions; i++)
+            {
+                var subscription = new Subscription(m_session.DefaultSubscription) {
+                    SequentialPublishing = enabled,
+                    PublishingInterval = 0,
+                    DisableMonitoredItemCache = true, //Not needed
+                    PublishingEnabled = false
+                };
+                subscriptionList.Add(subscription);
+
+                //Create many monitored items on the server status current time, and track the last reported source timestamp
+                var list = Enumerable.Range(1, MonitoredItemsPerSubscription).Select(_ => new MonitoredItem(subscription.DefaultItem) {
+                    StartNodeId = new NodeId("Scalar_Simulation_Int32", 2),
+                    SamplingInterval = 0,
+                }).ToList();
+                var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
+
+                subscription.AddItems(list);
+                var result = m_session.AddSubscription(subscription);
+                Assert.True(result);
+                subscription.Create();
+                var publishInterval = (int)subscription.CurrentPublishingInterval;
+                TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
+
+                //Need to realize test failed, assert needs to be brought to this thread
+                subscription.FastDataChangeCallback = (_, notification, __) => {
+                    notification.MonitoredItems.ForEach(item => {
+                        Interlocked.Increment(ref numOfNotifications);
+                        if (dict[item.ClientHandle] > item.Value.SourceTimestamp)
+                        {
+                            sequenceBroken.Set(); //Out of order encountered
+                        }
+
+                        dict[item.ClientHandle] = item.Value.SourceTimestamp;
+                    });
+                };
+            }
+
+            UInt32Collection subscriptionIds = new UInt32Collection();
+            foreach (var subscription in subscriptionList)
+            {
+                subscriptionIds.Add(subscription.Id);
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+
+            // start
+            m_session.SetPublishingMode(null, true, subscriptionIds, out var results, out var diagnosticInfos);
+
+            // Wait for out-of-order to occur
+            var failed = sequenceBroken.WaitOne(TestWaitTime);
+
+            // stop
+            m_session.SetPublishingMode(null, false, subscriptionIds, out results, out diagnosticInfos);
+
+            //Log information
+            var elapsed = stopwatch.Elapsed.TotalMilliseconds / 1000.0;
+            TestContext.Out.WriteLine($"Ran for: {elapsed:N} seconds");
+            long totalNotifications = Interlocked.Read(ref numOfNotifications);
+            double notificationRate = totalNotifications / elapsed;
+            foreach (var subscription in subscriptionList)
+            {
+                int outstandingMessageWorkers = subscription.OutstandingMessageWorkers;
+                TestContext.Out.WriteLine($"Id: {subscription.Id} Outstanding workers: {outstandingMessageWorkers}");
+            }
+            TestContext.Out.WriteLine($"Number of notifications: {totalNotifications:N0}");
+            TestContext.Out.WriteLine($"Notifications rate: {notificationRate:N} per second"); //How fast it processed notifications.
+
+            Assert.NotZero(totalNotifications); //No notifications means nothing worked
+            if (enabled)
+            {
+                //catch if Out-of-sequence occurred
+                Assert.False(failed);
+            }
+
+            var notificationsPerSecond = Subscriptions * MonitoredItemsPerSubscription;
+            Assert.AreEqual(notificationsPerSecond * (elapsed + 0.5), totalNotifications, notificationsPerSecond);
+
+            foreach (var subscription in subscriptionList)
+            {
+                var result = m_session.RemoveSubscription(subscription);
+                Assert.True(result);
+            }
+        }
+
         #endregion
 
         #region Private Methods

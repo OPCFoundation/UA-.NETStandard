@@ -685,11 +685,6 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         return null;
                     }
-                    if (structureDefinition.StructureType == StructureType.Structure &&
-                        field.IsOptional)
-                    {
-                        return null;
-                    }
                 }
                 return structureDefinition;
             }

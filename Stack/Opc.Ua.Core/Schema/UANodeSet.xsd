@@ -225,13 +225,9 @@
   </xs:simpleType>
 
   <xs:simpleType name="SymbolicName">
-    <xs:list>
-      <xs:simpleType>
-        <xs:restriction base="xs:string">
-          <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
-        </xs:restriction>
-      </xs:simpleType>
-    </xs:list>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z][A-Za-z0-9_]*" />
+    </xs:restriction>
   </xs:simpleType>
 
   <xs:simpleType name="Duration">
@@ -305,7 +301,8 @@
     <xs:attribute name="BrowseName" type="QualifiedName" use="required" />
     <xs:attribute name="WriteMask" type="WriteMask" default="0" />
     <xs:attribute name="UserWriteMask" type="WriteMask" default="0" />
-    <xs:attribute name="AccessRestrictions" type="AccessRestriction" default="0" />
+    <xs:attribute name="AccessRestrictions" type="AccessRestriction" use="optional" />
+    <xs:attribute name="HasNoPermissions" type="xs:boolean" default="false" />
     <xs:attribute name="SymbolicName" type="SymbolicName" />
     <xs:attribute name="ReleaseStatus" type="ReleaseStatus" default="Released" />
   </xs:complexType>
@@ -450,7 +447,7 @@
       <xs:element name="Field" type="DataTypeField" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
     <xs:attribute name="Name" type="QualifiedName" use="required" />
-    <xs:attribute name="SymbolicName" type="SymbolicName" default="" />
+    <xs:attribute name="SymbolicName" type="SymbolicName" use="optional" />
     <xs:attribute name="IsUnion" type="xs:boolean" default="false" />
     <xs:attribute name="IsOptionSet" type="xs:boolean" default="false" />
     
