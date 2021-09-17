@@ -483,12 +483,14 @@ namespace Opc.Ua.Client.Tests
 
             var stopwatch = Stopwatch.StartNew();
 
+            await Task.Delay(1000);
+
             // verify that number of active publishrequests is never exceeded
             while (stopwatch.ElapsedMilliseconds < TestWaitTime)
             {
                 // use the sample server default for max publish request count
                 Assert.GreaterOrEqual(MaxServerPublishRequest, m_session.GoodPublishRequestCount);
-                await Task.Delay(10);
+                await Task.Delay(100);
             }
 
             foreach (var subscription in subscriptionList)
