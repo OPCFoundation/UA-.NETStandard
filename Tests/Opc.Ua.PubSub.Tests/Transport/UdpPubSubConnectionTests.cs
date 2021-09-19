@@ -47,12 +47,26 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         private const string UdpUrlFormat = "{0}://{1}:4840";
         private const string UdpDiscoveryIp = "224.0.2.14";
+        private const string UdpMulticastIp = "239.0.0.1";
         private const int DiscoveryPortNo = 4840;
 
         protected enum UdpConnectionType
         {
             Networking,
             Discovery
+        }
+
+        protected enum UdpAddressesType
+        {
+            Unicast,
+            Broadcast,
+            Multicast
+        }
+
+        protected enum UadpDiscoveryType
+        {
+            Request,
+            Response
         }
 
         private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
@@ -63,6 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private UdpPubSubConnection m_udpPublisherConnection;
 
         private ManualResetEvent m_shutdownEvent;
+        //private UdpAddressesType m_udpAddressesType = UdpAddressesType.Unicast;
         #endregion
 
         [OneTimeSetUp()]
@@ -80,7 +95,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Get publisher connection
             Assert.IsNotNull(m_publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be null");
             Assert.IsNotEmpty(m_publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be empty");
-            m_udpPublisherConnection = m_uaPublisherApplication.PubSubConnections[0] as UdpPubSubConnection;
+            m_udpPublisherConnection = m_uaPublisherApplication.PubSubConnections.First() as UdpPubSubConnection;
             Assert.IsNotNull(m_udpPublisherConnection, "m_uadpPublisherConnection should not be null");
         }
 

@@ -50,7 +50,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private byte[] m_sentBytes;
 
         [Test(Description = "Validate subscriber data on first nic;" +
-                            "Subscriber unicast ip - Publisher unicast ip")]
+                            "Subscriber unicast ip - Publisher unicast ip"), Order(1)]
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromUnicast()
         {
             // Arrange
@@ -114,7 +114,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [Test(Description = "Validate subscriber data on first nic;" +
-                            "Subscriber unicast ip - Publisher broadcast ip")]
+                            "Subscriber unicast ip - Publisher broadcast ip"), Order(2)]
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
@@ -182,7 +182,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber multicast ip - Publisher multicast ip;" +
-                            "Setting Subscriber as unicast or broadcast not functional. Just multicast to multicast works fine;")]
+                            "Setting Subscriber as unicast or broadcast not functional. Just multicast to multicast works fine;"), Order(3)]
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif
@@ -250,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         [Test(Description = "Validate subscriber data on first nic;" +
                             "Subscriber multicast ip - Publisher multicast ip;" +
-                            "Setting Subscriber as unicast or broadcast not functional. Just discovery request to multicast and response works fine;")]
+                            "Setting Subscriber as unicast or broadcast not functional. Just discovery request to multicast and response works fine;"), Order(4)]
 #if !CUSTOM_TESTS
         [Ignore("A network interface controller is necessary in order to run correctly.")]
 #endif

@@ -159,13 +159,16 @@ namespace Opc.Ua.PubSub.Transport
 
             networkMessage.Decode(context, messageBytes, null);
 
-            Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
-                String.Join(", ", networkMessage.DataSetWriterIds), source.Address);
+            //Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
+            //    String.Join(", ", networkMessage.DataSetWriterIds), source.Address);
 
             if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
                     && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData
                     && networkMessage.DataSetWriterIds != null)
             {
+                Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
+                String.Join(", ", networkMessage.DataSetWriterIds), source.Address);
+
                 foreach (UInt16 dataSetWriterId in networkMessage.DataSetWriterIds)
                 {
                     lock (m_lock)
