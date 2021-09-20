@@ -181,13 +181,16 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void OnMessagePublished(DataSetWriterDataType writer, DataSet dataset)
         {
-            if (writer.KeyFrameCount > 1)
+            lock (m_dataSetStates)
             {
-                lock (m_dataSetStates)
+                DataSetState state = GetState(writer);
+                state.MessageCount++;
+
+                if (writer.KeyFrameCount > 1)
                 {
-                    DataSetState state = GetState(writer);
-                    state.MessageCount++;
-                    state.ConfigurationVersion = dataset.DataSetMetaData.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
+
+                    state.ConfigurationVersion =
+                        dataset.DataSetMetaData.ConfigurationVersion.MemberwiseClone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
                     {
@@ -204,9 +207,11 @@ namespace Opc.Ua.PubSub
                             state.LastDataSet.Fields[ii] = field.MemberwiseClone() as Field;
                         }
                     }
+
                 }
             }
         }
+
         #endregion
 
         #region Private Methods
