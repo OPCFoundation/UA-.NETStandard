@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Runtime.Serialization;
-using Quickstarts.Servers;
 
 namespace Quickstarts.ReferenceServer
 {

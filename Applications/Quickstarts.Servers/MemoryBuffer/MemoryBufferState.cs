@@ -38,7 +38,7 @@ using Opc.Ua.Server;
 using System.Diagnostics;
 
 namespace MemoryBuffer
-{    
+{
     public partial class MemoryBufferState
     {
         #region Constructors
@@ -59,17 +59,17 @@ namespace MemoryBuffer
 
                 if (!String.IsNullOrEmpty(configuration.DataType))
                 {
-                    dataType = configuration.DataType;                
+                    dataType = configuration.DataType;
                 }
 
                 if (!String.IsNullOrEmpty(configuration.Name))
                 {
-                    name = dataType;                
+                    name = dataType;
                 }
             }
 
             this.SymbolicName = name;
-            
+
             BuiltInType elementType = BuiltInType.UInt32;
 
             switch (dataType)
@@ -139,7 +139,7 @@ namespace MemoryBuffer
             {
                 elementName = "UInt32";
             }
-            
+
             BuiltInType elementType = BuiltInType.UInt32;
 
             switch (elementName)
@@ -180,7 +180,7 @@ namespace MemoryBuffer
                         break;
                     }
                 }
-                
+
                 m_lastScanTime = DateTime.UtcNow;
                 m_maximumScanRate = 1000;
 
@@ -193,11 +193,11 @@ namespace MemoryBuffer
         /// Creates an object which can browser the tags in the buffer.
         /// </summary>
         public override INodeBrowser CreateBrowser(
-            ISystemContext context, 
-            ViewDescription view, 
-            NodeId referenceType, 
-            bool includeSubtypes, 
-            BrowseDirection browseDirection, 
+            ISystemContext context,
+            ViewDescription view,
+            NodeId referenceType,
+            bool includeSubtypes,
+            BrowseDirection browseDirection,
             QualifiedName browseName,
             IEnumerable<IReference> additionalReferences,
             bool internalOnly)
@@ -552,7 +552,7 @@ namespace MemoryBuffer
             }
 
             DateTime end1 = DateTime.UtcNow;
-            
+
             double delta1 = ((double)(end1.Ticks-start1.Ticks))/TimeSpan.TicksPerMillisecond;
 
             if (delta1 > 100)
@@ -619,9 +619,6 @@ namespace MemoryBuffer
         /// <summary>
         /// Handles change events raised by the node.
         /// </summary>
-        /// <param name="context">The system context.</param>
-        /// <param name="state">The node that raised the event.</param>
-        /// <param name="masks">What caused the event to be raised</param>
         public void OnBufferChanged(int offset)
         {
             lock (m_dataLock)
@@ -650,12 +647,12 @@ namespace MemoryBuffer
                 }
             }
         }
-        
+
         void ScanTimer_Tick(object sender, EventArgs e)
         {
             DoScan(null);
         }
-        
+
         void PublishTimer_Tick(object sender, EventArgs e)
         {
             DateTime start1 = DateTime.UtcNow;
@@ -671,7 +668,7 @@ namespace MemoryBuffer
             }
 
             DateTime end1 = DateTime.UtcNow;
-            
+
             double delta1 = ((double)(end1.Ticks-start1.Ticks))/TimeSpan.TicksPerMillisecond;
 
             if (delta1 > 100)

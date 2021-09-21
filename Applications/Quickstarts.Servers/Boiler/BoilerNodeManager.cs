@@ -29,8 +29,8 @@
 
 using System.Collections.Generic;
 using Opc.Ua;
-using Opc.Ua.Sample;
 using System.Reflection;
+using Opc.Ua.Sample;
 
 namespace Boiler
 {
@@ -44,7 +44,7 @@ namespace Boiler
         /// Initializes the node manager.
         /// </summary>
         public BoilerNodeManager(
-            Opc.Ua.Server.IServerInternal server, 
+            Opc.Ua.Server.IServerInternal server,
             ApplicationConfiguration configuration)
         :
             base(server)
@@ -83,7 +83,7 @@ namespace Boiler
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -107,9 +107,9 @@ namespace Boiler
 
             boiler.Create(
                 context,
-                null, 
+                null,
                 new QualifiedName(name, m_namespaceIndex),
-                null, 
+                null,
                 true);
 
             NodeState folder = (NodeState)FindPredefinedNode(
@@ -144,7 +144,7 @@ namespace Boiler
         /// Updates the display name for an instance with the unit label name.
         /// </summary>
         /// <param name="instance">The instance to update.</param>
-        /// <param name="label">The label to apply.</param>
+        /// <param name="unitLabel">The label to apply.</param>
         /// <remarks>This method assumes the DisplayName has the form NameX001 where X0 is the unit label placeholder.</remarks>
         private void UpdateDisplayName(BaseInstanceState instance, string unitLabel)
         {

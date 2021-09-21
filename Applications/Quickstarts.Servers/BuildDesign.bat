@@ -1,8 +1,6 @@
 @echo off
 setlocal
 
-REM SET PATH=%PATH%;..\..\..\Scripts;..\..\Bin;..\..\..\Bin
-
 echo Building TestData
 Opc.Ua.ModelCompiler.exe -version v104 -d2 ".\TestData\TestDataDesign.xml" -cg ".\TestData\TestDataDesign.csv" -o2 ".\TestData"
 echo Success!

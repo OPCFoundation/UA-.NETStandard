@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Quickstarts.Servers
+namespace Quickstarts.ReferenceServer
 {
     /// <summary>
     /// Defines constants for namespaces used by the servers.

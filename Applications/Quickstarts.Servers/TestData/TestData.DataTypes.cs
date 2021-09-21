@@ -2905,4 +2905,499 @@ namespace TestData
     #endregion
     #endif
     #endregion
+
+    #region Vector Class
+    #if (!OPCUA_EXCLUDE_Vector)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class Vector : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public Vector()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_x = (double)0;
+            m_y = (double)0;
+            m_z = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "X", IsRequired = false, Order = 1)]
+        public double X
+        {
+            get { return m_x;  }
+            set { m_x = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Y", IsRequired = false, Order = 2)]
+        public double Y
+        {
+            get { return m_y;  }
+            set { m_y = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Z", IsRequired = false, Order = 3)]
+        public double Z
+        {
+            get { return m_z;  }
+            set { m_z = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.Vector; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.Vector_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.Vector_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteDouble("X", X);
+            encoder.WriteDouble("Y", Y);
+            encoder.WriteDouble("Z", Z);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            X = decoder.ReadDouble("X");
+            Y = decoder.ReadDouble("Y");
+            Z = decoder.ReadDouble("Z");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            Vector value = encodeable as Vector;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_x, value.m_x)) return false;
+            if (!Utils.IsEqual(m_y, value.m_y)) return false;
+            if (!Utils.IsEqual(m_z, value.m_z)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (Vector)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            Vector clone = (Vector)base.MemberwiseClone();
+
+            clone.m_x = (double)Utils.Clone(this.m_x);
+            clone.m_y = (double)Utils.Clone(this.m_y);
+            clone.m_z = (double)Utils.Clone(this.m_z);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_x;
+        private double m_y;
+        private double m_z;
+        #endregion
+    }
+
+    #region VectorCollection Class
+    /// <summary>
+    /// A collection of Vector objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfVector", Namespace = TestData.Namespaces.TestData, ItemName = "Vector")]
+    #if !NET_STANDARD
+    public partial class VectorCollection : List<Vector>, ICloneable
+    #else
+    public partial class VectorCollection : List<Vector>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public VectorCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public VectorCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public VectorCollection(IEnumerable<Vector> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator VectorCollection(Vector[] values)
+        {
+            if (values != null)
+            {
+                return new VectorCollection(values);
+            }
+
+            return new VectorCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator Vector[](VectorCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (VectorCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorCollection clone = new VectorCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((Vector)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region VectorUnion Class
+    #if (!OPCUA_EXCLUDE_VectorUnion)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class VectorUnion : Union
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public VectorUnion()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_x = (double)0;
+            m_y = (double)0;
+            m_z = (double)0;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "X", IsRequired = false, Order = 1)]
+        public double X
+        {
+            get { return m_x;  }
+            set { m_x = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Y", IsRequired = false, Order = 2)]
+        public double Y
+        {
+            get { return m_y;  }
+            set { m_y = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Z", IsRequired = false, Order = 3)]
+        public double Z
+        {
+            get { return m_z;  }
+            set { m_z = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.VectorUnion; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.VectorUnion_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.VectorUnion_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteDouble("X", X);
+            encoder.WriteDouble("Y", Y);
+            encoder.WriteDouble("Z", Z);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            X = decoder.ReadDouble("X");
+            Y = decoder.ReadDouble("Y");
+            Z = decoder.ReadDouble("Z");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            VectorUnion value = encodeable as VectorUnion;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_x, value.m_x)) return false;
+            if (!Utils.IsEqual(m_y, value.m_y)) return false;
+            if (!Utils.IsEqual(m_z, value.m_z)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (VectorUnion)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorUnion clone = (VectorUnion)base.MemberwiseClone();
+
+            clone.m_x = (double)Utils.Clone(this.m_x);
+            clone.m_y = (double)Utils.Clone(this.m_y);
+            clone.m_z = (double)Utils.Clone(this.m_z);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private double m_x;
+        private double m_y;
+        private double m_z;
+        #endregion
+    }
+
+    #region VectorUnionCollection Class
+    /// <summary>
+    /// A collection of VectorUnion objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfVectorUnion", Namespace = TestData.Namespaces.TestData, ItemName = "VectorUnion")]
+    #if !NET_STANDARD
+    public partial class VectorUnionCollection : List<VectorUnion>, ICloneable
+    #else
+    public partial class VectorUnionCollection : List<VectorUnion>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public VectorUnionCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public VectorUnionCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public VectorUnionCollection(IEnumerable<VectorUnion> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator VectorUnionCollection(VectorUnion[] values)
+        {
+            if (values != null)
+            {
+                return new VectorUnionCollection(values);
+            }
+
+            return new VectorUnionCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator VectorUnion[](VectorUnionCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (VectorUnionCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            VectorUnionCollection clone = new VectorUnionCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((VectorUnion)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
 }

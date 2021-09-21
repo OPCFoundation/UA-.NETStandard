@@ -174,6 +174,16 @@ namespace TestData
         /// The identifier for the UserArrayValueDataType DataType.
         /// </summary>
         public const uint UserArrayValueDataType = 10006;
+
+        /// <summary>
+        /// The identifier for the Vector DataType.
+        /// </summary>
+        public const uint Vector = 1;
+
+        /// <summary>
+        /// The identifier for the VectorUnion DataType.
+        /// </summary>
+        public const uint VectorUnion = 2;
     }
     #endregion
 
@@ -931,6 +941,16 @@ namespace TestData
         public const uint UserArrayValueDataType_Encoding_DefaultBinary = 11440;
 
         /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint Vector_Encoding_DefaultBinary = 8;
+
+        /// <summary>
+        /// The identifier for the VectorUnion_Encoding_DefaultBinary Object.
+        /// </summary>
+        public const uint VectorUnion_Encoding_DefaultBinary = 9;
+
+        /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint ScalarValueDataType_Encoding_DefaultXml = 11418;
@@ -951,6 +971,16 @@ namespace TestData
         public const uint UserArrayValueDataType_Encoding_DefaultXml = 11421;
 
         /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint Vector_Encoding_DefaultXml = 36;
+
+        /// <summary>
+        /// The identifier for the VectorUnion_Encoding_DefaultXml Object.
+        /// </summary>
+        public const uint VectorUnion_Encoding_DefaultXml = 37;
+
+        /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultJson Object.
         /// </summary>
         public const uint ScalarValueDataType_Encoding_DefaultJson = 15047;
@@ -969,6 +999,16 @@ namespace TestData
         /// The identifier for the UserArrayValueDataType_Encoding_DefaultJson Object.
         /// </summary>
         public const uint UserArrayValueDataType_Encoding_DefaultJson = 15050;
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint Vector_Encoding_DefaultJson = 64;
+
+        /// <summary>
+        /// The identifier for the VectorUnion_Encoding_DefaultJson Object.
+        /// </summary>
+        public const uint VectorUnion_Encoding_DefaultJson = 65;
     }
     #endregion
 
@@ -6516,6 +6556,16 @@ namespace TestData
         public const uint TestData_BinarySchema_UserArrayValueDataType = 11434;
 
         /// <summary>
+        /// The identifier for the TestData_BinarySchema_Vector Variable.
+        /// </summary>
+        public const uint TestData_BinarySchema_Vector = 15;
+
+        /// <summary>
+        /// The identifier for the TestData_BinarySchema_VectorUnion Variable.
+        /// </summary>
+        public const uint TestData_BinarySchema_VectorUnion = 18;
+
+        /// <summary>
         /// The identifier for the TestData_XmlSchema Variable.
         /// </summary>
         public const uint TestData_XmlSchema = 11441;
@@ -6549,6 +6599,16 @@ namespace TestData
         /// The identifier for the TestData_XmlSchema_UserArrayValueDataType Variable.
         /// </summary>
         public const uint TestData_XmlSchema_UserArrayValueDataType = 11453;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_Vector Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_Vector = 43;
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_VectorUnion Variable.
+        /// </summary>
+        public const uint TestData_XmlSchema_VectorUnion = 46;
     }
     #endregion
 
@@ -6689,6 +6749,16 @@ namespace TestData
         /// The identifier for the UserArrayValueDataType DataType.
         /// </summary>
         public static readonly ExpandedNodeId UserArrayValueDataType = new ExpandedNodeId(TestData.DataTypes.UserArrayValueDataType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the Vector DataType.
+        /// </summary>
+        public static readonly ExpandedNodeId Vector = new ExpandedNodeId(TestData.DataTypes.Vector, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the VectorUnion DataType.
+        /// </summary>
+        public static readonly ExpandedNodeId VectorUnion = new ExpandedNodeId(TestData.DataTypes.VectorUnion, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -7446,6 +7516,16 @@ namespace TestData
         public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId Vector_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the VectorUnion_Encoding_DefaultBinary Object.
+        /// </summary>
+        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultBinary, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly ExpandedNodeId ScalarValueDataType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.ScalarValueDataType_Encoding_DefaultXml, TestData.Namespaces.TestData);
@@ -7466,6 +7546,16 @@ namespace TestData
         public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly ExpandedNodeId Vector_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultXml, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the VectorUnion_Encoding_DefaultXml Object.
+        /// </summary>
+        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultXml, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultJson Object.
         /// </summary>
         public static readonly ExpandedNodeId ScalarValueDataType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.ScalarValueDataType_Encoding_DefaultJson, TestData.Namespaces.TestData);
@@ -7484,6 +7574,16 @@ namespace TestData
         /// The identifier for the UserArrayValueDataType_Encoding_DefaultJson Object.
         /// </summary>
         public static readonly ExpandedNodeId UserArrayValueDataType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.UserArrayValueDataType_Encoding_DefaultJson, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the Vector_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly ExpandedNodeId Vector_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultJson, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the VectorUnion_Encoding_DefaultJson Object.
+        /// </summary>
+        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultJson, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -13031,6 +13131,16 @@ namespace TestData
         public static readonly ExpandedNodeId TestData_BinarySchema_UserArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_UserArrayValueDataType, TestData.Namespaces.TestData);
 
         /// <summary>
+        /// The identifier for the TestData_BinarySchema_Vector Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_BinarySchema_Vector = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_Vector, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_BinarySchema_VectorUnion Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_BinarySchema_VectorUnion = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_VectorUnion, TestData.Namespaces.TestData);
+
+        /// <summary>
         /// The identifier for the TestData_XmlSchema Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_XmlSchema = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema, TestData.Namespaces.TestData);
@@ -13064,6 +13174,16 @@ namespace TestData
         /// The identifier for the TestData_XmlSchema_UserArrayValueDataType Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_XmlSchema_UserArrayValueDataType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_UserArrayValueDataType, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_Vector Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_Vector = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_Vector, TestData.Namespaces.TestData);
+
+        /// <summary>
+        /// The identifier for the TestData_XmlSchema_VectorUnion Variable.
+        /// </summary>
+        public static readonly ExpandedNodeId TestData_XmlSchema_VectorUnion = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_VectorUnion, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -13488,6 +13608,16 @@ namespace TestData
         /// The BrowseName for the VariantValue component.
         /// </summary>
         public const string VariantValue = "VariantValue";
+
+        /// <summary>
+        /// The BrowseName for the Vector component.
+        /// </summary>
+        public const string Vector = "Vector";
+
+        /// <summary>
+        /// The BrowseName for the VectorUnion component.
+        /// </summary>
+        public const string VectorUnion = "VectorUnion";
 
         /// <summary>
         /// The BrowseName for the XmlElementDataType component.

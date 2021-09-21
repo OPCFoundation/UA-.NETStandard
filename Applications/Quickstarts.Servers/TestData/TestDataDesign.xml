@@ -586,6 +586,67 @@
     </opc:Children>
   </opc:ObjectType>
 
+  <opc:DataType SymbolicName="Vector" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="X" DataType="ua:Double" />
+      <opc:Field Name="Y" DataType="ua:Double" />
+      <opc:Field Name="Z" DataType="ua:Double" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="VectorUnion" BaseType="ua:Union" IsUnion="true">
+    <opc:Fields>
+      <opc:Field Name="X" DataType="ua:Double" />
+      <opc:Field Name="Y" DataType="ua:Double" />
+      <opc:Field Name="Z" DataType="ua:Double" />
+    </opc:Fields>
+  </opc:DataType>
+
+<!-- 
+  <opc:DataType SymbolicName="VectorWithOptionalFields" BaseType="ua:Structure" >
+    <opc:Fields>
+      <opc:Field Name="X" DataType="ua:Double" IsOptional="true" />
+      <opc:Field Name="Y" DataType="ua:Double" IsOptional="true" />
+      <opc:Field Name="Z" DataType="ua:Double" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WorkOrderStatusType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="Actor" DataType="ua:String" />
+      <opc:Field Name="Timestamp" DataType="ua:DateTime" />
+      <opc:Field Name="Comment" DataType="ua:LocalizedText" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="WorkOrderType" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="ID" DataType="ua:Guid" />
+      <opc:Field Name="AssetID" DataType="ua:String" />
+      <opc:Field Name="StartTime" DataType="ua:DateTime" />
+      <opc:Field Name="StatusComments" DataType="WorkOrderStatusType" ValueRank="Array" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
+    <opc:Fields>
+      <opc:Field Name="UInt32" DataType="ua:UInt32" />
+      <opc:Field Name="String" DataType="ua:String" ValueRank="Array" />
+      <opc:Field Name="ByteString" DataType="ua:ByteString" />
+      <opc:Field Name="WorkOrderType" DataType="WorkOrderType" />
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="SampleStructureWithOptionalFields" BaseType="ua:Structure">
+    <opc:Fields>
+      <opc:Field Name="UInt32" DataType="ua:UInt32" />
+      <opc:Field Name="String" DataType="ua:String" ValueRank="Array" IsOptional="true" />
+      <opc:Field Name="ByteString" DataType="ua:ByteString" />
+      <opc:Field Name="WorkOrderType" DataType="WorkOrderType" IsOptional="true" />
+    </opc:Fields>
+  </opc:DataType>
+-->
+  
   <opc:Method SymbolicName="UserArrayValue1MethodType" ModellingRule="Mandatory">
     <opc:InputArguments>
       <opc:Argument Name="BooleanIn" DataType="BooleanDataType" ValueRank="Array" />

@@ -48,4 +48,12 @@ UserScalarValueDataType_Encoding_DefaultJson,15049,Object
 UserScalarValueDataType_Encoding_DefaultXml,11420,Object
 UserScalarValueObjectType,9921,ObjectType
 VariantDataType,9919,DataType
+Vector,1,DataType
+Vector_Encoding_DefaultBinary,8,Object
+Vector_Encoding_DefaultJson,64,Object
+Vector_Encoding_DefaultXml,36,Object
+VectorUnion,2,DataType
+VectorUnion_Encoding_DefaultBinary,9,Object
+VectorUnion_Encoding_DefaultJson,65,Object
+VectorUnion_Encoding_DefaultXml,37,Object
 XmlElementDataType,9913,DataType

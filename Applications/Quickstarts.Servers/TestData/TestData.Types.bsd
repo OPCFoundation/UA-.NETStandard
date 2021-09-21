@@ -233,4 +233,16 @@
     <opc:Field Name="VariantDataType" TypeName="ua:Variant" LengthField="NoOfVariantDataType" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="Vector" BaseType="ua:ExtensionObject">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="VectorUnion" BaseType="ua:Union">
+    <opc:Field Name="X" TypeName="opc:Double" />
+    <opc:Field Name="Y" TypeName="opc:Double" />
+    <opc:Field Name="Z" TypeName="opc:Double" />
+  </opc:StructuredType>
+
 </opc:TypeDictionary>

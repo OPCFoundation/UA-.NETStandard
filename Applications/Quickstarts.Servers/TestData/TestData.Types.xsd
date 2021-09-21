@@ -213,4 +213,40 @@
   </xs:complexType>
   <xs:element name="ListOfUserArrayValueDataType" type="tns:ListOfUserArrayValueDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="Vector">
+    <xs:sequence>
+      <xs:element name="X" type="xs:double" minOccurs="0" />
+      <xs:element name="Y" type="xs:double" minOccurs="0" />
+      <xs:element name="Z" type="xs:double" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Vector" type="tns:Vector" />
+
+  <xs:complexType name="ListOfVector">
+    <xs:sequence>
+      <xs:element name="Vector" type="tns:Vector" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfVector" type="tns:ListOfVector" nillable="true"></xs:element>
+
+  <xs:complexType name="VectorUnion">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ua:Union">
+        <xs:sequence>
+          <xs:element name="X" type="xs:double" minOccurs="0" />
+          <xs:element name="Y" type="xs:double" minOccurs="0" />
+          <xs:element name="Z" type="xs:double" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="VectorUnion" type="tns:VectorUnion" />
+
+  <xs:complexType name="ListOfVectorUnion">
+    <xs:sequence>
+      <xs:element name="VectorUnion" type="tns:VectorUnion" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfVectorUnion" type="tns:ListOfVectorUnion" nillable="true"></xs:element>
+
 </xs:schema>
