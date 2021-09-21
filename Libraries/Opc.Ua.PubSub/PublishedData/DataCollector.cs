@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 if (publishedVariable.PublishedVariable != null)
                                 {
-                                    dataValue = m_dataStore.ReadPublishedDataItem(publishedVariable.PublishedVariable, publishedVariable.AttributeId, isDeltaFrame);
+                                    dataValue = m_dataStore.ReadPublishedDataItem(publishedVariable.PublishedVariable, publishedVariable.AttributeId);
                                 }
 
                                 if (dataValue == null)
