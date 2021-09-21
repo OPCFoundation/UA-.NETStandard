@@ -83,6 +83,7 @@ namespace MemoryBuffer
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -106,8 +107,8 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////xVgiQICAAAAAQAVAAAA" +
-           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6AwEB+gP6AwAAABj+////AQH/////AAAAAA==";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////xVggQICAAAAAQAVAAAA" +
+           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6AwEB+gP6AwAAABgBAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -214,6 +215,7 @@ namespace MemoryBuffer
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }

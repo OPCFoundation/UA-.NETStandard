@@ -13,14 +13,12 @@
       <uax:Name>FlowTo</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A reference that indicates a flow between two objects.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
       <uax:Identifier>i=32</uax:Identifier>
     </uax:SuperTypeId>
     <uax:InverseName>
-      <uax:Locale></uax:Locale>
       <uax:Text>FlowFrom</uax:Text>
     </uax:InverseName>
   </FlowTo>
@@ -34,14 +32,12 @@
       <uax:Name>HotFlowTo</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A reference that indicates a high temperature flow between two objects.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
       <uax:Identifier>ns=1;i=985</uax:Identifier>
     </uax:SuperTypeId>
     <uax:InverseName>
-      <uax:Locale></uax:Locale>
       <uax:Text>HotFlowFrom</uax:Text>
     </uax:InverseName>
   </HotFlowTo>
@@ -55,14 +51,12 @@
       <uax:Name>SignalTo</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A reference that indicates an electrical signal between two variables.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
       <uax:Identifier>i=32</uax:Identifier>
     </uax:SuperTypeId>
     <uax:InverseName>
-      <uax:Locale></uax:Locale>
       <uax:Text>SignalFrom</uax:Text>
     </uax:InverseName>
   </SignalTo>
@@ -76,7 +70,6 @@
       <uax:Name>GenericControllerType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A generic PID controller</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -171,7 +164,6 @@
       <uax:Name>GenericSensorType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A generic sensor that read a process value.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -240,7 +232,6 @@
       <uax:Name>GenericActuatorType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>Represents a piece of equipment that causes some action to occur.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -309,7 +300,6 @@
       <uax:Name>CustomControllerType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A custom PID controller with 3 inputs</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -456,7 +446,6 @@
       <uax:Name>ValveType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>An actuator that controls the flow through a pipe.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -473,7 +462,6 @@
       <uax:Name>LevelControllerType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A controller for the level of a fluid in a drum.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -490,7 +478,6 @@
       <uax:Name>FlowControllerType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A controller for the flow of a fluid through a pipe.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -507,7 +494,6 @@
       <uax:Name>LevelIndicatorType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A sensor that reports the level of a liquid in a tank.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -524,7 +510,6 @@
       <uax:Name>FlowTransmitterType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A sensor that reports the flow of a liquid through a pipe.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -541,7 +526,6 @@
       <uax:Name>BoilerStateMachineType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A program that produces simulated values for a running boiler.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -557,7 +541,6 @@
         <uax:Name>Start</uax:Name>
       </uax:BrowseName>
       <uax:Description>
-        <uax:Locale></uax:Locale>
         <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
       </uax:Description>
       <uax:ReferenceTypeId>
@@ -583,7 +566,6 @@
         <uax:Name>Suspend</uax:Name>
       </uax:BrowseName>
       <uax:Description>
-        <uax:Locale></uax:Locale>
         <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
       </uax:Description>
       <uax:ReferenceTypeId>
@@ -609,7 +591,6 @@
         <uax:Name>Resume</uax:Name>
       </uax:BrowseName>
       <uax:Description>
-        <uax:Locale></uax:Locale>
         <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
       </uax:Description>
       <uax:ReferenceTypeId>
@@ -635,7 +616,6 @@
         <uax:Name>Halt</uax:Name>
       </uax:BrowseName>
       <uax:Description>
-        <uax:Locale></uax:Locale>
         <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
       </uax:Description>
       <uax:ReferenceTypeId>
@@ -661,7 +641,6 @@
         <uax:Name>Reset</uax:Name>
       </uax:BrowseName>
       <uax:Description>
-        <uax:Locale></uax:Locale>
         <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
       </uax:Description>
       <uax:ReferenceTypeId>
@@ -687,7 +666,6 @@
         <uax:Name>UpdateRate</uax:Name>
       </uax:BrowseName>
       <uax:Description>
-        <uax:Locale></uax:Locale>
         <uax:Text>The rate at which the simulation runs.</uax:Text>
       </uax:Description>
       <uax:ReferenceTypeId>
@@ -1079,7 +1057,6 @@
       <uax:Name>BoilerType</uax:Name>
     </uax:BrowseName>
     <uax:Description>
-      <uax:Locale></uax:Locale>
       <uax:Text>A boiler used to produce steam for a turbine.</uax:Text>
     </uax:Description>
     <uax:SuperTypeId>
@@ -2352,7 +2329,6 @@
           <uax:Name>UpdateRate</uax:Name>
         </uax:BrowseName>
         <uax:Description>
-          <uax:Locale></uax:Locale>
           <uax:Text>The rate at which the simulation runs.</uax:Text>
         </uax:Description>
         <uax:ReferenceTypeId>
@@ -2382,7 +2358,6 @@
           <uax:Name>Start</uax:Name>
         </uax:BrowseName>
         <uax:Description>
-          <uax:Locale></uax:Locale>
           <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
         </uax:Description>
         <uax:ReferenceTypeId>
@@ -2408,7 +2383,6 @@
           <uax:Name>Suspend</uax:Name>
         </uax:BrowseName>
         <uax:Description>
-          <uax:Locale></uax:Locale>
           <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
         </uax:Description>
         <uax:ReferenceTypeId>
@@ -2434,7 +2408,6 @@
           <uax:Name>Resume</uax:Name>
         </uax:BrowseName>
         <uax:Description>
-          <uax:Locale></uax:Locale>
           <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
         </uax:Description>
         <uax:ReferenceTypeId>
@@ -2460,7 +2433,6 @@
           <uax:Name>Halt</uax:Name>
         </uax:BrowseName>
         <uax:Description>
-          <uax:Locale></uax:Locale>
           <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
         </uax:Description>
         <uax:ReferenceTypeId>
@@ -2486,7 +2458,6 @@
           <uax:Name>Reset</uax:Name>
         </uax:BrowseName>
         <uax:Description>
-          <uax:Locale></uax:Locale>
           <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
         </uax:Description>
         <uax:ReferenceTypeId>
@@ -2618,7 +2589,6 @@
           <uax:Name>PipeX001</uax:Name>
         </uax:BrowseName>
         <uax:DisplayName>
-          <uax:Locale></uax:Locale>
           <uax:Text>Pipe1001</uax:Text>
         </uax:DisplayName>
         <uax:ReferenceTypeId>
@@ -2835,7 +2805,6 @@
           <uax:Name>DrumX001</uax:Name>
         </uax:BrowseName>
         <uax:DisplayName>
-          <uax:Locale></uax:Locale>
           <uax:Text>Drum1001</uax:Text>
         </uax:DisplayName>
         <uax:ReferenceTypeId>
@@ -2978,7 +2947,6 @@
           <uax:Name>PipeX002</uax:Name>
         </uax:BrowseName>
         <uax:DisplayName>
-          <uax:Locale></uax:Locale>
           <uax:Text>Pipe1002</uax:Text>
         </uax:DisplayName>
         <uax:ReferenceTypeId>
@@ -3113,7 +3081,6 @@
           <uax:Name>FCX001</uax:Name>
         </uax:BrowseName>
         <uax:DisplayName>
-          <uax:Locale></uax:Locale>
           <uax:Text>FC1001</uax:Text>
         </uax:DisplayName>
         <uax:ReferenceTypeId>
@@ -3235,7 +3202,6 @@
           <uax:Name>LCX001</uax:Name>
         </uax:BrowseName>
         <uax:DisplayName>
-          <uax:Locale></uax:Locale>
           <uax:Text>LC1001</uax:Text>
         </uax:DisplayName>
         <uax:ReferenceTypeId>
@@ -3346,7 +3312,6 @@
           <uax:Name>CCX001</uax:Name>
         </uax:BrowseName>
         <uax:DisplayName>
-          <uax:Locale></uax:Locale>
           <uax:Text>CC1001</uax:Text>
         </uax:DisplayName>
         <uax:ReferenceTypeId>
@@ -3783,7 +3748,6 @@
             <uax:Name>UpdateRate</uax:Name>
           </uax:BrowseName>
           <uax:Description>
-            <uax:Locale></uax:Locale>
             <uax:Text>The rate at which the simulation runs.</uax:Text>
           </uax:Description>
           <uax:ReferenceTypeId>
@@ -3810,7 +3774,6 @@
             <uax:Name>Start</uax:Name>
           </uax:BrowseName>
           <uax:Description>
-            <uax:Locale></uax:Locale>
             <uax:Text>Causes the Program to transition from the Ready state to the Running state.</uax:Text>
           </uax:Description>
           <uax:ReferenceTypeId>
@@ -3833,7 +3796,6 @@
             <uax:Name>Suspend</uax:Name>
           </uax:BrowseName>
           <uax:Description>
-            <uax:Locale></uax:Locale>
             <uax:Text>Causes the Program to transition from the Running state to the Suspended state.</uax:Text>
           </uax:Description>
           <uax:ReferenceTypeId>
@@ -3856,7 +3818,6 @@
             <uax:Name>Resume</uax:Name>
           </uax:BrowseName>
           <uax:Description>
-            <uax:Locale></uax:Locale>
             <uax:Text>Causes the Program to transition from the Suspended state to the Running state.</uax:Text>
           </uax:Description>
           <uax:ReferenceTypeId>
@@ -3879,7 +3840,6 @@
             <uax:Name>Halt</uax:Name>
           </uax:BrowseName>
           <uax:Description>
-            <uax:Locale></uax:Locale>
             <uax:Text>Causes the Program to transition from the Ready, Running or Suspended state to the Halted state.</uax:Text>
           </uax:Description>
           <uax:ReferenceTypeId>
@@ -3902,7 +3862,6 @@
             <uax:Name>Reset</uax:Name>
           </uax:BrowseName>
           <uax:Description>
-            <uax:Locale></uax:Locale>
             <uax:Text>Causes the Program to transition from the Halted state to the Ready state.</uax:Text>
           </uax:Description>
           <uax:ReferenceTypeId>

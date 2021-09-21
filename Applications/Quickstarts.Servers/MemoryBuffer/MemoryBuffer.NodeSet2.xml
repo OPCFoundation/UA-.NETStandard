@@ -5,7 +5,7 @@
   </NamespaceUris>
   <Models>
     <Model ModelUri="http://samples.org/UA/memorybuffer">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.6" PublicationDate="2020-04-10T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.10" PublicationDate="2021-02-15T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>

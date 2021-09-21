@@ -67,6 +67,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -317,6 +318,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -474,6 +476,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -631,6 +634,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -975,6 +979,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1049,6 +1054,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1124,6 +1130,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1199,6 +1206,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1273,6 +1281,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1347,6 +1356,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1754,6 +1764,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1961,6 +1972,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -2119,6 +2131,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -2277,6 +2290,7 @@ namespace Boiler
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }

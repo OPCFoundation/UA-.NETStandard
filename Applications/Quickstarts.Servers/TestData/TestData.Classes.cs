@@ -69,6 +69,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -143,9 +144,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult GenerateValuesMethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         uint iterations);
     #endif
     #endregion
@@ -181,6 +182,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -391,6 +393,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -680,6 +683,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -820,9 +824,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult ScalarValue1MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         bool booleanIn,
         sbyte sByteIn,
         byte byteIn,
@@ -881,6 +885,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1016,9 +1021,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult ScalarValue2MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         string stringIn,
         DateTime dateTimeIn,
         Uuid guidIn,
@@ -1075,6 +1080,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -1167,9 +1173,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult ScalarValue3MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         object variantIn,
         int enumerationIn,
         ExtensionObject structureIn,
@@ -1210,6 +1216,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -2625,6 +2632,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -3397,6 +3405,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -3539,9 +3548,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult ArrayValue1MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         bool[] booleanIn,
         sbyte[] sByteIn,
         byte[] byteIn,
@@ -3600,6 +3609,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -3737,9 +3747,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult ArrayValue2MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         string[] stringIn,
         DateTime[] dateTimeIn,
         Uuid[] guidIn,
@@ -3796,6 +3806,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -3888,9 +3899,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult ArrayValue3MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         Variant[] variantIn,
         int[] enumerationIn,
         ExtensionObject[] structureIn,
@@ -3931,6 +3942,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -5350,6 +5362,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -6121,6 +6134,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -7304,6 +7318,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -7451,9 +7466,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult UserScalarValue1MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         bool booleanIn,
         sbyte sByteIn,
         byte byteIn,
@@ -7514,6 +7529,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -7650,9 +7666,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult UserScalarValue2MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         DateTime dateTimeIn,
         Uuid guidIn,
         byte[] byteStringIn,
@@ -7707,6 +7723,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -8893,6 +8910,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -9042,9 +9060,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult UserArrayValue1MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         bool[] booleanIn,
         sbyte[] sByteIn,
         byte[] byteIn,
@@ -9105,6 +9123,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -9243,9 +9262,9 @@ namespace TestData
     /// </summary>
     /// <exclude />
     public delegate ServiceResult UserArrayValue2MethodStateMethodCallHandler(
-        ISystemContext context,
-        MethodState method,
-        NodeId objectId,
+        ISystemContext _context,
+        MethodState _method,
+        NodeId _objectId,
         DateTime[] dateTimeIn,
         Uuid[] guidIn,
         byte[][] byteStringIn,
@@ -9300,6 +9319,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
@@ -10015,6 +10035,7 @@ namespace TestData
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
+            base.Initialize(context);
             Initialize(context, InitializationString);
             InitializeOptionalChildren(context);
         }
