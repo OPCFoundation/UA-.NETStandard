@@ -3400,4 +3400,1101 @@ namespace TestData
     #endregion
     #endif
     #endregion
+
+    #region WorkOrderStatusType Class
+    #if (!OPCUA_EXCLUDE_WorkOrderStatusType)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class WorkOrderStatusType : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public WorkOrderStatusType()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_actor = null;
+            m_timestamp = DateTime.MinValue;
+            m_comment = null;
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "Actor", IsRequired = false, Order = 1)]
+        public string Actor
+        {
+            get { return m_actor;  }
+            set { m_actor = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Timestamp", IsRequired = false, Order = 2)]
+        public DateTime Timestamp
+        {
+            get { return m_timestamp;  }
+            set { m_timestamp = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "Comment", IsRequired = false, Order = 3)]
+        public LocalizedText Comment
+        {
+            get { return m_comment;  }
+            set { m_comment = value; }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.WorkOrderStatusType; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.WorkOrderStatusType_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.WorkOrderStatusType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteString("Actor", Actor);
+            encoder.WriteDateTime("Timestamp", Timestamp);
+            encoder.WriteLocalizedText("Comment", Comment);
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            Actor = decoder.ReadString("Actor");
+            Timestamp = decoder.ReadDateTime("Timestamp");
+            Comment = decoder.ReadLocalizedText("Comment");
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            WorkOrderStatusType value = encodeable as WorkOrderStatusType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_actor, value.m_actor)) return false;
+            if (!Utils.IsEqual(m_timestamp, value.m_timestamp)) return false;
+            if (!Utils.IsEqual(m_comment, value.m_comment)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (WorkOrderStatusType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            WorkOrderStatusType clone = (WorkOrderStatusType)base.MemberwiseClone();
+
+            clone.m_actor = (string)Utils.Clone(this.m_actor);
+            clone.m_timestamp = (DateTime)Utils.Clone(this.m_timestamp);
+            clone.m_comment = (LocalizedText)Utils.Clone(this.m_comment);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private string m_actor;
+        private DateTime m_timestamp;
+        private LocalizedText m_comment;
+        #endregion
+    }
+
+    #region WorkOrderStatusTypeCollection Class
+    /// <summary>
+    /// A collection of WorkOrderStatusType objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfWorkOrderStatusType", Namespace = TestData.Namespaces.TestData, ItemName = "WorkOrderStatusType")]
+    #if !NET_STANDARD
+    public partial class WorkOrderStatusTypeCollection : List<WorkOrderStatusType>, ICloneable
+    #else
+    public partial class WorkOrderStatusTypeCollection : List<WorkOrderStatusType>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public WorkOrderStatusTypeCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public WorkOrderStatusTypeCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public WorkOrderStatusTypeCollection(IEnumerable<WorkOrderStatusType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator WorkOrderStatusTypeCollection(WorkOrderStatusType[] values)
+        {
+            if (values != null)
+            {
+                return new WorkOrderStatusTypeCollection(values);
+            }
+
+            return new WorkOrderStatusTypeCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator WorkOrderStatusType[](WorkOrderStatusTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (WorkOrderStatusTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            WorkOrderStatusTypeCollection clone = new WorkOrderStatusTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((WorkOrderStatusType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region WorkOrderType Class
+    #if (!OPCUA_EXCLUDE_WorkOrderType)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class WorkOrderType : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public WorkOrderType()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_iD = Uuid.Empty;
+            m_assetID = null;
+            m_startTime = DateTime.MinValue;
+            m_statusComments = new WorkOrderStatusTypeCollection();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "ID", IsRequired = false, Order = 1)]
+        public Uuid ID
+        {
+            get { return m_iD;  }
+            set { m_iD = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "AssetID", IsRequired = false, Order = 2)]
+        public string AssetID
+        {
+            get { return m_assetID;  }
+            set { m_assetID = value; }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "StartTime", IsRequired = false, Order = 3)]
+        public DateTime StartTime
+        {
+            get { return m_startTime;  }
+            set { m_startTime = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(Name = "StatusComments", IsRequired = false, Order = 4)]
+        public WorkOrderStatusTypeCollection StatusComments
+        {
+            get
+            {
+                return m_statusComments;
+            }
+
+            set
+            {
+                m_statusComments = value;
+
+                if (value == null)
+                {
+                    m_statusComments = new WorkOrderStatusTypeCollection();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.WorkOrderType; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.WorkOrderType_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.WorkOrderType_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteGuid("ID", ID);
+            encoder.WriteString("AssetID", AssetID);
+            encoder.WriteDateTime("StartTime", StartTime);
+            encoder.WriteEncodeableArray("StatusComments", StatusComments.ToArray(), typeof(WorkOrderStatusType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            ID = decoder.ReadGuid("ID");
+            AssetID = decoder.ReadString("AssetID");
+            StartTime = decoder.ReadDateTime("StartTime");
+            StatusComments = (WorkOrderStatusTypeCollection)decoder.ReadEncodeableArray("StatusComments", typeof(WorkOrderStatusType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            WorkOrderType value = encodeable as WorkOrderType;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_iD, value.m_iD)) return false;
+            if (!Utils.IsEqual(m_assetID, value.m_assetID)) return false;
+            if (!Utils.IsEqual(m_startTime, value.m_startTime)) return false;
+            if (!Utils.IsEqual(m_statusComments, value.m_statusComments)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (WorkOrderType)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            WorkOrderType clone = (WorkOrderType)base.MemberwiseClone();
+
+            clone.m_iD = (Uuid)Utils.Clone(this.m_iD);
+            clone.m_assetID = (string)Utils.Clone(this.m_assetID);
+            clone.m_startTime = (DateTime)Utils.Clone(this.m_startTime);
+            clone.m_statusComments = (WorkOrderStatusTypeCollection)Utils.Clone(this.m_statusComments);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private Uuid m_iD;
+        private string m_assetID;
+        private DateTime m_startTime;
+        private WorkOrderStatusTypeCollection m_statusComments;
+        #endregion
+    }
+
+    #region WorkOrderTypeCollection Class
+    /// <summary>
+    /// A collection of WorkOrderType objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfWorkOrderType", Namespace = TestData.Namespaces.TestData, ItemName = "WorkOrderType")]
+    #if !NET_STANDARD
+    public partial class WorkOrderTypeCollection : List<WorkOrderType>, ICloneable
+    #else
+    public partial class WorkOrderTypeCollection : List<WorkOrderType>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public WorkOrderTypeCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public WorkOrderTypeCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public WorkOrderTypeCollection(IEnumerable<WorkOrderType> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator WorkOrderTypeCollection(WorkOrderType[] values)
+        {
+            if (values != null)
+            {
+                return new WorkOrderTypeCollection(values);
+            }
+
+            return new WorkOrderTypeCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator WorkOrderType[](WorkOrderTypeCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (WorkOrderTypeCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            WorkOrderTypeCollection clone = new WorkOrderTypeCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((WorkOrderType)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region SampleUnion Class
+    #if (!OPCUA_EXCLUDE_SampleUnion)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class SampleUnion : Union
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public SampleUnion()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_fieldA = (uint)0;
+            m_fieldB = new StringCollection();
+            m_fieldC = null;
+            m_fieldD = new WorkOrderType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "FieldA", IsRequired = false, Order = 1)]
+        public uint FieldA
+        {
+            get { return m_fieldA;  }
+            set { m_fieldA = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(Name = "FieldB", IsRequired = false, Order = 2)]
+        public StringCollection FieldB
+        {
+            get
+            {
+                return m_fieldB;
+            }
+
+            set
+            {
+                m_fieldB = value;
+
+                if (value == null)
+                {
+                    m_fieldB = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "FieldC", IsRequired = false, Order = 3)]
+        public byte[] FieldC
+        {
+            get { return m_fieldC;  }
+            set { m_fieldC = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(Name = "FieldD", IsRequired = false, Order = 4)]
+        public WorkOrderType FieldD
+        {
+            get
+            {
+                return m_fieldD;
+            }
+
+            set
+            {
+                m_fieldD = value;
+
+                if (value == null)
+                {
+                    m_fieldD = new WorkOrderType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public override ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.SampleUnion; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public override ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.SampleUnion_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public override ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.SampleUnion_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public override void Encode(IEncoder encoder)
+        {
+            base.Encode(encoder);
+
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteUInt32("FieldA", FieldA);
+            encoder.WriteStringArray("FieldB", FieldB);
+            encoder.WriteByteString("FieldC", FieldC);
+            encoder.WriteEncodeable("FieldD", FieldD, typeof(WorkOrderType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public override void Decode(IDecoder decoder)
+        {
+            base.Decode(decoder);
+
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            FieldA = decoder.ReadUInt32("FieldA");
+            FieldB = decoder.ReadStringArray("FieldB");
+            FieldC = decoder.ReadByteString("FieldC");
+            FieldD = (WorkOrderType)decoder.ReadEncodeable("FieldD", typeof(WorkOrderType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public override bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            SampleUnion value = encodeable as SampleUnion;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!base.IsEqual(encodeable)) return false;
+            if (!Utils.IsEqual(m_fieldA, value.m_fieldA)) return false;
+            if (!Utils.IsEqual(m_fieldB, value.m_fieldB)) return false;
+            if (!Utils.IsEqual(m_fieldC, value.m_fieldC)) return false;
+            if (!Utils.IsEqual(m_fieldD, value.m_fieldD)) return false;
+
+            return true;
+        }    
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public override object Clone()
+        {
+            return (SampleUnion)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SampleUnion clone = (SampleUnion)base.MemberwiseClone();
+
+            clone.m_fieldA = (uint)Utils.Clone(this.m_fieldA);
+            clone.m_fieldB = (StringCollection)Utils.Clone(this.m_fieldB);
+            clone.m_fieldC = (byte[])Utils.Clone(this.m_fieldC);
+            clone.m_fieldD = (WorkOrderType)Utils.Clone(this.m_fieldD);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_fieldA;
+        private StringCollection m_fieldB;
+        private byte[] m_fieldC;
+        private WorkOrderType m_fieldD;
+        #endregion
+    }
+
+    #region SampleUnionCollection Class
+    /// <summary>
+    /// A collection of SampleUnion objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfSampleUnion", Namespace = TestData.Namespaces.TestData, ItemName = "SampleUnion")]
+    #if !NET_STANDARD
+    public partial class SampleUnionCollection : List<SampleUnion>, ICloneable
+    #else
+    public partial class SampleUnionCollection : List<SampleUnion>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public SampleUnionCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public SampleUnionCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public SampleUnionCollection(IEnumerable<SampleUnion> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator SampleUnionCollection(SampleUnion[] values)
+        {
+            if (values != null)
+            {
+                return new SampleUnionCollection(values);
+            }
+
+            return new SampleUnionCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator SampleUnion[](SampleUnionCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (SampleUnionCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SampleUnionCollection clone = new SampleUnionCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((SampleUnion)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
+
+    #region SampleStructureWithOptionalFields Class
+    #if (!OPCUA_EXCLUDE_SampleStructureWithOptionalFields)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [DataContract(Namespace = TestData.Namespaces.TestData)]
+    public partial class SampleStructureWithOptionalFields : IEncodeable
+    {
+        #region Constructors
+        /// <summary>
+        /// The default constructor.
+        /// </summary>
+        public SampleStructureWithOptionalFields()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Called by the .NET framework during deserialization.
+        /// </summary>
+        [OnDeserializing]
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_fieldA = (uint)0;
+            m_fieldB = new StringCollection();
+            m_fieldC = null;
+            m_fieldD = new WorkOrderType();
+        }
+        #endregion
+
+        #region Public Properties
+        /// <remarks />
+        [DataMember(Name = "FieldA", IsRequired = false, Order = 1)]
+        public uint FieldA
+        {
+            get { return m_fieldA;  }
+            set { m_fieldA = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(Name = "FieldB", IsRequired = false, Order = 2)]
+        public StringCollection FieldB
+        {
+            get
+            {
+                return m_fieldB;
+            }
+
+            set
+            {
+                m_fieldB = value;
+
+                if (value == null)
+                {
+                    m_fieldB = new StringCollection();
+                }
+            }
+        }
+
+        /// <remarks />
+        [DataMember(Name = "FieldC", IsRequired = false, Order = 3)]
+        public byte[] FieldC
+        {
+            get { return m_fieldC;  }
+            set { m_fieldC = value; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        [DataMember(Name = "FieldD", IsRequired = false, Order = 4)]
+        public WorkOrderType FieldD
+        {
+            get
+            {
+                return m_fieldD;
+            }
+
+            set
+            {
+                m_fieldD = value;
+
+                if (value == null)
+                {
+                    m_fieldD = new WorkOrderType();
+                }
+            }
+        }
+        #endregion
+
+        #region IEncodeable Members
+        /// <summary cref="IEncodeable.TypeId" />
+        public virtual ExpandedNodeId TypeId
+        {
+            get { return DataTypeIds.SampleStructureWithOptionalFields; }
+        }
+
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        public virtual ExpandedNodeId BinaryEncodingId
+        {
+            get { return ObjectIds.SampleStructureWithOptionalFields_Encoding_DefaultBinary; }
+        }
+
+        /// <summary cref="IEncodeable.XmlEncodingId" />
+        public virtual ExpandedNodeId XmlEncodingId
+        {
+            get { return ObjectIds.SampleStructureWithOptionalFields_Encoding_DefaultXml; }
+        }
+
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        public virtual void Encode(IEncoder encoder)
+        {
+            encoder.PushNamespace(TestData.Namespaces.TestData);
+
+            encoder.WriteUInt32("FieldA", FieldA);
+            encoder.WriteStringArray("FieldB", FieldB);
+            encoder.WriteByteString("FieldC", FieldC);
+            encoder.WriteEncodeable("FieldD", FieldD, typeof(WorkOrderType));
+
+            encoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        public virtual void Decode(IDecoder decoder)
+        {
+            decoder.PushNamespace(TestData.Namespaces.TestData);
+
+            FieldA = decoder.ReadUInt32("FieldA");
+            FieldB = decoder.ReadStringArray("FieldB");
+            FieldC = decoder.ReadByteString("FieldC");
+            FieldD = (WorkOrderType)decoder.ReadEncodeable("FieldD", typeof(WorkOrderType));
+
+            decoder.PopNamespace();
+        }
+
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        public virtual bool IsEqual(IEncodeable encodeable)
+        {
+            if (Object.ReferenceEquals(this, encodeable))
+            {
+                return true;
+            }
+
+            SampleStructureWithOptionalFields value = encodeable as SampleStructureWithOptionalFields;
+
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (!Utils.IsEqual(m_fieldA, value.m_fieldA)) return false;
+            if (!Utils.IsEqual(m_fieldB, value.m_fieldB)) return false;
+            if (!Utils.IsEqual(m_fieldC, value.m_fieldC)) return false;
+            if (!Utils.IsEqual(m_fieldD, value.m_fieldD)) return false;
+
+            return true;
+        }
+
+        #if !NET_STANDARD
+        /// <summary cref="ICloneable.Clone" />
+        public virtual object Clone()
+        {
+            return (SampleStructureWithOptionalFields)this.MemberwiseClone();
+        }
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SampleStructureWithOptionalFields clone = (SampleStructureWithOptionalFields)base.MemberwiseClone();
+
+            clone.m_fieldA = (uint)Utils.Clone(this.m_fieldA);
+            clone.m_fieldB = (StringCollection)Utils.Clone(this.m_fieldB);
+            clone.m_fieldC = (byte[])Utils.Clone(this.m_fieldC);
+            clone.m_fieldD = (WorkOrderType)Utils.Clone(this.m_fieldD);
+
+            return clone;
+        }
+        #endregion
+
+        #region Private Fields
+        private uint m_fieldA;
+        private StringCollection m_fieldB;
+        private byte[] m_fieldC;
+        private WorkOrderType m_fieldD;
+        #endregion
+    }
+
+    #region SampleStructureWithOptionalFieldsCollection Class
+    /// <summary>
+    /// A collection of SampleStructureWithOptionalFields objects.
+    /// </summary>
+    /// <exclude />
+    [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
+    [CollectionDataContract(Name = "ListOfSampleStructureWithOptionalFields", Namespace = TestData.Namespaces.TestData, ItemName = "SampleStructureWithOptionalFields")]
+    #if !NET_STANDARD
+    public partial class SampleStructureWithOptionalFieldsCollection : List<SampleStructureWithOptionalFields>, ICloneable
+    #else
+    public partial class SampleStructureWithOptionalFieldsCollection : List<SampleStructureWithOptionalFields>
+    #endif
+    {
+        #region Constructors
+        /// <summary>
+        /// Initializes the collection with default values.
+        /// </summary>
+        public SampleStructureWithOptionalFieldsCollection() {}
+
+        /// <summary>
+        /// Initializes the collection with an initial capacity.
+        /// </summary>
+        public SampleStructureWithOptionalFieldsCollection(int capacity) : base(capacity) {}
+
+        /// <summary>
+        /// Initializes the collection with another collection.
+        /// </summary>
+        public SampleStructureWithOptionalFieldsCollection(IEnumerable<SampleStructureWithOptionalFields> collection) : base(collection) {}
+        #endregion
+
+        #region Static Operators
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator SampleStructureWithOptionalFieldsCollection(SampleStructureWithOptionalFields[] values)
+        {
+            if (values != null)
+            {
+                return new SampleStructureWithOptionalFieldsCollection(values);
+            }
+
+            return new SampleStructureWithOptionalFieldsCollection();
+        }
+
+        /// <summary>
+        /// Converts a collection to an array.
+        /// </summary>
+        public static explicit operator SampleStructureWithOptionalFields[](SampleStructureWithOptionalFieldsCollection values)
+        {
+            if (values != null)
+            {
+                return values.ToArray();
+            }
+
+            return null;
+        }
+        #endregion
+
+        #if !NET_STANDARD
+        #region ICloneable Methods
+        /// <summary>
+        /// Creates a deep copy of the collection.
+        /// </summary>
+        public object Clone()
+        {
+            return (SampleStructureWithOptionalFieldsCollection)this.MemberwiseClone();
+        }
+        #endregion
+        #endif
+
+        /// <summary cref="Object.MemberwiseClone" />
+        public new object MemberwiseClone()
+        {
+            SampleStructureWithOptionalFieldsCollection clone = new SampleStructureWithOptionalFieldsCollection(this.Count);
+
+            for (int ii = 0; ii < this.Count; ii++)
+            {
+                clone.Add((SampleStructureWithOptionalFields)Utils.Clone(this[ii]));
+            }
+
+            return clone;
+        }
+    }
+    #endregion
+    #endif
+    #endregion
 }

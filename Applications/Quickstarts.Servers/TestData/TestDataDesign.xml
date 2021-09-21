@@ -602,7 +602,7 @@
     </opc:Fields>
   </opc:DataType>
 
-<!-- 
+<!-- TODO
   <opc:DataType SymbolicName="VectorWithOptionalFields" BaseType="ua:Structure" >
     <opc:Fields>
       <opc:Field Name="X" DataType="ua:Double" IsOptional="true" />
@@ -610,7 +610,7 @@
       <opc:Field Name="Z" DataType="ua:Double" IsOptional="true" />
     </opc:Fields>
   </opc:DataType>
-
+-->
   <opc:DataType SymbolicName="WorkOrderStatusType" BaseType="ua:Structure">
     <opc:Fields>
       <opc:Field Name="Actor" DataType="ua:String" />
@@ -630,19 +630,19 @@
 
   <opc:DataType SymbolicName="SampleUnion" BaseType="ua:Union" IsUnion="true">
     <opc:Fields>
-      <opc:Field Name="UInt32" DataType="ua:UInt32" />
-      <opc:Field Name="String" DataType="ua:String" ValueRank="Array" />
-      <opc:Field Name="ByteString" DataType="ua:ByteString" />
-      <opc:Field Name="WorkOrderType" DataType="WorkOrderType" />
+      <opc:Field Name="FieldA" DataType="ua:UInt32" />
+      <opc:Field Name="FieldB" DataType="ua:String" ValueRank="Array" />
+      <opc:Field Name="FieldC" DataType="ua:ByteString" />
+      <opc:Field Name="FieldD" DataType="WorkOrderType" />
     </opc:Fields>
   </opc:DataType>
 
   <opc:DataType SymbolicName="SampleStructureWithOptionalFields" BaseType="ua:Structure">
     <opc:Fields>
-      <opc:Field Name="UInt32" DataType="ua:UInt32" />
-      <opc:Field Name="String" DataType="ua:String" ValueRank="Array" IsOptional="true" />
-      <opc:Field Name="ByteString" DataType="ua:ByteString" />
-      <opc:Field Name="WorkOrderType" DataType="WorkOrderType" IsOptional="true" />
+      <opc:Field Name="FieldA" DataType="ua:UInt32" />
+      <opc:Field Name="FieldB" DataType="ua:String" ValueRank="Array" IsOptional="true" />
+      <opc:Field Name="FieldC" DataType="ua:ByteString" />
+      <opc:Field Name="FieldD" DataType="WorkOrderType" IsOptional="true" />
     </opc:Fields>
   </opc:DataType>
 -->

@@ -245,4 +245,34 @@
     <opc:Field Name="Z" TypeName="opc:Double" />
   </opc:StructuredType>
 
+  <opc:StructuredType Name="WorkOrderStatusType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="Actor" TypeName="opc:String" />
+    <opc:Field Name="Timestamp" TypeName="opc:DateTime" />
+    <opc:Field Name="Comment" TypeName="ua:LocalizedText" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="WorkOrderType" BaseType="ua:ExtensionObject">
+    <opc:Field Name="ID" TypeName="opc:Guid" />
+    <opc:Field Name="AssetID" TypeName="opc:String" />
+    <opc:Field Name="StartTime" TypeName="opc:DateTime" />
+    <opc:Field Name="NoOfStatusComments" TypeName="opc:Int32" />
+    <opc:Field Name="StatusComments" TypeName="tns:WorkOrderStatusType" LengthField="NoOfStatusComments" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="SampleUnion" BaseType="ua:Union">
+    <opc:Field Name="FieldA" TypeName="opc:UInt32" />
+    <opc:Field Name="NoOfFieldB" TypeName="opc:Int32" />
+    <opc:Field Name="FieldB" TypeName="opc:String" LengthField="NoOfFieldB" />
+    <opc:Field Name="FieldC" TypeName="opc:ByteString" />
+    <opc:Field Name="FieldD" TypeName="tns:WorkOrderType" />
+  </opc:StructuredType>
+
+  <opc:StructuredType Name="SampleStructureWithOptionalFields" BaseType="ua:ExtensionObject">
+    <opc:Field Name="FieldA" TypeName="opc:UInt32" />
+    <opc:Field Name="NoOfFieldB" TypeName="opc:Int32" />
+    <opc:Field Name="FieldB" TypeName="opc:String" LengthField="NoOfFieldB" />
+    <opc:Field Name="FieldC" TypeName="opc:ByteString" />
+    <opc:Field Name="FieldD" TypeName="tns:WorkOrderType" />
+  </opc:StructuredType>
+
 </opc:TypeDictionary>
