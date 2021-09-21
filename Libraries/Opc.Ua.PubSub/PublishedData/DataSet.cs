@@ -81,15 +81,21 @@ namespace Opc.Ua.PubSub.PublishedData
             DataSet copy = base.MemberwiseClone() as DataSet;
             if (DataSetMetaData != null)
             {
-                copy.DataSetMetaData = DataSetMetaData.MemberwiseClone() as DataSetMetaDataType;
+                if (copy != null)
+                {
+                    copy.DataSetMetaData = DataSetMetaData.MemberwiseClone() as DataSetMetaDataType;
+                }
             }
 
             if (Fields != null)
             {
-                copy.Fields = new Field[Fields.Length];
-                for (int i = 0; i < Fields.Length; i++)
+                if (copy != null)
                 {
-                    copy.Fields[i] = Fields[i].MemberwiseClone() as Field;
+                    copy.Fields = new Field[Fields.Length];
+                    for (int i = 0; i < Fields.Length; i++)
+                    {
+                        copy.Fields[i] = Fields[i].MemberwiseClone() as Field;
+                    }
                 }
             }
             return copy;

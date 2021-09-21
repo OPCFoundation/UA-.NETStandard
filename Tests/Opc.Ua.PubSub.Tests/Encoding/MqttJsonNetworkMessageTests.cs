@@ -1818,8 +1818,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             UInt16 dataSetWriterIdValue = 0;
             UInt32 sequenceNumberValue = 0;
-            ConfigurationVersionDataType configurationVersion = new ConfigurationVersionDataType();
-            DateTime timeStampValue = new DateTime();
             StatusCode statusValue = StatusCodes.Good;
             FieldTypeEncodingMask fieldTypeEncoding = FieldTypeEncodingMask.Reserved;
             Dictionary<string, object> dataSetPayload = null;
@@ -1837,7 +1835,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 {
                     // this is a SingleDataSetMessage encoded as the content of Messages 
                     jsonDecoder.PushStructure(NetworkMessageMessages);
-                    messagesList = new List<object>();
                 }
                 else
                 {
@@ -1846,20 +1843,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             else if (jsonDecoder.ReadField(JsonDecoder.RootArrayName, out messagesToken))
             {
-                messagesList = messagesToken as List<object>;
                 messagesListName = JsonDecoder.RootArrayName;
             }
-            else
-            {
-                // this is a SingleDataSetMessage encoded as the content json 
-                messagesList = new List<object>();
-            }
-
+            // else this is a SingleDataSetMessage encoded as the content json 
             if (!string.IsNullOrEmpty(messagesListName))
             {
                 int index = 0;
-                foreach (JsonDataSetMessage jsonDataSetMessage in jsonNetworkMessage.DataSetMessages)
+                foreach (var uaDataSetMessage in jsonNetworkMessage.DataSetMessages)
                 {
+                    var jsonDataSetMessage = (JsonDataSetMessage) uaDataSetMessage;
                     if (jsonDataSetMessage.FieldContentMask == DataSetFieldContentMask.None)
                     {
                         fieldTypeEncoding = FieldTypeEncodingMask.Variant;
@@ -1912,7 +1904,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                 object decodedFieldValue = null;
                                 foreach (Field field in jsonDataSetMessage.DataSet.Fields)
                                 {
-                                    Assert.IsTrue(dataSetPayload.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
+                                    Assert.IsTrue(dataSetPayload?.Keys.Any(key => key == field.FieldMetaData.Name), "Decoded Field: {0} not found", field.FieldMetaData.Name);
                                     Assert.IsNotNull(dataSetPayload[field.FieldMetaData.Name], "Decoded Field: {0} is not null", field.FieldMetaData.Name);
 
                                     if (jsonDecoder.ReadField(field.FieldMetaData.Name, out token))
@@ -2045,15 +2037,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
                         if (jsonDecoder.ReadField(DataSetMessageMetaDataVersion, out token))
                         {
-                            configurationVersion = jsonDecoder.ReadEncodeable(DataSetMessageMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
+                            ConfigurationVersionDataType configurationVersion = jsonDecoder.ReadEncodeable(DataSetMessageMetaDataVersion, typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
                             Assert.IsTrue(Utils.IsEqual(jsonDataSetMessage.MetaDataVersion, configurationVersion), "jsonDataSetMessage.MetaDataVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
                             string.Format("MajorVersion: {0}, MinorVersion: {1}", jsonDataSetMessage.MetaDataVersion.MajorVersion, jsonDataSetMessage.MetaDataVersion.MinorVersion),
-                            string.Format("MajorVersion: {0}, MinorVersion: {1}", configurationVersion.MajorVersion, configurationVersion.MinorVersion));
+                            string.Format("MajorVersion: {0}, MinorVersion: {1}", configurationVersion?.MajorVersion, configurationVersion?.MinorVersion));
                         }
 
                         if (jsonDecoder.ReadField(DataSetMessageTimestamp, out token))
                         {
-                            timeStampValue = jsonDecoder.ReadDateTime(DataSetMessageTimestamp);
+                            DateTime timeStampValue = jsonDecoder.ReadDateTime(DataSetMessageTimestamp);
                             Assert.AreEqual(jsonDataSetMessage.Timestamp, timeStampValue, "jsonDataSetMessage.Timestamp was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.Timestamp, timeStampValue);
                         }
 

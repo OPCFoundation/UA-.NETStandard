@@ -63,12 +63,18 @@ namespace Opc.Ua.PubSub.PublishedData
             Field copy = base.MemberwiseClone() as Field;
             if (Value != null)
             {
-                copy.Value = Value.MemberwiseClone() as DataValue;
+                if (copy != null)
+                {
+                    copy.Value = Value.MemberwiseClone() as DataValue;
+                }
             }
 
             if (FieldMetaData != null)
             {
-                copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;               
+                if (copy != null)
+                {
+                    copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;
+                }
             }
             return copy;
         }

@@ -113,7 +113,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             else
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The current MessageMapping ({0}} does not have a valid message creator", m_messageMapping);
+                Utils.Trace(Utils.TraceMasks.Error, "The current MessageMapping {0} does not have a valid message creator", m_messageMapping);
             }
             Utils.Trace("MqttPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }

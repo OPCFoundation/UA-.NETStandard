@@ -825,6 +825,8 @@ namespace Opc.Ua.PubSub.Encoding
 
             // temporary write StatusCode.Good 
             StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
+            Utils.Trace("DecodeMetaDataMessage returned: ", statusCode);
+
         }
 
         /// <summary>

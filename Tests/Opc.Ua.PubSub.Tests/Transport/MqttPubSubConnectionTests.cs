@@ -285,10 +285,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 Assert.Fail("The JSON metadata message was not received");
             }
-            if (!m_uaConfigurationUpdateEvent.WaitOne(EstimatedPublishingTime))
-            {
-               // Assert.Fail("The JSON configuration update message was not received");
-            }
 
             subscriberConnection.Stop();
             publisherConnection.Stop();

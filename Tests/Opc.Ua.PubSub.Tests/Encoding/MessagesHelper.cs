@@ -2744,8 +2744,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     nullableObject = (T)conv.ConvertFrom(valueString);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                Utils.Trace("ConvertToNullable has thrown: ", ex.Message);
             }
 
             return nullableObject;

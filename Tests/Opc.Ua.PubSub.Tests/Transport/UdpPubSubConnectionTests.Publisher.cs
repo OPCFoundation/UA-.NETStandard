@@ -365,7 +365,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 // points towards whoever had sent the message:
                 IPEndPoint source = new IPEndPoint(0, 0);
                 // get the actual message and fill out the source:
-                socket.EndReceive(result, ref source);
+                socket?.EndReceive(result, ref source);
 
                 if (IsHostAddress(source.Address.ToString()))
                 {
@@ -375,7 +375,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 }
 
                 // schedule the next receive operation once reading is done:
-                socket.BeginReceive(new AsyncCallback(OnReceive), socket);
+                socket?.BeginReceive(new AsyncCallback(OnReceive), socket);
             }
             catch (Exception ex)
             {
