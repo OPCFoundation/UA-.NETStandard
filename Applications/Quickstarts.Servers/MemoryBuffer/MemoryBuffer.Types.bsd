@@ -2,9 +2,9 @@
   xmlns:opc="http://opcfoundation.org/BinarySchema/"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/"
-  xmlns:tns="http://samples.org/UA/memorybuffer"
+  xmlns:tns="http://samples.org/UA/MemoryBuffer"
   DefaultByteOrder="LittleEndian"
-  TargetNamespace="http://samples.org/UA/memorybuffer"
+  TargetNamespace="http://samples.org/UA/MemoryBuffer"
 >
   <opc:Import Namespace="http://opcfoundation.org/UA/" Location="Opc.Ua.BinarySchema.bsd"/>
 

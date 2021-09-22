@@ -107,7 +107,7 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////xVggQICAAAAAQAVAAAA" +
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////xVggQICAAAAAQAVAAAA" +
            "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6AwEB+gP6AwAAABgBAf////8AAAAA";
         #endregion
         #endif
@@ -239,7 +239,7 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvbWVtb3J5YnVmZmVy/////wRggAIBAAAAAQAYAAAA" +
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////wRggAIBAAAAAQAYAAAA" +
            "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHoAwEB6APoAwAA/////wIAAAAVYKkKAgAAAAEADAAAAFN0" +
            "YXJ0QWRkcmVzcwEB6wMALgBE6wMAAAcAAAAAAAf/////AQH/////AAAAABVgqQoCAAAAAQALAAAAU2l6" +
            "ZUluQnl0ZXMBAewDAC4AROwDAAAHABAAAAAH/////wEB/////wAAAAA=";
@@ -248,7 +248,9 @@ namespace MemoryBuffer
         #endregion
 
         #region Public Properties
-        /// <remarks />
+        /// <summary>
+        /// The start address of the memory buffer.
+        /// </summary>
         public PropertyState<uint> StartAddress
         {
             get
@@ -267,7 +269,9 @@ namespace MemoryBuffer
             }
         }
 
-        /// <remarks />
+        /// <summary>
+        /// The size of the memory buffers in bytes.
+        /// </summary>
         public PropertyState<uint> SizeInBytes
         {
             get

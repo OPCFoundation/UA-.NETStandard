@@ -5,12 +5,12 @@
 	xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
 	xmlns:ua="http://opcfoundation.org/UA/"
 	xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
-	xmlns="http://samples.org/UA/memorybuffer"
-	TargetNamespace="http://samples.org/UA/memorybuffer"
+	xmlns="http://samples.org/UA/MemoryBuffer"
+	TargetNamespace="http://samples.org/UA/MemoryBuffer"
 >
   <opc:Namespaces>
     <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
-    <opc:Namespace Name="MemoryBuffer" Prefix="MemoryBuffer">http://samples.org/UA/memorybuffer</opc:Namespace>
+    <opc:Namespace Name="MemoryBuffer" Prefix="MemoryBuffer">http://samples.org/UA/MemoryBuffer</opc:Namespace>
   </opc:Namespaces>
 
 	<opc:VariableType SymbolicName="MemoryTagType" BaseType="ua:BaseDataVariableType">

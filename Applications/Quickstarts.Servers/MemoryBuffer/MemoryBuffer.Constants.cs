@@ -221,7 +221,7 @@ namespace MemoryBuffer
         /// <summary>
         /// The URI for the MemoryBuffer namespace (.NET code namespace is 'MemoryBuffer').
         /// </summary>
-        public const string MemoryBuffer = "http://samples.org/UA/memorybuffer";
+        public const string MemoryBuffer = "http://samples.org/UA/MemoryBuffer";
     }
     #endregion
 }

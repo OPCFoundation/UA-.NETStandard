@@ -2,7 +2,7 @@
 <NodeSet xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <NamespaceUris>
     <String>http://opcfoundation.org/UA/</String>
-    <String>http://samples.org/UA/memorybuffer</String>
+    <String>http://samples.org/UA/MemoryBuffer</String>
   </NamespaceUris>
   <ServerUris />
   <Nodes>

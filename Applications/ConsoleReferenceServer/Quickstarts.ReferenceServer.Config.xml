@@ -258,7 +258,28 @@
       <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
       <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
     </OperationLimits>
+
   </ServerConfiguration>
+
+  <Extensions>
+    <ua:XmlElement>
+      <MemoryBufferConfiguration xmlns="http://samples.org/UA/MemoryBuffer">
+        <Buffers>
+          <MemoryBufferInstance>
+            <Name>UInt32</Name>
+            <TagCount>100</TagCount>
+            <DataType>UInt32</DataType>
+          </MemoryBufferInstance>
+          <MemoryBufferInstance>
+            <Name>Double</Name>
+            <TagCount>100</TagCount>
+            <DataType>Double</DataType>
+          </MemoryBufferInstance>
+        </Buffers>
+      </MemoryBufferConfiguration>
+    </ua:XmlElement>
+  </Extensions>
+
   <TraceConfiguration>
     <OutputFilePath>%LocalApplicationData%/OPC Foundation/Logs/Quickstarts.ReferenceServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>

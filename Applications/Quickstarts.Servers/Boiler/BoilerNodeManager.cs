@@ -31,11 +31,23 @@ using System.Collections.Generic;
 using Opc.Ua;
 using System.Reflection;
 using Opc.Ua.Sample;
+using Opc.Ua.Server;
 
 namespace Boiler
 {
     /// <summary>
-    /// A node manager the diagnostic information exposed by the server.
+    /// The factory class to create the boiler node manager.
+    /// </summary>
+    public class BoilerNodeManagerFactory : INodeManagerFactory
+    {
+        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            return new BoilerNodeManager(server, configuration);
+        }
+    }
+
+    /// <summary>
+    /// A node manager for the boiler exposed by the server.
     /// </summary>
     public class BoilerNodeManager : SampleNodeManager
     {
@@ -51,7 +63,7 @@ namespace Boiler
         {
             List<string> namespaceUris = new List<string>();
             namespaceUris.Add(Namespaces.Boiler);
-            namespaceUris.Add(Namespaces.Boiler +"/Instance");
+            namespaceUris.Add(Namespaces.Boiler + "Instance");
             NamespaceUris = namespaceUris;
 
             m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
@@ -146,7 +158,7 @@ namespace Boiler
         /// <param name="instance">The instance to update.</param>
         /// <param name="unitLabel">The label to apply.</param>
         /// <remarks>This method assumes the DisplayName has the form NameX001 where X0 is the unit label placeholder.</remarks>
-        private void UpdateDisplayName(BaseInstanceState instance, string unitLabel)
+        private static void UpdateDisplayName(BaseInstanceState instance, string unitLabel)
         {
             LocalizedText displayName = instance.DisplayName;
 
@@ -171,7 +183,7 @@ namespace Boiler
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Sample.Boiler.Boiler.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.Boiler.Boiler.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 

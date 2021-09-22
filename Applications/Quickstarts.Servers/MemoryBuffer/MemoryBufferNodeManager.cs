@@ -42,7 +42,18 @@ using System.Reflection;
 namespace MemoryBuffer
 {
     /// <summary>
-    /// A node manager for a variety of test data.
+    /// The factory to create the node manager for memory buffers.
+    /// </summary>
+    public class MemoryBufferNodeManagerFactory : INodeManagerFactory
+    {
+        public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
+        {
+            return new MemoryBufferNodeManager(server, configuration);
+        }
+    }
+
+    /// <summary>
+    /// A node manager for a variety of memory buffers.
     /// </summary>
     public class MemoryBufferNodeManager : SampleNodeManager
     {
@@ -135,7 +146,7 @@ namespace MemoryBuffer
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Sample.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 

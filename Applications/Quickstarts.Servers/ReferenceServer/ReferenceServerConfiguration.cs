@@ -58,7 +58,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -36,7 +38,7 @@ using Opc.Ua.Server;
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>
-    /// Implements a basic Quickstart Server.
+    /// Implements the Quickstart Reference Server.
     /// </summary>
     /// <remarks>
     /// Each server instance must have one instance of a StandardServer object which is
@@ -65,6 +67,16 @@ namespace Quickstarts.ReferenceServer
 
             // create the custom node managers.
             nodeManagers.Add(new ReferenceNodeManager(server, configuration));
+
+            if (m_nodeManagerFactory == null || m_nodeManagerFactory.Count == 0)
+            {
+                AddDefaultFactories();
+            }
+
+            foreach (var nodeManagerFactory in m_nodeManagerFactory)
+            {
+                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+            }
 
             // create master node manager.
             return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
@@ -337,9 +349,33 @@ namespace Quickstarts.ReferenceServer
                     new LocalizedText(info)));
             }
         }
+
+        private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
+        {
+            var nodeManagerTypeInfo = type.GetTypeInfo();
+            if (nodeManagerTypeInfo.IsAbstract ||
+                !typeof(INodeManagerFactory).IsAssignableFrom(type))
+            {
+                return null;
+            }
+
+            return Activator.CreateInstance(type) as INodeManagerFactory;
+        }
+
+        private void AddDefaultFactories()
+        {
+            var assembly = GetType().Assembly;
+            var factories = assembly.GetExportedTypes().Select(type => IsINodeManagerFactoryType(type)).Where(type => type != null);
+            m_nodeManagerFactory = new List<INodeManagerFactory>();
+            foreach (var nodeManagerFactory in factories)
+            {
+                m_nodeManagerFactory.Add(nodeManagerFactory);
+            }
+        }
         #endregion
 
         #region Private Fields
+        private IList<INodeManagerFactory> m_nodeManagerFactory;
         private ICertificateValidator m_userCertificateValidator;
         #endregion
     }

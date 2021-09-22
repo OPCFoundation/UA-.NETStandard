@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <uax:ListOfNodeState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <uax:NamespaceUris>
-    <uax:NamespaceUri>http://samples.org/UA/memorybuffer</uax:NamespaceUri>
+    <uax:NamespaceUri>http://samples.org/UA/MemoryBuffer</uax:NamespaceUri>
   </uax:NamespaceUris>
-  <MemoryTagType xmlns="http://samples.org/UA/memorybuffer">
+  <MemoryTagType xmlns="http://samples.org/UA/MemoryBuffer">
     <uax:NodeClass>VariableType_16</uax:NodeClass>
     <uax:NodeId>
       <uax:Identifier>ns=1;i=1018</uax:Identifier>
@@ -19,7 +19,7 @@
       <uax:Identifier>i=24</uax:Identifier>
     </uax:DataType>
   </MemoryTagType>
-  <MemoryBufferType xmlns="http://samples.org/UA/memorybuffer">
+  <MemoryBufferType xmlns="http://samples.org/UA/MemoryBuffer">
     <uax:NodeClass>ObjectType_8</uax:NodeClass>
     <uax:NodeId>
       <uax:Identifier>ns=1;i=1000</uax:Identifier>
@@ -94,7 +94,7 @@
       <uax:UserAccessLevel>1</uax:UserAccessLevel>
     </SizeInBytes>
   </MemoryBufferType>
-  <MemoryBuffers xmlns="http://samples.org/UA/memorybuffer">
+  <MemoryBuffers xmlns="http://samples.org/UA/MemoryBuffer">
     <uax:NodeClass>Object_1</uax:NodeClass>
     <uax:NodeId>
       <uax:Identifier>ns=1;i=1025</uax:Identifier>
