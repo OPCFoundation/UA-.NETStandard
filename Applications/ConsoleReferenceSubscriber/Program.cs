@@ -256,11 +256,19 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                          ((JsonNetworkMessage)e.NetworkMessage).DataSetWriterId,
                          e.NetworkMessage.DataSetMetaData.Fields.Count);
                 }
+                if (e.NetworkMessage is UadpNetworkMessage)
+                {
+                    Console.WriteLine("UADP Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",
+                         e.Source,
+                         ((UadpNetworkMessage)e.NetworkMessage).PublisherId,
+                         ((UadpNetworkMessage)e.NetworkMessage).DataSetWriterId,
+                         e.NetworkMessage.DataSetMetaData.Fields.Count);
+                }
 
                 Console.WriteLine("\tMetaData.Name={0}, MajorVersion={1} MinorVersion={2}",
-                    e.NetworkMessage.DataSetMetaData.Name,
-                    e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion,
-                    e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion);
+                e.NetworkMessage.DataSetMetaData.Name,
+                e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion,
+                e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion);
 
                 foreach (FieldMetaData metaDataField in e.NetworkMessage.DataSetMetaData.Fields)
                 {
