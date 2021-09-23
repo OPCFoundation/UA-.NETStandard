@@ -37,6 +37,7 @@ using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
 using System.Reflection;
+using System.Linq;
 
 namespace TestData
 {
@@ -69,9 +70,11 @@ namespace TestData
             List<string> namespaceUris = new List<string>();
 
             namespaceUris.Add(Namespaces.TestData);
-            namespaceUris.Add(Namespaces.TestData + "/Instance");
+            namespaceUris.Add(Namespaces.TestData + "Instance");
 
             NamespaceUris = namespaceUris;
+
+            Server.Factory.AddEncodeableTypes(typeof(TestDataNodeManager).Assembly.GetExportedTypes().Where(t => t.FullName.StartsWith(typeof(TestDataNodeManager).Namespace)));
 
             // get the configuration for the node manager.
             m_configuration = configuration.ParseExtension<TestDataNodeManagerConfiguration>();

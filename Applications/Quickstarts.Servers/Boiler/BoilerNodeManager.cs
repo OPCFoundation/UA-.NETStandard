@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using Opc.Ua;
 using System.Reflection;
+using Opc.Ua;
 using Opc.Ua.Sample;
 using Opc.Ua.Server;
 
@@ -68,6 +68,8 @@ namespace Boiler
 
             m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
+
+            AddEncodeableNodeManagerTypes(typeof(BoilerNodeManager).Assembly, typeof(BoilerNodeManager).Namespace);
 
             m_lastUsedId = 0;
             m_boilers = new List<BoilerState>();
@@ -124,7 +126,7 @@ namespace Boiler
                 null,
                 true);
 
-            NodeState folder = (NodeState)FindPredefinedNode(
+            NodeState folder = FindPredefinedNode(
                 ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris),
                 typeof(NodeState));
 

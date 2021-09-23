@@ -8,7 +8,7 @@
     <RootNamespace>Quickstarts.Servers</RootNamespace>
     <Description>OPC UA Quickstarts Servers Class Library</Description>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
-    <NoWarn>CS1591;CS1573</NoWarn>
+    <NoWarn>CS1591;CS1573;RCS1139</NoWarn>
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>

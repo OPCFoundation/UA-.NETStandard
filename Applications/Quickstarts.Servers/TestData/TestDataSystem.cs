@@ -37,7 +37,7 @@ using Opc.Ua;
 using Opc.Ua.Server;
 
 namespace TestData
-{   
+{
     public interface ITestDataSystemCallback
     {
         void OnDataChange(
@@ -46,14 +46,14 @@ namespace TestData
             StatusCode statusCode,
             DateTime timestamp);
     }
-    
+
     public class TestDataSystem
     {
         public TestDataSystem(ITestDataSystemCallback callback, NamespaceTable namespaceUris, StringTable serverUris)
         {
             m_callback = callback;
             m_minimumSamplingInterval = Int32.MaxValue;
-            m_monitoredNodes = new Dictionary<uint,BaseVariableState>();
+            m_monitoredNodes = new Dictionary<uint, BaseVariableState>();
             m_generator = new Opc.Ua.Test.DataGenerator(null);
             m_generator.NamespaceUris = namespaceUris;
             m_generator.ServerUris = serverUris;
@@ -100,7 +100,7 @@ namespace TestData
                 }
             }
         }
-        
+
         /// <summary>
         /// Creates an archive for the variable.
         /// </summary>
@@ -110,7 +110,7 @@ namespace TestData
             {
                 return;
             }
-            
+
             if (variable.ValueRank == ValueRanks.Scalar)
             {
                 m_historyArchive.CreateRecord(variable.NodeId, TypeInfo.GetBuiltInType(variable.DataType));
@@ -153,7 +153,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_SByteValue:
                     {
-                        return (sbyte)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                        return (sbyte)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_ByteValue:
@@ -164,7 +164,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_ByteValue:
                     {
-                        return (byte)((m_generator.GetRandom<uint>(false)%201) + 50);
+                        return (byte)((m_generator.GetRandom<uint>(false) % 201) + 50);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_Int16Value:
@@ -175,7 +175,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_Int16Value:
                     {
-                        return (short)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                        return (short)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_UInt16Value:
@@ -186,7 +186,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_UInt16Value:
                     {
-                        return (ushort)((m_generator.GetRandom<uint>(false)%201) + 50);
+                        return (ushort)((m_generator.GetRandom<uint>(false) % 201) + 50);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_Int32Value:
@@ -198,7 +198,7 @@ namespace TestData
                     case TestData.Variables.AnalogScalarValueObjectType_Int32Value:
                     case TestData.Variables.AnalogScalarValueObjectType_IntegerValue:
                     {
-                        return (int)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                        return (int)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_UInt32Value:
@@ -210,7 +210,7 @@ namespace TestData
                     case TestData.Variables.AnalogScalarValueObjectType_UInt32Value:
                     case TestData.Variables.AnalogScalarValueObjectType_UIntegerValue:
                     {
-                        return (uint)((m_generator.GetRandom<uint>(false)%201) + 50);
+                        return (uint)((m_generator.GetRandom<uint>(false) % 201) + 50);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_Int64Value:
@@ -221,7 +221,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_Int64Value:
                     {
-                        return (long)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                        return (long)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_UInt64Value:
@@ -232,7 +232,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_UInt64Value:
                     {
-                        return (ulong)((m_generator.GetRandom<uint>(false)%201) + 50);
+                        return (ulong)((m_generator.GetRandom<uint>(false) % 201) + 50);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_FloatValue:
@@ -243,7 +243,7 @@ namespace TestData
 
                     case TestData.Variables.AnalogScalarValueObjectType_FloatValue:
                     {
-                        return (float)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                        return (float)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_DoubleValue:
@@ -255,7 +255,7 @@ namespace TestData
                     case TestData.Variables.AnalogScalarValueObjectType_DoubleValue:
                     case TestData.Variables.AnalogScalarValueObjectType_NumberValue:
                     {
-                        return (double)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                        return (double)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                     }
 
                     case TestData.Variables.ScalarValueObjectType_StringValue:
@@ -359,7 +359,7 @@ namespace TestData
                     case TestData.Variables.UserArrayValueObjectType_SByteValue:
                     {
                         return m_generator.GetRandomArray<sbyte>(false, 100, false);
-                    }                        
+                    }
 
                     case TestData.Variables.AnalogArrayValueObjectType_SByteValue:
                     {
@@ -367,12 +367,12 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (sbyte)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                            values[ii] = (sbyte)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                         }
 
                         return values;
                     }
-                        
+
                     case TestData.Variables.ArrayValueObjectType_ByteValue:
                     case TestData.Variables.UserArrayValueObjectType_ByteValue:
                     {
@@ -385,7 +385,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (byte)((m_generator.GetRandom<uint>(false)%201) + 50);
+                            values[ii] = (byte)((m_generator.GetRandom<uint>(false) % 201) + 50);
                         }
 
                         return values;
@@ -403,7 +403,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (short)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                            values[ii] = (short)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                         }
 
                         return values;
@@ -421,7 +421,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (ushort)((m_generator.GetRandom<uint>(false)%201) + 50);
+                            values[ii] = (ushort)((m_generator.GetRandom<uint>(false) % 201) + 50);
                         }
 
                         return values;
@@ -440,7 +440,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (int)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                            values[ii] = (int)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                         }
 
                         return values;
@@ -451,7 +451,7 @@ namespace TestData
                     {
                         return m_generator.GetRandomArray<uint>(false, 100, false);
                     }
-                        
+
                     case TestData.Variables.AnalogArrayValueObjectType_UInt32Value:
                     case TestData.Variables.AnalogArrayValueObjectType_UIntegerValue:
                     {
@@ -459,7 +459,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (uint)((m_generator.GetRandom<uint>(false)%201) + 50);
+                            values[ii] = (uint)((m_generator.GetRandom<uint>(false) % 201) + 50);
                         }
 
                         return values;
@@ -470,14 +470,14 @@ namespace TestData
                     {
                         return m_generator.GetRandomArray<long>(false, 100, false);
                     }
-                        
+
                     case TestData.Variables.AnalogArrayValueObjectType_Int64Value:
                     {
                         long[] values = m_generator.GetRandomArray<long>(false, 100, false);
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (long)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                            values[ii] = (long)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                         }
 
                         return values;
@@ -495,7 +495,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (ulong)((m_generator.GetRandom<uint>(false)%201) + 50);
+                            values[ii] = (ulong)((m_generator.GetRandom<uint>(false) % 201) + 50);
                         }
 
                         return values;
@@ -513,18 +513,18 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (float)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                            values[ii] = (float)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                         }
 
                         return values;
                     }
-                        
+
                     case TestData.Variables.ArrayValueObjectType_DoubleValue:
                     case TestData.Variables.UserArrayValueObjectType_DoubleValue:
                     {
                         return m_generator.GetRandomArray<double>(false, 100, false);
                     }
-                        
+
                     case TestData.Variables.AnalogArrayValueObjectType_DoubleValue:
                     case TestData.Variables.AnalogArrayValueObjectType_NumberValue:
                     {
@@ -532,7 +532,7 @@ namespace TestData
 
                         for (int ii = 0; ii < values.Length; ii++)
                         {
-                            values[ii] = (double)(((int)(m_generator.GetRandom<uint>(false)%201)) - 100);
+                            values[ii] = (double)(((int)(m_generator.GetRandom<uint>(false) % 201)) - 100);
                         }
 
                         return values;
@@ -612,7 +612,7 @@ namespace TestData
                         {
                             values[ii] = GetRandomStructure();
                         }
-                        
+
                         return values;
                     }
 
@@ -649,7 +649,7 @@ namespace TestData
             if (m_generator.GetRandomBoolean())
             {
                 ScalarValueDataType value = new ScalarValueDataType();
-                
+
                 value.BooleanValue = m_generator.GetRandom<bool>(false);
                 value.SByteValue = m_generator.GetRandom<sbyte>(false);
                 value.ByteValue = m_generator.GetRandom<byte>(false);
@@ -678,7 +678,7 @@ namespace TestData
             else
             {
                 ArrayValueDataType value = new ArrayValueDataType();
-                
+
                 value.BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false);
                 value.SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false);
                 value.ByteValue = m_generator.GetRandomArray<byte>(false, 10, false);
@@ -718,7 +718,7 @@ namespace TestData
             {
                 if (m_monitoredNodes == null)
                 {
-                    m_monitoredNodes = new Dictionary<uint,BaseVariableState>();
+                    m_monitoredNodes = new Dictionary<uint, BaseVariableState>();
                 }
 
                 m_monitoredNodes[monitoredItemId] = variable;
@@ -741,7 +741,7 @@ namespace TestData
                         m_timer.Dispose();
                         m_timer = null;
                     }
-                    
+
                     return;
                 }
 
@@ -753,13 +753,13 @@ namespace TestData
                     {
                         m_minimumSamplingInterval = 100;
                     }
-                 
+
                     if (m_timer != null)
                     {
                         m_timer.Dispose();
                         m_timer = null;
                     }
-                    
+
                     m_timer = new Timer(DoSample, null, m_minimumSamplingInterval, m_minimumSamplingInterval);
                 }
             }
@@ -820,7 +820,7 @@ namespace TestData
                 }
             }
         }
-        
+
         private class Sample
         {
             public BaseVariableState Variable;
@@ -828,13 +828,13 @@ namespace TestData
             public StatusCode StatusCode;
             public DateTime Timestamp;
         }
-        
+
         #region Private Fields
         private object m_lock = new object();
         private ITestDataSystemCallback m_callback;
         private Opc.Ua.Test.DataGenerator m_generator;
         private int m_minimumSamplingInterval;
-        private Dictionary<uint,BaseVariableState> m_monitoredNodes;
+        private Dictionary<uint, BaseVariableState> m_monitoredNodes;
         private Timer m_timer;
         private StatusCode m_systemStatus;
         private HistoryArchive m_historyArchive;

@@ -46,9 +46,6 @@ namespace Opc.Ua
         /// <summary>
         /// Adds an extension type to the factory.
         /// </summary>
-        /// <remarks>
-        /// Adds an extension type to the factory.
-        /// </remarks>
         /// <param name="systemType">The underlying system type to add to the factory</param>
         void AddEncodeableType(Type systemType);
 
@@ -74,6 +71,12 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="assembly">The assembly containing the types to add to the factory</param>
         void AddEncodeableTypes(Assembly assembly);
+
+        /// <summary>
+        /// Adds an enumerable of extension types to the factory.
+        /// </summary>
+        /// <param name="systemTypes">The underlying system types to add to the factory</param>
+        void AddEncodeableTypes(IEnumerable<Type> systemTypes);
 
         /// <summary>
         /// Returns the system type for the specified type id.

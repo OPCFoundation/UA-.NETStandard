@@ -68,10 +68,12 @@ namespace MemoryBuffer
             List<string> namespaceUris = new List<string>();
          
             namespaceUris.Add(Namespaces.MemoryBuffer);
-            namespaceUris.Add(Namespaces.MemoryBuffer + "/Instance");
+            namespaceUris.Add(Namespaces.MemoryBuffer + "Instance");
             
             NamespaceUris = namespaceUris;
-            
+
+            AddEncodeableNodeManagerTypes(typeof(MemoryBufferNodeManager).Assembly, typeof(MemoryBufferNodeManager).Namespace);
+
             // get the configuration for the node manager.
             m_configuration = configuration.ParseExtension<MemoryBufferConfiguration>();
 
