@@ -342,6 +342,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Adds an enumerable of extension types to the factory.
+        /// </summary>
+        /// <param name="systemTypes">The underlying system types to add to the factory</param>
+        public void AddEncodeableTypes(IEnumerable<System.Type> systemTypes)
+        {
+            lock (m_lock)
+            {
+                foreach (var type in systemTypes)
+                {
+                    if (type.GetTypeInfo().IsAbstract)
+                    {
+                        continue;
+                    }
+
+                    AddEncodeableType(type);
+                }
+            }
+        }
+
+        /// <summary>
         /// Returns the system type for the specified type id.
         /// </summary>
         /// <remarks>
