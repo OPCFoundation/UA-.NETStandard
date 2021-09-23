@@ -261,7 +261,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="dataSetReaders"></param>
         public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
-            string json = System.Text.Encoding.ASCII.GetString(message);  
+            string json = System.Text.Encoding.UTF8.GetString(message);  
 
             using (JsonDecoder jsonDecoder = new JsonDecoder(json, context))
             {
