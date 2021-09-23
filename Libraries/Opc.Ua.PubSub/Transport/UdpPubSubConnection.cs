@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Transport
         public UdpPubSubConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
             : base(uaPubSubApplication, pubSubConnectionDataType)
         {
-            m_transportProtocol = TransportProtocol.UADP;
+            m_transportProtocol = TransportProtocol.UDP;
 
             Utils.Trace("UdpPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
 

@@ -103,8 +103,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
         public void ValidateUdpPubSubConnectionTransportProtocol()
         {
             //Assert
-            Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
-            Assert.IsTrue(m_udpPublisherConnection.TransportProtocol == TransportProtocol.UADP,
+            Assert.IsNotNull(m_udpPublisherConnection, "The UDP connection from standard configuration is invalid.");
+            Assert.IsTrue(m_udpPublisherConnection.TransportProtocol == TransportProtocol.UDP,
                 "The UADP connection has wrong TransportProtocol {0}", m_udpPublisherConnection.TransportProtocol);
         }
 

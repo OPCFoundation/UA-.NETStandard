@@ -326,9 +326,9 @@ namespace Opc.Ua.PubSub
         /// </summary>
         NotAvailable,
         /// <summary>
-        /// UADP protocol.
+        /// UDP protocol.
         /// </summary>
-        UADP,
+        UDP,
         /// <summary>
         /// MQTT protocol.
         /// </summary>
