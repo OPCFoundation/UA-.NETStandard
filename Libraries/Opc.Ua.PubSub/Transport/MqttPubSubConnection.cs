@@ -47,7 +47,6 @@ namespace Opc.Ua.PubSub.Transport
     internal class MqttPubSubConnection : UaPubSubConnection, IMqttPubSubConnection
     {
         #region Private Fields
-        private readonly string m_applicationId;
         private string m_brokerHostName = "localhost";
         private string m_urlScheme;
         private int m_brokerPort = Utils.MqttDefaultPort;
@@ -100,7 +99,6 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_transportProtocol = TransportProtocol.MQTT;
             m_messageMapping = messageMapping;
-            m_applicationId = uaPubSubApplication.ApplicationId;
 
             // initialize the message creators for current message 
             if (m_messageMapping == MessageMapping.Json)
@@ -653,7 +651,8 @@ namespace Opc.Ua.PubSub.Transport
                 MqttProtocolVersion mqttProtocolVersion =
                     (MqttProtocolVersion)((MqttClientProtocolConfiguration)transportProtocolConfiguration)
                     .ProtocolVersion;
-
+                // create uniques client id
+                string clientId = "ClientId_" + new Random().Next().ToString("D10");
                 // MQTTS mqttConnection.
                 if (connectionUri.Scheme == Utils.UriSchemeMqtts)
                 {
@@ -664,7 +663,7 @@ namespace Opc.Ua.PubSub.Transport
                         .WithTcpServer(m_brokerHostName, m_brokerPort)
                         .WithKeepAlivePeriod(mqttKeepAlive)
                         .WithProtocolVersion(mqttProtocolVersion)
-                        .WithClientId(m_applicationId)
+                        .WithClientId(clientId)
                         .WithTls(new MqttClientOptionsBuilderTlsParameters {
                             UseTls = true,
                             Certificates = mqttTlsOptions?.Certificates?.X509Certificates,
@@ -706,7 +705,7 @@ namespace Opc.Ua.PubSub.Transport
                     MqttClientOptionsBuilder mqttClientOptionsBuilder = new MqttClientOptionsBuilder()
                         .WithTcpServer(m_brokerHostName, m_brokerPort)
                         .WithKeepAlivePeriod(mqttKeepAlive)
-                        .WithClientId(m_applicationId)
+                        .WithClientId(clientId)
                         .WithProtocolVersion(mqttProtocolVersion);
 
                     // Set user credentials.
