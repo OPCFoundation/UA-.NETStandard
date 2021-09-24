@@ -63,14 +63,15 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Start/Stop Method Overides
-
+        
         /// <summary>
-        /// Start the UdpDiscovery process for subscriber
+        /// Implementation of StartAsync for the subscriber Discovery
         /// </summary>
+        /// <param name="messageContext">The <see cref="IServiceMessageContext"/> object that should be used in encode/decode messages</param>
         /// <returns></returns>
-        public override async Task StartAsync()
+        public override async Task StartAsync(IServiceMessageContext messageContext)
         {
-            await base.StartAsync();
+            await base.StartAsync(messageContext);
 
             m_intervalRunner.Start();
         }
@@ -163,7 +164,7 @@ namespace Opc.Ua.PubSub.Transport
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value,
             };
 
-            byte[] bytes = discoveryRequestMetaDataMessage.Encode();
+            byte[] bytes = discoveryRequestMetaDataMessage.Encode(MessageContext);
 
             // send the DataSetMetaData DiscoveryRequest message to all open UDPClient 
             foreach (var udpClient in m_discoveryUdpClients)

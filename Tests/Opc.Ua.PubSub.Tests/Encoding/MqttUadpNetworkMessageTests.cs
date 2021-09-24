@@ -1231,7 +1231,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             Assert.IsTrue(uadpNetworkMessage.IsMetaDataMessage, "The received message is not a metadata message");
 
-            byte[] bytes = uadpNetworkMessage.Encode();
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
@@ -1251,7 +1251,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetReaders"></param>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
-            byte[] bytes = uadpNetworkMessage.Encode();
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, dataSetReaders);
@@ -1455,7 +1455,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uadpNetworkMessageDecoded"></param>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
-            byte[] bytes = uadpNetworkMessage.Encode();
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, dataSetReaders);

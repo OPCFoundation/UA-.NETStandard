@@ -59,13 +59,15 @@ namespace Opc.Ua.PubSub.Transport
         #endregion
 
         #region Public Methods
+
         /// <summary>
         /// Implementation of StartAsync for the Publisher Discovery
         /// </summary>
+        /// <param name="messageContext">The <see cref="IServiceMessageContext"/> object that should be used in encode/decode messages</param>
         /// <returns></returns>
-        public override async Task StartAsync()
+        public override async Task StartAsync(IServiceMessageContext messageContext)
         {
-            await base.StartAsync();
+            await base.StartAsync(messageContext);
 
             if (m_discoveryUdpClients != null)
             {
@@ -151,17 +153,9 @@ namespace Opc.Ua.PubSub.Transport
             Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery from source={0}", source);
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
-
-            IServiceMessageContext context = new ServiceMessageContext {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
-
-            networkMessage.Decode(context, messageBytes, null);
-
-            //Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery Request MetaData Received on endpoint {1} for {0}",
-            //    String.Join(", ", networkMessage.DataSetWriterIds), source.Address);
-
+            // decode the received message
+            networkMessage.Decode(MessageContext, messageBytes, null);
+            
             if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
                     && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetMetaData
                     && networkMessage.DataSetWriterIds != null)

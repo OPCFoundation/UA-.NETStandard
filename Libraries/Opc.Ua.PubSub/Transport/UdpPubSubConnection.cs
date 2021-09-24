@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(this);
-                await m_udpDiscoveryPublisher.StartAsync();
+                await m_udpDiscoveryPublisher.StartAsync(MessageContext);
             }
 
             //subscriber initialization   
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 // initialize the discovery channel
                 m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(this);
-                await m_udpDiscoverySubscriber.StartAsync();
+                await m_udpDiscoverySubscriber.StartAsync(MessageContext);
 
                 // add handler to metaDataReceived event
                 this.Application.MetaDataReceived += Application_MetaDataReceived;
@@ -317,7 +317,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (m_publisherUdpClients != null && m_publisherUdpClients.Count > 0)
                     {
                         // Get encoded bytes
-                        byte[] bytes = networkMessage.Encode();
+                        byte[] bytes = networkMessage.Encode(MessageContext);
 
                         foreach (var udpClient in m_publisherUdpClients)
                         {
@@ -403,7 +403,7 @@ namespace Opc.Ua.PubSub.Transport
 
             UadpNetworkMessage networkMessage = new UadpNetworkMessage();
             networkMessage.DataSetDecodeErrorOccurred += NetworkMessage_DataSetDecodeErrorOccurred;
-            networkMessage.Decode(m_context, message, dataSetReadersToDecode);
+            networkMessage.Decode(MessageContext, message, dataSetReadersToDecode);
             networkMessage.DataSetDecodeErrorOccurred -= NetworkMessage_DataSetDecodeErrorOccurred;
 
             // Process the decoded network message 

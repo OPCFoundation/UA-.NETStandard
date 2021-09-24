@@ -1357,7 +1357,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             Assert.IsTrue(jsonNetworkMessage.IsMetaDataMessage, "The received message is not a metadata message");
 
-            byte[] bytes = jsonNetworkMessage.Encode();
+            byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, null);
@@ -1379,7 +1379,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="dataSetReaders">The list of readers used to decode</param>
         private void CompareEncodeDecode(JsonNetworkMessage jsonNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
-            byte[] bytes = jsonNetworkMessage.Encode();
+            byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             JsonNetworkMessage uaNetworkMessageDecoded = new JsonNetworkMessage();
             uaNetworkMessageDecoded.Decode(ServiceMessageContext.GlobalContext, bytes, dataSetReaders);
@@ -1565,7 +1565,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // encode network message
-            byte[] networkMessage = jsonNetworkMessage.Encode();
+            byte[] networkMessage = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             // verify DataSetMetaData encoded consistency
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;
@@ -1720,7 +1720,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private object VerifyDataEncoding(JsonNetworkMessage jsonNetworkMessage)
         {
             // encode network message
-            byte[] networkMessage = jsonNetworkMessage.Encode();
+            byte[] networkMessage = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             // verify network message encoded consistency
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;

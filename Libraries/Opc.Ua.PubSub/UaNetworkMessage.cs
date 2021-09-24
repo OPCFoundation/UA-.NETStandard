@@ -158,7 +158,8 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        public abstract byte[] Encode();
+        /// <param name="messageContext">The context.</param>
+        public abstract byte[] Encode(IServiceMessageContext messageContext);
 
         /// <summary>
         /// Encodes the object in the specified stream.
@@ -177,18 +178,6 @@ namespace Opc.Ua.PubSub
         #endregion
 
         #region Protected Methods
-        /// <summary>
-        /// Create and return the default <see cref="IServiceMessageContext"/> to be used for encode/decode
-        /// </summary>
-        /// <returns></returns>
-        protected IServiceMessageContext GetServiceMessageContext()
-        {
-            return new ServiceMessageContext {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
-        }
-
         /// <summary>
         /// The DataSetDecodeErrorOccurred event handler
         /// </summary>

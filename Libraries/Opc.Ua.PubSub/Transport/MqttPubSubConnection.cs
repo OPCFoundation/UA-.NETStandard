@@ -194,7 +194,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (m_publisherMqttClient != null && m_publisherMqttClient.IsConnected)
                     {
                         // get the encoded bytes
-                        byte[] bytes = networkMessage.Encode();
+                        byte[] bytes = networkMessage.Encode(MessageContext);
 
                         try
                         {
@@ -562,7 +562,7 @@ namespace Opc.Ua.PubSub.Transport
                 // trigger message decoding
                 if (networkMessage != null)
                 {
-                    networkMessage.Decode(m_context, eventArgs.ApplicationMessage.Payload, dataSetReaders);
+                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.Payload, dataSetReaders);
 
                     // Handle the decoded message and raise the necessary event on UaPubSubApplication 
                     ProcessDecodedNetworkMessage(networkMessage, topic);

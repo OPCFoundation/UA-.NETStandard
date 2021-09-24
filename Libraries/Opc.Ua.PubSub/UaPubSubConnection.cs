@@ -41,7 +41,6 @@ namespace Opc.Ua.PubSub
     {
         #region Fields
         protected object m_lock = new object();
-        protected IServiceMessageContext m_context;
         private bool m_isRunning;
         private readonly List<IUaPublisher> m_publishers;
         private readonly PubSubConnectionDataType m_pubSubConnectionDataType;
@@ -55,7 +54,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
-            m_context = new ServiceMessageContext {
+            // set the default message context that uses the GlobalContext
+            MessageContext = new ServiceMessageContext {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -112,6 +112,12 @@ namespace Opc.Ua.PubSub
         {
             get { return m_isRunning; }
         }
+
+        /// <summary>
+        /// Get/Set the current <see cref="IServiceMessageContext"/>
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; set; }
+
         #endregion
 
         #region Internal Properties

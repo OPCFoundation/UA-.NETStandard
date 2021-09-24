@@ -354,11 +354,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        /// <returns></returns>
-        public override byte[] Encode()
+        /// <param name="messageContext">The context.</param>
+        public override byte[] Encode(IServiceMessageContext messageContext)
         {
-            IServiceMessageContext messageContext = GetServiceMessageContext();
-
             using (MemoryStream stream = new MemoryStream())
             {
                 Encode(messageContext, stream);

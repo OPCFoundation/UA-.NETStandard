@@ -380,7 +380,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 UaNetworkMessage message = networkMessages[networkMessageIndex];
 
-                byte[] bytes = message.Encode();
+                byte[] bytes = message.Encode(ServiceMessageContext.GlobalContext);
 
                 return bytes;
             }

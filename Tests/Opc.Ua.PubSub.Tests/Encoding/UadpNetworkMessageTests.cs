@@ -553,7 +553,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uadpNetworkMessageDecoded"></param>
         private void CompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
         {
-            byte[] bytes = uadpNetworkMessage.Encode();
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);            
@@ -569,7 +569,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uadpNetworkMessageDecoded"></param>
         private void InvalidCompareEncodeDecode(UadpNetworkMessage uadpNetworkMessage)
         {
-            byte[] bytes = uadpNetworkMessage.Encode();
+            byte[] bytes = uadpNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
             UadpNetworkMessage uaNetworkMessageDecoded = new UadpNetworkMessage();
             uaNetworkMessageDecoded.Decode(new ServiceMessageContext(), bytes, m_firstDataSetReadersType);

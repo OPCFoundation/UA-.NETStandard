@@ -70,6 +70,11 @@ namespace Opc.Ua.PubSub.Transport
         /// Get the discovery NetworkInterface name from <see cref="PubSubConnectionDataType"/>.TransportSettings.
         /// </summary>
         public string DiscoveryNetworkInterfaceName { get; set; }
+
+        /// <summary>
+        /// Get the coresponding <see cref="IServiceMessageContext"/>
+        /// </summary>
+        public IServiceMessageContext MessageContext { get; private set; }
         #endregion
 
         #region Public Methods
@@ -77,13 +82,15 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Start the UdpDiscovery process
         /// </summary>
+        /// <param name="messageContext">The <see cref="IServiceMessageContext"/> object that should be used in encode/decode messages</param>
         /// <returns></returns>
-        public virtual async Task StartAsync()
-        {
+        public virtual async Task StartAsync(IServiceMessageContext messageContext)
+        {           
             await Task.Run(() => {
-
                 lock (m_lock)
                 {
+                    MessageContext = messageContext;
+
                     // initialize Discovery channels
                     m_discoveryUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Discovery, DiscoveryNetworkInterfaceName, DiscoveryNetworkAddressEndPoint);                    
                 }
