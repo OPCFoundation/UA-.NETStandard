@@ -64,6 +64,7 @@ namespace Opc.Ua
         /// The purpose of the data type.
         /// </summary>
         public Opc.Ua.Export.DataTypePurpose Purpose { get; set; }
+
         #region Serialization Functions
         /// <summary>
         /// Saves the attributes from the stream.
@@ -179,21 +180,27 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
+                {
+                    ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
+
+                    if (OnReadDataTypeDefinition != null)
                     {
-                        ExtensionObject dataTypeDefinition = m_dataTypeDefinition;
-
-                        if (OnReadDataTypeDefinition != null)
-                        {
-                            result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
-                        }
-
-                        if (ServiceResult.IsGood(result))
-                        {
-                            value = dataTypeDefinition;
-                        }
-
-                        return result;
+                        result = OnReadDataTypeDefinition(context, this, ref dataTypeDefinition);
                     }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        if (dataTypeDefinition?.Body is StructureDefinition structureType &&
+                            structureType.DefaultEncodingId.IsNullNodeId)
+                        {
+                            // one time set the id for binary encoding, currently the only supported encoding
+                            structureType.SetDefaultEncodingId(context, NodeId, null);
+                        }
+                        value = dataTypeDefinition;
+                    }
+
+                    return result;
+                }
             }
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
@@ -214,26 +221,26 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
+                {
+                    ExtensionObject dataTypeDefinition = value as ExtensionObject;
+
+                    if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {
-                        ExtensionObject dataTypeDefinition = value as ExtensionObject;
-
-                        if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
-                        {
-                            return StatusCodes.BadNotWritable;
-                        }
-
-                        if (OnWriteDataTypeDefinition != null)
-                        {
-                            result = OnWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
-                        }
-
-                        if (ServiceResult.IsGood(result))
-                        {
-                            m_dataTypeDefinition = dataTypeDefinition;
-                        }
-
-                        return result;
+                        return StatusCodes.BadNotWritable;
                     }
+
+                    if (OnWriteDataTypeDefinition != null)
+                    {
+                        result = OnWriteDataTypeDefinition(context, this, ref dataTypeDefinition);
+                    }
+
+                    if (ServiceResult.IsGood(result))
+                    {
+                        m_dataTypeDefinition = dataTypeDefinition;
+                    }
+
+                    return result;
+                }
             }
 
             return base.WriteNonValueAttribute(context, attributeId, value);
