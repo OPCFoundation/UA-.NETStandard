@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -299,6 +301,94 @@ namespace Opc.Ua.Configuration.Tests
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
             Assert.True(certOK);
+        }
+
+        public enum InvalidCertType
+        {
+            NoIssues,
+            Expired,
+            NotYetValid,
+            KeySize1024,
+            HostName
+        };
+
+        /// <summary>
+        /// Test to verify that an existing cert with suppressible issues
+        /// is not recreated/replaced.
+        /// </summary>
+        /// <param name="certType"></param>
+        [Theory]
+        public async Task TestInvalidAppCertDoNotRecreate(InvalidCertType certType)
+        {
+            // pki directory root for test runs. 
+            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+
+            var applicationInstance = new ApplicationInstance() {
+                ApplicationName = ApplicationName
+            };
+            Assert.NotNull(applicationInstance);
+            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                .AsClient()
+                .AddSecurityConfiguration(SubjectName, pkiRoot)
+                .Create().ConfigureAwait(false);
+            Assert.NotNull(config);
+
+            CertificateIdentifier applicationCertificate = applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
+            Assert.IsNull(applicationCertificate.Certificate);
+
+            X509Certificate2 expiredApplicationCert = null;
+            using (var testCert = CreateInvalidCert(certType))
+            {
+                Assert.NotNull(testCert);
+                Assert.True(testCert.HasPrivateKey);
+                testCert.AddToStore(
+                    applicationCertificate.StoreType,
+                    applicationCertificate.StorePath
+                    );
+                expiredApplicationCert = new X509Certificate2(testCert.RawData);
+            }
+
+            bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+            Assert.True(certOK);
+            Assert.AreEqual(expiredApplicationCert, applicationCertificate.Certificate);
+        }
+
+        private X509Certificate2 CreateInvalidCert(InvalidCertType certType)
+        {
+            // reasonable defaults
+            DateTime notBefore = DateTime.Today.AddDays(-30);
+            DateTime notAfter = DateTime.Today.AddDays(30);
+            ushort keySize = CertificateFactory.DefaultKeySize;
+            string[] domainNames = new string[] { Utils.GetHostName() };
+            switch (certType)
+            {
+                case InvalidCertType.Expired:
+                    notBefore = DateTime.Today.AddMonths(-12);
+                    notAfter = DateTime.Today.AddDays(-7);
+                    break;
+                case InvalidCertType.NotYetValid:
+                    notBefore = DateTime.Today.AddDays(7);
+                    notAfter = notBefore.AddMonths(12);
+                    break;
+                case InvalidCertType.KeySize1024:
+                    keySize = 1024;
+                    break;
+                case InvalidCertType.HostName:
+                    domainNames = new string[] { "myhost", "1.2.3.4" };
+                    break;
+                default:
+                    break;
+            }
+
+            return CertificateFactory.CreateCertificate(
+                ApplicationUri,
+                ApplicationName,
+                SubjectName,
+                domainNames)
+                .SetNotBefore(notBefore)
+                .SetNotAfter(notAfter)
+                .SetRSAKeySize(keySize)
+                .CreateForRSA();
         }
         #endregion
     }

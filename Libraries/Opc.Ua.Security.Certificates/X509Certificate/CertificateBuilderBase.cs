@@ -210,7 +210,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize)
+        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(ushort keySize)
         {
             if (keySize == 0)
             {
