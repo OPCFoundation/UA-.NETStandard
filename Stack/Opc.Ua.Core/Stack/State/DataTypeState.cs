@@ -193,14 +193,8 @@ namespace Opc.Ua
                         if (dataTypeDefinition?.Body is StructureDefinition structureType &&
                             structureType.DefaultEncodingId.IsNullNodeId)
                         {
-                            // note: custom types must be added to the encodeable factory by the node manager to be found
-                            var systemType = context?.EncodeableFactory?.GetSystemType(NodeId.ToExpandedNodeId(NodeId, context.NamespaceUris));
-                            if (systemType != null &&
-                                Activator.CreateInstance(systemType) is IEncodeable encodeable)
-                            {
-                                // one time set the id for binary encoding, currently the only supported encoding
-                                structureType.DefaultEncodingId = ExpandedNodeId.ToNodeId(encodeable.BinaryEncodingId, context.NamespaceUris);
-                            }
+                            // one time set the id for binary encoding, currently the only supported encoding
+                            structureType.SetDefaultEncodingId(context, NodeId, null);
                         }
                         value = dataTypeDefinition;
                     }
