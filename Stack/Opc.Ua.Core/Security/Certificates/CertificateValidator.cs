@@ -1014,9 +1014,9 @@ namespace Opc.Ua
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Returns an error if the chain status indicates a fatal error.
         /// </summary>
@@ -1249,9 +1249,9 @@ namespace Opc.Ua
             }
             return domainFound;
         }
-#endregion
+        #endregion
 
-#region Private Enum
+        #region Private Enum
         /// <summary>
         /// Flag to protect setting by application
         /// from a modification by a SecurityConfiguration.
@@ -1264,9 +1264,9 @@ namespace Opc.Ua
             RejectUnknownRevocationStatus = 4,
             MinimumCertificateKeySize = 8
         };
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();
         private object m_callbackLock = new object();
         private Dictionary<string, X509Certificate2> m_validatedCertificates;
@@ -1283,16 +1283,16 @@ namespace Opc.Ua
         private bool m_rejectSHA1SignedCertificates;
         private bool m_rejectUnknownRevocationStatus;
         private ushort m_minimumCertificateKeySize;
-#endregion
+        #endregion
     }
 
-#region CertificateValidationEventArgs Class
+    #region CertificateValidationEventArgs Class
     /// <summary>
     /// The event arguments provided when a certificate validation error occurs.
     /// </summary>
     public class CertificateValidationEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -1301,9 +1301,9 @@ namespace Opc.Ua
             m_error = error;
             m_certificate = certificate;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The error that occurred.
         /// </summary>
@@ -1333,29 +1333,29 @@ namespace Opc.Ua
             get { return m_acceptAll; }
             set { m_acceptAll = value; }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ServiceResult m_error;
         private X509Certificate2 m_certificate;
         private bool m_accept;
         private bool m_acceptAll;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// Used to handled certificate validation errors.
     /// </summary>
     public delegate void CertificateValidationEventHandler(CertificateValidator sender, CertificateValidationEventArgs e);
-#endregion
+    #endregion
 
-#region CertificateUpdateEventArgs Class
+    #region CertificateUpdateEventArgs Class
     /// <summary>
     /// The event arguments provided when a certificate validation error occurs.
     /// </summary>
     public class CertificateUpdateEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -1366,9 +1366,9 @@ namespace Opc.Ua
             SecurityConfiguration = configuration;
             CertificateValidator = validator;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The new security configuration.
         /// </summary>
@@ -1378,7 +1378,7 @@ namespace Opc.Ua
         /// </summary>
         public ICertificateValidator CertificateValidator { get; private set; }
 
-#endregion
+        #endregion
     }
 
 
@@ -1387,6 +1387,6 @@ namespace Opc.Ua
     /// </summary>
     public delegate void CertificateUpdateEventHandler(CertificateValidator sender, CertificateUpdateEventArgs e);
 
-#endregion
+    #endregion
 
 }
