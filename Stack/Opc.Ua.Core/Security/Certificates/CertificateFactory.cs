@@ -98,12 +98,21 @@ namespace Opc.Ua
                     return certificate;
                 }
 
+                if (ensurePrivateKeyAccessible)
+                {
+                    if (!X509Utils.VerifyRSAKeyPair(certificate, certificate))
+                    {
+                        Utils.Trace(Utils.TraceMasks.Error, "WARNING - Trying to add certificate to cache with invalid private key.");
+                        return null;
+                    }
+                }
+
                 // update the cache.
                 m_certificates[certificate.Thumbprint] = certificate;
 
                 if (m_certificates.Count > 100)
                 {
-                    Utils.Trace("WARNING - Process certificate cache has {0} certificates in it.", m_certificates.Count);
+                    Utils.Trace(Utils.TraceMasks.Error, "WARNING - Process certificate cache has {0} certificates in it.", m_certificates.Count);
                 }
 
             }

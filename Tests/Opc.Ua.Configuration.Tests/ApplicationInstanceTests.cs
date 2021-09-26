@@ -316,9 +316,14 @@ namespace Opc.Ua.Configuration.Tests
         /// Test to verify that an existing cert with suppressible issues
         /// is not recreated/replaced.
         /// </summary>
-        /// <param name="certType"></param>
-        [Theory]
-        public async Task TestInvalidAppCertDoNotRecreate(InvalidCertType certType)
+        [Test]
+        [TestCase(InvalidCertType.NoIssues, true, true)]
+        [TestCase(InvalidCertType.NotYetValid, true, true)]
+        [TestCase(InvalidCertType.Expired, true, true)]
+        [TestCase(InvalidCertType.HostName, true, false)]
+        [TestCase(InvalidCertType.HostName, false, true)]
+        [TestCase(InvalidCertType.KeySize1024, true, false)]
+        public async Task TestInvalidAppCertDoNotRecreate(InvalidCertType certType, bool server, bool suppress)
         {
             // pki directory root for test runs. 
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
@@ -327,10 +332,21 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, pkiRoot)
-                .Create().ConfigureAwait(false);
+            ApplicationConfiguration config;
+            if (server)
+            {
+                config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .Create().ConfigureAwait(false);
+            }
+            else
+            {
+                config = await applicationInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, pkiRoot)
+                    .Create().ConfigureAwait(false);
+            }
             Assert.NotNull(config);
 
             CertificateIdentifier applicationCertificate = applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
@@ -348,9 +364,18 @@ namespace Opc.Ua.Configuration.Tests
                 expiredApplicationCert = new X509Certificate2(testCert.RawData);
             }
 
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
-            Assert.True(certOK);
-            Assert.AreEqual(expiredApplicationCert, applicationCertificate.Certificate);
+            if (suppress)
+            {
+                bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+
+                Assert.True(certOK);
+                Assert.AreEqual(expiredApplicationCert, applicationCertificate.Certificate);
+            }
+            else
+            {
+                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
+                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+            }
         }
 
         private X509Certificate2 CreateInvalidCert(InvalidCertType certType)
