@@ -52,6 +52,11 @@ namespace Opc.Ua.PubSub.PublishedData
         public string Name { get; set; }
 
         /// <summary>
+        /// Get/Set flag that indicates if DataSet is delta frame
+        /// </summary>
+        public bool IsDeltaFrame { get; set; }
+
+        /// <summary>
         /// Get/Set the DataSetWriterId that produced this DataSet
         /// </summary>
         public int DataSetWriterId { get; set; }

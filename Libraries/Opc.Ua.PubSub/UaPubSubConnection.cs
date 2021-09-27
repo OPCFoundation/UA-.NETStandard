@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub
 {
@@ -421,6 +422,36 @@ namespace Opc.Ua.PubSub
                 }
             }
             return maxKeepAlive;
+        }
+
+        /// <summary>
+        /// Create and return the current DataSet for the provided dataSetWriter according to current WriterGroupPublishState
+        /// </summary>
+        /// <returns></returns>
+        protected DataSet CreateDataSet(DataSetWriterDataType dataSetWriter, WriterGroupPublishState state)
+        {
+            DataSet dataSet = null;
+            //check if dataSetWriter enabled
+            if (dataSetWriter.Enabled)
+            {
+                uint sequenceNumber = 0;
+                bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
+
+                dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
+
+                if (dataSet != null)
+                {
+                    dataSet.SequenceNumber = sequenceNumber;
+                    dataSet.IsDeltaFrame = isDeltaFrame;
+
+                    if (isDeltaFrame)
+                    {
+                        dataSet = state.ExcludeUnchangedFields(dataSetWriter, dataSet);
+                    }
+                }
+            }
+
+            return dataSet;
         }
         #endregion 
 

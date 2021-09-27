@@ -88,9 +88,17 @@ namespace Opc.Ua.PubSub
     public enum DataSetFlags2EncodingMask : byte
     {
         /// <summary>
-        /// No dataset flag usage.
+        /// No dataset flag usage. Key Frame message
         /// </summary>
-        None = 0,
+        DataKeyFrame = 0,
+        /// <summary>
+        /// Data Delta Frame message
+        /// </summary>
+        DataDeltaFrame = 1,
+        /// <summary>
+        /// Event DataSet message
+        /// </summary>
+        Event = 2,
         /// <summary>
         /// Dataset flag Timestamp is set.
         /// </summary>

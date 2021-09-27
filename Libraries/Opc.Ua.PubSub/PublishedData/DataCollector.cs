@@ -125,9 +125,8 @@ namespace Opc.Ua.PubSub.PublishedData
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
         /// <param name="dataSetName"></param>
-        /// <param name="isDeltaFrame"></param>
         /// <returns></returns>
-        public DataSet CollectData(string dataSetName, bool isDeltaFrame)
+        public DataSet CollectData(string dataSetName)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
 

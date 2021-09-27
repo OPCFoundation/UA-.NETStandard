@@ -208,8 +208,7 @@ namespace Opc.Ua.PubSub.Transport
                 //check if dataSetWriter enabled
                 if (dataSetWriter.Enabled)
                 {
-
-                    DataSet dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, false);
+                    DataSet dataSet = CreateDataSet(dataSetWriter, state);  
 
                     if (dataSet != null)
                     {
@@ -217,12 +216,12 @@ namespace Opc.Ua.PubSub.Transport
 
                         if (hasMetaDataChanged)
                         {
+                            // add metadata network message
                             networkMessages.Add( new UadpNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData) {
                                 PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
                                 DataSetWriterId = dataSetWriter.DataSetWriterId
                             });
                         }
-
 
                         UadpDataSetWriterMessageDataType dataSetMessageSettings = ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) as
                                 UadpDataSetWriterMessageDataType;
@@ -239,6 +238,8 @@ namespace Opc.Ua.PubSub.Transport
                             uadpDataSetMessage.Timestamp = DateTime.UtcNow;
                             uadpDataSetMessage.Status = StatusCodes.Good;
                             dataSetMessages.Add(uadpDataSetMessage);
+
+                            state.OnMessagePublished(dataSetWriter, dataSet);
                         }
                     }
                 }
@@ -263,6 +264,7 @@ namespace Opc.Ua.PubSub.Transport
 
             networkMessages.Add(uadpNetworkMessage);
 
+            
             return networkMessages;
         }
 

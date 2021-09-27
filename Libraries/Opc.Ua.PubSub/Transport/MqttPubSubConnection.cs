@@ -816,35 +816,7 @@ namespace Opc.Ua.PubSub.Transport
                 Utils.Trace(ex, "MqttPubSubConnection.CertificateValidation error.");
             }
         }
-
-        /// <summary>
-        /// Create and return the current Dataset for the provided dataSetWriter according to current WriterGroupPublishState
-        /// </summary>
-        /// <returns></returns>
-        private DataSet CreateDataSet(DataSetWriterDataType dataSetWriter, WriterGroupPublishState state)
-        {
-            DataSet dataSet = null;
-            //check if dataSetWriter enabled
-            if (dataSetWriter.Enabled)
-            {
-                uint sequenceNumber = 0;
-                bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
-
-                dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName, isDeltaFrame);
-
-                if (dataSet != null)
-                {
-                    dataSet.SequenceNumber = sequenceNumber;
-
-                    if (isDeltaFrame)
-                    {
-                        dataSet = state.ExcludeUnchangedFields(dataSetWriter, dataSet);
-                    }
-                }
-            }
-
-            return dataSet;
-        }
+        
         #endregion Private methods
 
         #region MessageCreator innner classes
