@@ -303,6 +303,23 @@ namespace Opc.Ua.Client.Tests
             m_session.ChangePreferredLocales(locale);
         }
 
+        [Test]
+        public void ReadDataTypeDefinition()
+        {
+            // Test Read a DataType Node
+            var node = m_session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            Assert.NotNull(node);
+            var dataTypeNode = (DataTypeNode)node;
+            Assert.NotNull(dataTypeNode);
+            var dataTypeDefinition = dataTypeNode.DataTypeDefinition;
+            Assert.NotNull(dataTypeDefinition);
+            Assert.True(dataTypeDefinition is ExtensionObject);
+            Assert.NotNull(dataTypeDefinition.Body);
+            Assert.True(dataTypeDefinition.Body is StructureDefinition);
+            StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.AreEqual(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
+        }
+
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy)
         {
