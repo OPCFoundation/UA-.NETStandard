@@ -569,6 +569,8 @@ namespace Opc.Ua.Configuration
                     StatusCodes.BadCertificateUntrusted,
                     StatusCodes.BadCertificateTimeInvalid,
                     StatusCodes.BadCertificateHostNameInvalid,
+                    StatusCodes.BadCertificateRevocationUnknown,
+                    StatusCodes.BadCertificateIssuerRevocationUnknown,
                 });
 
             Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate. {0}", certificate.Subject);
