@@ -358,15 +358,13 @@ namespace Opc.Ua.Configuration.Tests
             // pki directory root for test runs. 
             var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance() {
-                ApplicationName = ApplicationName
-            };
+            var applicationInstance = new ApplicationInstance() {ApplicationName = ApplicationName};
             Assert.NotNull(applicationInstance);
             ApplicationConfiguration config;
             if (server)
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AsServer(new string[] {"opc.tcp://localhost:12345/Configuration"})
                     .AddSecurityConfiguration(SubjectName, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
@@ -377,9 +375,11 @@ namespace Opc.Ua.Configuration.Tests
                     .AddSecurityConfiguration(SubjectName, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
+
             Assert.NotNull(config);
 
-            CertificateIdentifier applicationCertificate = applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
+            CertificateIdentifier applicationCertificate =
+                applicationInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate;
             Assert.IsNull(applicationCertificate.Certificate);
 
             X509Certificate2 publicKey = null;
@@ -390,21 +390,26 @@ namespace Opc.Ua.Configuration.Tests
                 testCert.AddToStore(
                     applicationCertificate.StoreType,
                     applicationCertificate.StorePath
-                    );
+                );
                 publicKey = new X509Certificate2(testCert.RawData);
             }
 
-            if (suppress)
+            using (publicKey)
             {
-                bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+                if (suppress)
+                {
+                    bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0)
+                        .ConfigureAwait(false);
 
-                Assert.True(certOK);
-                Assert.AreEqual(publicKey, applicationCertificate.Certificate);
-            }
-            else
-            {
-                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.True(certOK);
+                    Assert.AreEqual(publicKey, applicationCertificate.Certificate);
+                }
+                else
+                {
+                    var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
+                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                }
             }
         }
         /// <summary>
@@ -476,17 +481,22 @@ namespace Opc.Ua.Configuration.Tests
                 publicKey = new X509Certificate2(testCert.RawData);
             }
 
-            if (suppress)
+            using (publicKey)
             {
-                bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false);
+                if (suppress)
+                {
+                    bool certOK = await applicationInstance.CheckApplicationInstanceCertificate(true, 0)
+                        .ConfigureAwait(false);
 
-                Assert.True(certOK);
-                Assert.AreEqual(publicKey, applicationCertificate.Certificate);
-            }
-            else
-            {
-                var sre = Assert.ThrowsAsync<ServiceResultException>(async () => await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
-                Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                    Assert.True(certOK);
+                    Assert.AreEqual(publicKey, applicationCertificate.Certificate);
+                }
+                else
+                {
+                    var sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await applicationInstance.CheckApplicationInstanceCertificate(true, 0).ConfigureAwait(false));
+                    Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
+                }
             }
         }
         #endregion
