@@ -323,7 +323,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test, Order(500)]
-        public void UpdateCertificateSelfSignedNoPrivateKey()
+        public void UpdateCertificateSelfSignedNoPrivateKeyAsserts()
         {
             ConnectPushClient(true);
             using (X509Certificate2 invalidCert = CertificateFactory.CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null).CreateForRSA())
@@ -350,6 +350,19 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(() => { m_pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, new byte[][] { serverCert.RawData, invalidCert.RawData }); }, Throws.Exception);
                 Assert.That(() => { m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, new byte[][] { serverCert.RawData, invalidRawCert }); }, Throws.Exception);
                 Assert.That(() => { m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null); }, Throws.Exception);
+            }
+        }
+
+        [Test, Order(501)]
+        public void UpdateCertificateSelfSignedNoPrivateKey()
+        {
+            ConnectPushClient(true);
+            using (X509Certificate2 serverCert = new X509Certificate2(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate))
+            {
+                if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
+                {
+                    Assert.Ignore("Server has no self signed cert in use.");
+                }
                 var success = m_pushClient.PushClient.UpdateCertificate(
                     null,
                     m_pushClient.PushClient.ApplicationCertificateType,

@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -154,9 +155,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        public async Task<X509Certificate2> Find()
+        public Task<X509Certificate2> Find()
         {
-            return await Find(false).ConfigureAwait(false);
+            return Find(false);
         }
 
         /// <summary>
@@ -168,7 +169,7 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
+        public Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider)
         {
             if (this.StoreType == CertificateStoreType.Directory)
             {
@@ -177,19 +178,19 @@ namespace Opc.Ua
                     store.Open(this.StorePath);
                     string password = passwordProvider?.GetPassword(this);
                     m_certificate = store.LoadPrivateKey(this.Thumbprint, this.SubjectName, password);
-                    return m_certificate;
+                    return Task.FromResult(m_certificate);
                 }
             }
 
-            return await Find(true).ConfigureAwait(false);
+            return Find(true);
         }
 
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
-        /// <returns>An instance of the <see cref="X509Certificate2"/> that is emebeded by this instance or find it in 
-        /// the selected strore pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/>.</returns>
+        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
+        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/>.</returns>
         public async Task<X509Certificate2> Find(bool needPrivateKey)
         {
             X509Certificate2 certificate = null;
@@ -213,6 +214,14 @@ namespace Opc.Ua
                     if (certificate != null)
                     {
                         m_certificate = certificate;
+
+                        if (needPrivateKey && this.StoreType == CertificateStoreType.Directory)
+                        {
+                            var message = new StringBuilder();
+                            message.AppendLine("Loaded a certificate with private key from the directory store.");
+                            message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
+                            Utils.Trace(Utils.TraceMasks.Error, message.ToString());
+                        }
                     }
                 }
             }
