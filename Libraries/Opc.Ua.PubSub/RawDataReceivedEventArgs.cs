@@ -27,57 +27,43 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.PubSub.PublishedData
+using System;
+
+namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Base class for a DataSet field
+    /// EventArgs class for RawData message received event
     /// </summary>
-    public class Field
+    public class RawDataReceivedEventArgs : EventArgs
     {
         /// <summary>
-        /// Get/Set Value 
+        /// Get/Set flag that indicates if the RawData message is handled and shall not be decoded by the PubSub library
         /// </summary>
-        public DataValue Value { get; set; }
+        public bool Handled { get; set; }
 
         /// <summary>
-        /// Get/Set Target NodeId 
+        /// Get/Set the message bytes
         /// </summary>
-        public NodeId TargetNodeId { get; set; }
+        public byte[] Message { get; set; }
 
         /// <summary>
-        /// Get/Set target attribute 
+        /// Get/Set the message Source
         /// </summary>
-        public uint TargetAttribute { get; set; }
+        public string Source { get; set; }
 
         /// <summary>
-        /// Get configured <see cref="FieldMetaData"/> object for this <see cref="Field"/> instance.
+        /// Get/Set the TransportProtocol for the message that was received
         /// </summary>
-        public FieldMetaData FieldMetaData { get; internal set; }
+        public TransportProtocol TransportProtocol { get; set; }
 
-        #region MemberwiseClone method
         /// <summary>
-        /// Create a deep copy of current DataSet
+        /// Get/Set the current MessageMapping for the message that was received
         /// </summary>
-        public new object MemberwiseClone()
-        {
-            Field copy = base.MemberwiseClone() as Field;
-            if (Value != null)
-            {
-                if (copy != null)
-                {
-                    copy.Value = Value.MemberwiseClone() as DataValue;
-                }
-            }
+        public MessageMapping MessageMapping { get; set; }
 
-            if (FieldMetaData != null)
-            {
-                if (copy != null)
-                {
-                    copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;
-                }
-            }
-            return copy;
-        }
-        #endregion
+        /// <summary>
+        /// Get/Set the PubSubConnection Configuration object for the connection that received this message
+        /// </summary>
+        public PubSubConnectionDataType PubSubConnectionConfiguration { get; set; }
     }
 }

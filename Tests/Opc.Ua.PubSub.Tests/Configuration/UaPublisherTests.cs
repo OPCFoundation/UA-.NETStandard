@@ -46,10 +46,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 #if !CUSTOM_TESTS
         [Ignore("This test should be executed locally")]
 #endif
-        public void ValidateUaPublisherPublishIntevalDeviation(
+        public void ValidateUaPublisherPublishIntervalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
-            [Values(20, 30)]double maxDeviation,
-            [Values(10)] int publishTimeInSecods)
+            [Values(30, 40)]double maxDeviation,
+            [Values(10)] int publishTimeInSeconds)
         {
             //Arrange
             s_publishTimes.Clear();
@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             publisher.Start();
 
             //wait so many seconds
-            Thread.Sleep(publishTimeInSecods*1000);
+            Thread.Sleep(publishTimeInSeconds*1000);
             publisher.Stop();
             int faultIndex = -1;
             double faultDeviation = 0;
@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     faultDeviation = deviation;
                 }
             }
-            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSecods, faultIndex, faultDeviation);
+            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} has maximum deviation", publishingInterval, maxDeviation, publishTimeInSeconds, faultIndex, faultDeviation);
         }
     }
 }

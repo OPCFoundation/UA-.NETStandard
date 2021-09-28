@@ -27,24 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Net;
-
-namespace Opc.Ua.PubSub.Encoding
+namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
-    /// EventArgs class for UadpMessage received
+    /// The interface for the MQTT PubSub connection
     /// </summary>
-    internal class UadpDataEventArgs : EventArgs
+    public interface IMqttPubSubConnection : IUaPubSubConnection
     {
         /// <summary>
-        /// Uadp message bytes
+        /// Determine if the connection can publish metadata for specified writer group and data set writer
         /// </summary>
-        internal byte[] Message { get; set; }
+        bool CanPublishMetaData(WriterGroupDataType writerGroupConfiguration, DataSetWriterDataType dataSetWriter);
 
-        /// <summary>
-        /// Get the Source EndPoint
+        /// <summary> 
+        /// Create and return the DataSetMetaData message for a DataSetWriter
         /// </summary>
-        internal IPEndPoint SourceEndPoint { get; set; }
+        /// <returns></returns>
+        UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup,
+            DataSetWriterDataType dataSetWriter);
     }
 }
