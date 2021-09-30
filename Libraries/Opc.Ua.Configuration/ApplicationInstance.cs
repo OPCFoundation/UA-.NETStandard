@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -416,7 +417,6 @@ namespace Opc.Ua.Configuration
             }
 
             ApplicationConfiguration configuration = m_applicationConfiguration;
-            bool certificateValid = false;
 
             // find the existing certificate.
             CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
@@ -427,12 +427,28 @@ namespace Opc.Ua.Configuration
                     "Configuration file does not specify a certificate.");
             }
 
+            // reload the certificate from disk in the cache.
+            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
+            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+
+            // load the certificate
             X509Certificate2 certificate = await id.Find(true).ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
             {
-                certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize).ConfigureAwait(false);
+                bool certificateValid = await CheckApplicationInstanceCertificate(configuration, certificate, silent, minimumKeySize).ConfigureAwait(false);
+
+                if (!certificateValid)
+                {
+                    var message = new StringBuilder();
+                    message.AppendLine("The certificate with subject {0} in the configuration is invalid.");
+                    message.AppendLine(" Please update or delete the certificate from this location:");
+                    message.AppendLine(" {1}");
+                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                        message.ToString(), id.SubjectName, id.StorePath
+                        );
+                }
             }
             else
             {
@@ -481,7 +497,7 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            if ((certificate == null) || !certificateValid)
+            if (certificate == null)
             {
                 certificate = await CreateApplicationInstanceCertificate(configuration,
                     minimumKeySize, lifeTimeInMonths).ConfigureAwait(false);
@@ -513,6 +529,27 @@ namespace Opc.Ua.Configuration
 
         #region Private Methods
         /// <summary>
+        /// Helper to suppress errors which are allowed for the application certificate validation.
+        /// </summary>
+        private class CertValidationSuppressibleStatusCodes
+        {
+            public StatusCode[] ApprovedCodes { get; }
+
+            public CertValidationSuppressibleStatusCodes(StatusCode[] approvedCodes)
+            {
+                ApprovedCodes = approvedCodes;
+            }
+
+            public void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
+            {
+                if (ApprovedCodes.Contains(e.Error.StatusCode))
+                {
+                    e.Accept = true;
+                }
+            }
+        }
+
+        /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
         private async Task<bool> CheckApplicationInstanceCertificate(
@@ -526,12 +563,23 @@ namespace Opc.Ua.Configuration
                 return false;
             }
 
+            // set suppressible errors
+            var certValidator = new CertValidationSuppressibleStatusCodes(
+                new StatusCode[] {
+                    StatusCodes.BadCertificateUntrusted,
+                    StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateHostNameInvalid,
+                    StatusCodes.BadCertificateRevocationUnknown,
+                    StatusCodes.BadCertificateIssuerRevocationUnknown,
+                });
+
             Utils.Trace(Utils.TraceMasks.Information, "Checking application instance certificate. {0}", certificate.Subject);
 
             try
             {
                 // validate certificate.
-                configuration.CertificateValidator.Validate(certificate);
+                configuration.CertificateValidator.CertificateValidation += certValidator.OnCertificateValidation;
+                configuration.CertificateValidator.Validate(certificate.HasPrivateKey ? new X509Certificate2(certificate.RawData) : certificate);
             }
             catch (Exception ex)
             {
@@ -541,6 +589,10 @@ namespace Opc.Ua.Configuration
                 {
                     return false;
                 }
+            }
+            finally
+            {
+                configuration.CertificateValidator.CertificateValidation -= certValidator.OnCertificateValidation;
             }
 
             // check key size.
@@ -728,9 +780,7 @@ namespace Opc.Ua.Configuration
             Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
 
             // reload the certificate from disk.
-            await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
-
-            return certificate;
+            return await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -871,7 +921,7 @@ namespace Opc.Ua.Configuration
             }
             else
             {
-                Utils.Trace(message);
+                Utils.Trace(Utils.TraceMasks.Error, message);
                 return false;
             }
         }

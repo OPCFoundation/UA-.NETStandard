@@ -38,8 +38,8 @@ namespace Opc.Ua.PubSub.PublishedData
     public class DataCollector
     {
         #region Private Fields
-        private Dictionary<string, PublishedDataSetDataType> m_publishedDataSetsByName;
-        private IUaPubSubDataStore m_dataStore;
+        private readonly Dictionary<string, PublishedDataSetDataType> m_publishedDataSetsByName;
+        private readonly IUaPubSubDataStore m_dataStore;
         #endregion
 
         #region Constructor
@@ -125,9 +125,8 @@ namespace Opc.Ua.PubSub.PublishedData
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
         /// <param name="dataSetName"></param>
-        /// <param name="isDeltaFrame"></param>
         /// <returns></returns>
-        public DataSet CollectData(string dataSetName, bool isDeltaFrame)
+        public DataSet CollectData(string dataSetName)
         {
             PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
 
@@ -160,7 +159,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 if (publishedVariable.PublishedVariable != null)
                                 {
-                                    dataValue = m_dataStore.ReadPublishedDataItem(publishedVariable.PublishedVariable, publishedVariable.AttributeId, isDeltaFrame);
+                                    dataValue = m_dataStore.ReadPublishedDataItem(publishedVariable.PublishedVariable, publishedVariable.AttributeId);
                                 }
 
                                 if (dataValue == null)
@@ -287,7 +286,6 @@ namespace Opc.Ua.PubSub.PublishedData
                         }
                         return dataSet;
                     }
-
                 }
             }
             return null;

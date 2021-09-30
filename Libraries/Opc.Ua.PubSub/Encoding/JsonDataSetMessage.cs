@@ -126,7 +126,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode dataset from the provided json decoder using the provided <see cref="DataSetReaderDataType"/>.
         /// </summary>
-        /// <param name="jsonDecoder">The json decoder trhat contains the json stream.</param>
+        /// <param name="jsonDecoder">The json decoder that contains the json stream.</param>
         /// <param name="messagesCount">Number of Messages found in current jsonDecoder. If 0 then there is SingleDataSetMessage</param>
         /// <param name="messagesListName">The name of the Messages list</param>
         /// <param name="dataSetReader">The <see cref="DataSetReaderDataType"/> used to decode the data set.</param>
@@ -143,6 +143,11 @@ namespace Opc.Ua.PubSub.Encoding
                     jsonDecoder.PushStructure(kFieldPayload);
                 }
 
+                DecodeErrorReason = ValidateMetadataVersion(dataSetReader?.DataSetMetaData?.ConfigurationVersion);
+                if (IsMetadataMajorVersionChange)
+                {
+                    return;
+                }
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
                 DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
             }
@@ -164,13 +169,16 @@ namespace Opc.Ua.PubSub.Encoding
                             // the dataset was decoded
                             return;
                         }
+                       
                     }
                 }
             }
         }
 
+
+
         /// <summary>
-        /// Atempt to decode dataset from the Keyvalue pairs
+        /// Atempt to decode dataset from the KeyValue pairs
         /// </summary>
         private void DecodePossibleDataSetReader(JsonDecoder jsonDecoder, DataSetReaderDataType dataSetReader)
         {
@@ -197,11 +205,15 @@ namespace Opc.Ua.PubSub.Encoding
 
             Dictionary<string, object> payload = token as Dictionary<string, object>;
 
-            if (payload != null)
+            if (payload != null && dataSetReader.DataSetMetaData != null)
             {
-                if (payload.Count > dataSetReader.DataSetMetaData.Fields.Count)
+                DecodeErrorReason = ValidateMetadataVersion(dataSetReader.DataSetMetaData.ConfigurationVersion);
+
+                if ( (payload.Count > dataSetReader.DataSetMetaData.Fields.Count) ||
+                     IsMetadataMajorVersionChange)
                 {
-                    // filter out payload that has more fields than the searched datasetMetadata
+                    // filter out payload that has more fields than the searched datasetMetadata or
+                    // doesn't pass metadata version
                     return;
                 }
                 // check also the field names from reader, if any extra field names then the payload is not matching 
@@ -370,6 +382,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // build the dataset object
             DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+            dataSet.DataSetMetaData = dataSetMetaData;
             dataSet.Fields = dataFields.ToArray();
             dataSet.DataSetWriterId = DataSetWriterId;
             dataSet.SequenceNumber = SequenceNumber;
@@ -446,7 +459,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             Variant valueToEncode = field.Value.WrappedValue;
 
-            // The StatusCode.Good value is not encoded cor3ectly then it shall be ommited
+            // The StatusCode.Good value is not encoded correctly then it shall be committed
             if (valueToEncode == StatusCodes.Good && m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {
                 valueToEncode = Variant.Null;

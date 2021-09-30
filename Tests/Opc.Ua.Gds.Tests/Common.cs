@@ -108,6 +108,7 @@ namespace Opc.Ua.Gds.Tests
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
+            string locale = _randomSource.NextInt32(10) == 0 ? null : "en-US";
             string privateKeyFormat = _randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
@@ -135,7 +136,7 @@ namespace Opc.Ua.Gds.Tests
             }
             ApplicationTestData testData = new ApplicationTestData {
                 ApplicationRecord = new ApplicationRecordDataType {
-                    ApplicationNames = new LocalizedTextCollection { new LocalizedText("en-us", appName) },
+                    ApplicationNames = new LocalizedTextCollection { new LocalizedText(locale, appName) },
                     ApplicationUri = appUri,
                     ApplicationType = appType,
                     ProductUri = prodUri,
