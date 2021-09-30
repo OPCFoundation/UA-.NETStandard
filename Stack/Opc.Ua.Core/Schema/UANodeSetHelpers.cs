@@ -924,9 +924,13 @@ namespace Opc.Ua.Export
                         }
 
                         output.ValueRank = field.ValueRank;
+
                         if (field.ArrayDimensions != null && field.ArrayDimensions.Count != 0)
                         {
-                            output.ArrayDimensions = BaseVariableState.ArrayDimensionsToXml(field.ArrayDimensions);
+                            if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                            {
+                                output.ArrayDimensions = BaseVariableState.ArrayDimensionsToXml(field.ArrayDimensions);
+                            }
                         }
 
                         output.MaxStringLength = field.MaxStringLength;
@@ -1038,9 +1042,13 @@ namespace Opc.Ua.Export
                             output.Description = Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
-                            if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
+
+                            if (!String.IsNullOrWhiteSpace(field.ArrayDimensions))
                             {
-                                output.ArrayDimensions = new UInt32Collection(BaseVariableState.ArrayDimensionsFromXml(field.ArrayDimensions));
+                                if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                                {
+                                    output.ArrayDimensions = new UInt32Collection(BaseVariableState.ArrayDimensionsFromXml(field.ArrayDimensions));
+                                }
                             }
 
                             output.MaxStringLength = field.MaxStringLength;
