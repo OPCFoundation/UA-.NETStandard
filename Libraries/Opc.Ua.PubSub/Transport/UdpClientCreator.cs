@@ -101,21 +101,20 @@ namespace Opc.Ua.PubSub.Transport
         /// Creates and returns a list of <see cref="UdpClient"/> created based on configuration options
         /// </summary>
         /// <param name="pubSubContext">Is the method called in a publisher context or a subscriber context</param>
-        /// <param name="networkAddressUrl">The configuration object <see cref="NetworkAddressUrlDataType"/>.</param>
+        /// <param name="networkInterface">The configured network interface name.</param>
         /// <param name="configuredEndpoint">The configured <see cref="IPEndPoint"/> that will be used for data exchange.</param>
         /// <returns></returns>
-        internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, NetworkAddressUrlDataType networkAddressUrl, IPEndPoint configuredEndpoint)
+        internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
         {
             StringBuilder buffer = new StringBuilder();
-            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkAddressUrl != null ? networkAddressUrl.NetworkInterface : "null");
-            buffer.AppendFormat("networkAddressUrl.Url = {0} \n", networkAddressUrl?.Url != null ? networkAddressUrl?.Url : "null");
+            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkInterface != null ? networkInterface : "null");            
             buffer.AppendFormat("configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 
             List<UdpClient> udpClients = new List<UdpClient>();
             //validate input parameters
-            if (networkAddressUrl == null || configuredEndpoint == null)
+            if (configuredEndpoint == null)
             {
                 //log warning?
                 return udpClients;
@@ -123,7 +122,7 @@ namespace Opc.Ua.PubSub.Transport
             //detect the list on network interfaces that will be used for creating the UdpClient s
             List<NetworkInterface> usableNetworkInterfaces = new List<NetworkInterface>();
             var interfaces = NetworkInterface.GetAllNetworkInterfaces();
-            if (string.IsNullOrEmpty(networkAddressUrl.NetworkInterface))
+            if (string.IsNullOrEmpty(networkInterface))
             {
                 Utils.Trace(Utils.TraceMasks.Information, "No NetworkInterface name was provided. Use all available NICs.");
                 usableNetworkInterfaces.AddRange(interfaces);
@@ -133,14 +132,14 @@ namespace Opc.Ua.PubSub.Transport
                 //the configuration contains a NetworkInterface name, try to locate it
                 foreach (NetworkInterface nic in interfaces)
                 {
-                    if (nic.Name.Equals(networkAddressUrl.NetworkInterface, StringComparison.OrdinalIgnoreCase))
+                    if (nic.Name.Equals(networkInterface, StringComparison.OrdinalIgnoreCase))
                     {
                         usableNetworkInterfaces.Add(nic);
                     }
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkAddressUrl.NetworkInterface);
+                    Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkInterface);
                     usableNetworkInterfaces.AddRange(interfaces);
                 }
             }
@@ -148,16 +147,24 @@ namespace Opc.Ua.PubSub.Transport
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
                 Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') attempts to create instance of UdpClient.", nic.Name);
-                //ignore loop-back interface
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-                //ignore tunnel interface
-                if (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                if ((nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) ||
+                    (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) ||
+                    (nic.OperationalStatus != OperationalStatus.Up))
+                {
+                    //ignore loop-back interface
+                    //ignore tunnel interface
+                    //ignore not operational interface
+                    continue;
+                }
+
                 UdpClient udpClient = CreateUdpClientForNetworkInterface(pubSubContext, nic, configuredEndpoint);
                 if (udpClient == null) continue;
                 //store UdpClient
                 udpClients.Add(udpClient);
                 Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') UdpClient successfully created.", nic.Name);
             }
+
             return udpClients;
         }
 
@@ -186,7 +193,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 //detect the port used for binding
                 int port = 0;
-                if (pubSubContext == UsedInContext.Subscriber)
+                if (pubSubContext == UsedInContext.Subscriber || pubSubContext == UsedInContext.Discovery)
                 {
                     port = configuredEndpoint.Port;
                 }
@@ -205,7 +212,7 @@ namespace Opc.Ua.PubSub.Transport
                     //instantiate unicast UdpClient depending on publisher/subscriber usage context
                     udpClient = new UdpClientUnicast(localAddress, port);
                 }
-                if (pubSubContext == UsedInContext.Publisher)
+                if (pubSubContext == UsedInContext.Publisher || pubSubContext == UsedInContext.Discovery)
                 {
                     //try to send 1 byte for target IP
                     udpClient.Send(new byte[] { 0 }, 1, configuredEndpoint);

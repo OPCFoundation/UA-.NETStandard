@@ -36,6 +36,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transport;
 using Opc.Ua.PubSub.Tests.Encoding;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
@@ -46,6 +47,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         private ManualResetEvent m_uaDataShutdownEvent;
         private ManualResetEvent m_uaMetaDataShutdownEvent;
+        private ManualResetEvent m_uaConfigurationUpdateEvent;
         private const int EstimatedPublishingTime = 60000;
 
         [OneTimeSetUp()]
@@ -107,7 +109,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
             var networkMessages = publisherConnection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
@@ -219,14 +221,17 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
             Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
 
             var networkMessages = publisherConnection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            JsonNetworkMessage uaNetworkMessage = networkMessages[0] as JsonNetworkMessage;
-            Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
+            List<JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
+
+            List<JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<JsonNetworkMessage>().ToList());
+            Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
                 && (jsonDataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0;
@@ -257,13 +262,16 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(subscriberConnection, "Subscriber first connection should not be null");
 
             //Act
-            // it will signal if the uadp message was received from local ip
+            // it will signal if the mqtt message was received from local ip
             m_uaDataShutdownEvent = new ManualResetEvent(false);
-            // it will signal if the uadp metadata message was received from local ip
+            // it will signal if the mqtt metadata message was received from local ip
             m_uaMetaDataShutdownEvent = new ManualResetEvent(false);
+            // it will signal if the changed configuration message was received on local ip
+            m_uaConfigurationUpdateEvent = new ManualResetEvent(false);
 
             subscriberApplication.DataReceived += UaPubSubApplication_DataReceived;
             subscriberApplication.MetaDataReceived += UaPubSubApplication_MetaDataReceived;
+            subscriberApplication.ConfigurationUpdating += UaPubSubApplication_ConfigurationUpdating;
             subscriberConnection.Start();
 
             publisherConnection.Start();
@@ -303,7 +311,17 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             m_uaMetaDataShutdownEvent.Set();
         }
-        
+
+        /// <summary>
+        /// ConfigurationUpdating received handler 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UaPubSubApplication_ConfigurationUpdating(object sender, ConfigurationUpdatingEventArgs e)
+        {
+            m_uaConfigurationUpdateEvent.Set();
+        }
+
         /// <summary>
         /// Start/stop local mosquitto
         /// </summary>

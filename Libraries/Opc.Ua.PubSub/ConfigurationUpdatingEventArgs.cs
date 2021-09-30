@@ -27,57 +27,33 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.PubSub.PublishedData
+using System;
+
+namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Base class for a DataSet field
+    /// Class that contains data related to ConfigurationUpdating event 
     /// </summary>
-    public class Field
+    public class ConfigurationUpdatingEventArgs : EventArgs
     {
         /// <summary>
-        /// Get/Set Value 
+        /// The Property of <see cref="Parent"/> that should receive <see cref="NewValue"/>.
         /// </summary>
-        public DataValue Value { get; set; }
+        public ConfigurationProperty ChangedProperty { get; set; }
 
         /// <summary>
-        /// Get/Set Target NodeId 
+        /// The the configuration object that should receive a <see cref="NewValue"/> in its <see cref="ChangedProperty"/>.
         /// </summary>
-        public NodeId TargetNodeId { get; set; }
+        public object Parent { get; set; }
 
         /// <summary>
-        /// Get/Set target attribute 
+        /// The new value that shall be set to the <see cref="Parent"/> in <see cref="ChangedProperty"/> property.
         /// </summary>
-        public uint TargetAttribute { get; set; }
+        public object NewValue { get; set; }
 
         /// <summary>
-        /// Get configured <see cref="FieldMetaData"/> object for this <see cref="Field"/> instance.
+        /// Flag that indicates if the Configuration update should be canceled.
         /// </summary>
-        public FieldMetaData FieldMetaData { get; internal set; }
-
-        #region MemberwiseClone method
-        /// <summary>
-        /// Create a deep copy of current DataSet
-        /// </summary>
-        public new object MemberwiseClone()
-        {
-            Field copy = base.MemberwiseClone() as Field;
-            if (Value != null)
-            {
-                if (copy != null)
-                {
-                    copy.Value = Value.MemberwiseClone() as DataValue;
-                }
-            }
-
-            if (FieldMetaData != null)
-            {
-                if (copy != null)
-                {
-                    copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;
-                }
-            }
-            return copy;
-        }
-        #endregion
+        public bool Cancel { get; set; }
     }
 }

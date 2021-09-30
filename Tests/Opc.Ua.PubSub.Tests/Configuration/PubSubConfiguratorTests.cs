@@ -548,7 +548,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher AddWriterGroup  is reflected in the parent UaPubSubApplication")]
         public void ValidateWriterGroupAddedAndReflectedInApplication()
         {
-            // Create an UaPubSubApplicatuion with an empty configuration
+            // Create an UaPubSubApplication with an empty configuration
             UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create();
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
@@ -580,7 +580,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher RemoveWriterGroup  is reflected in the parent UaPubSubApplication")]
         public void ValidateWriterGroupRemovedAndReflectedInApplication()
         {
-            // Create an UaPubSubApplicatuion with an empty configuration
+            // Create an UaPubSubApplication with an empty configuration
             UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create();
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
@@ -618,7 +618,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher AddDataSetWriter  is reflected in the parent UaPubSubApplication")]
         public void ValidateDataSetWriterAddedAndReflectedInApplication()
         {
-            // Create an UaPubSubApplicatuion with an empty configuration
+            // Create an UaPubSubApplication with an empty configuration
             UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create();
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
@@ -664,7 +664,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Publisher RemoveDataSetWriter  is reflected in the parent UaPubSubApplication")]
         public void ValidateDataSetWriterRemovedAndReflectedInApplication()
         {
-            // Create an UaPubSubApplicatuion with an empty configuration
+            // Create an UaPubSubApplication with an empty configuration
             UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create();
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;

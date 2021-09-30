@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.IO;
 
 namespace Opc.Ua
 {
@@ -74,10 +75,11 @@ namespace Opc.Ua
         /// The path to the default PKI Root.
         /// </summary>
 #if NETFRAMEWORK
-        public static readonly string DefaultPKIRoot = "%CommonApplicationData%/OPC Foundation/pki";
+        public static readonly string DefaultPKIRoot = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki");
 #else
-        public static readonly string DefaultPKIRoot = "%LocalApplicationData%/OPC Foundation/pki";
+        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%","OPC Foundation","pki");
 #endif
+
         /// <summary>
         /// The path to the current user X509Store.
         /// </summary>

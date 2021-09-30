@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub
     {
         #region Private Fields
         private readonly object m_lock = new object();
-        private Dictionary<NodeId, Dictionary<uint, DataValue>> m_store;
+        private readonly Dictionary<NodeId, Dictionary<uint, DataValue>> m_store;
         #endregion
 
         #region Constructor
@@ -133,10 +133,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
-        /// <param name="deltaFrame">TRUE if a delta frame is being created.</param>
         /// <returns></returns>
-        public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, bool deltaFrame = false)
+        public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
         {
+            // todo find out why the deltaFrame parameter is not used
             if (nodeId == null)
             {
                 throw new ArgumentException(nameof(nodeId));
