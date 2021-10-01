@@ -1976,27 +1976,27 @@
       <xs:enumeration value="InsufficientBandwidth_1" />
       <xs:enumeration value="InsufficientResources_2" />
       <xs:enumeration value="InsufficientTrafficClassBandwidth_3" />
-      <xs:enumeration value="StreamIDInUse_4" />
+      <xs:enumeration value="StreamIdInUse_4" />
       <xs:enumeration value="StreamDestinationAddressInUse_5" />
       <xs:enumeration value="StreamPreemptedByHigherRank_6" />
       <xs:enumeration value="LatencyHasChanged_7" />
-      <xs:enumeration value="EgressPortNotAVBCapable_8" />
+      <xs:enumeration value="EgressPortNotAvbCapable_8" />
       <xs:enumeration value="UseDifferentDestinationAddress_9" />
-      <xs:enumeration value="OutOfMSRPResources_10" />
-      <xs:enumeration value="OutOfMMRPResources_11" />
+      <xs:enumeration value="OutOfMsrpResources_10" />
+      <xs:enumeration value="OutOfMmrpResources_11" />
       <xs:enumeration value="CannotStoreDestinationAddress_12" />
-      <xs:enumeration value="PriorityIsNoAnSRCLass_13" />
+      <xs:enumeration value="PriorityIsNotAnSrcClass_13" />
       <xs:enumeration value="MaxFrameSizeTooLarge_14" />
       <xs:enumeration value="MaxFanInPortsLimitReached_15" />
-      <xs:enumeration value="FirstValueChangedForStreamID_16" />
+      <xs:enumeration value="FirstValueChangedForStreamId_16" />
       <xs:enumeration value="VlanBlockedOnEgress_17" />
       <xs:enumeration value="VlanTaggingDisabledOnEgress_18" />
       <xs:enumeration value="SrClassPriorityMismatch_19" />
       <xs:enumeration value="FeatureNotPropagated_20" />
       <xs:enumeration value="MaxLatencyExceeded_21" />
-      <xs:enumeration value="BridgeDoesNotProvideNetworkID_22" />
+      <xs:enumeration value="BridgeDoesNotProvideNetworkId_22" />
       <xs:enumeration value="StreamTransformNotSupported_23" />
-      <xs:enumeration value="StreamIDTypeNotSupported_24" />
+      <xs:enumeration value="StreamIdTypeNotSupported_24" />
       <xs:enumeration value="FeatureNotSupported_25" />
     </xs:restriction>
   </xs:simpleType>
