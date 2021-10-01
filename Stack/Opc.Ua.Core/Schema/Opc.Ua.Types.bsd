@@ -875,27 +875,27 @@
     <opc:EnumeratedValue Name="InsufficientBandwidth" Value="1" />
     <opc:EnumeratedValue Name="InsufficientResources" Value="2" />
     <opc:EnumeratedValue Name="InsufficientTrafficClassBandwidth" Value="3" />
-    <opc:EnumeratedValue Name="StreamIDInUse" Value="4" />
+    <opc:EnumeratedValue Name="StreamIdInUse" Value="4" />
     <opc:EnumeratedValue Name="StreamDestinationAddressInUse" Value="5" />
     <opc:EnumeratedValue Name="StreamPreemptedByHigherRank" Value="6" />
     <opc:EnumeratedValue Name="LatencyHasChanged" Value="7" />
-    <opc:EnumeratedValue Name="EgressPortNotAVBCapable" Value="8" />
+    <opc:EnumeratedValue Name="EgressPortNotAvbCapable" Value="8" />
     <opc:EnumeratedValue Name="UseDifferentDestinationAddress" Value="9" />
-    <opc:EnumeratedValue Name="OutOfMSRPResources" Value="10" />
-    <opc:EnumeratedValue Name="OutOfMMRPResources" Value="11" />
+    <opc:EnumeratedValue Name="OutOfMsrpResources" Value="10" />
+    <opc:EnumeratedValue Name="OutOfMmrpResources" Value="11" />
     <opc:EnumeratedValue Name="CannotStoreDestinationAddress" Value="12" />
-    <opc:EnumeratedValue Name="PriorityIsNoAnSRCLass" Value="13" />
+    <opc:EnumeratedValue Name="PriorityIsNotAnSrcClass" Value="13" />
     <opc:EnumeratedValue Name="MaxFrameSizeTooLarge" Value="14" />
     <opc:EnumeratedValue Name="MaxFanInPortsLimitReached" Value="15" />
-    <opc:EnumeratedValue Name="FirstValueChangedForStreamID" Value="16" />
+    <opc:EnumeratedValue Name="FirstValueChangedForStreamId" Value="16" />
     <opc:EnumeratedValue Name="VlanBlockedOnEgress" Value="17" />
     <opc:EnumeratedValue Name="VlanTaggingDisabledOnEgress" Value="18" />
     <opc:EnumeratedValue Name="SrClassPriorityMismatch" Value="19" />
     <opc:EnumeratedValue Name="FeatureNotPropagated" Value="20" />
     <opc:EnumeratedValue Name="MaxLatencyExceeded" Value="21" />
-    <opc:EnumeratedValue Name="BridgeDoesNotProvideNetworkID" Value="22" />
+    <opc:EnumeratedValue Name="BridgeDoesNotProvideNetworkId" Value="22" />
     <opc:EnumeratedValue Name="StreamTransformNotSupported" Value="23" />
-    <opc:EnumeratedValue Name="StreamIDTypeNotSupported" Value="24" />
+    <opc:EnumeratedValue Name="StreamIdTypeNotSupported" Value="24" />
     <opc:EnumeratedValue Name="FeatureNotSupported" Value="25" />
   </opc:EnumeratedType>
 
