@@ -229,26 +229,6 @@
   </xs:complexType>
   <xs:element name="ListOfVector" type="tns:ListOfVector" nillable="true"></xs:element>
 
-  <xs:complexType name="VectorUnion">
-    <xs:complexContent mixed="false">
-      <xs:extension base="ua:Union">
-        <xs:sequence>
-          <xs:element name="X" type="xs:double" minOccurs="0" />
-          <xs:element name="Y" type="xs:double" minOccurs="0" />
-          <xs:element name="Z" type="xs:double" minOccurs="0" />
-        </xs:sequence>
-      </xs:extension>
-    </xs:complexContent>
-  </xs:complexType>
-  <xs:element name="VectorUnion" type="tns:VectorUnion" />
-
-  <xs:complexType name="ListOfVectorUnion">
-    <xs:sequence>
-      <xs:element name="VectorUnion" type="tns:VectorUnion" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfVectorUnion" type="tns:ListOfVectorUnion" nillable="true"></xs:element>
-
   <xs:complexType name="WorkOrderStatusType">
     <xs:sequence>
       <xs:element name="Actor" type="xs:string" minOccurs="0" nillable="true" />
@@ -281,43 +261,5 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfWorkOrderType" type="tns:ListOfWorkOrderType" nillable="true"></xs:element>
-
-  <xs:complexType name="SampleUnion">
-    <xs:complexContent mixed="false">
-      <xs:extension base="ua:Union">
-        <xs:sequence>
-          <xs:element name="FieldA" type="xs:unsignedInt" minOccurs="0" />
-          <xs:element name="FieldB" type="ua:ListOfString" minOccurs="0" nillable="true" />
-          <xs:element name="FieldC" type="xs:base64Binary" minOccurs="0" nillable="true" />
-          <xs:element name="FieldD" type="tns:WorkOrderType" minOccurs="0" nillable="true" />
-        </xs:sequence>
-      </xs:extension>
-    </xs:complexContent>
-  </xs:complexType>
-  <xs:element name="SampleUnion" type="tns:SampleUnion" />
-
-  <xs:complexType name="ListOfSampleUnion">
-    <xs:sequence>
-      <xs:element name="SampleUnion" type="tns:SampleUnion" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfSampleUnion" type="tns:ListOfSampleUnion" nillable="true"></xs:element>
-
-  <xs:complexType name="SampleStructureWithOptionalFields">
-    <xs:sequence>
-      <xs:element name="FieldA" type="xs:unsignedInt" minOccurs="0" />
-      <xs:element name="FieldB" type="ua:ListOfString" minOccurs="0" nillable="true" />
-      <xs:element name="FieldC" type="xs:base64Binary" minOccurs="0" nillable="true" />
-      <xs:element name="FieldD" type="tns:WorkOrderType" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="SampleStructureWithOptionalFields" type="tns:SampleStructureWithOptionalFields" />
-
-  <xs:complexType name="ListOfSampleStructureWithOptionalFields">
-    <xs:sequence>
-      <xs:element name="SampleStructureWithOptionalFields" type="tns:SampleStructureWithOptionalFields" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfSampleStructureWithOptionalFields" type="tns:ListOfSampleStructureWithOptionalFields" nillable="true"></xs:element>
 
 </xs:schema>

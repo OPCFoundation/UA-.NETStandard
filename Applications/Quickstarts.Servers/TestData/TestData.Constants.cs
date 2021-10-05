@@ -178,32 +178,17 @@ namespace TestData
         /// <summary>
         /// The identifier for the Vector DataType.
         /// </summary>
-        public const uint Vector = 1;
-
-        /// <summary>
-        /// The identifier for the VectorUnion DataType.
-        /// </summary>
-        public const uint VectorUnion = 2;
+        public const uint Vector = 1000;
 
         /// <summary>
         /// The identifier for the WorkOrderStatusType DataType.
         /// </summary>
-        public const uint WorkOrderStatusType = 4;
+        public const uint WorkOrderStatusType = 1004;
 
         /// <summary>
         /// The identifier for the WorkOrderType DataType.
         /// </summary>
-        public const uint WorkOrderType = 5;
-
-        /// <summary>
-        /// The identifier for the SampleUnion DataType.
-        /// </summary>
-        public const uint SampleUnion = 6;
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields DataType.
-        /// </summary>
-        public const uint SampleStructureWithOptionalFields = 7;
+        public const uint WorkOrderType = 1005;
     }
     #endregion
 
@@ -963,32 +948,17 @@ namespace TestData
         /// <summary>
         /// The identifier for the Vector_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint Vector_Encoding_DefaultBinary = 8;
-
-        /// <summary>
-        /// The identifier for the VectorUnion_Encoding_DefaultBinary Object.
-        /// </summary>
-        public const uint VectorUnion_Encoding_DefaultBinary = 9;
+        public const uint Vector_Encoding_DefaultBinary = 1008;
 
         /// <summary>
         /// The identifier for the WorkOrderStatusType_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint WorkOrderStatusType_Encoding_DefaultBinary = 11;
+        public const uint WorkOrderStatusType_Encoding_DefaultBinary = 1011;
 
         /// <summary>
         /// The identifier for the WorkOrderType_Encoding_DefaultBinary Object.
         /// </summary>
-        public const uint WorkOrderType_Encoding_DefaultBinary = 12;
-
-        /// <summary>
-        /// The identifier for the SampleUnion_Encoding_DefaultBinary Object.
-        /// </summary>
-        public const uint SampleUnion_Encoding_DefaultBinary = 13;
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields_Encoding_DefaultBinary Object.
-        /// </summary>
-        public const uint SampleStructureWithOptionalFields_Encoding_DefaultBinary = 14;
+        public const uint WorkOrderType_Encoding_DefaultBinary = 1012;
 
         /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultXml Object.
@@ -1016,11 +986,6 @@ namespace TestData
         public const uint Vector_Encoding_DefaultXml = 36;
 
         /// <summary>
-        /// The identifier for the VectorUnion_Encoding_DefaultXml Object.
-        /// </summary>
-        public const uint VectorUnion_Encoding_DefaultXml = 37;
-
-        /// <summary>
         /// The identifier for the WorkOrderStatusType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint WorkOrderStatusType_Encoding_DefaultXml = 39;
@@ -1029,16 +994,6 @@ namespace TestData
         /// The identifier for the WorkOrderType_Encoding_DefaultXml Object.
         /// </summary>
         public const uint WorkOrderType_Encoding_DefaultXml = 40;
-
-        /// <summary>
-        /// The identifier for the SampleUnion_Encoding_DefaultXml Object.
-        /// </summary>
-        public const uint SampleUnion_Encoding_DefaultXml = 41;
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields_Encoding_DefaultXml Object.
-        /// </summary>
-        public const uint SampleStructureWithOptionalFields_Encoding_DefaultXml = 42;
 
         /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultJson Object.
@@ -1066,11 +1021,6 @@ namespace TestData
         public const uint Vector_Encoding_DefaultJson = 64;
 
         /// <summary>
-        /// The identifier for the VectorUnion_Encoding_DefaultJson Object.
-        /// </summary>
-        public const uint VectorUnion_Encoding_DefaultJson = 65;
-
-        /// <summary>
         /// The identifier for the WorkOrderStatusType_Encoding_DefaultJson Object.
         /// </summary>
         public const uint WorkOrderStatusType_Encoding_DefaultJson = 67;
@@ -1079,16 +1029,6 @@ namespace TestData
         /// The identifier for the WorkOrderType_Encoding_DefaultJson Object.
         /// </summary>
         public const uint WorkOrderType_Encoding_DefaultJson = 68;
-
-        /// <summary>
-        /// The identifier for the SampleUnion_Encoding_DefaultJson Object.
-        /// </summary>
-        public const uint SampleUnion_Encoding_DefaultJson = 69;
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields_Encoding_DefaultJson Object.
-        /// </summary>
-        public const uint SampleStructureWithOptionalFields_Encoding_DefaultJson = 70;
     }
     #endregion
 
@@ -6638,12 +6578,7 @@ namespace TestData
         /// <summary>
         /// The identifier for the TestData_BinarySchema_Vector Variable.
         /// </summary>
-        public const uint TestData_BinarySchema_Vector = 15;
-
-        /// <summary>
-        /// The identifier for the TestData_BinarySchema_VectorUnion Variable.
-        /// </summary>
-        public const uint TestData_BinarySchema_VectorUnion = 18;
+        public const uint TestData_BinarySchema_Vector = 1015;
 
         /// <summary>
         /// The identifier for the TestData_BinarySchema_WorkOrderStatusType Variable.
@@ -6654,16 +6589,6 @@ namespace TestData
         /// The identifier for the TestData_BinarySchema_WorkOrderType Variable.
         /// </summary>
         public const uint TestData_BinarySchema_WorkOrderType = 27;
-
-        /// <summary>
-        /// The identifier for the TestData_BinarySchema_SampleUnion Variable.
-        /// </summary>
-        public const uint TestData_BinarySchema_SampleUnion = 30;
-
-        /// <summary>
-        /// The identifier for the TestData_BinarySchema_SampleStructureWithOptionalFields Variable.
-        /// </summary>
-        public const uint TestData_BinarySchema_SampleStructureWithOptionalFields = 33;
 
         /// <summary>
         /// The identifier for the TestData_XmlSchema Variable.
@@ -6706,11 +6631,6 @@ namespace TestData
         public const uint TestData_XmlSchema_Vector = 43;
 
         /// <summary>
-        /// The identifier for the TestData_XmlSchema_VectorUnion Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_VectorUnion = 46;
-
-        /// <summary>
         /// The identifier for the TestData_XmlSchema_WorkOrderStatusType Variable.
         /// </summary>
         public const uint TestData_XmlSchema_WorkOrderStatusType = 52;
@@ -6719,16 +6639,6 @@ namespace TestData
         /// The identifier for the TestData_XmlSchema_WorkOrderType Variable.
         /// </summary>
         public const uint TestData_XmlSchema_WorkOrderType = 55;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_SampleUnion Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_SampleUnion = 58;
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_SampleStructureWithOptionalFields Variable.
-        /// </summary>
-        public const uint TestData_XmlSchema_SampleStructureWithOptionalFields = 61;
     }
     #endregion
 
@@ -6876,11 +6786,6 @@ namespace TestData
         public static readonly ExpandedNodeId Vector = new ExpandedNodeId(TestData.DataTypes.Vector, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the VectorUnion DataType.
-        /// </summary>
-        public static readonly ExpandedNodeId VectorUnion = new ExpandedNodeId(TestData.DataTypes.VectorUnion, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the WorkOrderStatusType DataType.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderStatusType = new ExpandedNodeId(TestData.DataTypes.WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -6889,16 +6794,6 @@ namespace TestData
         /// The identifier for the WorkOrderType DataType.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderType = new ExpandedNodeId(TestData.DataTypes.WorkOrderType, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleUnion DataType.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleUnion = new ExpandedNodeId(TestData.DataTypes.SampleUnion, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields DataType.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleStructureWithOptionalFields = new ExpandedNodeId(TestData.DataTypes.SampleStructureWithOptionalFields, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -7661,11 +7556,6 @@ namespace TestData
         public static readonly ExpandedNodeId Vector_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the VectorUnion_Encoding_DefaultBinary Object.
-        /// </summary>
-        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultBinary, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the WorkOrderStatusType_Encoding_DefaultBinary Object.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
@@ -7674,16 +7564,6 @@ namespace TestData
         /// The identifier for the WorkOrderType_Encoding_DefaultBinary Object.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderType_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.WorkOrderType_Encoding_DefaultBinary, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleUnion_Encoding_DefaultBinary Object.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleUnion_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.SampleUnion_Encoding_DefaultBinary, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields_Encoding_DefaultBinary Object.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleStructureWithOptionalFields_Encoding_DefaultBinary = new ExpandedNodeId(TestData.Objects.SampleStructureWithOptionalFields_Encoding_DefaultBinary, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultXml Object.
@@ -7711,11 +7591,6 @@ namespace TestData
         public static readonly ExpandedNodeId Vector_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the VectorUnion_Encoding_DefaultXml Object.
-        /// </summary>
-        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultXml, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the WorkOrderStatusType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultXml, TestData.Namespaces.TestData);
@@ -7724,16 +7599,6 @@ namespace TestData
         /// The identifier for the WorkOrderType_Encoding_DefaultXml Object.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderType_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.WorkOrderType_Encoding_DefaultXml, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleUnion_Encoding_DefaultXml Object.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleUnion_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.SampleUnion_Encoding_DefaultXml, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields_Encoding_DefaultXml Object.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleStructureWithOptionalFields_Encoding_DefaultXml = new ExpandedNodeId(TestData.Objects.SampleStructureWithOptionalFields_Encoding_DefaultXml, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the ScalarValueDataType_Encoding_DefaultJson Object.
@@ -7761,11 +7626,6 @@ namespace TestData
         public static readonly ExpandedNodeId Vector_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.Vector_Encoding_DefaultJson, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the VectorUnion_Encoding_DefaultJson Object.
-        /// </summary>
-        public static readonly ExpandedNodeId VectorUnion_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.VectorUnion_Encoding_DefaultJson, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the WorkOrderStatusType_Encoding_DefaultJson Object.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderStatusType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.WorkOrderStatusType_Encoding_DefaultJson, TestData.Namespaces.TestData);
@@ -7774,16 +7634,6 @@ namespace TestData
         /// The identifier for the WorkOrderType_Encoding_DefaultJson Object.
         /// </summary>
         public static readonly ExpandedNodeId WorkOrderType_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.WorkOrderType_Encoding_DefaultJson, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleUnion_Encoding_DefaultJson Object.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleUnion_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.SampleUnion_Encoding_DefaultJson, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the SampleStructureWithOptionalFields_Encoding_DefaultJson Object.
-        /// </summary>
-        public static readonly ExpandedNodeId SampleStructureWithOptionalFields_Encoding_DefaultJson = new ExpandedNodeId(TestData.Objects.SampleStructureWithOptionalFields_Encoding_DefaultJson, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -13336,11 +13186,6 @@ namespace TestData
         public static readonly ExpandedNodeId TestData_BinarySchema_Vector = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_Vector, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the TestData_BinarySchema_VectorUnion Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_BinarySchema_VectorUnion = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_VectorUnion, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the TestData_BinarySchema_WorkOrderStatusType Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_BinarySchema_WorkOrderStatusType = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -13349,16 +13194,6 @@ namespace TestData
         /// The identifier for the TestData_BinarySchema_WorkOrderType Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_BinarySchema_WorkOrderType = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_WorkOrderType, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_BinarySchema_SampleUnion Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_BinarySchema_SampleUnion = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_SampleUnion, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_BinarySchema_SampleStructureWithOptionalFields Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_BinarySchema_SampleStructureWithOptionalFields = new ExpandedNodeId(TestData.Variables.TestData_BinarySchema_SampleStructureWithOptionalFields, TestData.Namespaces.TestData);
 
         /// <summary>
         /// The identifier for the TestData_XmlSchema Variable.
@@ -13401,11 +13236,6 @@ namespace TestData
         public static readonly ExpandedNodeId TestData_XmlSchema_Vector = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_Vector, TestData.Namespaces.TestData);
 
         /// <summary>
-        /// The identifier for the TestData_XmlSchema_VectorUnion Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_VectorUnion = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_VectorUnion, TestData.Namespaces.TestData);
-
-        /// <summary>
         /// The identifier for the TestData_XmlSchema_WorkOrderStatusType Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_XmlSchema_WorkOrderStatusType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_WorkOrderStatusType, TestData.Namespaces.TestData);
@@ -13414,16 +13244,6 @@ namespace TestData
         /// The identifier for the TestData_XmlSchema_WorkOrderType Variable.
         /// </summary>
         public static readonly ExpandedNodeId TestData_XmlSchema_WorkOrderType = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_WorkOrderType, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_SampleUnion Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_SampleUnion = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_SampleUnion, TestData.Namespaces.TestData);
-
-        /// <summary>
-        /// The identifier for the TestData_XmlSchema_SampleStructureWithOptionalFields Variable.
-        /// </summary>
-        public static readonly ExpandedNodeId TestData_XmlSchema_SampleStructureWithOptionalFields = new ExpandedNodeId(TestData.Variables.TestData_XmlSchema_SampleStructureWithOptionalFields, TestData.Namespaces.TestData);
     }
     #endregion
 
@@ -13675,16 +13495,6 @@ namespace TestData
         public const string QualifiedNameValue = "QualifiedNameValue";
 
         /// <summary>
-        /// The BrowseName for the SampleStructureWithOptionalFields component.
-        /// </summary>
-        public const string SampleStructureWithOptionalFields = "SampleStructureWithOptionalFields";
-
-        /// <summary>
-        /// The BrowseName for the SampleUnion component.
-        /// </summary>
-        public const string SampleUnion = "SampleUnion";
-
-        /// <summary>
         /// The BrowseName for the SByteDataType component.
         /// </summary>
         public const string SByteDataType = "SByteDataType";
@@ -13863,11 +13673,6 @@ namespace TestData
         /// The BrowseName for the Vector component.
         /// </summary>
         public const string Vector = "Vector";
-
-        /// <summary>
-        /// The BrowseName for the VectorUnion component.
-        /// </summary>
-        public const string VectorUnion = "VectorUnion";
 
         /// <summary>
         /// The BrowseName for the WorkOrderStatusType component.
