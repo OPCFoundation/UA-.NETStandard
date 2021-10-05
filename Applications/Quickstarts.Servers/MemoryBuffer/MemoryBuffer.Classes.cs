@@ -248,9 +248,7 @@ namespace MemoryBuffer
         #endregion
 
         #region Public Properties
-        /// <summary>
-        /// The start address of the memory buffer.
-        /// </summary>
+        /// <remarks />
         public PropertyState<uint> StartAddress
         {
             get
@@ -269,9 +267,7 @@ namespace MemoryBuffer
             }
         }
 
-        /// <summary>
-        /// The size of the memory buffers in bytes.
-        /// </summary>
+        /// <remarks />
         public PropertyState<uint> SizeInBytes
         {
             get
