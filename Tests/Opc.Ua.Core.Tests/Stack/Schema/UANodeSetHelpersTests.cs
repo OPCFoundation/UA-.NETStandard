@@ -108,15 +108,15 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                       <Field Name='Scalar Boolean' DataType='i=1' />
                       <Field Name='Scalar Duration' DataType='i=290' />
                       <Field Name='Scalar String within max length' DataType='i=12' MaxStringLength='256' />
-                      <Field Name='1D Array String no max length' DataType='i=12' ValueRank='1' ArrayDimensions='0' />
-                      <Field Name='1D Array String within max length' DataType='i=12' ValueRank='1' ArrayDimensions='0' MaxStringLength='256' />
+                      <Field Name='1D Array String no max length' DataType='i=12' ValueRank='1' />
+                      <Field Name='1D Array String within max length' DataType='i=12' ValueRank='1' MaxStringLength='256' />
                       <Field Name='1D Array of Simple Structure 1' DataType='ns=1;s=Simple Structure' ValueRank='1' ArrayDimensions='2' />
                       <Field Name='1D Array of Simple Structure 2' DataType='ns=1;s=Simple Structure' ValueRank='1' ArrayDimensions='3' />
-                      <Field Name='1D Array of BuildInfo' DataType='i=338' ValueRank='1' ArrayDimensions='0' />
-                      <Field Name='1D Array of Simple Structure' DataType='ns=1;s=Simple Structure' ValueRank='1' ArrayDimensions='0' />
-                      <Field Name='1D Array of Boolean' DataType='i=1' ValueRank='1' ArrayDimensions='0' />
-                      <Field Name='1D Array of Duration' DataType='i=290' ValueRank='1' ArrayDimensions='0' />
-                      <Field Name='1D Array of MessageSecurityMode' DataType='i=302' ValueRank='1' ArrayDimensions='0' />
+                      <Field Name='1D Array of BuildInfo' DataType='i=338' ValueRank='1' />
+                      <Field Name='1D Array of Simple Structure' DataType='ns=1;s=Simple Structure' ValueRank='1' />
+                      <Field Name='1D Array of Boolean' DataType='i=1' ValueRank='1' />
+                      <Field Name='1D Array of Duration' DataType='i=290' ValueRank='1' />
+                      <Field Name='1D Array of MessageSecurityMode' DataType='i=302' ValueRank='1' />
                       <Field Name='2D Array of Structure' DataType='i=22' ValueRank='2' ArrayDimensions='2,3' />
                       <Field Name='2D Array of BuildInfo' DataType='i=338' ValueRank='2' ArrayDimensions='2,3' />
                       <Field Name='2D Array of Simple Structure' DataType='ns=1;s=Simple Structure' ValueRank='2' ArrayDimensions='2,3' />
