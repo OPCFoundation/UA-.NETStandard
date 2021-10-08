@@ -3,7 +3,7 @@
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd"
   xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
->
+> 
   <ApplicationName>Quickstart Reference Server</ApplicationName>
   <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
