@@ -288,70 +288,8 @@ namespace Opc.Ua.Bindings
             byte[] clientSecret = token.ClientNonce;
             HashAlgorithmName algorithmName = HashAlgorithmName.SHA256;
 
-#if TODO // remove
-            if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
-                SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
-                SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
-            {
-                token.ClientSigningKey = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, 0, m_signatureKeySize);
-                token.ClientEncryptingKey = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ClientInitializationVector = Utils.PSHA256(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
-                token.ServerSigningKey = Utils.PSHA256(token.ClientNonce, null, token.ServerNonce, 0, m_signatureKeySize);
-                token.ServerEncryptingKey = Utils.PSHA256(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ServerInitializationVector = Utils.PSHA256(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
-            }
-            else
-            {
-                token.ClientSigningKey = Utils.PSHA1(token.ServerNonce, null, token.ClientNonce, 0, m_signatureKeySize);
-                token.ClientEncryptingKey = Utils.PSHA1(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ClientInitializationVector = Utils.PSHA1(token.ServerNonce, null, token.ClientNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
-                token.ServerSigningKey = Utils.PSHA1(token.ClientNonce, null, token.ServerNonce, 0, m_signatureKeySize);
-                token.ServerEncryptingKey = Utils.PSHA1(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize, m_encryptionKeySize);
-                token.ServerInitializationVector = Utils.PSHA1(token.ClientNonce, null, token.ServerNonce, m_signatureKeySize + m_encryptionKeySize, m_encryptionBlockSize);
-            }
-#endif
             switch (SecurityPolicyUri)
             {
-#if TODO //remove
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                {
-                    // create encryptors.
-                    SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
-                    AesCbcEncryptorProvider.Mode = CipherMode.CBC;
-                    AesCbcEncryptorProvider.Padding = PaddingMode.None;
-                    AesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
-                    AesCbcEncryptorProvider.IV = token.ClientInitializationVector;
-                    token.ClientEncryptor = AesCbcEncryptorProvider;
-
-                    SymmetricAlgorithm AesCbcDecryptorProvider = Aes.Create();
-                    AesCbcDecryptorProvider.Mode = CipherMode.CBC;
-                    AesCbcDecryptorProvider.Padding = PaddingMode.None;
-                    AesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
-                    AesCbcDecryptorProvider.IV = token.ServerInitializationVector;
-                    token.ServerEncryptor = AesCbcDecryptorProvider;
-
-                    // create HMACs.
-                    if (SecurityPolicyUri == SecurityPolicies.Basic256Sha256 ||
-                        SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
-                        SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
-                    {
-                        // SHA256
-                        token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
-                        token.ClientHmac = new HMACSHA256(token.ClientSigningKey);
-                    }
-                    else
-                    {   // SHA1
-                        token.ServerHmac = new HMACSHA1(token.ServerSigningKey);
-                        token.ClientHmac = new HMACSHA1(token.ClientSigningKey);
-                    }
-                    break;
-                }
-#endif
-
                 default:
                 {
                     DeriveKeysWithPSHA(algorithmName, serverSecret, clientSecret, token, false);

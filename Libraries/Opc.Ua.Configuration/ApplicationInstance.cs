@@ -763,7 +763,10 @@ namespace Opc.Ua.Configuration
                 serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths)
                 // TODO support RSA
-                .SetECCurve(ECCurve.NamedCurves.nistP256)
+                //.SetECCurve(ECCurve.NamedCurves.nistP256)
+                //.SetECCurve(ECCurve.NamedCurves.nistP384)
+                //.SetECCurve(ECCurve.NamedCurves.brainpoolP256r1)
+                .SetECCurve(ECCurve.NamedCurves.brainpoolP384r1)
                 .CreateForECDsa();
 
             id.Certificate = certificate;
@@ -808,7 +811,8 @@ namespace Opc.Ua.Configuration
             X509Certificate2 certificate = await id.Find().ConfigureAwait(false);
 
             // delete trusted peer certificate.
-            if (configuration.SecurityConfiguration != null && configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+            if (configuration.SecurityConfiguration != null &&
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
                 string thumbprint = id.Thumbprint;
 
@@ -817,9 +821,12 @@ namespace Opc.Ua.Configuration
                     thumbprint = certificate.Thumbprint;
                 }
 
-                using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                if (thumbprint != null)
                 {
-                    await store.Delete(thumbprint).ConfigureAwait(false);
+                    using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    {
+                        await store.Delete(thumbprint).ConfigureAwait(false);
+                    }
                 }
             }
 

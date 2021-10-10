@@ -61,27 +61,6 @@ namespace Opc.Ua
             Ed25519
         }
 
-        //
-        // Summary:
-        //     Encapsulates the name of an encryption algorithm.
-        enum CngAlgorithm
-        {
-            Sha256,
-            Sha1,
-            MD5,
-            ECDsaP521,
-            ECDsaP384,
-            ECDsaP256,
-            ECDsa,
-            ECDiffieHellmanP521,
-            ECDiffieHellmanP384,
-            ECDiffieHellmanP256,
-            ECDiffieHellman,
-            Rsa,
-            Sha384,
-            Sha512,
-        }
-
         private Nonce()
         {
             m_ecdh = null;
@@ -217,10 +196,10 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, CngAlgorithm.Sha256); }
-                case SecurityPolicies.Aes256_Sha384_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, CngAlgorithm.Sha384); }
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, CngAlgorithm.Sha256); }
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, CngAlgorithm.Sha384); }
+                case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256); }
+                case SecurityPolicies.Aes256_Sha384_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384); }
+                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1); }
+                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1); }
 #if CURVE25519
                 case SecurityPolicies.ChaCha20Poly1305_curve25519:
                 {
@@ -281,7 +260,7 @@ namespace Opc.Ua
             return nonce;
         }
 #endif
-        private static Nonce CreateNonce(ECCurve curve, CngAlgorithm algorithm)
+        private static Nonce CreateNonce(ECCurve curve)
         {
 #if NET472
             var ecdh = (ECDiffieHellman)ECDiffieHellmanCng.Create(curve);
@@ -310,12 +289,12 @@ namespace Opc.Ua
         {
             if (securityPolicyUri == null)
             {
-                throw new ArgumentNullException("securityPolicyUri");
+                throw new ArgumentNullException(nameof(securityPolicyUri));
             }
 
             if (nonceData == null)
             {
-                throw new ArgumentNullException("nonceData");
+                throw new ArgumentNullException(nameof(nonceData));
             }
 
             Nonce nonce = new Nonce() {
@@ -324,10 +303,10 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, CngAlgorithm.Sha256, nonceData); }
-                case SecurityPolicies.Aes256_Sha384_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, CngAlgorithm.Sha384, nonceData); }
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, CngAlgorithm.Sha256, nonceData); }
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, CngAlgorithm.Sha384, nonceData); }
+                case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData); }
+                case SecurityPolicies.Aes256_Sha384_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData); }
+                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData); }
+                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData); }
 
                 case SecurityPolicies.ChaCha20Poly1305_curve25519:
                 {
@@ -367,7 +346,7 @@ namespace Opc.Ua
             return nonce;
         }
 
-        private static Nonce CreateNonce(ECCurve curve, CngAlgorithm algorithm, byte[] nonceData)
+        private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
             Nonce nonce = new Nonce() {
                 Data = nonceData
@@ -375,20 +354,17 @@ namespace Opc.Ua
 
             int keyLength = nonceData.Length;
 
-            using (var ostrm = new System.IO.MemoryStream())
-            {
-                byte[] qx = new byte[keyLength / 2];
-                byte[] qy = new byte[keyLength / 2];
-                Buffer.BlockCopy(nonceData, 0, qx, 0, keyLength / 2);
-                Buffer.BlockCopy(nonceData, keyLength / 2, qy, 0, keyLength / 2);
+            byte[] qx = new byte[keyLength / 2];
+            byte[] qy = new byte[keyLength / 2];
+            Buffer.BlockCopy(nonceData, 0, qx, 0, keyLength / 2);
+            Buffer.BlockCopy(nonceData, keyLength / 2, qy, 0, keyLength / 2);
 
-                var ecdhParameters = new ECParameters {
-                    Curve = curve,
-                    Q = { X = qx, Y = qy }
-                };
+            var ecdhParameters = new ECParameters {
+                Curve = curve,
+                Q = { X = qx, Y = qy }
+            };
 
-                nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
-            }
+            nonce.m_ecdh = ECDiffieHellman.Create(ecdhParameters);
 
             return nonce;
         }
@@ -420,7 +396,7 @@ namespace Opc.Ua
             return false;
         }
 
-        public static string[] GetSupportedSecurityPolicyUris(ICertificate certificate)
+        public static string[] GetSupportedSecurityPolicyUris(X509Certificate2 certificate)
         {
             string[] securityPolicyUris;
 
@@ -531,7 +507,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the length of a ECSA signature of a digest.
+        /// Returns the length of a ECDSA signature of a digest.
         /// </summary>
         public static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
