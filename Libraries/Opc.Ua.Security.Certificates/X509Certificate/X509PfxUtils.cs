@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-
 using System;
 using System.Linq;
 using System.Security.Cryptography;
@@ -44,10 +43,28 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify RSA key pair of two certificates.
         /// </summary>
-        public static bool VerifyRSAKeyPair(
+        public static bool VerifyKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
+        {
+            if (IsECDsaSignature(certWithPublicKey))
+            {
+                return VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+            }
+            else
+            {
+                return VerifyRSAKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+            }
+        }
+
+        /// <summary>
+        /// Verify RSA key pair of two certificates.
+        /// </summary>
+        public static bool VerifyRSAKeyPair(
+        X509Certificate2 certWithPublicKey,
+        X509Certificate2 certWithPrivateKey,
+        bool throwOnError = false)
         {
             bool result = false;
             try
@@ -119,8 +136,7 @@ namespace Opc.Ua.Security.Certificates
                         rawData,
                         password ?? String.Empty,
                         flag);
-                    // can we really access the private key?
-                    if (VerifyRSAKeyPair(certificate, certificate, true))
+                    if (VerifyKeyPair(certificate, certificate, true))
                     {
                         return certificate;
                     }
@@ -172,6 +188,14 @@ namespace Opc.Ua.Security.Certificates
             rnd.NextBytes(testBlock);
             byte[] signature = rsaPrivateKey.SignData(testBlock, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
             return rsaPublicKey.VerifyData(testBlock, signature, HashAlgorithmName.SHA1, RSASignaturePadding.Pkcs1);
+        }
+
+        /// <summary>
+        /// If the certificate has a ECDsa signature.
+        /// </summary>
+        public static bool IsECDsaSignature(X509Certificate2 cert)
+        {
+            return cert.SignatureAlgorithm.FriendlyName.Contains("ECDSA", StringComparison.OrdinalIgnoreCase);
         }
 
 #if ECC_SUPPORT

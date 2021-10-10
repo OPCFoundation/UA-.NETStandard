@@ -437,6 +437,41 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cert"></param>
+        public static bool IsECDsaSignature(X509Certificate2 cert)
+        {
+            return X509PfxUtils.IsECDsaSignature(cert);
+        }
+
+        /// <summary>
+        /// Verify RSA key pair of two certificates.
+        /// </summary>
+        public static bool VerifyKeyPair(
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
+        {
+            return X509PfxUtils.VerifyKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+        }
+
+        /// <summary>
+        /// Verify RSA key pair of two certificates.
+        /// </summary>
+        public static bool VerifyECDsaKeyPair(
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
+        {
+#if ECC_SUPPORT
+            return X509PfxUtils.VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+#else
+            throw new NotSupportedException();
+#endif
+        }
+
+        /// <summary>
         /// Verify RSA key pair of two certificates.
         /// </summary>
         public static bool VerifyRSAKeyPair(

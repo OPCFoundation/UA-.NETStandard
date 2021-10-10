@@ -34,17 +34,14 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
 
-
 namespace Opc.Ua.Gds.Tests
 {
-
     public class GlobalDiscoveryTestServer
     {
         public GlobalDiscoverySampleServer Server => m_server;
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
-
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
         {
@@ -54,8 +51,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task StartServer(bool clean, int basePort = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            Application = new ApplicationInstance
-            {
+            Application = new ApplicationInstance {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
                 ConfigSectionName = "Opc.Ua.GlobalDiscoveryTestServer"
@@ -131,7 +127,6 @@ namespace Opc.Ua.Gds.Tests
             {
                 throw new ServiceResultException("Server failed to start");
             }
-
         }
 
         public void StopServer()
@@ -147,7 +142,6 @@ namespace Opc.Ua.Gds.Tests
                     server.Stop();
                 }
             }
-
         }
 
         public string ReadLogFile()
@@ -193,11 +187,10 @@ namespace Opc.Ua.Gds.Tests
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
 #else
-            string gdsRoot = "%LocalApplicationData%/OPC/GDS";
-            var gdsConfig = new GlobalDiscoveryServerConfiguration()
-            {
-                AuthoritiesStorePath = gdsRoot + "/authorities",
-                ApplicationCertificatesStorePath = gdsRoot + "/applications",
+            string gdsRoot = Path.Combine("%LocalApplicationData%", "OPC", "GDS");
+            var gdsConfig = new GlobalDiscoveryServerConfiguration() {
+                AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
+                ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
                 DefaultSubjectNameContext = "O=OPC Foundation",
                 CertificateGroups = new CertificateGroupConfigurationCollection()
                 {
@@ -206,7 +199,7 @@ namespace Opc.Ua.Gds.Tests
                         Id = "Default",
                         CertificateType ="RsaSha256ApplicationCertificateType",
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
-                        BaseStorePath = gdsRoot + "/CA/default",
+                        BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
                         DefaultCertificateHashSize = 256,
                         DefaultCertificateKeySize = 2048,
                         DefaultCertificateLifetime = 12,

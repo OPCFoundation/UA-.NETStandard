@@ -146,7 +146,17 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                // nothing to do.
+                if (m_localNonce != null)
+                {
+                    m_localNonce.Dispose();
+                    m_localNonce = null;
+                }
+
+                if (m_remoteNonce != null)
+                {
+                    m_remoteNonce.Dispose();
+                    m_remoteNonce = null;
+                }
             }
         }
         #endregion
@@ -198,9 +208,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            Task.Run(() => {
-                m_StateChanged?.Invoke(this, state, reason);
-            });
+            if (m_StateChanged != null)
+            {
+                Task.Run(() => {
+                    m_StateChanged?.Invoke(this, state, reason);
+                });
+            }
         }
 
         /// <summary>
@@ -208,6 +221,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
+            m_localSequenceNumber = (uint)m_sequenceNumber;
             return Utils.IncrementIdentifier(ref m_sequenceNumber);
         }
 
@@ -779,6 +793,7 @@ namespace Opc.Ua.Bindings
         private uint m_channelId;
         private string m_globalChannelId;
         private long m_sequenceNumber;
+        private uint m_localSequenceNumber;
         private uint m_remoteSequenceNumber;
         private bool m_sequenceRollover;
         private uint m_partialRequestId;

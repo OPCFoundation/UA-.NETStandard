@@ -53,13 +53,11 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
-        public async Task LoadClientConfiguration(string clientName = "TestClient")
+        public async Task LoadClientConfiguration(string pkiRoot = "%LocalApplicationData%/OPC/pki", string clientName = "TestClient")
         {
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
-
-            string pkiRoot = "%LocalApplicationData%/OPC/pki";
 
             // build the application configuration.
             Config = await application

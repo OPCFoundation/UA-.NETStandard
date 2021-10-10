@@ -558,7 +558,7 @@ namespace Opc.Ua.Bindings
                 ChannelToken token = CreateToken();
 
                 token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce();
+                token.ServerNonce = CreateNonce(ServerCertificate);
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody);
@@ -582,7 +582,7 @@ namespace Opc.Ua.Bindings
                 // check the client nonce.
                 token.ClientNonce = request.ClientNonce;
 
-                if (!ValidateNonce(token.ClientNonce))
+                if (!ValidateNonce(ClientCertificate, token.ClientNonce))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Client nonce is not the correct length or not random enough.");
                 }
@@ -957,7 +957,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private string m_ImplementationString = ".NetStandard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
+        private readonly string m_ImplementationString = ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();
         private ReverseConnectAsyncResult m_pendingReverseHello;
         #endregion
     }

@@ -339,7 +339,7 @@ namespace Opc.Ua
                                 privateKeyFile.FullName,
                                 password,
                                 flag);
-                            if (X509Utils.VerifyRSAKeyPair(certificate, certificate, true))
+                            if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                             {
                                 return certificate;
                             }

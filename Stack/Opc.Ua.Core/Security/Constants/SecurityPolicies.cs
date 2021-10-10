@@ -63,6 +63,37 @@ namespace Opc.Ua
         /// The URI for the Https security policy.
         /// </summary>
         public const string Https = BaseUri + "Https";
+
+        /// <summary>
+        /// The URI for the Aes128_Sha256_nistP256 security policy.
+        /// </summary>
+        public const string Aes128_Sha256_nistP256 = BaseUri + "Aes128_Sha256_nistP256";
+
+        /// <summary>
+        /// The URI for the Aes256_Sha384_nistP384 security policy.
+        /// </summary>
+        public const string Aes256_Sha384_nistP384 = BaseUri + "Aes256_Sha384_nistP384";
+
+        /// <summary>
+        /// The URI for the Aes128_Sha256_brainpoolP256r1 security policy.
+        /// </summary>
+        public const string Aes128_Sha256_brainpoolP256r1 = BaseUri + "Aes128_Sha256_brainpoolP256r1";
+
+        /// <summary>
+        /// The URI for the Aes256_Sha384_brainpoolP384r1 security policy.
+        /// </summary>
+        public const string Aes256_Sha384_brainpoolP384r1 = BaseUri + "Aes256_Sha384_brainpoolP384r1";
+
+        /// <summary>
+        /// The URI for the ChaCha20Poly1305_curve25519 security policy.
+        /// </summary>
+        public const string ChaCha20Poly1305_curve25519 = BaseUri + "ChaCha20Poly1305_curve25519";
+
+        /// <summary>
+        /// The URI for the ChaCha20Poly1305_curve448 security policy.
+        /// </summary>
+        public const string ChaCha20Poly1305_curve448 = BaseUri + "ChaCha20Poly1305_curve448";
+
         #endregion
 
         #region Static Methods
@@ -201,6 +232,16 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.Aes256_Sha384_nistP384:
+                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                {
+                    return encryptedData;
+                }
+
                 case SecurityPolicies.None:
                 {
                     break;
@@ -267,6 +308,12 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.Aes256_Sha384_nistP384:
+                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 case SecurityPolicies.None:
                 {
                     if (String.IsNullOrEmpty(dataToDecrypt.Algorithm))
@@ -336,6 +383,22 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                {
+                    signatureData.Algorithm = null;
+                    signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256);
+                    break;
+                }
+
+                case SecurityPolicies.Aes256_Sha384_nistP384:
+                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                {
+                    signatureData.Algorithm = null;
+                    signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA384);
+                    break;
+                }
+
                 case SecurityPolicies.None:
                 {
                     signatureData.Algorithm = null;
@@ -343,6 +406,8 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -419,12 +484,26 @@ namespace Opc.Ua
                         SecurityAlgorithms.RsaPssSha256);
                 }
 
+                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                {
+                    return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA256);
+                }
+
+                case SecurityPolicies.Aes256_Sha384_nistP384:
+                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                {
+                    return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA384);
+                }
+
                 // always accept signatures if security is not used.
                 case SecurityPolicies.None:
                 {
                     return true;
                 }
 
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(

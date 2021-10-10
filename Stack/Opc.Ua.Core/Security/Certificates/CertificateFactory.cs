@@ -100,7 +100,7 @@ namespace Opc.Ua
 
                 if (ensurePrivateKeyAccessible)
                 {
-                    if (!X509Utils.VerifyRSAKeyPair(certificate, certificate))
+                    if (!X509Utils.VerifyKeyPair(certificate, certificate))
                     {
                         Utils.Trace(Utils.TraceMasks.Error, "WARNING - Trying to add certificate to cache with invalid private key.");
                         return null;
@@ -201,7 +201,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Revoke the certificate. 
+        /// Revoke the certificate.
         /// The CRL number is increased by one and the new CRL is returned.
         /// </summary>
         public static X509CRL RevokeCertificate(
@@ -334,7 +334,7 @@ namespace Opc.Ua
 
 
         /// <summary>
-        /// Create a X509Certificate2 with a private key by combining 
+        /// Create a X509Certificate2 with a private key by combining
         /// the new certificate with a private key from an existing certificate
         /// </summary>
         public static X509Certificate2 CreateCertificateWithPrivateKey(
@@ -346,12 +346,28 @@ namespace Opc.Ua
                 throw new NotSupportedException("Need a certificate with a private key.");
             }
 
-            if (!X509Utils.VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
+            if (X509Utils.IsECDsaSignature(certificate))
             {
-                throw new NotSupportedException("The public and the private key pair doesn't match.");
+                if (!X509Utils.VerifyECDsaKeyPair(certificate, certificateWithPrivateKey))
+                {
+                    throw new NotSupportedException("The public and the private key pair doesn't match.");
+                }
+                using (ECDsa privateKey = certificateWithPrivateKey.GetECDsaPrivateKey())
+                {
+                    return certificate.CopyWithPrivateKey(privateKey);
+                }
             }
-
-            return certificate.CopyWithPrivateKey(certificateWithPrivateKey.GetRSAPrivateKey());
+            else
+            {
+                if (!X509Utils.VerifyRSAKeyPair(certificate, certificateWithPrivateKey))
+                {
+                    throw new NotSupportedException("The public and the private key pair doesn't match.");
+                }
+                using (RSA privateKey = certificateWithPrivateKey.GetRSAPrivateKey())
+                {
+                    return certificate.CopyWithPrivateKey(privateKey);
+                }
+            }
         }
 
         /// <summary>

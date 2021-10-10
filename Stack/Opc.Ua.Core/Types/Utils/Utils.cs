@@ -2896,7 +2896,7 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the HMAC algorithm.
         /// </summary>
-        private static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
+        public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
             if (hmac == null) throw new ArgumentNullException(nameof(hmac));
             if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
@@ -2970,6 +2970,32 @@ namespace Opc.Ua
 
             // return random data.
             return output;
+        }
+
+
+        /// <summary>
+        /// Creates an HMAC.
+        /// </summary>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "<Pending>")]
+        public static HMAC CreateHMAC(HashAlgorithmName algorithmName, byte[] secret)
+        {
+            if (algorithmName == HashAlgorithmName.SHA256)
+            {
+                return new HMACSHA256(secret);
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA384)
+            {
+                return new HMACSHA384(secret);
+            }
+
+            if (algorithmName == HashAlgorithmName.SHA1)
+            {
+                return new HMACSHA1(secret);
+            }
+
+            throw new NotImplementedException();
         }
 
         /// <summary>

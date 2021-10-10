@@ -67,6 +67,7 @@ namespace Opc.Ua.Client.Tests
         Session m_session;
         OperationLimits m_operationLimits;
         string m_uriScheme;
+        string m_pkiRoot;
         Uri m_url;
 
         public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp)
@@ -96,6 +97,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
+            // pki directory root for test runs. 
+            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+
             // start Ref server
             m_serverFixture = new ServerFixture<ReferenceServer> {
                 UriScheme = m_uriScheme,
@@ -107,16 +111,16 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
-            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize =
             m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
             try
             {
-                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Aes128_Sha256_nistP256).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -201,7 +205,8 @@ namespace Opc.Ua.Client.Tests
                 .Create().ConfigureAwait(false);
         }
 
-        [Theory, Order(200)]
+        [Test, Order(200)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_nistP256)]
         public async Task Connect(string securityPolicy)
         {
             var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
@@ -319,7 +324,36 @@ namespace Opc.Ua.Client.Tests
             StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
             Assert.AreEqual(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
         }
+#if mist
+        [Test]
+        public async Task ReadWriteDataTypeDefinition()
+        {
+            // Test Read a DataType Node
+            var typeId = DataTypeIds.PubSubGroupDataType;
+            var node = m_session.ReadNode(typeId);
+            Assert.NotNull(node);
+            var dataTypeNode = (DataTypeNode)node;
+            Assert.NotNull(dataTypeNode);
+            var dataTypeDefinition = dataTypeNode.DataTypeDefinition;
+            Assert.NotNull(dataTypeDefinition);
+            Assert.True(dataTypeDefinition is ExtensionObject);
+            Assert.NotNull(dataTypeDefinition.Body);
+            Assert.True(dataTypeDefinition.Body is StructureDefinition);
+            StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.AreEqual(ObjectIds.PubSubGroupDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
+            structureDefinition.DefaultEncodingId = ObjectIds.PubSubGroupDataType_Encoding_DefaultJson;
 
+            var writeValueCollection = new WriteValueCollection();
+            writeValueCollection.Add(new WriteValue() {
+                AttributeId = Attributes.DataTypeDefinition,
+                NodeId = typeId,
+                Value = new DataValue(new Variant(dataTypeDefinition))
+            });
+            var response = await m_session.WriteAsync(null, writeValueCollection, CancellationToken.None);
+            Assert.AreEqual(StatusCodes.BadNotWritable, response.Results[0].Code);
+            Assert.NotNull(response);
+        }
+#endif
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy)
         {
@@ -529,9 +563,9 @@ namespace Opc.Ua.Client.Tests
             typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
-        #endregion
+#endregion
 
-        #region Benchmarks
+#region Benchmarks
         /// <summary>
         /// Enumerator for security policies.
         /// </summary>
@@ -551,9 +585,9 @@ namespace Opc.Ua.Client.Tests
         {
             await BrowseFullAddressSpace(null).ConfigureAwait(false);
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
 
         private uint GetOperationLimitValue(NodeId nodeId)
         {
@@ -570,6 +604,6 @@ namespace Opc.Ua.Client.Tests
                 throw;
             }
         }
-        #endregion
+#endregion
     }
 }

@@ -496,7 +496,18 @@ namespace Opc.Ua
                         try
                         {
                             store.Delete(certificate.Thumbprint);
-                            store.Add(certificate);
+                            // save only public key
+                            if (certificate.HasPrivateKey)
+                            {
+                                using (var cert = new X509Certificate2(certificate.RawData))
+                                {
+                                    store.Add(cert);
+                                }
+                            }
+                            else
+                            {
+                                store.Add(certificate);
+                            }
                         }
                         finally
                         {
@@ -927,13 +938,25 @@ namespace Opc.Ua
                     );
             }
 
+            bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
+
             // check if certificate is valid for use as app/sw or user cert
             X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
-
-            if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
+            if (isECDsaSignature)
             {
-                sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
-                    null, null, "Usage of certificate is not allowed.", null, sresult);
+                if ((certificateKeyUsage & X509KeyUsageFlags.DigitalSignature) == 0)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
+                        null, null, "Usage of ECDSA certificate is not allowed.", null, sresult);
+                }
+            }
+            else
+            { 
+                if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,
+                        null, null, "Usage of RSA certificate is not allowed.", null, sresult);
+                }
             }
 
             // check if minimum requirements are met
@@ -943,11 +966,18 @@ namespace Opc.Ua
                     null, null, "SHA1 signed certificates are not trusted.", null, sresult);
             }
 
-            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-            if (keySize < m_minimumCertificateKeySize)
+            if (!isECDsaSignature)
             {
-                sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                    null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                int keySize = X509Utils.GetRSAPublicKeySize(certificate);
+                if (keySize < m_minimumCertificateKeySize)
+                {
+                    sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
+                        null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                }
+            }
+            else
+            {
+                // TODO: check if curve type is secure enough for profile
             }
 
             if (issuedByCA && chainIncomplete)

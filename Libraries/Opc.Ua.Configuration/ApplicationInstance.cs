@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -595,18 +596,21 @@ namespace Opc.Ua.Configuration
                 configuration.CertificateValidator.CertificateValidation -= certValidator.OnCertificateValidation;
             }
 
-            // check key size.
-            int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-            if (minimumKeySize > keySize)
+            if (!X509Utils.IsECDsaSignature(certificate))
             {
-                string message = Utils.Format(
-                    "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
-                    keySize,
-                    minimumKeySize);
-
-                if (!await ApproveMessage(message, silent).ConfigureAwait(false))
+                // check key size.
+                int keySize = X509Utils.GetRSAPublicKeySize(certificate);
+                if (minimumKeySize > keySize)
                 {
-                    return false;
+                    string message = Utils.Format(
+                        "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
+                        keySize,
+                        minimumKeySize);
+
+                    if (!await ApproveMessage(message, silent).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
                 }
             }
 
@@ -758,8 +762,9 @@ namespace Opc.Ua.Configuration
                 id.SubjectName,
                 serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths)
-                .SetRSAKeySize(keySize)
-                .CreateForRSA();
+                // TODO support RSA
+                .SetECCurve(ECCurve.NamedCurves.nistP256)
+                .CreateForECDsa();
 
             id.Certificate = certificate;
             var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
