@@ -68,7 +68,7 @@ namespace MemoryBuffer
             List<string> namespaceUris = new List<string>();
          
             namespaceUris.Add(Namespaces.MemoryBuffer);
-            namespaceUris.Add(Namespaces.MemoryBuffer + "Instance");
+            namespaceUris.Add(Namespaces.MemoryBuffer + "/Instance");
             
             NamespaceUris = namespaceUris;
 
