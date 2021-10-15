@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,56 +27,42 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
+using System;
+using System.Collections.Generic;
+using System.Xml;
+using System.IO;
+using System.Text;
+using System.Reflection;
+using System.Threading;
+using System.Globalization;
+using Opc.Ua;
+using Opc.Ua.Server;
 
-namespace Quickstarts.ReferenceServer
+namespace TestData
 {
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// An interface to an object which can access historical data for a variable.
     /// </summary>
-    [DataContract(Namespace = Namespaces.ReferenceServer)]
-    public class ReferenceServerConfiguration
+    public interface IHistoryDataSource
     {
-        #region Constructors
         /// <summary>
-        /// The default constructor.
+        /// Returns the next value in the archive.
         /// </summary>
-        public ReferenceServerConfiguration()
-        {
-            Initialize();
-        }
+        /// <param name="startTime">The starting time for the search.</param>
+        /// <param name="isForward">Whether to search forward in time.</param>
+        /// <param name="isReadModified">Whether to return modified data.</param>
+        /// <param name="position">A index that must be passed to the NextRaw call. </param>
+        /// <returns>The DataValue.</returns>
+        DataValue FirstRaw(DateTime startTime, bool isForward, bool isReadModified, out int position);
 
         /// <summary>
-        /// Initializes the object during deserialization.
+        /// Returns the next value in the archive.
         /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
-        }
-        #endregion
-
-        #region Public Properties
-        /// <summary>
-        /// Whether the user dialog for accepting invalid certificates should be displayed.
-        /// </summary>
-        [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
-        {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
-        }
-        #endregion
-
-        #region Private Members
-        private bool m_showCertificateValidationDialog;
-        #endregion
+        /// <param name="lastTime">The timestamp of the last value returned.</param>
+        /// <param name="isForward">Whether to search forward in time.</param>
+        /// <param name="isReadModified">Whether to return modified data.</param>
+        /// <param name="position">A index previously returned by the reader.</param>
+        /// <returns>The DataValue.</returns>
+        DataValue NextRaw(DateTime lastTime, bool isForward, bool isReadModified, ref int position);
     }
 }

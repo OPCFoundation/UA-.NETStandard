@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,19 +29,19 @@
 
 using System.Runtime.Serialization;
 
-namespace Quickstarts.ReferenceServer
+namespace TestData
 {
     /// <summary>
-    /// Stores the configuration the data access node manager.
+    /// Stores the configuration the test node manager
     /// </summary>
-    [DataContract(Namespace = Namespaces.ReferenceServer)]
-    public class ReferenceServerConfiguration
+    [DataContract(Namespace = Namespaces.TestData)]
+    public class TestDataNodeManagerConfiguration
     {
         #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public ReferenceServerConfiguration()
+        public TestDataNodeManagerConfiguration()
         {
             Initialize();
         }
@@ -58,25 +58,49 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
+        private void Initialize()
         {
+            m_saveFilePath = null;
+            m_maxQueueSize = 100;
         }
         #endregion
 
         #region Public Properties
         /// <summary>
-        /// Whether the user dialog for accepting invalid certificates should be displayed.
+        /// The path to the file that stores state of the node manager.
         /// </summary>
         [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
+        public string SaveFilePath
         {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
+            get { return m_saveFilePath; }
+            set { m_saveFilePath = value; }
+        }
+
+        /// <summary>
+        /// The maximum length for a monitored item sampling queue.
+        /// </summary>
+        [DataMember(Order = 2)]
+        public uint MaxQueueSize
+        {
+            get { return m_maxQueueSize; }
+            set { m_maxQueueSize = value; }
+        }
+
+        /// <summary>
+        /// The next unused value that can be assigned to new nodes.
+        /// </summary>
+        [DataMember(Order = 3)]
+        public uint NextUnusedId
+        {
+            get { return m_nextUnusedId; }
+            set { m_nextUnusedId = value; }
         }
         #endregion
 
         #region Private Members
-        private bool m_showCertificateValidationDialog;
+        private string m_saveFilePath;
+        private uint m_maxQueueSize;
+        private uint m_nextUnusedId;
         #endregion
     }
 }

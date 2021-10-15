@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,56 +27,48 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Runtime.Serialization;
+using System;
+using System.Collections.Generic;
+using System.Xml;
+using System.IO;
+using System.Reflection;
+using Opc.Ua;
 
-namespace Quickstarts.ReferenceServer
+namespace TestData
 {
-    /// <summary>
-    /// Stores the configuration the data access node manager.
-    /// </summary>
-    [DataContract(Namespace = Namespaces.ReferenceServer)]
-    public class ReferenceServerConfiguration
+    public partial class TestSystemConditionState
     {
-        #region Constructors
+        #region Initialization
         /// <summary>
-        /// The default constructor.
+        /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
-        public ReferenceServerConfiguration()
+        protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
-            Initialize();
-        }
+            base.OnAfterCreate(context, node);
 
-        /// <summary>
-        /// Initializes the object during deserialization.
-        /// </summary>
-        [OnDeserializing()]
-        private void Initialize(StreamingContext context)
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private static void Initialize()
-        {
+            this.MonitoredNodeCount.OnSimpleReadValue = OnReadMonitoredNodeCount;
         }
         #endregion
 
-        #region Public Properties
+        #region Protected Methods
         /// <summary>
-        /// Whether the user dialog for accepting invalid certificates should be displayed.
+        /// Reads the value for the MonitoredNodeCount.
         /// </summary>
-        [DataMember(Order = 1)]
-        public bool ShowCertificateValidationDialog
+        protected virtual ServiceResult OnReadMonitoredNodeCount(
+            ISystemContext context, 
+            NodeState node, 
+            ref object value)
         {
-            get { return m_showCertificateValidationDialog; }
-            set { m_showCertificateValidationDialog = value; }
-        }
-        #endregion
+            TestDataSystem system = context.SystemHandle as TestDataSystem;
 
-        #region Private Members
-        private bool m_showCertificateValidationDialog;
+            if (system == null)
+            {
+                return StatusCodes.BadOutOfService;
+            }
+
+            value = system.MonitoredNodeCount;
+            return ServiceResult.Good;
+        }
         #endregion
     }
 }
