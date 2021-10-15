@@ -34,6 +34,6 @@ using System.Xml;
 using System.Runtime.Serialization;
 using Opc.Ua;
 
-namespace MemoryBuffer
+namespace Boiler
 {
 }

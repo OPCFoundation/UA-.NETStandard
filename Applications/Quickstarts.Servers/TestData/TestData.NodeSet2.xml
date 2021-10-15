@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<UANodeSet xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://test.org/UA/Data/</Uri>
   </NamespaceUris>
   <Models>
     <Model ModelUri="http://test.org/UA/Data/">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.10" PublicationDate="2021-02-15T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.10" PublicationDate="2021-09-15T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
@@ -44,6 +44,17 @@
     <Alias Alias="HasModellingRule">i=37</Alias>
     <Alias Alias="HasEncoding">i=38</Alias>
     <Alias Alias="HasDescription">i=39</Alias>
+    <Alias Alias="HasCause">i=53</Alias>
+    <Alias Alias="ToState">i=52</Alias>
+    <Alias Alias="FromState">i=51</Alias>
+    <Alias Alias="HasEffect">i=54</Alias>
+    <Alias Alias="HasTrueSubState">i=9004</Alias>
+    <Alias Alias="HasFalseSubState">i=9005</Alias>
+    <Alias Alias="HasDictionaryEntry">i=17597</Alias>
+    <Alias Alias="HasCondition">i=9006</Alias>
+    <Alias Alias="HasGuard">i=15112</Alias>
+    <Alias Alias="HasAddIn">i=17604</Alias>
+    <Alias Alias="HasInterface">i=17603</Alias>
   </Aliases>
   <UAObjectType NodeId="ns=1;i=9371" BrowseName="1:GenerateValuesEventType">
     <DisplayName>GenerateValuesEventType</DisplayName>
@@ -5711,8 +5722,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10176</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10196</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10204</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10196</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10204</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10163</Reference>
     </References>
@@ -5849,7 +5860,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10197</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10175</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10175</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10163</Reference>
     </References>
@@ -6314,8 +6325,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10260</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10280</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10288</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10280</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10288</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10247</Reference>
     </References>
@@ -6452,7 +6463,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10281</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10259</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10259</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10247</Reference>
     </References>
@@ -6911,8 +6922,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10344</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10364</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10372</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10364</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10372</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10331</Reference>
     </References>
@@ -7049,7 +7060,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10365</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10343</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10343</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10331</Reference>
     </References>
@@ -7473,8 +7484,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10423</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10443</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10451</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10443</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10451</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10410</Reference>
     </References>
@@ -7611,7 +7622,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10444</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10422</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10422</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10410</Reference>
     </References>
@@ -8026,8 +8037,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10502</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10522</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10530</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10522</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10530</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10489</Reference>
     </References>
@@ -8164,7 +8175,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10523</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10501</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10501</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10489</Reference>
     </References>
@@ -8620,8 +8631,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10637</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10657</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10665</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10657</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10665</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10624</Reference>
     </References>
@@ -8758,7 +8769,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10658</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10636</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10636</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10624</Reference>
     </References>
@@ -12509,8 +12520,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10804</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10824</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10832</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10824</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10832</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10791</Reference>
     </References>
@@ -12647,7 +12658,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10825</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10803</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10803</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10791</Reference>
     </References>
@@ -13115,8 +13126,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10888</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10908</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10916</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10908</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10916</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10875</Reference>
     </References>
@@ -13253,7 +13264,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10909</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10887</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10887</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10875</Reference>
     </References>
@@ -13715,8 +13726,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10972</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=10992</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11000</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=10992</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11000</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10959</Reference>
     </References>
@@ -13853,7 +13864,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=10993</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=10971</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=10971</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=10959</Reference>
     </References>
@@ -14280,8 +14291,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11051</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11071</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11079</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11071</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11079</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=11038</Reference>
     </References>
@@ -14418,7 +14429,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11072</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=11050</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=11050</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=11038</Reference>
     </References>
@@ -14836,8 +14847,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11130</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11150</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11158</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11150</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11158</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=11117</Reference>
     </References>
@@ -14974,7 +14985,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11151</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=11129</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=11129</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=11117</Reference>
     </References>
@@ -15433,8 +15444,8 @@
     <DisplayName>EnabledState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11265</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11285</Reference>
-      <Reference ReferenceType="i=9004">ns=1;i=11293</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11285</Reference>
+      <Reference ReferenceType="HasTrueSubState">ns=1;i=11293</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=11252</Reference>
     </References>
@@ -15571,7 +15582,7 @@
     <DisplayName>AckedState</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11286</Reference>
-      <Reference ReferenceType="i=9004" IsForward="false">ns=1;i=11264</Reference>
+      <Reference ReferenceType="HasTrueSubState" IsForward="false">ns=1;i=11264</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=8995</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=11252</Reference>
     </References>
@@ -16162,7 +16173,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=11422" BrowseName="1:TestData" SymbolicName="TestData_BinarySchema" DataType="ByteString">
+  <UAVariable NodeId="ns=1;i=11422" BrowseName="1:TestData" SymbolicName="TestData_BinarySchema" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>TestData</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11424</Reference>
@@ -16431,7 +16442,7 @@ OldvcmtPcmRlclN0YXR1c1R5cGUiIExlbmd0aEZpZWxkPSJOb09mU3RhdHVzQ29tbWVudHMiIC8+
 DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11424" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=11424" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -16441,7 +16452,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://test.org/UA/Data/</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=15045" BrowseName="Deprecated" ParentNodeId="ns=1;i=11422" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=15045" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -16451,7 +16462,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11425" BrowseName="1:ScalarValueDataType" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=11425" BrowseName="1:ScalarValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>ScalarValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16461,7 +16472,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ScalarValueDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11428" BrowseName="1:ArrayValueDataType" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=11428" BrowseName="1:ArrayValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>ArrayValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16471,7 +16482,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">ArrayValueDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11431" BrowseName="1:UserScalarValueDataType" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=11431" BrowseName="1:UserScalarValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>UserScalarValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16481,7 +16492,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserScalarValueDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11434" BrowseName="1:UserArrayValueDataType" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=11434" BrowseName="1:UserArrayValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>UserArrayValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16491,7 +16502,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">UserArrayValueDataType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=1015" BrowseName="1:Vector" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=1015" BrowseName="1:Vector" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>Vector</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16501,7 +16512,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">Vector</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=24" BrowseName="1:WorkOrderStatusType" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=24" BrowseName="1:WorkOrderStatusType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>WorkOrderStatusType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16511,7 +16522,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">WorkOrderStatusType</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=27" BrowseName="1:WorkOrderType" ParentNodeId="ns=1;i=11422" DataType="String">
+  <UAVariable NodeId="ns=1;i=27" BrowseName="1:WorkOrderType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11422" DataType="String">
     <DisplayName>WorkOrderType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16577,7 +16588,7 @@ DQogIDwvb3BjOlN0cnVjdHVyZWRUeXBlPg0KDQo8L29wYzpUeXBlRGljdGlvbmFyeT4=</ByteString
       <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;i=11441" BrowseName="1:TestData" SymbolicName="TestData_XmlSchema" DataType="ByteString">
+  <UAVariable NodeId="ns=1;i=11441" BrowseName="1:TestData" SymbolicName="TestData_XmlSchema" ReleaseStatus="Deprecated" DataType="ByteString">
     <DisplayName>TestData</DisplayName>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=11443</Reference>
@@ -16864,7 +16875,7 @@ ZW1lbnQgbmFtZT0iTGlzdE9mV29ya09yZGVyVHlwZSIgdHlwZT0idG5zOkxpc3RPZldvcmtPcmRl
 clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteString>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11443" BrowseName="NamespaceUri" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=11443" BrowseName="NamespaceUri" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -16874,7 +16885,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">http://test.org/UA/Data/</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=15046" BrowseName="Deprecated" ParentNodeId="ns=1;i=11441" DataType="Boolean">
+  <UAVariable NodeId="ns=1;i=15046" BrowseName="Deprecated" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="Boolean">
     <DisplayName>Deprecated</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -16884,7 +16895,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11444" BrowseName="1:ScalarValueDataType" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=11444" BrowseName="1:ScalarValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>ScalarValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16894,7 +16905,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ScalarValueDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11447" BrowseName="1:ArrayValueDataType" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=11447" BrowseName="1:ArrayValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>ArrayValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16904,7 +16915,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='ArrayValueDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11450" BrowseName="1:UserScalarValueDataType" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=11450" BrowseName="1:UserScalarValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>UserScalarValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16914,7 +16925,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserScalarValueDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=11453" BrowseName="1:UserArrayValueDataType" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=11453" BrowseName="1:UserArrayValueDataType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>UserArrayValueDataType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16924,7 +16935,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='UserArrayValueDataType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=43" BrowseName="1:Vector" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=43" BrowseName="1:Vector" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>Vector</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16934,7 +16945,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='Vector']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=52" BrowseName="1:WorkOrderStatusType" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=52" BrowseName="1:WorkOrderStatusType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>WorkOrderStatusType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
@@ -16944,7 +16955,7 @@ clR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCjwveHM6c2NoZW1hPg==</ByteSt
       <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">//xs:element[@name='WorkOrderStatusType']</String>
     </Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;i=55" BrowseName="1:WorkOrderType" ParentNodeId="ns=1;i=11441" DataType="String">
+  <UAVariable NodeId="ns=1;i=55" BrowseName="1:WorkOrderType" ReleaseStatus="Deprecated" ParentNodeId="ns=1;i=11441" DataType="String">
     <DisplayName>WorkOrderType</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=69</Reference>
