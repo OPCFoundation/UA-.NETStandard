@@ -34,9 +34,7 @@ using System.Threading;
 using System.Numerics;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Quickstarts.Servers;
 using Range = Opc.Ua.Range;
-using Namespaces = Quickstarts.Servers.Namespaces;
 
 namespace Quickstarts.ReferenceServer
 {
