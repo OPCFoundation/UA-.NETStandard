@@ -154,31 +154,26 @@ namespace Opc.Ua.Client
 
             if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
             {
-                // update client certificate.
-                m_instanceCertificate = clientCertificate;
-
                 if (clientCertificate == null)
                 {
-                    // load the application instance certificate.
-                    if (m_configuration.SecurityConfiguration.ApplicationCertificate == null)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadConfigurationError,
-                            "The client configuration does not specify an application instance certificate.");
-                    }
-
-                    m_instanceCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
+                    m_instanceCertificate = LoadCertificate(configuration, m_endpoint.Description.SecurityPolicyUri).Result;
+                }
+                else
+                {
+                    // update client certificate.
+                    m_instanceCertificate = clientCertificate;
                 }
 
                 // check for valid certificate.
                 if (m_instanceCertificate == null)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
+                    var applicationCertificate = m_configuration.SecurityConfiguration.ApplicationCertificate;
+#pragma warning restore CS0618 // Type or member is obsolete
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "Cannot find the application instance certificate. Store={0}, SubjectName={1}, Thumbprint={2}.",
-                        m_configuration.SecurityConfiguration.ApplicationCertificate.StorePath,
-                        m_configuration.SecurityConfiguration.ApplicationCertificate.SubjectName,
-                        m_configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint);
+                        applicationCertificate.StorePath, applicationCertificate.SubjectName, applicationCertificate.Thumbprint);
                 }
 
                 // check for private key.
@@ -187,8 +182,7 @@ namespace Opc.Ua.Client
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
-                        m_instanceCertificate.Subject,
-                        m_instanceCertificate.Thumbprint);
+                        m_instanceCertificate.Subject, m_instanceCertificate.Thumbprint);
                 }
 
                 // load certificate chain.
@@ -832,7 +826,7 @@ namespace Opc.Ua.Client
             X509Certificate2Collection clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
+                clientCertificate = await LoadCertificate(configuration, endpointDescription.SecurityPolicyUri).ConfigureAwait(false);
                 clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
             }
 
@@ -4543,20 +4537,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration)
+        private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration, string securityProfile)
         {
-            X509Certificate2 clientCertificate;
-            if (configuration.SecurityConfiguration.ApplicationCertificate == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
-            }
-
-            clientCertificate = await configuration.SecurityConfiguration.ApplicationCertificate.Find(true).ConfigureAwait(false);
+            X509Certificate2 clientCertificate =
+                await configuration.SecurityConfiguration.FindApplicationCertificateAsync(securityProfile, true).ConfigureAwait(false);
 
             if (clientCertificate == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate cannot be found.");
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "ApplicationCertificate for the security profile {0} cannot be found.",
+                    securityProfile);
             }
+
             return clientCertificate;
         }
 

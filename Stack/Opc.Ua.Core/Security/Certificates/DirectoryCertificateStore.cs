@@ -272,9 +272,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Loads the private key certificate with RSA signature from a PFX file in the certificate store.
+        /// </summary>
+        [Obsolete("Use LoadPrivateKey with certificateType.")]
+        public X509Certificate2 LoadPrivateKey(string thumbprint, string subjectName, string password)
+        {
+            return LoadPrivateKey(thumbprint, subjectName, null, password);
+        }
+
+        /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
-        public X509Certificate2 LoadPrivateKey(string thumbprint, string subjectName, string password)
+        public X509Certificate2 LoadPrivateKey(string thumbprint, string subjectName, NodeId certificateType, string password)
         {
             if (m_certificateSubdir == null || !m_certificateSubdir.Exists)
             {
@@ -313,8 +322,12 @@ namespace Opc.Ua
                             {
                                 continue;
                             }
-
                         }
+                    }
+
+                    if (!CertificateIdentifier.ValidateCertificateType(certificate, certificateType))
+                    {
+                        continue;
                     }
 
                     string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
@@ -744,6 +757,47 @@ namespace Opc.Ua
                 }
 
                 fileName.Append(ch);
+            }
+
+            if (certificate.SignatureAlgorithm?.FriendlyName.Contains("ECDSA") == true)
+            {
+                string signatureQualifier = "ECC";
+                PublicKey encodedPublicKey = certificate.PublicKey;
+                string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
+
+                // New values can be determined by running the dotted-decimal OID value
+                // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
+
+                switch (keyParameters)
+                {
+                    case "06-08-2A-86-48-CE-3D-03-01-07":
+                    {
+                        signatureQualifier = "nistP256";
+                        break;
+                    }
+
+                    case "06-05-2B-81-04-00-22":
+                    {
+                        signatureQualifier = "nistP384";
+                        break;
+                    }
+
+                    case "06-09-2B-24-03-03-02-08-01-01-07":
+                    {
+                        signatureQualifier = "brainpoolP256r1";
+                        break;
+                    }
+
+                    case "06-09-2B-24-03-03-02-08-01-01-0B":
+                    {
+                        signatureQualifier = "brainpoolP384r1";
+                        break;
+                    }
+
+                }
+                fileName.Append(" [");
+                fileName.Append(signatureQualifier);
+                fileName.Append(']');
             }
 
             fileName.Append(" [");

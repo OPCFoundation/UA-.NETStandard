@@ -369,6 +369,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes256_Sha384_nistP384:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
@@ -415,6 +417,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 {

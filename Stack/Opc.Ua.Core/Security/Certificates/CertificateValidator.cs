@@ -160,7 +160,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual async Task Update(SecurityConfiguration configuration)
+        public virtual Task Update(SecurityConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -191,11 +191,15 @@ namespace Opc.Ua
                     m_minimumCertificateKeySize = configuration.MinimumCertificateKeySize;
                 }
             }
+            /*
+                        if (configuration.ApplicationCertificate != null)
+                        {
+                            m_applicationCertificate = await configuration.ApplicationCertificate.Find(true).ConfigureAwait(false);
 
-            if (configuration.ApplicationCertificate != null)
-            {
-                m_applicationCertificate = await configuration.ApplicationCertificate.Find(true).ConfigureAwait(false);
-            }
+                            // TODO
+                        }
+            */
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -203,13 +207,20 @@ namespace Opc.Ua
         /// </summary>
         public virtual async Task UpdateCertificate(SecurityConfiguration securityConfiguration)
         {
+            // TODO
             lock (m_lock)
             {
-                securityConfiguration.ApplicationCertificate.Certificate = null;
+                foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
+                {
+                    applicationCertificate.DisposeCertificate();
+                }
             }
 
-            await securityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(
-                securityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+            foreach (var applicationCertificate in securityConfiguration.ApplicationCertificates)
+            {
+                await applicationCertificate.LoadPrivateKeyEx(
+                    securityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+            }
             await Update(securityConfiguration).ConfigureAwait(false);
 
             lock (m_callbackLock)
@@ -446,7 +457,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// recursively checks whether any of the service results or inner service results
+        /// Recursively checks whether any of the service results or inner service results
         /// of the input sr must not be suppressed.
         /// The list of supressible status codes is - for backwards compatibiliyt - longer
         /// than the spec would imply.
@@ -920,7 +931,8 @@ namespace Opc.Ua
             // check if certificate is trusted.
             if (trustedCertificate == null && !isIssuerTrusted)
             {
-                if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
+                // TODO
+                //if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
                     var message = CertificateMessage("Certificate is not trusted.", certificate);
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
@@ -1174,7 +1186,7 @@ namespace Opc.Ua
         {
             return oid.Value == "1.3.14.3.2.29" ||     // sha1RSA
                 oid.Value == "1.2.840.10040.4.3" ||    // sha1DSA
-                oid.Value == "1.2.840.10045.4.1" ||    // sha1ECDSA
+                oid.Value == Oids.ECDsaWithSha1 ||     // sha1ECDSA
                 oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
                 oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
                 oid.Value == "1.3.14.3.2.27";          // dsaSHA1
@@ -1307,7 +1319,7 @@ namespace Opc.Ua
         private CertificateStoreIdentifier m_rejectedCertificateStore;
         private event CertificateValidationEventHandler m_CertificateValidation;
         private event CertificateUpdateEventHandler m_CertificateUpdate;
-        private X509Certificate2 m_applicationCertificate;
+        //private X509Certificate2 m_applicationCertificate;
         private ProtectFlags m_protectFlags;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates;

@@ -120,8 +120,7 @@ namespace Opc.Ua.Client.Tests
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
             try
             {
-                //m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Aes128_Sha256_nistP256).ConfigureAwait(false);
-                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Aes256_Sha384_brainpoolP384r1).ConfigureAwait(false);
+                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -206,8 +205,7 @@ namespace Opc.Ua.Client.Tests
                 .Create().ConfigureAwait(false);
         }
 
-        [Test, Order(200)]
-        [TestCase(SecurityPolicies.Aes256_Sha384_nistP384)]
+        [Theory, Order(200)]
         public async Task Connect(string securityPolicy)
         {
             var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);

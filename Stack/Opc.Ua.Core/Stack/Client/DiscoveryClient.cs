@@ -129,12 +129,9 @@ namespace Opc.Ua
 
             try
             {
-                if (applicationConfiguration != null &&
-                    applicationConfiguration.SecurityConfiguration != null &&
-                    applicationConfiguration.SecurityConfiguration.ApplicationCertificate != null)
-                {
-                    clientCertificate = applicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true).Result;
-                }
+#pragma warning disable CS0618 // Type or member is obsolete
+                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             catch
             {

@@ -33,26 +33,10 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            CertificateTypesProvider serverCertificateTypeProvider,
             EndpointDescriptionCollection endpoints)
         :
-            this(contextId, listener, bufferManager, quotas, serverCertificate, null, endpoints)
-        {
-        }
-
-        /// <summary>
-        /// Attaches the object to an existing socket.
-        /// </summary>
-        public TcpListenerChannel(
-            string contextId,
-            ITcpChannelListener listener,
-            BufferManager bufferManager,
-            ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain,
-            EndpointDescriptionCollection endpoints)
-        :
-            base(contextId, bufferManager, quotas, serverCertificate, serverCertificateChain, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
+            base(contextId, bufferManager, quotas, serverCertificateTypeProvider, endpoints, MessageSecurityMode.None, SecurityPolicies.None)
         {
             m_listener = listener;
             m_queuedResponses = new SortedDictionary<uint, IServiceResponse>();

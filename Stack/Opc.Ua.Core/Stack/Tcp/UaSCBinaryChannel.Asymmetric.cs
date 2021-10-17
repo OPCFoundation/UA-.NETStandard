@@ -191,6 +191,8 @@ namespace Opc.Ua.Bindings
 
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
                     return 32;
                 }
@@ -235,6 +237,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
                     uint length = GetNonceLength();
 
@@ -289,6 +293,8 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
                     // try to catch programming errors by rejecting nonces with all zeros.
                     for (int ii = 0; ii < nonce.Length; ii++)
@@ -854,7 +860,7 @@ namespace Opc.Ua.Bindings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageType"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageSize")]
         protected void ReadAsymmetricMessageHeader(
             BinaryDecoder decoder,
-            X509Certificate2 receiverCertificate,
+            ref X509Certificate2 receiverCertificate,
             out uint secureChannelId,
             out X509Certificate2Collection senderCertificateChain,
             out string securityPolicyUri)
@@ -913,9 +919,27 @@ namespace Opc.Ua.Bindings
             // verify receiver thumbprint.
             if (thumbprintData != null && thumbprintData.Length > 0)
             {
+                bool loadChain = false;
+                if (receiverCertificate == null)
+                {
+                    receiverCertificate = m_serverCertificateTypesProvider?.GetInstanceCertificate(securityPolicyUri);
+                    m_serverCertificate = receiverCertificate;
+                    loadChain = true;
+                }
+
+                if (receiverCertificate == null)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver has no matching certificate for the selected profile.");
+                }
+
                 if (receiverCertificate.Thumbprint.ToUpperInvariant() != GetThumbprintString(thumbprintData))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver's certificate thumbprint is not valid.");
+                }
+
+                if (loadChain)
+                {
+                    m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChainAsync(receiverCertificate).GetAwaiter().GetResult();
                 }
             }
             else
@@ -946,6 +970,8 @@ namespace Opc.Ua.Bindings
                         {
                             m_securityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
+                            m_serverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(m_securityPolicyUri);
+                            m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(m_serverCertificate).GetAwaiter().GetResult();
                             supported = true;
                             break;
                         }
@@ -987,6 +1013,8 @@ namespace Opc.Ua.Bindings
 
                 m_securityMode = endpoint.SecurityMode;
                 m_securityPolicyUri = endpoint.SecurityPolicyUri;
+                m_serverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(m_securityPolicyUri);
+                m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(m_serverCertificate).GetAwaiter().GetResult();
                 m_selectedEndpoint = endpoint;
                 return true;
             }
@@ -1000,6 +1028,7 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> ReadAsymmetricMessage(
             ArraySegment<byte> buffer,
             X509Certificate2 receiverCertificate,
+
             out uint channelId,
             out X509Certificate2 senderCertificate,
             out uint requestId,
@@ -1013,7 +1042,7 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             ReadAsymmetricMessageHeader(
                 decoder,
-                receiverCertificate,
+                ref receiverCertificate,
                 out channelId,
                 out senderCertificateChain,
                 out securityPolicyUri);
@@ -1064,6 +1093,15 @@ namespace Opc.Ua.Bindings
                         {
                             m_securityMode = endpoint.SecurityMode;
                             m_securityPolicyUri = securityPolicyUri;
+                            m_serverCertificate = m_serverCertificateTypesProvider?.GetInstanceCertificate(m_securityPolicyUri);
+                            if (m_serverCertificate != null)
+                            {
+                                m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(m_serverCertificate).GetAwaiter().GetResult();
+                            }
+                            else
+                            {
+                                m_serverCertificateChain = null;
+                            }
                             m_discoveryOnly = false;
                             m_uninitialized = false;
                             m_selectedEndpoint = endpoint;
@@ -1085,6 +1123,8 @@ namespace Opc.Ua.Bindings
 
                     m_securityMode = MessageSecurityMode.None;
                     m_securityPolicyUri = SecurityPolicies.None;
+                    m_serverCertificate = null;
+                    m_serverCertificateChain = null;
                     m_discoveryOnly = true;
                     m_uninitialized = false;
                     m_selectedEndpoint = null;
@@ -1398,6 +1438,7 @@ namespace Opc.Ua.Bindings
         private string m_securityPolicyUri;
         private bool m_discoveryOnly;
         private EndpointDescription m_selectedEndpoint;
+        private CertificateTypesProvider m_serverCertificateTypesProvider;
         private X509Certificate2 m_serverCertificate;
         private X509Certificate2Collection m_serverCertificateChain;
         private X509Certificate2 m_clientCertificate;

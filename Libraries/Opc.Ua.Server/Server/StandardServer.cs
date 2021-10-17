@@ -330,7 +330,6 @@ namespace Opc.Ua.Server
                 }
 
                 bool requireEncryption = ServerBase.RequireEncryption(context.ChannelContext.EndpointDescription);
-
                 if (!requireEncryption && clientCertificate != null)
                 {
                     requireEncryption = true;
@@ -384,10 +383,17 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                // load the certificate for the security profile
+                X509Certificate2 instanceCertificate = null;
+                if (requireEncryption)
+                {
+                    instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
+                }
+
                 // create the session.
                 Session session = ServerInternal.SessionManager.CreateSession(
                     context,
-                    requireEncryption ? InstanceCertificate : null,
+                    instanceCertificate,
                     sessionName,
                     clientNonce,
                     clientDescription,
@@ -406,22 +412,13 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-                        if (Configuration.SecurityConfiguration.SendCertificateChain &&
-                            InstanceCertificateChain != null &&
-                            InstanceCertificateChain.Count > 0)
+                        if (Configuration.SecurityConfiguration.SendCertificateChain)
                         {
-                            List<byte> serverCertificateChain = new List<byte>();
-
-                            for (int i = 0; i < InstanceCertificateChain.Count; i++)
-                            {
-                                serverCertificateChain.AddRange(InstanceCertificateChain[i].RawData);
-                            }
-
-                            serverCertificate = serverCertificateChain.ToArray();
+                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRawAsync(instanceCertificate).GetAwaiter().GetResult();
                         }
                         else
                         {
-                            serverCertificate = InstanceCertificate.RawData;
+                            serverCertificate = instanceCertificate.RawData;
                         }
                     }
 
@@ -438,7 +435,7 @@ namespace Opc.Ua.Server
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
                         byte[] dataToSign = Utils.Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(InstanceCertificate, context.SecurityPolicyUri, dataToSign);
+                        serverSignature = SecurityPolicies.Sign(instanceCertificate, context.SecurityPolicyUri, dataToSign);
                     }
                 }
 
@@ -2148,11 +2145,12 @@ namespace Opc.Ua.Server
                                 requestHeader.Timestamp = DateTime.UtcNow;
 
                                 // create the client.
+                                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(null);
                                 client = RegistrationClient.Create(
                                     configuration,
                                     endpoint.Description,
                                     endpoint.Configuration,
-                                    base.InstanceCertificate);
+                                    instanceCertificate);
 
                                 client.OperationTimeout = 10000;
 
@@ -2706,8 +2704,7 @@ namespace Opc.Ua.Server
                         configuration.ServerConfiguration.BaseAddresses,
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
-                        InstanceCertificate,
-                        InstanceCertificateChain
+                        InstanceCertificateTypesProvider
                         );
                     endpoints.AddRange(endpointsForHost);
                 }
@@ -2758,7 +2755,7 @@ namespace Opc.Ua.Server
                         configuration,
                         MessageContext,
                         new CertificateValidator(),
-                        InstanceCertificate);
+                        InstanceCertificateTypesProvider);
 
                     // create the manager responsible for providing localized string resources.                    
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);

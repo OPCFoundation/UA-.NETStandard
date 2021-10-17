@@ -103,11 +103,15 @@ namespace Opc.Ua.Configuration
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
+                // TODO
+#pragma warning disable CS0618 // Type or member is obsolete
                 ApplicationCertificate = new CertificateIdentifier() {
+#pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
+                ApplicationCertificateTypes = "RSA,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1",
                 // App trusted & issuer
                 TrustedPeerCertificates = new CertificateTrustList() {
                     StoreType = pkiRootType,

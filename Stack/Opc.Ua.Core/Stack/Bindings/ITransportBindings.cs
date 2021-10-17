@@ -93,8 +93,7 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddresses">The base addreses for the service host.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="securityPolicies">The list of supported security policies.</param>
-        /// <param name="instanceCertificate">The server certificate.</param>
-        /// <param name="instanceCertificateChain">The cert cahin of the server certificate.</param>
+        /// <param name="instanceCertificateTypesProvider">The provider for application certificates.</param>
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -102,8 +101,7 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2Collection instanceCertificateChain
+            CertificateTypesProvider instanceCertificateTypesProvider
             );
     }
 

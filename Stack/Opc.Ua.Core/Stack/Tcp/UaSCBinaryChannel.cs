@@ -24,7 +24,6 @@ namespace Opc.Ua.Bindings
     public partial class UaSCUaBinaryChannel : IMessageSink, IDisposable
     {
         #region Constructors
-
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -35,10 +34,10 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri)
-        :
-            this(contextId, bufferManager, quotas, serverCertificate, null, endpoints, securityMode, securityPolicyUri)
-        { }
+            string securityPolicyUri):
+            this(contextId, bufferManager, quotas, null, serverCertificate, endpoints, securityMode, securityPolicyUri)
+        {
+        }
 
         /// <summary>
         /// Attaches the object to an existing socket.
@@ -47,12 +46,28 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
+            CertificateTypesProvider serverCertificateTypesProvider,
+            EndpointDescriptionCollection endpoints,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri) :
+            this(contextId, bufferManager, quotas, serverCertificateTypesProvider, null, endpoints, securityMode, securityPolicyUri)
+        {
+        }
+
+        /// <summary>
+        /// Attaches the object to an existing socket.
+        /// </summary>
+        private UaSCUaBinaryChannel(
+            string contextId,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            CertificateTypesProvider serverCertificateTypesProvider,
             X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
+
             if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
             if (quotas == null) throw new ArgumentNullException(nameof(quotas));
 
@@ -70,8 +85,12 @@ namespace Opc.Ua.Bindings
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            if (securityMode != MessageSecurityMode.None)
+            X509Certificate2Collection serverCertificateChain = null;
+            if (serverCertificateTypesProvider != null &&
+                securityMode != MessageSecurityMode.None)
             {
+                serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri);
+
                 if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
@@ -80,6 +99,8 @@ namespace Opc.Ua.Bindings
                         Utils.Format("The DER encoded certificate may not be more than {0} bytes.", TcpMessageLimits.MaxCertificateSize),
                             nameof(serverCertificate));
                 }
+
+                serverCertificateChain = serverCertificateTypesProvider.LoadCertificateChainAsync(serverCertificate).GetAwaiter().GetResult();
             }
 
             if (new UTF8Encoding().GetByteCount(securityPolicyUri) > TcpMessageLimits.MaxSecurityPolicyUriSize)
@@ -91,6 +112,7 @@ namespace Opc.Ua.Bindings
 
             m_bufferManager = bufferManager;
             m_quotas = quotas;
+            m_serverCertificateTypesProvider = serverCertificateTypesProvider;
             m_serverCertificate = serverCertificate;
             m_serverCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;

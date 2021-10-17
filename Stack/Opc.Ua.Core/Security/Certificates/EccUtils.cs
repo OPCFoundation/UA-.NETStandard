@@ -18,6 +18,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -420,7 +421,7 @@ namespace Opc.Ua
 
             var keyAlgorithm = certificate.GetKeyAlgorithm();
 
-            if (certificate == null || keyAlgorithm != "1.2.840.10045.2.1")
+            if (certificate == null || keyAlgorithm != Oids.ECPublicKey)
             {
                 return null;
             }
@@ -490,6 +491,7 @@ namespace Opc.Ua
                     securityPolicyUris = new string[] { SecurityPolicies.Aes128_Sha256_brainpoolP256r1 };
                     break;
                 }
+
                 case "06-09-2B-24-03-03-02-08-01-01-0B":
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;

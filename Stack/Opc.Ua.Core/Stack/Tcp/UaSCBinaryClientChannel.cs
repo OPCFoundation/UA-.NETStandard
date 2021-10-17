@@ -37,22 +37,6 @@ namespace Opc.Ua.Bindings
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
             X509Certificate2 clientCertificate,
-            X509Certificate2 serverCertificate,
-            EndpointDescription endpoint)
-         :
-            this(contextId, bufferManager, socketFactory, quotas, clientCertificate, null, serverCertificate, endpoint)
-        {
-        }
-
-        /// <summary>
-        /// Creates a channel for for a client.
-        /// </summary>
-        public UaSCUaBinaryClientChannel(
-            string contextId,
-            BufferManager bufferManager,
-            IMessageSocketFactory socketFactory,
-            ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             X509Certificate2 serverCertificate,
             EndpointDescription endpoint)

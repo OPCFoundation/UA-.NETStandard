@@ -399,7 +399,8 @@ namespace Opc.Ua.Security
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                         break;
                     }
-
+                    default:
+                        break;
                 }
             }
 

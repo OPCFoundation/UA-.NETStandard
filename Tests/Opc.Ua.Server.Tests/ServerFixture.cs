@@ -121,21 +121,21 @@ namespace Opc.Ua.Server.Tests
             }
             else if (endpointUrl.StartsWith(Utils.UriSchemeOpcTcp, StringComparison.InvariantCultureIgnoreCase))
             {
-                //serverConfig.AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes128_Sha256_nistP256);
-                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes128_Sha256_nistP256);
-                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha384_nistP384);
-                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes128_Sha256_brainpoolP256r1);
-                serverConfig.AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha384_brainpoolP384r1);
-
                 // add deprecated policies for opc.tcp tests
-#if TODO
                 serverConfig.AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
+                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes128_Sha256_nistP256)
+                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes256_Sha384_nistP384)
+                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes128_Sha256_brainpoolP256r1)
+                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes256_Sha384_brainpoolP384r1)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes128_Sha256_nistP256)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha384_nistP384)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes128_Sha256_brainpoolP256r1)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha384_brainpoolP384r1)
                     .AddSignPolicies()
                     .AddSignAndEncryptPolicies();
-#endif
             }
 
             if (OperationLimits)

@@ -177,7 +177,7 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_serverCert = settings.ServerCertificate;
+            m_serverCertProvider = settings.ServerCertificateTypesProvider;
 
             // start the listener
             Start();
@@ -234,7 +234,8 @@ namespace Opc.Ua.Bindings
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            httpsOptions.ServerCertificate = m_serverCert;
+            // TODO: use https TLS server cert?
+            httpsOptions.ServerCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
 
             // note: although security tools recommend 'None' here,
             // it only works on .NET 4.6.2 if Tls12 is used
@@ -393,18 +394,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void CertificateUpdate(
             ICertificateValidator validator,
-            X509Certificate2 serverCertificate,
-            X509Certificate2Collection serverCertificateChain)
+            CertificateTypesProvider certificateTypeProvider)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCert = serverCertificate;
+            m_serverCertProvider = certificateTypeProvider;
             foreach (var description in m_descriptions)
             {
                 if (description.ServerCertificate != null)
                 {
-                    description.ServerCertificate = serverCertificate.RawData;
+                    description.ServerCertificate =
+                        m_serverCertProvider.GetInstanceCertificate(description.SecurityPolicyUri).RawData;
                 }
             }
 
@@ -430,7 +431,7 @@ namespace Opc.Ua.Bindings
         private ITransportListenerCallback m_callback;
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
-        private X509Certificate2 m_serverCert;
+        private CertificateTypesProvider m_serverCertProvider;
         #endregion
     }
 }
