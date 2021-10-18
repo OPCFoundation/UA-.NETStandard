@@ -920,9 +920,10 @@ namespace Opc.Ua.Bindings
             if (thumbprintData != null && thumbprintData.Length > 0)
             {
                 bool loadChain = false;
-                if (receiverCertificate == null)
+                // TODO: client should use the proider too!
+                if (m_serverCertificateTypesProvider != null)
                 {
-                    receiverCertificate = m_serverCertificateTypesProvider?.GetInstanceCertificate(securityPolicyUri);
+                    receiverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri);
                     m_serverCertificate = receiverCertificate;
                     loadChain = true;
                 }
