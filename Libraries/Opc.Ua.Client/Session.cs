@@ -156,7 +156,7 @@ namespace Opc.Ua.Client
             {
                 if (clientCertificate == null)
                 {
-                    m_instanceCertificate = LoadCertificate(configuration, m_endpoint.Description.SecurityPolicyUri).Result;
+                    m_instanceCertificate = LoadCertificate(configuration, m_endpoint.Description.SecurityPolicyUri).GetAwaiter().GetResult();
                 }
                 else
                 {

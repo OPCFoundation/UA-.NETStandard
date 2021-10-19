@@ -195,7 +195,15 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static bool IsECDsaSignature(X509Certificate2 cert)
         {
-            return cert.SignatureAlgorithm.FriendlyName.Contains("ECDSA", StringComparison.OrdinalIgnoreCase);
+            switch (cert.SignatureAlgorithm.Value)
+            {
+                case Oids.ECDsaWithSha1:
+                case Oids.ECDsaWithSha256:
+                case Oids.ECDsaWithSha384:
+                case Oids.ECDsaWithSha512:
+                    return true;
+            }
+            return false;
         }
 
 #if ECC_SUPPORT

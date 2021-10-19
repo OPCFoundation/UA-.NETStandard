@@ -60,11 +60,6 @@ namespace Opc.Ua
         public const string Aes256_Sha256_RsaPss = BaseUri + "Aes256_Sha256_RsaPss";
 
         /// <summary>
-        /// The URI for the Https security policy.
-        /// </summary>
-        public const string Https = BaseUri + "Https";
-
-        /// <summary>
         /// The URI for the Aes128_Sha256_nistP256 security policy.
         /// </summary>
         public const string Aes128_Sha256_nistP256 = BaseUri + "Aes128_Sha256_nistP256";
@@ -94,6 +89,10 @@ namespace Opc.Ua
         /// </summary>
         public const string ChaCha20Poly1305_curve448 = BaseUri + "ChaCha20Poly1305_curve448";
 
+        /// <summary>
+        /// The URI for the Https security policy.
+        /// </summary>
+        public const string Https = BaseUri + "Https";
         #endregion
 
         #region Static Methods
@@ -104,6 +103,14 @@ namespace Opc.Ua
             {
                 return false;
             }
+
+#if !(NETSTANDARD2_1_OR_GREATER || NET472 || NET5_0)
+            if (name.StartsWith("Ecc", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+#endif
+
             return true;
         }
 
@@ -151,8 +158,8 @@ namespace Opc.Ua
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
             var names = new List<string>();
 
-            // skip base Uri
-            for (int ii = 1; ii < fields.Length - 1; ii++)
+            // skip base Uri, ignore 25519 and Https
+            for (int ii = 1; ii < fields.Length - 3; ii++)
             {
                 if (IsPlatformSupportedUri(fields[ii].Name))
                 {
@@ -518,6 +525,6 @@ namespace Opc.Ua
                 "Unexpected security policy Uri: {0}",
                 securityPolicyUri);
         }
-        #endregion
+#endregion
     }
 }

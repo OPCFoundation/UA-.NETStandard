@@ -759,7 +759,7 @@ namespace Opc.Ua
                 fileName.Append(ch);
             }
 
-            if (certificate.SignatureAlgorithm?.FriendlyName.Contains("ECDSA") == true)
+            if (X509Utils.IsECDsaSignature(certificate))
             {
                 string signatureQualifier = "ECC";
                 PublicKey encodedPublicKey = certificate.PublicKey;

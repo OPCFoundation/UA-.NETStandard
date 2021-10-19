@@ -659,6 +659,10 @@ namespace Opc.Ua
                 case SecurityPolicies.ChaCha20Poly1305_curve448:
                     result.Add(ObjectTypeIds.EccCurve448ApplicationCertificateType);
                     break;
+                case SecurityPolicies.Https:
+                    result.Add(ObjectTypeIds.HttpsCertificateType);
+                    result.Add(ObjectTypeIds.ApplicationCertificateType);
+                    break;
                 default:
                     break;
             }
