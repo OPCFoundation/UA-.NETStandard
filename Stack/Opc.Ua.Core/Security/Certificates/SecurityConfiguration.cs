@@ -158,15 +158,17 @@ namespace Opc.Ua
                         }
                     }
 
-                    if (!result.ToString().Contains(idName, StringComparison.OrdinalIgnoreCase))
+                    if (result.ToString().IndexOf(idName, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        if (commaRequired)
-                        {
-                            result.Append(',');
-                        }
-                        result.Append(idName);
-                        commaRequired = true;
+                        continue;
                     }
+
+                    if (commaRequired)
+                    {
+                        result.Append(',');
+                    }
+                    result.Append(idName);
+                    commaRequired = true;
                 }
                 if (commaRequired)
                 {
@@ -192,12 +194,12 @@ namespace Opc.Ua
                 if (!String.IsNullOrWhiteSpace(certificateTypes))
                 {
                     var result = new NodeIdDictionary<CertificateIdentifier>();
-                    var certificateTypesArray = certificateTypes.Trim().Split(",", StringSplitOptions.RemoveEmptyEntries);
+                    var certificateTypesArray = certificateTypes.Trim().Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                     foreach (var certType in certificateTypesArray)
                     {
                         foreach (var profile in m_supportedCertificateTypes)
                         {
-                            if (profile.Value.Contains(certType.Trim(), StringComparison.OrdinalIgnoreCase))
+                            if (profile.Value.IndexOf(certType.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)
                             {
                                 var certificateType = new NodeId(profile.Key);
                                 m_applicationCertificates.Add(new CertificateIdentifier() {

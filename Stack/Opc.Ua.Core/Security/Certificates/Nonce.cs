@@ -11,7 +11,6 @@
 */
 
 #if ECC_SUPPORT
-
 using System;
 using System.Text;
 using System.IO;
@@ -64,7 +63,7 @@ namespace Opc.Ua
 #endif
         }
 
-        #region IDisposable Members
+#region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -87,7 +86,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
+#endregion
 
         public byte[] Data { get; private set; }
 
@@ -187,8 +186,6 @@ namespace Opc.Ua
 
             Nonce nonce = null;
 
-            ECCurve curve = ECCurve.NamedCurves.nistP256;
-
             switch (securityPolicyUri)
             {
                 case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256); }
@@ -255,6 +252,7 @@ namespace Opc.Ua
             return nonce;
         }
 #endif
+
         private static Nonce CreateNonce(ECCurve curve)
         {
 #if NET472

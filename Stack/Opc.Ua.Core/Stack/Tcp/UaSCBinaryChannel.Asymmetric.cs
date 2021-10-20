@@ -249,7 +249,7 @@ namespace Opc.Ua.Bindings
 
                     break;
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes256_Sha384_nistP384:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
@@ -260,7 +260,7 @@ namespace Opc.Ua.Bindings
                     m_localNonce = Nonce.CreateNonce(SecurityPolicyUri, GetNonceLength());
                     return m_localNonce.Data;
                 }
-
+#endif
                 default:
                 case SecurityPolicies.None:
                 {
@@ -307,7 +307,7 @@ namespace Opc.Ua.Bindings
 
                     break;
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes256_Sha384_nistP384:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
@@ -318,6 +318,7 @@ namespace Opc.Ua.Bindings
                     m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
                     return true;
                 }
+#endif
             }
 
             return false;
@@ -500,7 +501,7 @@ namespace Opc.Ua.Bindings
                 {
                     return RsaUtils.GetSignatureLength(senderCertificate);
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes256_Sha384_nistP384:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
@@ -510,7 +511,7 @@ namespace Opc.Ua.Bindings
                 {
                     return EccUtils.GetSignatureLength(senderCertificate);
                 }
-
+#endif
                 default:
                 case SecurityPolicies.None:
                 {
@@ -1254,7 +1255,7 @@ namespace Opc.Ua.Bindings
                 {
                     return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 case SecurityPolicies.ChaCha20Poly1305_curve25519:
@@ -1268,7 +1269,7 @@ namespace Opc.Ua.Bindings
                 {
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA384);
                 }
-
+#endif
             }
         }
 
@@ -1309,7 +1310,7 @@ namespace Opc.Ua.Bindings
                 {
                     return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 case SecurityPolicies.ChaCha20Poly1305_curve25519:
@@ -1323,7 +1324,7 @@ namespace Opc.Ua.Bindings
                 {
                     return EccUtils.Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA384);
                 }
-
+#endif
                 default:
                 {
                     return false;
@@ -1445,8 +1446,10 @@ namespace Opc.Ua.Bindings
         private X509Certificate2 m_clientCertificate;
         private X509Certificate2Collection m_clientCertificateChain;
         private bool m_uninitialized;
+#if ECC_SUPPORT
         private Nonce m_localNonce;
         private Nonce m_remoteNonce;
+#endif
         #endregion
     }
 }

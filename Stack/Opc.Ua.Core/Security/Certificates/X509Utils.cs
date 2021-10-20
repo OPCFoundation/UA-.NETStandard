@@ -457,7 +457,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Verify RSA key pair of two certificates.
+        /// Verify ECDsa key pair of two certificates.
         /// </summary>
         public static bool VerifyECDsaKeyPair(
             X509Certificate2 certWithPublicKey,

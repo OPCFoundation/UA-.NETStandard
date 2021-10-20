@@ -203,7 +203,6 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-
         private void DeriveKeysWithPSHA(HashAlgorithmName algorithmName, byte[] secret, byte[] seed, ChannelToken token, bool isServer)
         {
             int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
@@ -235,6 +234,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
+#if ECC_SUPPORT
         private void DeriveKeysWithHKDF(HashAlgorithmName algorithmName, byte[] salt, ChannelToken token, bool isServer)
         {
             int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
@@ -270,7 +270,7 @@ namespace Opc.Ua.Bindings
         static readonly byte[] s_HkdfAes128SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)64);
         static readonly byte[] s_HkdfAes256SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)96);
         static readonly byte[] s_HkdfChaCha20Poly1305KeyLength = BitConverter.GetBytes((ushort)76);
-
+#endif
 
         /// <summary>
         /// Computes the keys for a token.
@@ -296,7 +296,7 @@ namespace Opc.Ua.Bindings
                     DeriveKeysWithPSHA(algorithmName, clientSecret, serverSecret, token, true);
                     break;
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 {
@@ -353,7 +353,7 @@ namespace Opc.Ua.Bindings
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
                     break;
                 }
-
+#endif
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 {
@@ -1456,9 +1456,9 @@ namespace Opc.Ua.Bindings
             }
         }
 #endif
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ChannelToken m_currentToken;
         private ChannelToken m_previousToken;
         private ChannelToken m_renewedToken;
@@ -1466,6 +1466,6 @@ namespace Opc.Ua.Bindings
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private int m_encryptionBlockSize;
-        #endregion
+#endregion
     }
 }

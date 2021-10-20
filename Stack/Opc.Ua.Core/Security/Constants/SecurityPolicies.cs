@@ -389,7 +389,7 @@ namespace Opc.Ua
                     signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                     break;
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 {
@@ -405,7 +405,7 @@ namespace Opc.Ua
                     signatureData.Signature = EccUtils.Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA384);
                     break;
                 }
-
+#endif
                 case SecurityPolicies.None:
                 {
                     signatureData.Algorithm = null;
@@ -413,8 +413,6 @@ namespace Opc.Ua
                     break;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -490,7 +488,7 @@ namespace Opc.Ua
                         signature.Algorithm,
                         SecurityAlgorithms.RsaPssSha256);
                 }
-
+#if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 {
@@ -502,7 +500,7 @@ namespace Opc.Ua
                 {
                     return EccUtils.Verify(new ArraySegment<byte>(dataToVerify), signature.Signature, certificate, HashAlgorithmName.SHA384);
                 }
-
+#endif
                 // always accept signatures if security is not used.
                 case SecurityPolicies.None:
                 {
@@ -525,6 +523,6 @@ namespace Opc.Ua
                 "Unexpected security policy Uri: {0}",
                 securityPolicyUri);
         }
-#endregion
+        #endregion
     }
 }

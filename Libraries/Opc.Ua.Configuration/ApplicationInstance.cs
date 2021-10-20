@@ -786,65 +786,68 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
-            bool createForRSA = false;
-            ECCurve curve = default(ECCurve);
-            if (id.CertificateType == ObjectTypeIds.EccApplicationCertificateType ||
-                id.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.nistP256;
-            }
-            else if (id.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.nistP384;
-            }
-            else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.brainpoolP256r1;
-            }
-            else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
-            {
-                curve = ECCurve.NamedCurves.brainpoolP384r1;
-            }
-#if CURVE25519
-            else if (id.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
-            {
-                curve = default(ECCurve);
-            }
-            else if (id.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
-            {
-                curve = default(ECCurve);
-            }
-#endif
-            else if (id.CertificateType == null ||
+            var builder = CertificateFactory.CreateCertificate(
+                   configuration.ApplicationUri,
+                   configuration.ApplicationName,
+                   id.SubjectName,
+                   serverDomainNames)
+                   .SetLifeTime(lifeTimeInMonths);
+
+            if (id.CertificateType == null ||
                 id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
-                createForRSA = true;
-            }
-            else
-            {
-                throw new ServiceResultException(StatusCodes.BadConfigurationError, "The certificate type is not supported.");
-            }
-
-            var builder = CertificateFactory.CreateCertificate(
-               configuration.ApplicationUri,
-               configuration.ApplicationName,
-               id.SubjectName,
-               serverDomainNames)
-               .SetLifeTime(lifeTimeInMonths);
-
-            if (createForRSA)
-            {
                 id.Certificate = builder
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
+
+                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for RSA. Thumbprint={0}", id.Certificate.Thumbprint);
             }
             else
             {
+#if !ECC_SUPPORT
+                throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
+#else
+                ECCurve curve = default(ECCurve);
+                if (id.CertificateType == ObjectTypeIds.EccApplicationCertificateType ||
+                    id.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
+                {
+                    curve = ECCurve.NamedCurves.nistP256;
+                }
+                else if (id.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType)
+                {
+                    curve = ECCurve.NamedCurves.nistP384;
+                }
+                else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+                {
+                    curve = ECCurve.NamedCurves.brainpoolP256r1;
+                }
+                else if (id.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+                {
+                    curve = ECCurve.NamedCurves.brainpoolP384r1;
+                }
+#if CURVE25519
+                else if (id.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType)
+                {
+                    curve = default(ECCurve);
+                }
+                else if (id.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType)
+                {
+                    curve = default(ECCurve);
+                }
+#endif
+                else
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The certificate type is not supported.");
+                }
+
                 id.Certificate = builder
                     .SetECCurve(curve)
                     .CreateForECDsa();
+
+                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {1}. Thumbprint={0}", id.Certificate.Thumbprint, curve.ToString());
+#endif
             }
 
             var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
@@ -861,8 +864,6 @@ namespace Opc.Ua.Configuration
             }
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
-
-            Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {1}. Thumbprint={0}", id.Certificate.Thumbprint, builder != null ? curve.ToString() : "RSA");
 
             // reload the certificate from disk.
             return await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);

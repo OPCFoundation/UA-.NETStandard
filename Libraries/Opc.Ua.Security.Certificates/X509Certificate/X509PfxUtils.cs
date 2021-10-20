@@ -50,7 +50,11 @@ namespace Opc.Ua.Security.Certificates
         {
             if (IsECDsaSignature(certWithPublicKey))
             {
+#if ECC_SUPPORT
                 return VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
+#else
+                throw new NotSupportedException("This platform does not support ECC.");
+#endif
             }
             else
             {
@@ -62,9 +66,9 @@ namespace Opc.Ua.Security.Certificates
         /// Verify RSA key pair of two certificates.
         /// </summary>
         public static bool VerifyRSAKeyPair(
-        X509Certificate2 certWithPublicKey,
-        X509Certificate2 certWithPrivateKey,
-        bool throwOnError = false)
+            X509Certificate2 certWithPublicKey,
+            X509Certificate2 certWithPrivateKey,
+            bool throwOnError = false)
         {
             bool result = false;
             try
