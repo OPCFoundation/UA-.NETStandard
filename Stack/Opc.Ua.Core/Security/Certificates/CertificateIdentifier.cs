@@ -1053,6 +1053,11 @@ namespace Opc.Ua
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == null);
                 }
+                if (instanceCertificate == null &&
+                    certType == ObjectTypeIds.ApplicationCertificateType)
+                {
+                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
+                }
                 if (instanceCertificate != null)
                 {
                     return instanceCertificate.Certificate;

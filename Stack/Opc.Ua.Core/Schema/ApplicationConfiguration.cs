@@ -744,7 +744,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_applicationCertificates = new List<CertificateIdentifier>();
+            m_applicationCertificates = new CertificateIdentifierCollection();
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
             m_nonceLength = 32;
@@ -755,6 +755,7 @@ namespace Opc.Ua
             m_addAppCertToTrustedStore = true;
             m_sendCertificateChain = false;
             m_suppressNonceValidationErrors = false;
+            m_supportedSecurityPolicies = new StringCollection();
         }
 
         /// <summary>
@@ -774,7 +775,6 @@ namespace Opc.Ua
         /// For servers, URLs for each supported protocol must also be present.
         /// </remarks>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 10)]
-        //[Obsolete("Use ApplicationCertificates and FindApplicationCertificate instead")]
         public CertificateIdentifier ApplicationCertificate
         {
             get
@@ -802,6 +802,18 @@ namespace Opc.Ua
                 {
                     m_applicationCertificates.Add(value);
                 }
+                SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
+            }
+        }
+
+        /// <summary>
+        /// The application instance certificates in use for the application.
+        /// </summary>
+        public CertificateIdentifierCollection ApplicationCertificates
+        {
+            get
+            {
+                return m_applicationCertificates;
             }
         }
 
@@ -811,24 +823,15 @@ namespace Opc.Ua
         /// <remarks>
         /// The application by default only supports RSA certificates.
         /// To use more certificate types add the types to the list,
-        /// e.g. EccNistP384, EccBrainpoolP384secr1.
+        /// e.g. NistP384, BrainpoolP384r1.
         /// </remarks>
-        // TODO: just temporary solution 
-        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public string ApplicationCertificateTypes
         {
             get { return EncodeApplicationCertificateTypes(); }
-            set { DecodeApplicationCertificateTypes(value); }
-        }
-
-        /// <summary>
-        /// The application certificates in use for the application.
-        /// </summary>
-        public IList<CertificateIdentifier> ApplicationCertificates
-        {
-            get
+            set
             {
-                return m_applicationCertificates;
+                DecodeApplicationCertificateTypes(value);
+                SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
             }
         }
 
@@ -1087,7 +1090,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private IList<CertificateIdentifier> m_applicationCertificates;
+        private CertificateIdentifierCollection m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
         private CertificateTrustList m_trustedPeerCertificates;
         private CertificateTrustList m_httpsIssuerCertificates;
@@ -1105,6 +1108,7 @@ namespace Opc.Ua
         private bool m_addAppCertToTrustedStore;
         private bool m_sendCertificateChain;
         private bool m_suppressNonceValidationErrors;
+        private StringCollection m_supportedSecurityPolicies;
         #endregion
     }
     #endregion

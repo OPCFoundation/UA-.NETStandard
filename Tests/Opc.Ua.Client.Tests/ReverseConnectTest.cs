@@ -176,7 +176,7 @@ namespace Opc.Ua.Client.Tests
 
             // select the secure endpoint
             var endpointConfiguration = EndpointConfiguration.Create(config);
-            var selectedEndpoint = ClientFixture.SelectEndpoint(m_endpoints, m_endpointUrl, securityPolicy);
+            var selectedEndpoint = ClientFixture.SelectEndpoint(config, m_endpoints, m_endpointUrl, securityPolicy);
             Assert.NotNull(selectedEndpoint);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             Assert.NotNull(endpoint);
@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.Tests
 
             // select the secure endpoint
             var endpointConfiguration = EndpointConfiguration.Create(config);
-            var selectedEndpoint = ClientFixture.SelectEndpoint(m_endpoints, m_endpointUrl, securityPolicy);
+            var selectedEndpoint = ClientFixture.SelectEndpoint(config, m_endpoints, m_endpointUrl, securityPolicy);
             Assert.NotNull(selectedEndpoint);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             Assert.NotNull(endpoint);

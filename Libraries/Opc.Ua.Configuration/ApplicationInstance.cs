@@ -839,14 +839,14 @@ namespace Opc.Ua.Configuration
 #endif
                 else
                 {
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The certificate type is not supported.");
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The ECC certificate type is not supported.");
                 }
 
                 id.Certificate = builder
                     .SetECCurve(curve)
                     .CreateForECDsa();
 
-                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {1}. Thumbprint={0}", id.Certificate.Thumbprint, curve.ToString());
+                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {0}. Thumbprint={1}", curve.ToString(), id.Certificate.Thumbprint);
 #endif
             }
 
@@ -1013,15 +1013,15 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private string m_applicationName;
         private ApplicationType m_applicationType;
         private string m_configSectionName;
         private Type m_configurationType;
         private ServerBase m_server;
         private ApplicationConfiguration m_applicationConfiguration;
-#endregion
+        #endregion
     }
 }

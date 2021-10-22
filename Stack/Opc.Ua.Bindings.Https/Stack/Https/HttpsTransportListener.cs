@@ -234,7 +234,7 @@ namespace Opc.Ua.Bindings
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
-            // TODO: use https TLS server cert?
+            // note: if there is not a specific Https cert defined, the first App cert is used
             httpsOptions.ServerCertificate = m_serverCertProvider.GetInstanceCertificate(SecurityPolicies.Https);
 
             // note: although security tools recommend 'None' here,

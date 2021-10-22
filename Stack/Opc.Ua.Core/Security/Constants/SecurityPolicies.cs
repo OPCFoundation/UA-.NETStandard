@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -96,22 +97,52 @@ namespace Opc.Ua
         #endregion
 
         #region Static Methods
-        private static bool IsPlatformSupportedUri(string name)
+        private static bool IsPlatformSupportedName(string name)
         {
-            if (name.Equals(nameof(Aes256_Sha256_RsaPss)) &&
-                !RsaUtils.IsSupportingRSAPssSign.Value)
+            // all RSA
+            if (name.Equals(nameof(None)) ||
+                name.Equals(nameof(Basic256)) ||
+                name.Equals(nameof(Basic128Rsa15)) ||
+                name.Equals(nameof(Basic256Sha256)) ||
+                name.Equals(nameof(Aes128_Sha256_RsaOaep)))
             {
-                return false;
+                return true;
             }
 
-#if !(NETSTANDARD2_1_OR_GREATER || NET472 || NET5_0)
-            if (name.StartsWith("Ecc", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals(nameof(Aes256_Sha256_RsaPss)) &&
+                RsaUtils.IsSupportingRSAPssSign.Value)
             {
-                return false;
+                return true;
+            }
+
+#if ECC_SUPPORT
+            // ECC policy
+            if (name.Equals(nameof(Aes128_Sha256_nistP256)) ||
+                name.Equals(nameof(Aes256_Sha384_nistP384)))
+            {
+                return true;
+            }
+
+            if (name.Equals(nameof(Aes128_Sha256_brainpoolP256r1)) ||
+                name.Equals(nameof(Aes256_Sha384_brainpoolP384r1)))
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    return false;
+                }
+                return true;
+            }
+
+            // ECC policy
+            if (name.Equals(nameof(ChaCha20Poly1305_curve25519)) ||
+                name.Equals(nameof(ChaCha20Poly1305_curve448)))
+            {
+#if CURVE25519
+                return true;
+#endif
             }
 #endif
-
-            return true;
+            return false;
         }
 
         /// <summary>
@@ -122,7 +153,7 @@ namespace Opc.Ua
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
             foreach (FieldInfo field in fields)
             {
-                if (field.Name == displayName && IsPlatformSupportedUri(field.Name))
+                if (field.Name == displayName && IsPlatformSupportedName(field.Name))
                 {
                     return (string)field.GetValue(typeof(SecurityPolicies));
                 }
@@ -141,13 +172,37 @@ namespace Opc.Ua
             foreach (FieldInfo field in fields)
             {
                 if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)) &&
-                    IsPlatformSupportedUri(field.Name))
+                    IsPlatformSupportedName(field.Name))
                 {
                     return field.Name;
                 }
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// If a security policy is known and spelled according to the spec.
+        /// </summary>
+        /// <remarks>
+        /// This functions returns only information if a security policy Uri is
+        /// valid and existing according to the spec.
+        /// It does not provide the information if the policy is supported
+        /// by the application or by the platform.
+        /// </remarks>
+        public static bool IsValidSecurityPolicyUri(string policyUri)
+        {
+            FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
+
+            foreach (FieldInfo field in fields)
+            {
+                if (policyUri == (string)field.GetValue(typeof(SecurityPolicies)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -158,10 +213,10 @@ namespace Opc.Ua
             FieldInfo[] fields = typeof(SecurityPolicies).GetFields(BindingFlags.Public | BindingFlags.Static);
             var names = new List<string>();
 
-            // skip base Uri, ignore 25519 and Https
-            for (int ii = 1; ii < fields.Length - 3; ii++)
+            // skip base Uri, ignore Https
+            for (int ii = 1; ii < fields.Length - 1; ii++)
             {
-                if (IsPlatformSupportedUri(fields[ii].Name))
+                if (IsPlatformSupportedName(fields[ii].Name))
                 {
                     names.Add(fields[ii].Name);
                 }
@@ -171,7 +226,28 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the default security policy uri.
+        /// Returns the deprecated RSA security policy uri.
+        /// </summary>
+        public static string[] GetDefaultDeprecatedUris()
+        {
+            string[] defaultNames = {
+                nameof(Basic128Rsa15),
+                nameof(Basic256)
+            };
+            var defaultUris = new List<string>();
+            foreach (var name in defaultNames)
+            {
+                var uri = GetUri(name);
+                if (uri != null)
+                {
+                    defaultUris.Add(uri);
+                }
+            }
+            return defaultUris.ToArray();
+        }
+
+        /// <summary>
+        /// Returns the default RSA security policy uri.
         /// </summary>
         public static string[] GetDefaultUris()
         {
@@ -179,6 +255,29 @@ namespace Opc.Ua
                 nameof(Basic256Sha256),
                 nameof(Aes128_Sha256_RsaOaep),
                 nameof(Aes256_Sha256_RsaPss) };
+            var defaultUris = new List<string>();
+            foreach (var name in defaultNames)
+            {
+                var uri = GetUri(name);
+                if (uri != null)
+                {
+                    defaultUris.Add(uri);
+                }
+            }
+            return defaultUris.ToArray();
+        }
+
+        /// <summary>
+        /// Returns the default ECC security policy uri.
+        /// </summary>
+        public static string[] GetDefaultEccUris()
+        {
+            string[] defaultNames = {
+                nameof(Aes128_Sha256_nistP256),
+                nameof(Aes256_Sha384_nistP384),
+                nameof(Aes128_Sha256_brainpoolP256r1),
+                nameof(Aes256_Sha384_brainpoolP384r1)
+                };
             var defaultUris = new List<string>();
             foreach (var name in defaultNames)
             {
@@ -243,8 +342,6 @@ namespace Opc.Ua
                 case SecurityPolicies.Aes256_Sha384_nistP384:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 {
                     return encryptedData;
                 }
@@ -254,6 +351,8 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -319,8 +418,6 @@ namespace Opc.Ua
                 case SecurityPolicies.Aes256_Sha384_nistP384:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
                 case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 case SecurityPolicies.None:
                 {
                     if (String.IsNullOrEmpty(dataToDecrypt.Algorithm))
@@ -330,6 +427,8 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(
@@ -413,6 +512,8 @@ namespace Opc.Ua
                     break;
                 }
 
+                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ChaCha20Poly1305_curve448:
                 default:
                 {
                     throw ServiceResultException.Create(

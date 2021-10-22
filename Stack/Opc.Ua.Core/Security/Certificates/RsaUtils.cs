@@ -340,6 +340,7 @@ namespace Opc.Ua
                 return false;
             }
         }
+
         /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>

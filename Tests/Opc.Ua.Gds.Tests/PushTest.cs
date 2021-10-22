@@ -661,7 +661,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (_applicationRecord == null && discoveryUrl != null)
             {
-                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(discoveryUrl, true);
+                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_gdsClient.Configuration, discoveryUrl, true);
                 ApplicationDescription description = endpointDescription.Server;
                 _applicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { description.ApplicationName },
@@ -681,7 +681,7 @@ namespace Opc.Ua.Gds.Tests
             // add issuer and trusted certs to client stores
             NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(id, null);
             var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-            AddTrustListToStore(m_gdsClient.Config.SecurityConfiguration, trustList);
+            AddTrustListToStore(m_gdsClient.Configuration.SecurityConfiguration, trustList);
             AddTrustListToStore(m_pushClient.Config.SecurityConfiguration, trustList);
         }
 

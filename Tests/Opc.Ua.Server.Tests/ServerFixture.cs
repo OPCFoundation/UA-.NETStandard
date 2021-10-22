@@ -126,16 +126,10 @@ namespace Opc.Ua.Server.Tests
                     .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes128_Sha256_nistP256)
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes256_Sha384_nistP384)
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes128_Sha256_brainpoolP256r1)
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Aes256_Sha384_brainpoolP384r1)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes128_Sha256_nistP256)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha384_nistP384)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes128_Sha256_brainpoolP256r1)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha384_brainpoolP384r1)
                     .AddSignPolicies()
-                    .AddSignAndEncryptPolicies();
+                    .AddSignAndEncryptPolicies()
+                    .AddEccSignPolicies()
+                    .AddEccSignAndEncryptPolicies();
             }
 
             if (OperationLimits)
@@ -162,6 +156,7 @@ namespace Opc.Ua.Server.Tests
             ApplicationConfiguration config = await serverConfig.AddSecurityConfiguration(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     pkiRoot)
+                .SetApplicationCertificateTypes("nistP256,nistP384,brainpoolP256r1,brainpoolP384r1")
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
 

@@ -3020,6 +3020,35 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns if the certificate type is supported on the platform OS.
+        /// </summary>
+        /// <param name="certificateType">The certificate type to check.</param>
+        public static bool IsSupportedCertificateType(NodeId certificateType)
+        {
+            if (certificateType.Identifier is uint identifier)
+            {
+                switch (identifier)
+                {
+#if ECC_SUPPORT
+                    case ObjectTypes.EccApplicationCertificateType:
+                    case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
+                    case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
+                    case ObjectTypes.EccNistP256ApplicationCertificateType:
+                    case ObjectTypes.EccNistP384ApplicationCertificateType:
+                    //case ObjectTypes.EccCurve25519ApplicationCertificateType:
+                    //case ObjectTypes.EccCurve448ApplicationCertificateType:
+#endif
+                    case ObjectTypes.ApplicationCertificateType:
+                    case ObjectTypes.RsaMinApplicationCertificateType:
+                    case ObjectTypes.RsaSha256ApplicationCertificateType:
+                    case ObjectTypes.HttpsCertificateType:
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Lazy helper to allow runtime check for Mono.
         /// </summary>
         private static readonly Lazy<bool> IsRunningOnMonoValue = new Lazy<bool>(() => {

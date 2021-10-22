@@ -68,6 +68,7 @@ namespace Opc.Ua.Client.Tests
                 .AddSecurityConfiguration(
                     "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
                     pkiRoot)
+                .SetApplicationCertificateTypes("RSA,nistP256,nistP384,brainpoolP256r1,brainpoolP384r1")
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetMinimumCertificateKeySize(1024)
@@ -140,7 +141,7 @@ namespace Opc.Ua.Client.Tests
                 serverHalted = false;
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Config, endpointUrl, true);
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
@@ -215,7 +216,7 @@ namespace Opc.Ua.Client.Tests
             {
                 endpoints = await GetEndpoints(url).ConfigureAwait(false);
             }
-            var endpointDescription = SelectEndpoint(endpoints, url, securityPolicy);
+            var endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
             {
                 Assert.Ignore("The endpoint is not supported by the server.");
@@ -229,6 +230,7 @@ namespace Opc.Ua.Client.Tests
         /// Select a security endpoint from description.
         /// </summary>
         public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration configuration,
             EndpointDescriptionCollection endpoints,
             Uri url,
             string securityPolicy)
@@ -242,7 +244,8 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.StartsWith(url.Scheme))
                 {
                     // skip unsupported security policies
-                    if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri) == null)
+                    if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.
+                            Contains(endpoint.SecurityPolicyUri))
                     {
                         continue;
                     }
