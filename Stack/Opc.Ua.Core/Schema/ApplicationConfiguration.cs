@@ -825,6 +825,7 @@ namespace Opc.Ua
         /// To use more certificate types add the types to the list,
         /// e.g. NistP384, BrainpoolP384r1.
         /// </remarks>
+        [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public string ApplicationCertificateTypes
         {
             get { return EncodeApplicationCertificateTypes(); }

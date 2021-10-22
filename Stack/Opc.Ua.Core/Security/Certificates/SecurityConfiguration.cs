@@ -211,9 +211,9 @@ namespace Opc.Ua
             { ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType, "BrainpoolP384r1"},
             { ObjectTypes.EccCurve25519ApplicationCertificateType, "Curve25519"},
             { ObjectTypes.EccCurve448ApplicationCertificateType, "Curve448"},
-            { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin"},
             { ObjectTypes.RsaSha256ApplicationCertificateType, "RsaSha256"},
-            { ObjectTypes.ApplicationCertificateType, "Rsa"}
+            { ObjectTypes.RsaMinApplicationCertificateType, "RsaMin"},
+            { ObjectTypes.ApplicationCertificateType, "Rsa"},
         };
 
         /// <summary>
