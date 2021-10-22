@@ -91,38 +91,6 @@ namespace Opc.Ua
         /// The P-SHA256 algorithm used to generate keys.
         /// </summary>
         public const string PSha256 = "http://opcfoundation.org/ua/security/p_sha2-256";
-
-        /// <summary>
-        /// The nistP256 Ellipic Curve signature with SHA256.
-        /// </summary>
-        public const string Ecdsa_Sha256_nistP256 =  SecurityPolicies.Aes128_Sha256_nistP256;
-
-        /// <summary>
-        /// The nistP384 Ellipic Curve signature with SHA384.
-        /// </summary>
-        public const string Ecdsa_Sha384_nistP384 = SecurityPolicies.Aes256_Sha384_nistP384;
-
-        /// <summary>
-        /// The brainpoolP256r1 Ellipic Curve signature with SHA256.
-        /// </summary>
-        public const string Ecdsa_Sha256_brainpoolP256r1 = SecurityPolicies.Aes128_Sha256_brainpoolP256r1;
-
-        /// <summary>
-        /// The brainpoolP384r1 Ellipic Curve signature with SHA384.
-        /// </summary>
-        public const string Ecdsa_Sha384_brainpoolP384r1 = SecurityPolicies.Aes256_Sha384_brainpoolP384r1;
-    }
-
-    /// <summary>
-    /// Defines constants for known elliptic curves.
-    /// </summary>
-    /// TODO needed
-    public static class EllipticCurves
-    {
-        /// <summary>
-        ///
-        /// </summary>
-        public const string nistP256 = "nistP256";
     }
 
     /// <summary>
