@@ -488,6 +488,7 @@ namespace Opc.Ua
                     signatureData.Signature = RsaUtils.Rsa_Sign(new ArraySegment<byte>(dataToSign), certificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                     break;
                 }
+
 #if ECC_SUPPORT
                 case SecurityPolicies.Aes128_Sha256_nistP256:
                 case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
@@ -505,6 +506,7 @@ namespace Opc.Ua
                     break;
                 }
 #endif
+
                 case SecurityPolicies.None:
                 {
                     signatureData.Algorithm = null;

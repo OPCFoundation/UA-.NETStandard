@@ -85,7 +85,6 @@ namespace Quickstarts.ConsoleReferenceClient
                     // Get the endpoint by connecting to server's discovery endpoint.
                     // Try to find the first endopint without security.
                     EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, ServerUrl, false);
-
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 

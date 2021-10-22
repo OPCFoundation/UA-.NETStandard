@@ -17,9 +17,22 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/own</StorePath>
       <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
+
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%DesktopDirectory%/pki/own</StorePath>
+      <SubjectName>CN=Quickstart Reference Server, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
+      <!--
+      <CertificateType>NistP256</CertificateType>
+      <Thumbprint></Thumbprint>
+      <ValidationOptions></ValidationOptions>
+      -->
+    </ApplicationCertificate>
     
-    <!-- Where the other application certificates are stored -->
+    <!-- Which certificate types are supported  -->
     <ApplicationCertificateTypes>Rsa,NistP256,NistP384,BrainpoolP256r1,BrainpoolP384r1</ApplicationCertificateTypes>
+
+    <!-- Where the other application certificates are stored -->
 
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
