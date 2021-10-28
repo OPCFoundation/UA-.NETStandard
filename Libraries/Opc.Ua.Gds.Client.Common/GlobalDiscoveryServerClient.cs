@@ -963,6 +963,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         #endregion
+
         #region Private Fields
         private ConfiguredEndpoint m_endpoint;
         #endregion

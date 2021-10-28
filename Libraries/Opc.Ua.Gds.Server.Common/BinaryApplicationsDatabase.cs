@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -32,9 +32,11 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 
+#if !NET5_0_OR_GREATER
 namespace Opc.Ua.Gds.Server.Database.Linq
 {
     [Serializable]
+    [Obsolete("Do not use. Binary decoding poses a security risk.")]
     public class BinaryApplicationsDatabase : LinqApplicationsDatabase
     {
         #region Constructors
@@ -60,6 +62,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
         #endregion
+
         #region Public Members
         public override void Save()
         {
@@ -71,9 +74,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         }
         public string FileName { get { return m_fileName; } private set { m_fileName = value; } }
         #endregion
+
         #region Private Fields
         [NonSerialized]
         string m_fileName;
         #endregion
     }
 }
+#endif

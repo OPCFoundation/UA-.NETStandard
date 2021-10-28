@@ -278,8 +278,8 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(402)]
         public void CreateSigningRequestRsaMinNullParms()
         {
-#if NETSTANDARD2_1 || NET5_0
-            Assert.Ignore("SHA1 not supported on .NET Standard 2.1.");
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+            Assert.Ignore("SHA1 not supported on .NET Standard 2.1 and .NET 5.0 or greater");
 #endif
             ConnectPushClient(true);
             Assert.That(() => { m_pushClient.PushClient.CreateSigningRequest(null, OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType, null, false, null); }, Throws.Exception);

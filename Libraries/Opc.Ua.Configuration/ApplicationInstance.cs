@@ -525,9 +525,7 @@ namespace Opc.Ua.Configuration
 
             return true;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Helper to suppress errors which are allowed for the application certificate validation.
         /// </summary>
@@ -812,9 +810,12 @@ namespace Opc.Ua.Configuration
                     thumbprint = certificate.Thumbprint;
                 }
 
-                using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    await store.Delete(thumbprint).ConfigureAwait(false);
+                    using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    {
+                        await store.Delete(thumbprint).ConfigureAwait(false);
+                    }
                 }
             }
 
