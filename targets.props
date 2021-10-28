@@ -4,9 +4,9 @@
       <PropertyGroup>
         <AppTargetFrameworks>net462;netcoreapp3.1</AppTargetFrameworks>
         <AppTargetFramework>netcoreapp3.1</AppTargetFramework>
-        <TestsTargetFrameworks>net462;netcoreapp2.1;netcoreapp3.1</TestsTargetFrameworks>
-        <LibTargetFrameworks>net462;netstandard2.0;netstandard2.1</LibTargetFrameworks>
-        <LibxTargetFrameworks>net462;netcoreapp2.1;netstandard2.1</LibxTargetFrameworks>
+        <TestsTargetFrameworks>net462;net472;netcoreapp2.1;netcoreapp3.1;net5.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net462;net472;netstandard2.0;netstandard2.1;net5.0</LibTargetFrameworks>
+        <LibxTargetFrameworks>net462;net472;netcoreapp2.1;netstandard2.1;net5.0</LibxTargetFrameworks>
       </PropertyGroup>
     </When>
     <Otherwise>
