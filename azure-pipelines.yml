@@ -41,12 +41,6 @@ stages:
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
     parameters:
-      configuration: Release
-      framework: net472
-      agents: '@{ windows = "windows-2019" }'
-      jobnamesuffix: net472
-  - template: .azurepipelines/test.yml
-    parameters:
       framework: netcoreapp2.1
       configuration: Release
   - template: .azurepipelines/test.yml
@@ -54,11 +48,6 @@ stages:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
-      framework: net5.0
-      jobnamesuffix: net50
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
@@ -67,12 +56,6 @@ stages:
     parameters:
       framework: netcoreapp3.1
       configuration: Debug
-      jobnamesuffix: core3debug
-  - template: .azurepipelines/test.yml
-    parameters:
-      framework: net5.0
-      configuration: Debug
-      jobnamesuffix: net5debug
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
