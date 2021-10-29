@@ -4,8 +4,11 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Gds.Tests</RootNamespace>
-    <DefineConstants>$(DefineConstants);USE_FILE_CONFIG</DefineConstants>
     <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net462'">
+    <DefineConstants>$(DefineConstants);USE_FILE_CONFIG</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

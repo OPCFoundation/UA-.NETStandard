@@ -350,7 +350,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
         }
 
-#if NET462_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#if NETFRAMEWORK || NETCOREAPP3_1
         [Test]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
