@@ -268,13 +268,14 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+#if NET472_OR_GREATER
+            throw new NotSupportedException("Import a ECDsaPublicKey is not supported on this platform.");
+#else
             int bytes = 0;
             try
             {
                 m_ecdsaPublicKey = ECDsa.Create();
-#if !NET472  // TODO
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
-#endif
             }
             catch (Exception e)
             {
@@ -286,6 +287,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
             return this;
+#endif
         }
 #endif
 
@@ -293,13 +295,14 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+#if NET472_OR_GREATER
+            throw new NotSupportedException("Import a ECDsaPublicKey is not supported on this platform.");
+#else
             int bytes = 0;
             try
             {
                 m_rsaPublicKey = RSA.Create();
-#if !NET472  // TODO
                 m_rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
-#endif
             }
             catch (Exception e)
             {
@@ -311,6 +314,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
             return this;
+#endif
         }
         #endregion
 
