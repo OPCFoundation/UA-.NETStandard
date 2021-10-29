@@ -62,7 +62,6 @@ namespace Opc.Ua.Gds.Tests
             {
                 return $"{SecurityProfileUri.Split('#').Last()}:{MessageSecurityMode}";
             }
-
         }
 
         /// <summary>
