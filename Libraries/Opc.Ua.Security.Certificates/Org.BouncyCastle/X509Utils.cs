@@ -10,7 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if !NETSTANDARD2_1 && !NET5_0
+#if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 using System;
 using System.IO;
 using System.Linq;

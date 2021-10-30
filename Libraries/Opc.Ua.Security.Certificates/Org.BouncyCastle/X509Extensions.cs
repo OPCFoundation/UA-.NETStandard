@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if !NETSTANDARD2_1 && !NET472 && !NET5_0
+#if !NETSTANDARD2_1 && !NET472 && !NET5_0_OR_GREATER
 
 using System;
 using System.Collections.Generic;
