@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1 || NET5_0
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
 
 using System;
 using System.Security.Cryptography.X509Certificates;
@@ -42,7 +42,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class PEMWriter
     {
-        #region Public Methods
+#region Public Methods
         /// <summary>
         /// Returns a byte array containing the CSR in PEM format.
         /// </summary>
@@ -109,9 +109,9 @@ namespace Opc.Ua.Security.Certificates
             return EncodeAsPEM(exportedPkcs8PrivateKey,
                 String.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         private static byte[] EncodeAsPEM(byte[] content, string contentType)
         {
             const int LineLength = 64;
@@ -129,7 +129,7 @@ namespace Opc.Ua.Security.Certificates
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-        #endregion
+#endregion
     }
 }
 #endif

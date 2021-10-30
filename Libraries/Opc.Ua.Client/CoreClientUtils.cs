@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Opc.Ua.Client
 {
@@ -328,7 +329,7 @@ namespace Opc.Ua.Client
             // pick the first available endpoint by default.
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
-                selectedEndpoint = endpoints[0];
+                selectedEndpoint = endpoints.FirstOrDefault(e => e.EndpointUrl.StartsWith(url.Scheme));
             }
 
             // return the selected endpoint.
