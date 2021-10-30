@@ -73,7 +73,7 @@ namespace Opc.Ua.Gds.Tests
             };
 
             // build the application configuration.
-            Config = await application
+            Configuration = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
