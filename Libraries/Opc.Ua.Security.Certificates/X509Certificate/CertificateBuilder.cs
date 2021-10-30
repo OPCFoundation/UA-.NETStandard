@@ -42,7 +42,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public class CertificateBuilder : CertificateBuilderBase
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Create a Certificate builder.
         /// </summary>
@@ -74,9 +74,9 @@ namespace Opc.Ua.Security.Certificates
             : base(subjectName)
         {
         }
-        #endregion
+#endregion
 
-        #region Public Methods
+#region Public Methods
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
@@ -289,6 +289,7 @@ namespace Opc.Ua.Security.Certificates
                 bytes = publicKey.Length;
 #else
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
             }
             catch (Exception e)
             {
@@ -312,7 +313,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 m_rsaPublicKey = RSA.Create();
-#if NET472  
+#if NET472
                 var asymmetricKeyParameter = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey);
                 var rsaKeyParameters = asymmetricKeyParameter as Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters;
                 var parameters = new RSAParameters {
@@ -323,6 +324,7 @@ namespace Opc.Ua.Security.Certificates
                 bytes = publicKey.Length;
 #else
                 m_rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
+#endif
             }
             catch (Exception e)
             {
@@ -336,9 +338,9 @@ namespace Opc.Ua.Security.Certificates
 
             return this;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Create some defaults needed to build the certificate.
         /// </summary>
@@ -450,10 +452,10 @@ namespace Opc.Ua.Security.Certificates
                 return new X509BasicConstraintsExtension(m_isCA, false, 0, true);
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
-        #endregion
+#region Private Fields
+#endregion
     }
 }
 #endif
