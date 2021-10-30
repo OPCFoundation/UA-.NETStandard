@@ -313,7 +313,7 @@ namespace Opc.Ua
                     {
                         if (!X509Utils.CompareDistinguishedName(subjectName, certificate.Subject))
                         {
-                            if (subjectName.Contains("="))
+                            if (subjectName.Contains('='))
                             {
                                 continue;
                             }

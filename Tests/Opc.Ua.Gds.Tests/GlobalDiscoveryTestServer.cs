@@ -183,7 +183,7 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
-#if USE_FILE_CONFIG
+#if !USE_FILE_CONFIG
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
 #else

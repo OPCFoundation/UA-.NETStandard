@@ -314,7 +314,7 @@ namespace Opc.Ua.Bindings
 
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) && input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.Keys.Contains("Authorization"))
+                    if (context.Request.Headers.ContainsKey("Authorization"))
                     {
                         foreach (string value in context.Request.Headers["Authorization"])
                         {
@@ -373,7 +373,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);

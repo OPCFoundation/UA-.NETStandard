@@ -897,7 +897,7 @@ namespace Opc.Ua.Configuration
                     thumbprint = certificate.Thumbprint;
                 }
 
-                if (thumbprint != null)
+                if (!string.IsNullOrEmpty(thumbprint))
                 {
                     using (ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                     {

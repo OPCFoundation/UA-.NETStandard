@@ -617,7 +617,6 @@ namespace Opc.Ua.Client.ComplexTypes
                                 catch (DataTypeNotSupportedException dtnsex)
                                 {
                                     Utils.Trace(dtnsex, "Skipped the type definition of {0} because it is not supported.", dataTypeNode.BrowseName.Name);
-                                    continue;
                                 }
                                 catch
                                 {
@@ -646,6 +645,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     structTypesWorkList = structTypesToDoList;
                     structTypesToDoList = new List<INode>();
+                }
+                else
+                {
+                    break;
                 }
             } while (retryAddStructType);
 
@@ -897,7 +900,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private IList<INode> RemoveKnownTypes(IList<INode> nodeList)
         {
             return nodeList.Where(
-                node => GetSystemType(node.NodeId) == null).ToList();
+                node => GetSystemType(node.NodeId) == null).Distinct().ToList();
         }
 
         /// <summary>
@@ -1170,6 +1173,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 if (superType.NamespaceIndex == 0)
                 {
+                    if (superType == DataTypeIds.Enumeration &&
+                        dataType.NamespaceIndex == 0)
+                    {
+                        // enumerations of namespace 0 in a structure
+                        // which are not in the type system are encoded as UInt32
+                        return new NodeId((uint)BuiltInType.UInt32);
+                    }
                     if (superType == DataTypeIds.Enumeration ||
                         superType == DataTypeIds.Structure)
                     {
