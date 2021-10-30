@@ -627,6 +627,10 @@ namespace Opc.Ua
             return result;
         }
 
+        /// <summary>
+        /// Map a security policy to a list of supported certificate types.
+        /// </summary>
+        /// <param name="securityPolicy"></param>
         public static IList<NodeId> MapSecurityPolicyToCertificateTypes(string securityPolicy)
         {
             var result = new List<NodeId>();
@@ -1036,15 +1040,18 @@ namespace Opc.Ua
             return await LoadCertificateChainAsync(certificate).ConfigureAwait(false);
         }
 #endif
-
-        public X509Certificate2 GetInstanceCertificate(string securityPolicy)
+        /// <summary>
+        /// Return the instance certificate for a security policy.
+        /// </summary>
+        /// <param name="securityPolicyUri">The security policy Uri</param>
+        public X509Certificate2 GetInstanceCertificate(string securityPolicyUri)
         {
-            if (securityPolicy == SecurityPolicies.None)
+            if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None
                 return m_securityConfiguration.ApplicationCertificate.Certificate;
             }
-            var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
+            var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri);
             foreach (var certType in certificateTypes)
             {
                 var instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
@@ -1066,6 +1073,11 @@ namespace Opc.Ua
             return null;
         }
 
+        /// <summary>
+        /// Load the instance certificate with a private key.
+        /// </summary>
+        /// <param name="certificateTypes"></param>
+        /// <param name="privateKey"></param>
         public Task<X509Certificate2> GetInstanceCertificateAsync(IList<NodeId> certificateTypes, bool privateKey)
         {
             foreach (var certType in certificateTypes)
@@ -1079,6 +1091,10 @@ namespace Opc.Ua
             return Task.FromResult<X509Certificate2>(null);
         }
 
+        /// <summary>
+        /// Loads the certificate chain of a certificate for use in a secure channel as raw byte array.
+        /// </summary>
+        /// <param name="certificate">The application certificate.</param>
         public async Task<byte[]> LoadCertificateChainRawAsync(X509Certificate2 certificate)
         {
             var instanceCertificateChain = await LoadCertificateChainAsync(certificate);
@@ -1094,6 +1110,10 @@ namespace Opc.Ua
             return null;
         }
 
+        /// <summary>
+        /// Loads the certificate chain for an application certificate.
+        /// </summary>
+        /// <param name="certificate">The application certificate.</param>
         public async Task<X509Certificate2Collection> LoadCertificateChainAsync(X509Certificate2 certificate)
         {
             if (certificate == null)
@@ -1114,6 +1134,10 @@ namespace Opc.Ua
             return certificateChain;
         }
 
+        /// <summary>
+        /// Update the security configuration of the cert type provider.
+        /// </summary>
+        /// <param name="securityConfiguration">The new security configuration.</param>
         public void Update(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
@@ -1122,5 +1146,5 @@ namespace Opc.Ua
         CertificateValidator m_certificateValidator;
         SecurityConfiguration m_securityConfiguration;
     }
-#endregion
+    #endregion
 }
