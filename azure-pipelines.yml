@@ -23,7 +23,7 @@ stages:
   - template: .azurepipelines/ci.yml
     parameters:
       buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-18.04" }'
+      agents: '@{ linux = "ubuntu-20.04" }'
 - stage: solutions
   dependsOn: []
   displayName: 'Build Solutions'
@@ -41,6 +41,18 @@ stages:
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
     parameters:
+      configuration: Release
+      framework: net472
+      agents: '@{ windows = "windows-2022" }'
+      jobnamesuffix: net472
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      framework: net5.0
+      agents: '@{ windows = "windows-2019" linux = "ubuntu-20.04" mac = "macOS-10.15" }'
+      jobnamesuffix: net50
+  - template: .azurepipelines/test.yml
+    parameters:
       framework: netcoreapp2.1
       configuration: Release
   - template: .azurepipelines/test.yml
@@ -48,6 +60,12 @@ stages:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "windows-2022" }'
+      framework: net6.0
+      jobnamesuffix: net60
 - stage: testdebug
   dependsOn: []
   displayName: 'Test Core and SDK Debug'
@@ -56,6 +74,11 @@ stages:
     parameters:
       framework: netcoreapp3.1
       configuration: Debug
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Debug
+      framework: net6.0
+      jobnamesuffix: net60debug
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
@@ -63,5 +86,5 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      poolImage: 'ubuntu-18.04'
+      poolImage: 'ubuntu-20.04'
       jobnamesuffix: netcore31
