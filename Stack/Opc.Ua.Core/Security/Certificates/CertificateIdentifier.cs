@@ -1124,7 +1124,7 @@ namespace Opc.Ua
             // load certificate chain.
             var certificateChain = new X509Certificate2Collection(certificate);
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            if (await m_certificateValidator.GetIssuers(certificate, issuers))
+            if (await m_certificateValidator.GetIssuers(certificate, issuers, false))
             {
                 for (int i = 0; i < issuers.Count; i++)
                 {

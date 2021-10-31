@@ -98,7 +98,7 @@ namespace Opc.Ua.Configuration
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
-            rejectedRoot = DefaultPKIRoot(rejectedRoot);
+            rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
             var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);

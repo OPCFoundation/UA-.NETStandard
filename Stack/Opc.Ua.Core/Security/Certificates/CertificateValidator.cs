@@ -591,6 +591,8 @@ namespace Opc.Ua
             string serialNumber,
             string authorityKeyId)
         {
+            bool check = false;
+
             // check for null.
             if (certificate == null)
             {
@@ -610,6 +612,7 @@ namespace Opc.Ua
                 {
                     return false;
                 }
+                check = true;
             }
 
             // check for authority key id match.
@@ -623,17 +626,26 @@ namespace Opc.Ua
                     {
                         return false;
                     }
+                    check = true;
                 }
             }
 
-            // found match.
-            return true;
+            // found match if keyId or serial number was checked
+            return check;
         }
 
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public async Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
+        public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
+        {
+            return GetIssuers(certificates, issuers, true);
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificates.
+        /// </summary>
+        public async Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers, bool checkRevocationStatus)
         {
             bool isTrusted = false;
             CertificateIdentifier issuer = null;
@@ -647,15 +659,15 @@ namespace Opc.Ua
 
             do
             {
-                issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, checkRevocationStatus).ConfigureAwait(false);
 
                 if (issuer == null)
                 {
-                    issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                    issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, checkRevocationStatus).ConfigureAwait(false);
 
                     if (issuer == null)
                     {
-                        issuer = await GetIssuer(certificate, collection, null, true).ConfigureAwait(false);
+                        issuer = await GetIssuer(certificate, collection, null, checkRevocationStatus).ConfigureAwait(false);
                     }
                 }
                 else
@@ -685,10 +697,21 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
+        /// <param name="checkRevocationStatus">If the revocation status of the issuers should be checked.</param>
+        public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers, bool checkRevocationStatus)
+        {
+            return GetIssuers(new X509Certificate2Collection { certificate }, issuers, checkRevocationStatus);
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="issuers">The issuers.</param>
         /// <returns></returns>
         public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
         {
-            return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
+            return GetIssuers(new X509Certificate2Collection { certificate }, issuers, true);
         }
 
         /// <summary>
@@ -963,7 +986,7 @@ namespace Opc.Ua
                 }
             }
             else
-            { 
+            {
                 if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
                 {
                     sresult = new ServiceResult(StatusCodes.BadCertificateUseNotAllowed,

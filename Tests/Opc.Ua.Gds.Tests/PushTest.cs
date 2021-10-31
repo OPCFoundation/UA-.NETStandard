@@ -624,7 +624,7 @@ namespace Opc.Ua.Gds.Tests
             )
         {
             m_pushClient.PushClient.AdminCredentials = sysAdmin ? m_pushClient.SysAdminUser : m_pushClient.AppUser;
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).Wait();
+            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
@@ -695,8 +695,8 @@ namespace Opc.Ua.Gds.Tests
         {
             DisconnectPushClient();
             Thread.Sleep(2000);
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).Wait();
+            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
+            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             Assert.AreEqual(
                 certificate,
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate

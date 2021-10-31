@@ -186,14 +186,7 @@ namespace Opc.Ua.Client
                 }
 
                 // load certificate chain.
-                m_instanceCertificateChain = new X509Certificate2Collection(m_instanceCertificate);
-                List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                configuration.CertificateValidator.GetIssuers(m_instanceCertificate, issuers).Wait();
-
-                for (int i = 0; i < issuers.Count; i++)
-                {
-                    m_instanceCertificateChain.Add(issuers[i].Certificate);
-                }
+                m_instanceCertificateChain = LoadCertificateChain(configuration, m_instanceCertificate).GetAwaiter().GetResult();
             }
 
             // initialize the message context.
@@ -216,16 +209,16 @@ namespace Opc.Ua.Client
             m_preferredLocales = new string[] { CultureInfo.CurrentCulture.Name };
 
             // create a context to use.
-            m_systemContext = new SystemContext();
-
-            m_systemContext.SystemHandle = this;
-            m_systemContext.EncodeableFactory = m_factory;
-            m_systemContext.NamespaceUris = m_namespaceUris;
-            m_systemContext.ServerUris = m_serverUris;
-            m_systemContext.TypeTable = TypeTree;
-            m_systemContext.PreferredLocales = null;
-            m_systemContext.SessionId = null;
-            m_systemContext.UserIdentity = null;
+            m_systemContext = new SystemContext {
+                SystemHandle = this,
+                EncodeableFactory = m_factory,
+                NamespaceUris = m_namespaceUris,
+                ServerUris = m_serverUris,
+                TypeTable = TypeTree,
+                PreferredLocales = null,
+                SessionId = null,
+                UserIdentity = null
+            };
         }
 
         /// <summary>
@@ -4563,7 +4556,7 @@ namespace Opc.Ua.Client
             {
                 clientCertificateChain = new X509Certificate2Collection(clientCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).ConfigureAwait(false);
+                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers, false).ConfigureAwait(false);
 
                 for (int i = 0; i < issuers.Count; i++)
                 {
