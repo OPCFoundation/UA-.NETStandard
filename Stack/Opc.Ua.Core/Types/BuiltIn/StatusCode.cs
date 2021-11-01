@@ -202,8 +202,8 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            get { return m_code & 0x0FFF000; }
-            set { m_code = 0x0FFF000 & value; }
+            get { return m_code & 0x0FFF0000; }
+            set { m_code = 0x0FFF0000 & value; }
         }
         #endregion
 
