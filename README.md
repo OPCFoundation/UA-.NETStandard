@@ -48,12 +48,12 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 [![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 
 ### Build Status
-[![Build Status](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=11&branchName=master)
+[![Build Status](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 [![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
 
 ### Code Quality
-[![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/11?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=11&contextType=build)
-[![Coverage Status](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/11/master?style=plastic)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master)
+[![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
+[![Coverage Status](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master)
 
 ## Getting Started
 All the tools you need for .NET Standard come with the .NET Core tools. See [Get started with .NET Core](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
