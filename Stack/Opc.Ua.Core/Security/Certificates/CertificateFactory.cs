@@ -602,7 +602,7 @@ namespace Opc.Ua
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                if (!subjectName.Contains("DC=") && !subjectName.Contains("="))
+                if (!subjectName.Contains("DC=") && !subjectName.Contains('='))
                 {
                     subjectName += Utils.Format(", DC={0}", domainNames[0]);
                 }
