@@ -121,7 +121,7 @@ namespace Opc.Ua.Security.Certificates
                 textWriter.WriteLine("-----BEGIN {0}-----", contentType);
                 while (base64.Length > LineLength)
                 {
-                    textWriter.WriteLine(base64.Substring(0, LineLength));
+                    textWriter.WriteLine(base64.AsSpan(0, LineLength));
                     base64 = base64.Substring(LineLength);
                 }
                 textWriter.WriteLine(base64);
@@ -129,7 +129,7 @@ namespace Opc.Ua.Security.Certificates
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-        #endregion
+#endregion
     }
 }
 #endif
