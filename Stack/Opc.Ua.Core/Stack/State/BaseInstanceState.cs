@@ -588,7 +588,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ReferenceTypeId;
             }
 
-            if (!NodeId.IsNull(m_typeDefinitionId))
+            if (!NodeId.IsNull(m_typeDefinitionId) && (NodeClass == NodeClass.Object || NodeClass == NodeClass.Variable))
             {
                 attributesToSave |= AttributesToSave.TypeDefinitionId;
             }
