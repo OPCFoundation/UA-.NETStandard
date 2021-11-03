@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace(Utils.TraceMasks.Error, "Invalid Scheme specified in URL: {0}", url);
                     return null;
                 }
-                if (connectionUri.Port < 0)
+                if (connectionUri.Port <= 0)
                 {
                     Utils.Trace(Utils.TraceMasks.Error, "Invalid Port specified in URL: {0}", url);
                     return null;
