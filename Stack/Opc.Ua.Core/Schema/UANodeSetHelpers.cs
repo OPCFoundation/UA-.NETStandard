@@ -925,6 +925,16 @@ namespace Opc.Ua.Export
 
                         output.ValueRank = field.ValueRank;
 
+                        if (field.ArrayDimensions != null && field.ArrayDimensions.Count != 0)
+                        {
+                            if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                            {
+                                output.ArrayDimensions = BaseVariableState.ArrayDimensionsToXml(field.ArrayDimensions);
+                            }
+                        }
+
+                        output.MaxStringLength = field.MaxStringLength;
+
                         fields.Add(output);
                     }
 
@@ -1032,6 +1042,15 @@ namespace Opc.Ua.Export
                             output.Description = Import(field.Description);
                             output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
                             output.ValueRank = field.ValueRank;
+                            if (!String.IsNullOrWhiteSpace(field.ArrayDimensions))
+                            {
+                                if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                                {
+                                    output.ArrayDimensions = new UInt32Collection(BaseVariableState.ArrayDimensionsFromXml(field.ArrayDimensions));
+                                }
+                            }
+
+                            output.MaxStringLength = field.MaxStringLength;
 
                             if (sd.StructureType == StructureType.Structure ||
                                 sd.StructureType == StructureType.Union)
@@ -1314,7 +1333,7 @@ namespace Opc.Ua.Export
             }
 
             // find an existing index.
-            int count = 1; ;
+            int count = 1;
 
             if (this.NamespaceUris != null)
             {
@@ -1341,7 +1360,7 @@ namespace Opc.Ua.Export
             this.NamespaceUris = uris;
 
             // return the new index.
-            return (ushort)(count + 1);
+            return (ushort)count;
         }
 
         /// <summary>

@@ -964,12 +964,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Validate Sha1 signed certificates cause a policy check failed.
+        /// Validate SHA1 signed certificates cause a policy check failed.
         /// </summary>
         [Theory]
         public async Task TestSHA1Rejected(bool trusted, bool rejectSHA1)
         {
-#if NETCOREAPP3_1_OR_GREATER
+#if NET472_OR_GREATER || NETCOREAPP3_1_OR_GREATER
             Assert.Ignore("SHA1 is unsupported on .NET Core 3.1");
 #endif
             var cert = CertificateFactory.CreateCertificate(null, null, "CN=SHA1 signed", null)

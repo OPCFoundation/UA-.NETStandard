@@ -1020,13 +1020,13 @@ namespace Opc.Ua
             return (int)timeSpan.TotalMilliseconds;
         }
 
-        /// <inheritdoc cref="Dns.GetHostAddressesAsync"/>
+        /// <inheritdoc cref="Dns.GetHostAddressesAsync(string)"/>
         public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress)
         {
             return Dns.GetHostAddressesAsync(hostNameOrAddress);
         }
 
-        /// <inheritdoc cref="Dns.GetHostAddresses"/>
+        /// <inheritdoc cref="Dns.GetHostAddresses(string)"/>
         public static IPAddress[] GetHostAddresses(string hostNameOrAddress)
         {
             return Dns.GetHostAddresses(hostNameOrAddress);
@@ -1104,11 +1104,16 @@ namespace Opc.Ua
             }
 
             // construct new uri.
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+            buffer.Append(uri.AsSpan(0, index))
+                .Append(hostname ?? GetHostName())
+                .Append(uri.AsSpan(index + localhost.Length));
+#else
             buffer.Append(uri.Substring(0, index))
-                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(hostname ?? GetHostName())
                 .Append(uri.Substring(index + localhost.Length));
-
+#endif
             return buffer.ToString();
         }
 
@@ -1140,12 +1145,16 @@ namespace Opc.Ua
             }
 
             // construct new uri.
-            StringBuilder buffer = new StringBuilder();
-
+            var buffer = new StringBuilder();
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+            buffer.Append(subjectName.AsSpan(0, index + 3))
+                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(subjectName.AsSpan(index + dclocalhost.Length));
+#else
             buffer.Append(subjectName.Substring(0, index + 3))
                 .Append(hostname == null ? GetHostName() : hostname)
                 .Append(subjectName.Substring(index + dclocalhost.Length));
-
+#endif
             return buffer.ToString();
         }
 

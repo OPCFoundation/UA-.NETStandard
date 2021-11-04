@@ -67,6 +67,7 @@ namespace Opc.Ua.Client.Tests
         Session m_session;
         OperationLimits m_operationLimits;
         string m_uriScheme;
+        string m_pkiRoot;
         Uri m_url;
 
         public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp)
@@ -96,6 +97,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
+            // pki directory root for test runs. 
+            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+
             // start Ref server
             m_serverFixture = new ServerFixture<ReferenceServer> {
                 UriScheme = m_uriScheme,
@@ -107,10 +111,10 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
-            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize =
             m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
@@ -301,6 +305,23 @@ namespace Opc.Ua.Client.Tests
             // change locale
             var locale = new StringCollection() { "de-de", "en-us" };
             m_session.ChangePreferredLocales(locale);
+        }
+
+        [Test]
+        public void ReadDataTypeDefinition()
+        {
+            // Test Read a DataType Node
+            var node = m_session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            Assert.NotNull(node);
+            var dataTypeNode = (DataTypeNode)node;
+            Assert.NotNull(dataTypeNode);
+            var dataTypeDefinition = dataTypeNode.DataTypeDefinition;
+            Assert.NotNull(dataTypeDefinition);
+            Assert.True(dataTypeDefinition is ExtensionObject);
+            Assert.NotNull(dataTypeDefinition.Body);
+            Assert.True(dataTypeDefinition.Body is StructureDefinition);
+            StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.AreEqual(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
         }
 
         [Theory, Order(400)]

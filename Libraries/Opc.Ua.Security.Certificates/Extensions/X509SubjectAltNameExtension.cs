@@ -272,7 +272,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-#if NETSTANDARD2_1 || NET472 || NET5_0
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Encode the Subject Alternative name extension.
         /// </summary>
