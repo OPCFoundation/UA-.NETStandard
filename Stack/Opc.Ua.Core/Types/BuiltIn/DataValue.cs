@@ -285,7 +285,7 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (this.m_serverTimestamp != other.m_serverTimestamp)
+                if (this.m_sourcePicoseconds != other.m_sourcePicoseconds)
                 {
                     return false;
                 }
