@@ -83,7 +83,7 @@ jobs:
     condition: ne( variables['SigningClientSecret'], '')
     inputs:
       script: |
-        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl ${{ variables.signinglist }}
+        azuresigntool sign -du "$(SigningURL)" -kvu "$(SigningVaultURL)" -kvt "$(SigningTenantId)" -kvi "$(SigningClientId)" -tr http://timestamp.digicert.com -td sha384 -kvs "$(SigningClientSecret)" -kvc "$(SigningCertName)" -v -ifl ${{ variables.signinglist }}
   - task: DotNetCoreCLI@2
     displayName: Pack Nuget ${{parameters.config}}
     inputs:
