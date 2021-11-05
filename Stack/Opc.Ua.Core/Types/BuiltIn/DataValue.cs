@@ -56,7 +56,7 @@ namespace Opc.Ua
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class DataValue : IFormattable
+    public class DataValue : IFormattable, IEquatable<DataValue>
     {
         #region Constructors
         /// <summary>
@@ -244,6 +244,53 @@ namespace Opc.Ua
                 }
 
                 return Utils.IsEqual(this.m_value.Value, value.m_value.Value);
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// </summary>
+        /// <remarks>
+        /// Determines if the specified object is equal to the object.
+        /// </remarks>
+        /// <param name="other">The DataValue to compare to *this*</param>
+        public bool Equals(DataValue other)
+        {
+            if (Object.ReferenceEquals(this, other))
+            {
+                return true;
+            }
+
+            if (other != null)
+            {
+                if (this.m_statusCode != other.m_statusCode)
+                {
+                    return false;
+                }
+
+                if (this.m_serverTimestamp != other.m_serverTimestamp)
+                {
+                    return false;
+                }
+
+                if (this.m_sourceTimestamp != other.m_sourceTimestamp)
+                {
+                    return false;
+                }
+
+                if (this.m_serverPicoseconds != other.m_serverPicoseconds)
+                {
+                    return false;
+                }
+
+                if (this.m_sourcePicoseconds != other.m_sourcePicoseconds)
+                {
+                    return false;
+                }
+
+                return Utils.IsEqual(this.m_value.Value, other.m_value.Value);
             }
 
             return false;
