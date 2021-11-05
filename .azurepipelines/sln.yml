@@ -1,11 +1,15 @@
 #
 # Build all solutions on windows
 #
+parameters:
+  poolImage: 'windows-2022'
+  jobnamesuffix: ''
+
 jobs:
-- job: buildallsln
-  displayName: Build Solutions 
+- job: buildallsln${{ parameters.jobnamesuffix }}
+  displayName: Build Solutions {{ parameters.jobnamesuffix }}
   pool:
-    vmImage: 'windows-2019'
+    vmImage: $(poolImage)
   steps:
   - task: NuGetToolInstaller@1
     inputs:

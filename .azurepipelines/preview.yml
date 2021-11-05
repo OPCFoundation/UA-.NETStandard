@@ -19,7 +19,7 @@ jobs:
 - job: nuget${{parameters.config}}
   displayName: Pack Nugets ${{parameters.config}}
   pool:
-    vmImage: 'windows-2019'
+    vmImage: 'windows-2022'
   variables:
   - group: codesign
   - name: msbuildversion
