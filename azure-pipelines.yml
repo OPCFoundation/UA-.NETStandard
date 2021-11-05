@@ -60,6 +60,12 @@ stages:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3
+  - template: .azurepipelines/test.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
+      framework: net6.0
+      jobnamesuffix: net60
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
