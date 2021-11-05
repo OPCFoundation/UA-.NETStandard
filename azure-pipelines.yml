@@ -70,8 +70,8 @@ stages:
   - template: .azurepipelines/test.yml
     parameters:
       configuration: Release
-      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
       framework: net6.0
+      agents: '@{ windows = "windows-2022"; linux="ubuntu-20.04"; mac = "macOS-11"}'
       jobnamesuffix: net60
 - stage: testdebug
   dependsOn: [build]
@@ -89,5 +89,5 @@ stages:
   - template: .azurepipelines/testcc.yml
     parameters:
       configuration: Release
-      poolImage: 'ubuntu-18.04'
+      poolImage: 'ubuntu-20.04'
       jobnamesuffix: netcore31

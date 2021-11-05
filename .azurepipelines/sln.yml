@@ -7,9 +7,9 @@ parameters:
 
 jobs:
 - job: buildallsln${{ parameters.jobnamesuffix }}
-  displayName: Build Solutions {{ parameters.jobnamesuffix }}
+  displayName: Build Solutions ${{ parameters.jobnamesuffix }}
   pool:
-    vmImage: $(poolImage)
+    vmImage: ${{ parameters.poolImage }}
   steps:
   - task: NuGetToolInstaller@1
     inputs:

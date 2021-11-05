@@ -52,7 +52,7 @@ jobs:
       arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Release Pack 
-    condition: eq(variables['poolImage'], 'windows-2019')
+    condition: eq(variables['poolImage'], 'windows-2022')
     inputs:
       command: pack
       packagesToPack:  '**/Opc.Ua.*.csproj'
@@ -72,7 +72,7 @@ jobs:
       arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }}'
   - task: DotNetCoreCLI@2
     displayName: Debug Pack 
-    condition: eq(variables['poolImage'], 'windows-2019')
+    condition: eq(variables['poolImage'], 'windows-2022')
     inputs:
       command: pack
       packagesToPack:  '**/Opc.Ua.*.csproj'
