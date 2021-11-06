@@ -90,7 +90,8 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
-    public struct StatusCode : IComparable, IFormattable
+    public struct StatusCode : IComparable, IFormattable,
+        IComparable<StatusCode>, IEquatable<StatusCode>
     {
         #region Constructors
 
@@ -202,8 +203,8 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            get { return m_code & 0x0FFF000; }
-            set { m_code = 0x0FFF000 & value; }
+            get { return m_code & 0x0FFF0000; }
+            set { m_code = 0x0FFF0000 & value; }
         }
         #endregion
 
@@ -426,6 +427,12 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to *this* object</param>
         public int CompareTo(object obj)
         {
+            // compare codes
+            if (obj is StatusCode)
+            {
+                return m_code.CompareTo(((StatusCode)obj).m_code);
+            }
+
             // check for null.
             if (obj == null)
             {
@@ -438,14 +445,21 @@ namespace Opc.Ua
                 return m_code.CompareTo((uint)obj);
             }
 
-            // compare codes.
-            if (obj is StatusCode)
-            {
-                return m_code.CompareTo(((StatusCode)obj).m_code);
-            }
-
             // objects not comparable.
             return -1;
+        }
+
+        /// <summary>
+        /// Compares the instance to another object.
+        /// </summary>
+        /// <remarks>
+        /// Compares the instance to another object.
+        /// </remarks>
+        /// <param name="other">The StatusCode to compare to *this* object</param>
+        public int CompareTo(StatusCode other)
+        {
+            // check for status code.
+            return m_code.CompareTo(other.Code);
         }
         #endregion
 
@@ -489,6 +503,18 @@ namespace Opc.Ua
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
+        }
+
+        /// <summary>
+        /// Determines if the specified object is equal to the object.
+        /// </summary>
+        /// <remarks>
+        /// Determines if the specified object is equal to the object.
+        /// </remarks>
+        /// <param name="other">The StatusCode to compare to *this* object</param>
+        public bool Equals(StatusCode other)
+        {
+            return CompareTo(other) == 0;
         }
 
         /// <summary>

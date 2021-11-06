@@ -99,12 +99,6 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
 
-            while (mqttClient.IsConnected == false)
-            {
-                await Connect(reconnectInterval, mqttClientOptions, mqttClient);
-                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
-            }
-
             // Setup reconnect handler
             mqttClient.UseDisconnectedHandler(async e => {
                 await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
@@ -121,6 +115,8 @@ namespace Opc.Ua.PubSub.Transport
                     Utils.Trace("{0} Failed to reconnect after disconnect occurred: {1}", mqttClient?.Options?.ClientId, excOnDisconnect.Message);
                 }
             });
+
+            await Connect(reconnectInterval, mqttClientOptions, mqttClient);
 
             return mqttClient;
         }
