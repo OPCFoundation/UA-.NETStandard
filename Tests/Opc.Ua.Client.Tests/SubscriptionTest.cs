@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.Tests
         ReferenceServer m_server;
         Session m_session;
         Uri m_url;
-        string m_pkiRoot;
+        string m_pkiRoot = null;
 
         #region Test Setup
         /// <summary>
