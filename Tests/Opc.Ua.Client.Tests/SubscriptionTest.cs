@@ -57,6 +57,7 @@ namespace Opc.Ua.Client.Tests
         ReferenceServer m_server;
         Session m_session;
         Uri m_url;
+        string m_pkiRoot;
 
         #region Test Setup
         /// <summary>
@@ -74,6 +75,9 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
+            // pki directory root for test runs. 
+            var m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+
             // start Ref server
             m_serverFixture = new ServerFixture<ReferenceServer>();
             m_clientFixture = new ClientFixture();
@@ -83,9 +87,10 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+
             // start client
-            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
             m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
         }
@@ -101,6 +106,10 @@ namespace Opc.Ua.Client.Tests
             m_session = null;
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
+            if (m_pkiRoot!=null)
+            {
+                Directory.Delete(m_pkiRoot);
+            }
         }
 
         /// <summary>
