@@ -65,7 +65,7 @@ namespace Opc.Ua.PubSub.Transport
                     return null;
                 }
                 string hostName = connectionUri.Host;
-                if (hostName.ToLower() == "localhost")
+                if (string.Equals(hostName, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     hostName = "127.0.0.1";
                 }

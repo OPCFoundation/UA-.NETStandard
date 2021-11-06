@@ -2,6 +2,18 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+trigger:
+  batch: 'true'
+  branches:
+    include:
+    - '*'
+  paths:
+    include:
+    - '*' 
+    exclude:
+    - 'Docs/*' 
+    - 'README.md' 
+
 pr: 
   autoCancel: 'true'
   branches:
@@ -23,14 +35,21 @@ stages:
   - template: .azurepipelines/ci.yml
     parameters:
       buildoption: '-p:NoHttps=true'
-      agents: '@{ linux = "ubuntu-20.04" }'
+      agents: '@{ linux = "ubuntu-18.04" }'
 - stage: solutions
   dependsOn: []
   displayName: 'Build Solutions'
   jobs:
   - template: .azurepipelines/sln.yml
+    parameters:
+      poolImage: 'windows-2022'
+      jobnamesuffix: win2022
+  - template: .azurepipelines/sln.yml
+    parameters:
+      poolImage: 'windows-2019'
+      jobnamesuffix: win2019
 - stage: testrelease
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
@@ -66,7 +85,7 @@ stages:
       framework: net6.0
       jobnamesuffix: net60
 - stage: testdebug
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
@@ -82,6 +101,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
+  condition: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:
