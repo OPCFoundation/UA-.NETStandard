@@ -218,6 +218,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Read all nodes.
+        /// </summary>
+        [Test]
+        public void ReadAllNodes()
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            if (m_operationLimits == null)
+            {
+                GetOperationLimits();
+            }
+            if (m_referenceDescriptions == null)
+            {
+                m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
+            }
+
+            // Read all variables
+            var requestHeader = m_requestHeader;
+            foreach (var reference in m_referenceDescriptions)
+            {
+                requestHeader.Timestamp = DateTime.UtcNow;
+                var nodesToRead = new ReadValueIdCollection();
+                var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_server.CurrentInstance.NamespaceUris);
+                foreach (var attributeId in ServerFixtureUtils.AttributesIds.Keys)
+                {
+                    nodesToRead.Add(new ReadValueId() { NodeId = nodeId, AttributeId = attributeId });
+                }
+                TestContext.Out.WriteLine("NodeId {0} {1}", reference.NodeId, reference.BrowseName);
+                var response = m_server.Read(requestHeader, MaxAge, TimestampsToReturn.Both, nodesToRead,
+                    out var dataValues, out var diagnosticInfos);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, dataValues);
+
+                foreach (var dataValue in dataValues)
+                {
+                    TestContext.Out.WriteLine(" {0}", dataValue.ToString());
+                }
+            }
+        }
+
+        /// <summary>
         /// Write Node.
         /// </summary>
         [Test]
