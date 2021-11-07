@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
         private string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
         private string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
-        
+
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_uaPublisherApplication;
         private UdpPubSubConnection m_udpPublisherConnection;
@@ -207,7 +207,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 UadpNetworkMessage networkMessage = networkMessagesNetworkType as UadpNetworkMessage;
                 Assert.IsNotNull(networkMessage, "networkMessageEncode should not be null");
-                
+
                 //Assert
                 Assert.IsNotNull(networkMessage, "CreateNetworkMessage did not return an UadpNetworkMessage.");
                 Assert.AreEqual(networkMessage.SequenceNumber, i + 1, "UadpNetworkMessage.SequenceNumber for message {0} is not {0}.", i + 1);
@@ -346,6 +346,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch
             {
+            }
+
+            if (firstActiveIPAddr == null)
+            {
+                Assert.Ignore("First NIC was not found.");
             }
 
             return firstActiveIPAddr;
