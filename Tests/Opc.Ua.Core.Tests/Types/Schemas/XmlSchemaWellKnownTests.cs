@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,43 +27,56 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Threading.Tasks;
+using System.Reflection;
 using NUnit.Framework;
+using Opc.Ua.Schema.Xml;
 
-namespace Opc.Ua.Server.Tests
+namespace Opc.Ua.Core.Tests.Types.Schemas
 {
     /// <summary>
-    /// Test Standard Server stratup.
+    /// Tests for the Binary Schema Validator class.
     /// </summary>
-    [TestFixture, Category("Server")]
+    [TestFixture, Category("XmlSchema")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
-    public class ServerStartupTests
+    public class XmlSchemaWellKnownTests : XmlSchemaValidator
     {
-        const double MaxAge = 10000;
-        const uint TimeoutHint = 10000;
-
+        #region DataPointSources
         [DatapointSource]
-        public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps };
+        public string[][] WellKnownSchemaData = WellKnownDictionaries;
+        #endregion
 
         #region Test Methods
         /// <summary>
-        /// Start a server fixture with different uri schemes.
+        /// Load well known resource type dictionaries.
         /// </summary>
         [Theory]
-        public async Task StartServerAsync(
-            string uriScheme
-            )
+        public void LoadResources(string[] schemaData)
         {
-            var fixture = new ServerFixture<StandardServer>();
-            Assert.NotNull(fixture);
-            fixture.UriScheme = uriScheme;
-            await fixture.LoadConfiguration().ConfigureAwait(false);
-            var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
-            fixture.SetTraceOutput(TestContext.Out);
-            Assert.NotNull(server);
-            await Task.Delay(1000);
-            await fixture.StopAsync().ConfigureAwait(false);
+            Assert.That(schemaData.Length == 2);
+            var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            using (var stream = assembly.GetManifestResourceStream(schemaData[1]))
+            {
+                Assert.IsNotNull(stream);
+            }
+        }
+
+        /// <summary>
+        /// Load and validate well known resource type dictionaries.
+        /// </summary>
+        [Theory]
+        public void ValidateResources(string[] schemaData)
+        {
+            var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            using (var stream = assembly.GetManifestResourceStream(schemaData[1]))
+            {
+                Assert.IsNotNull(stream);
+                var schema = new XmlSchemaValidator();
+                Assert.IsNotNull(schema);
+                schema.Validate(stream);
+                Assert.IsNull(schema.FilePath);
+                Assert.AreEqual(schemaData[0], schema.TargetSchema.TargetNamespace);
+            }
         }
         #endregion
     }

@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.Tests
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetMinimumCertificateKeySize(1024)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Client.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
 

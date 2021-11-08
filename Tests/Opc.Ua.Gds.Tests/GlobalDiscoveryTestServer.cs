@@ -183,11 +183,12 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
-#if !USE_FILE_CONFIG
+#if USE_FILE_CONFIG
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
 #else
-            string gdsRoot = Path.Combine("%LocalApplicationData%", "OPC", "GDS");
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string gdsRoot = Path.Combine(root, "GDS");
             var gdsConfig = new GlobalDiscoveryServerConfiguration() {
                 AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
                 ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
@@ -208,7 +209,7 @@ namespace Opc.Ua.Gds.Tests
                         CACertificateLifetime = 60
                     }
                 },
-                DatabaseStorePath = gdsRoot + "/gdsdb.json"
+                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
             };
 
             // build the application configuration.
@@ -228,10 +229,11 @@ namespace Opc.Ua.Gds.Tests
                     gdsRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
+                .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
                 .SetDeleteOnLoad(true)
-                .SetOutputFilePath(gdsRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
                 .Create().ConfigureAwait(false);
 #endif

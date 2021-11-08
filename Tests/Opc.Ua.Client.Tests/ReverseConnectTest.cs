@@ -85,7 +85,8 @@ namespace Opc.Ua.Client.Tests
                 ReverseConnectTimeout = MaxTimeout,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
-            m_server = await m_serverFixture.StartAsync(TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+            await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(TestContext.Out).ConfigureAwait(false);
 
             // create client
             m_clientFixture = new ClientFixture();

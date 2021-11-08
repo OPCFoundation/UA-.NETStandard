@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -12,10 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Text;
+using System.Xml;
 using System.Xml.Schema;
 
 namespace Opc.Ua.Schema.Xml
@@ -45,12 +45,13 @@ namespace Opc.Ua.Schema.Xml
 
         #region Public Members
         /// <summary>
+        /// The schema set that was validated.
+        /// </summary>
+        public XmlSchemaSet SchemaSet => m_schemaSet;
+        /// <summary>
         /// The schema that was validated.
         /// </summary>
-        public XmlDocument TargetSchema
-        {
-            get { return m_schema; }
-        }
+        public XmlSchema TargetSchema => m_schema;
 
         /// <summary>
         /// Generates the code from the contents of the address space.
@@ -70,45 +71,41 @@ namespace Opc.Ua.Schema.Xml
         {
             using (var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
-                m_schema.Load(xmlReader);
-            }
+                m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
 
-            foreach (XmlNode import in m_schema.ChildNodes)
-            {
-                if (import.NamespaceURI == Namespaces.OpcUa)
+                var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+                foreach (XmlSchemaImport import in m_schema.Includes)
                 {
-                    using (StreamReader strm = new StreamReader(Assembly.Load(new AssemblyName("Opc.Ua.Core")).GetManifestResourceStream("Opc.Ua.Model.Opc.Ua.Types.xsd")))
-                    using (var xmlReader = XmlReader.Create(strm, Utils.DefaultXmlReaderSettings()))
+                    string location = null;
+
+                    if (!KnownFiles.TryGetValue(import.Namespace, out location))
                     {
-                        m_schema.Load(xmlReader);
+                        location = import.SchemaLocation;
                     }
-                    continue;
-                }
 
-                string location = null;
-
-                if (!KnownFiles.TryGetValue(import.NamespaceURI, out location))
-                {
-                    location = import.NamespaceURI;
-                }
-
-                FileInfo fileInfo = new FileInfo(location);
-                if (!fileInfo.Exists)
-                {
-                    using (StreamReader strm = new StreamReader(Assembly.Load(new AssemblyName("Opc.Ua.Core")).GetManifestResourceStream(location)))
-                    using (var xmlReader = XmlReader.Create(strm, Utils.DefaultXmlReaderSettings()))
+                    FileInfo fileInfo = new FileInfo(location);
+                    var settings = Utils.DefaultXmlReaderSettings();
+                    if (!fileInfo.Exists)
                     {
-                        m_schema.Load(xmlReader);
+                        using (StreamReader strm = new StreamReader(assembly.GetManifestResourceStream(location)))
+                        using (var schemaReader = XmlReader.Create(strm, settings))
+                        {
+                            import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
+                        }
                     }
-                }
-                else
-                {
-                    using (Stream strm = File.OpenRead(location))
-                    using (var xmlReader = XmlReader.Create(strm, Utils.DefaultXmlReaderSettings()))
+                    else
                     {
-                        m_schema.Load(xmlReader);
+                        using (Stream strm = File.OpenRead(location))
+                        using (var schemaReader = XmlReader.Create(strm, settings))
+                        {
+                            import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
+                        }
                     }
                 }
+
+                m_schemaSet = new XmlSchemaSet();
+                m_schemaSet.Add(m_schema);
+                m_schemaSet.Compile();
             }
         }
 
@@ -128,22 +125,24 @@ namespace Opc.Ua.Schema.Xml
 
             try
             {
-                if (typeName == null || m_schema.ChildNodes.Count == 0)
+                if (typeName == null || m_schema.Elements.Values.Count == 0)
                 {
-                    m_schema.WriteTo(writer);
+                    m_schema.Write(writer);
                 }
                 else
                 {
-                    foreach (XmlNode current in m_schema.ChildNodes)
+                    foreach (XmlSchemaObject current in m_schema.Elements.Values)
                     {
-                        XmlElement element = current as XmlElement;
+                        XmlSchemaElement element = current as XmlSchemaElement;
+
                         if (element != null)
                         {
                             if (element.Name == typeName)
                             {
-                                XmlDocument schema = new XmlDocument();
-                                schema.AppendChild(element);
-                                schema.WriteTo(writer);
+                                XmlSchema schema = new XmlSchema();
+                                schema.Items.Add(element.ElementSchemaType);
+                                schema.Items.Add(element);
+                                schema.Write(writer);
                                 break;
                             }
                         }
@@ -160,13 +159,27 @@ namespace Opc.Ua.Schema.Xml
         }
         #endregion
 
-        #region Private Fields
-        private readonly string[][] WellKnownDictionaries = new string[][]
+        #region Private Methods
+        /// <summary>
+        /// Handles a validation error.
+        /// </summary>
+        static void OnValidate(object sender, ValidationEventArgs args)
         {
-            new string[] {  Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.xsd" }
-        };
+            Utils.Trace(Utils.TraceMasks.Error, "Error in XML schema validation: {0}", args.Message);
+            throw new InvalidOperationException(args.Message, args.Exception);
+        }
+        #endregion
 
-        private XmlDocument m_schema = new XmlDocument();
+        #region Private Fields
+        /// <summary>
+        /// The well known schemas embedded in the assembly.
+        /// </summary>
+        protected static readonly string[][] WellKnownDictionaries = new string[][]
+        {
+            new string[] { Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd" }
+        };
+        private XmlSchema m_schema;
+        private XmlSchemaSet m_schemaSet;
         #endregion
     }
 }

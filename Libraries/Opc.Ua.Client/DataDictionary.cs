@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the contents of a data dictionary.
         /// </summary>
-        private byte[] ReadDictionary(NodeId dictionaryId)
+        internal byte[] ReadDictionary(NodeId dictionaryId)
         {
             // create item to read.
             ReadValueId itemToRead = new ReadValueId();
@@ -277,8 +277,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Validates the type dictionary.
         /// </summary>
-        /// <param name="dictionary"></param>
-        private async Task Validate(byte[] dictionary)
+        /// <param name="dictionary">The encoded dictionary to validate.</param>
+        /// <param name="throwOnError">Throw if an error occurred.</param>
+        internal async Task Validate(byte[] dictionary, bool throwOnError = false)
         {
             MemoryStream istrm = new MemoryStream(dictionary);
 
@@ -293,6 +294,10 @@ namespace Opc.Ua.Client
                 catch (Exception e)
                 {
                     Utils.Trace(e, "Could not validate schema.");
+                    if (throwOnError)
+                    {
+                        throw;
+                    }
                 }
 
                 m_validator = validator;
@@ -309,6 +314,10 @@ namespace Opc.Ua.Client
                 catch (Exception e)
                 {
                     Utils.Trace(e, $"Could not validate schema. {e.Message}");
+                    if (throwOnError)
+                    {
+                        throw;
+                    }
                 }
 
                 m_validator = validator;

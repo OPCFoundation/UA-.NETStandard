@@ -87,7 +87,8 @@ namespace Opc.Ua.Client.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+            await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
 
             // start client
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);

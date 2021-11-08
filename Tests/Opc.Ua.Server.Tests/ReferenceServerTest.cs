@@ -64,6 +64,7 @@ namespace Opc.Ua.Server.Tests
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>();
             m_fixture.OperationLimits = true;
+            await m_fixture.LoadConfiguration().ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
         }
 
@@ -110,6 +111,7 @@ namespace Opc.Ua.Server.Tests
         {
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>();
+            m_fixture.LoadConfiguration().GetAwaiter().GetResult();
             m_server = m_fixture.StartAsync(null).GetAwaiter().GetResult();
             m_requestHeader = m_server.CreateAndActivateSession("Bench");
         }

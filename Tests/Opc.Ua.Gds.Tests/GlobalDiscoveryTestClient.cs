@@ -63,13 +63,14 @@ namespace Opc.Ua.Gds.Tests
             // load the application configuration.
             Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else
-            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string pkiRoot = Path.Combine(root, "pki");
             var clientConfig = new GlobalDiscoveryTestClientConfiguration() {
                 GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
-                AppUserName="appuser",
-                AppPassword="demo",
-                AdminUserName="appadmin",
-                AdminPassword="demo"
+                AppUserName = "appuser",
+                AppPassword = "demo",
+                AdminUserName = "appadmin",
+                AdminPassword = "demo"
             };
 
             // build the application configuration.
@@ -83,9 +84,10 @@ namespace Opc.Ua.Gds.Tests
                     pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
+                .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
                 .Create().ConfigureAwait(false);
 #endif
