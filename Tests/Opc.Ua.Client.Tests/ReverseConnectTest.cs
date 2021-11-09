@@ -105,10 +105,6 @@ namespace Opc.Ua.Client.Tests
         {
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
-            if (m_pkiRoot != null)
-            {
-                Directory.Delete(m_pkiRoot);
-            }
         }
 
         /// <summary>

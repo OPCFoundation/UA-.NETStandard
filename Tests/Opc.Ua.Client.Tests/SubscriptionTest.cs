@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.Tests
         ReferenceServer m_server;
         Session m_session;
         Uri m_url;
-        string m_pkiRoot = null;
+        string m_pkiRoot;
 
         #region Test Setup
         /// <summary>
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.Tests
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
             // pki directory root for test runs. 
-            var m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
             m_serverFixture = new ServerFixture<ReferenceServer>();
@@ -107,10 +107,6 @@ namespace Opc.Ua.Client.Tests
             m_session = null;
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
-            if (m_pkiRoot!=null)
-            {
-                Directory.Delete(m_pkiRoot);
-            }
         }
 
         /// <summary>
@@ -445,6 +441,13 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine($"Notifications rate: {notificationRate:N} per second");
             //No notifications means nothing worked
             Assert.NotZero(totalNotifications);
+
+            // The issue more unlikely seem to appear on .NET 6 in the given timeframe
+            if (!enabled && !failed)
+            {
+                Assert.Inconclusive("The test couldn't validate the issue on this platform");
+            }
+
             // catch if expected/unexpected Out-of-sequence occurred
             Assert.AreEqual(enabled, !failed);
         }
