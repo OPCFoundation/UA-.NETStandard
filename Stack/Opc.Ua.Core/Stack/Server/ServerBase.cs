@@ -954,7 +954,7 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.DnsSafeHost == endpointUrl.DnsSafeHost)
                         {
-                            accessibleAddresses.Add(baseAddress);
+                            accessibleAddresses.Add(new BaseAddress() { Url = alternateUrl, ProfileUri = baseAddress.ProfileUri, DiscoveryUrl = alternateUrl });
                             break;
                         }
                     }
@@ -1258,7 +1258,7 @@ namespace Opc.Ua
             }
 
             // use the message context from the configuration to ensure the channels are using the same one.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
             messageContext.NamespaceUris = new NamespaceTable();
             MessageContext = messageContext;
 
@@ -1516,7 +1516,7 @@ namespace Opc.Ua
                             {
                                 m_totalThreadCount--;
 
-                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Thread.CurrentThread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
+                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Environment.CurrentManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
 
                                 return;
                             }

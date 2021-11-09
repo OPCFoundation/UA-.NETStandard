@@ -210,7 +210,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize)
+        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(ushort keySize)
         {
             if (keySize == 0)
             {
@@ -289,13 +289,13 @@ namespace Opc.Ua.Security.Certificates
             // lifetime must be in range of issuer
             if (m_issuerCAKeyCert != null)
             {
-                if (NotAfter > m_issuerCAKeyCert.NotAfter)
+                if (NotAfter.ToUniversalTime() > m_issuerCAKeyCert.NotAfter.ToUniversalTime())
                 {
-                    m_notAfter = m_issuerCAKeyCert.NotAfter;
+                    m_notAfter = m_issuerCAKeyCert.NotAfter.ToUniversalTime();
                 }
-                if (NotBefore < m_issuerCAKeyCert.NotBefore)
+                if (NotBefore.ToUniversalTime() < m_issuerCAKeyCert.NotBefore.ToUniversalTime())
                 {
-                    m_notBefore = m_issuerCAKeyCert.NotBefore;
+                    m_notBefore = m_issuerCAKeyCert.NotBefore.ToUniversalTime();
                 }
             }
         }

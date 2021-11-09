@@ -30,7 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.PubSub.Encoding
 {
@@ -45,11 +45,12 @@ namespace Opc.Ua.PubSub.Encoding
         private const byte kPublishedIdTypeUsedBits = 0x07;
         private const byte kUADPVersionBitMask = 0x0F;
         private const byte kPublishedIdResetMask = 0xFC;
-        private const byte kUADPMessageTypeMask = 0x1C;
 
         private byte m_uadpVersion;
         private object m_publisherId;
         private UADPNetworkMessageType m_uadpNetworkMessageType;
+        private UADPNetworkMessageDiscoveryType m_discoveryType;
+        private UInt16[] m_dataSetWriterIds;
         #endregion
 
         #region Constructor
@@ -64,7 +65,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of UadpNetworkMessage
         /// </summary>
-        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> confguration object that produced this message.</param> 
+        /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> conflagration object that produced this message.</param> 
         /// <param name="uadpDataSetMessages"><see cref="UadpDataSetMessage"/> list as input</param>
         public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UadpDataSetMessage> uadpDataSetMessages)
             : base(writerGroupConfiguration, uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => (UaDataSetMessage)x) ?? new List<UaDataSetMessage>())
@@ -72,7 +73,42 @@ namespace Opc.Ua.PubSub.Encoding
             UADPVersion = kUadpVersion;
             DataSetClassId = Guid.Empty;
             Timestamp = DateTime.UtcNow;
+
+            m_uadpNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
         }
+
+        /// <summary>
+        /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryResponse DataSetMetadata message
+        /// </summary>
+        public UadpNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
+            : base(writerGroupConfiguration, metadata)
+        {
+            UADPVersion = kUadpVersion;
+            DataSetClassId = Guid.Empty;
+            Timestamp = DateTime.UtcNow;
+
+            m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
+            m_discoveryType = UADPNetworkMessageDiscoveryType.DataSetMetaData;
+
+            SetFlagsDiscoveryResponseMetaData();
+        }
+
+        /// <summary>
+        /// Create new instance of <see cref="UadpNetworkMessage"/> as a DiscoveryRequest of specified type
+        /// </summary>
+        public UadpNetworkMessage(UADPNetworkMessageDiscoveryType discoveryType)
+            : base(null, new List<UaDataSetMessage>())
+        {
+            UADPVersion = kUadpVersion;
+            DataSetClassId = Guid.Empty;
+            Timestamp = DateTime.UtcNow;
+
+            m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
+            m_discoveryType = discoveryType;
+
+            SetFlagsDiscoveryRequest();
+        }
+
         #endregion
 
         #region Properties
@@ -81,6 +117,40 @@ namespace Opc.Ua.PubSub.Encoding
         /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage  
         /// </summary>
         public UadpNetworkMessageContentMask NetworkMessageContentMask { get; private set; }
+
+        /// <summary>
+        /// Get the UADP network message type
+        /// </summary>
+        public UADPNetworkMessageType UADPNetworkMessageType
+        {
+            get
+            {
+                return m_uadpNetworkMessageType;
+            }
+        }
+
+        /// <summary>
+        /// Get the UADP network message discovery type 
+        /// </summary>
+        public UADPNetworkMessageDiscoveryType UADPDiscoveryType
+        {
+            get { return m_discoveryType;}
+        }
+
+        /// <summary>
+        /// Get/Set the DataSetWriterIds
+        /// </summary>
+        public UInt16[] DataSetWriterIds
+        {
+            get
+            {
+                return m_dataSetWriterIds;
+            }
+            set
+            {
+                m_dataSetWriterIds = value;
+            }
+        }
 
         #region NetworkMessage Header
 
@@ -116,7 +186,33 @@ namespace Opc.Ua.PubSub.Encoding
             get { return m_publisherId; }
             set
             {
-                m_publisherId = value;
+                // Just in case value is a positive signed Integer 
+                // Try to bring it to an accepted type (will overflow if value doesn't fit)
+
+                object adjustedValue = value;
+                switch (value)
+                {
+                    case Int16 int16Value:
+                        if (int16Value > 0)
+                        {
+                            adjustedValue = (UInt16)int16Value;
+                        }
+                        break;
+                    case Int32 int32Value:
+                        if (int32Value > 0)
+                        {
+                            adjustedValue = (UInt32)int32Value;
+                        }
+                        break;
+                    case Int64 int64Value:
+                        if (int64Value > 0)
+                        {
+                            adjustedValue = (UInt64)int64Value;
+                        }
+                        break;
+                }
+
+                m_publisherId = adjustedValue;
 
                 // Remove previous PublisherId data type
                 ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdResetMask;
@@ -252,24 +348,18 @@ namespace Opc.Ua.PubSub.Encoding
         {
             NetworkMessageContentMask = networkMessageContentMask;
 
-            SetFlags();
+            SetFlagsDataSetNetworkMessageType();
         }
 
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        /// <returns></returns>
-        public override byte[] Encode()
+        /// <param name="messageContext">The context.</param>
+        public override byte[] Encode(IServiceMessageContext messageContext)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext {
-                NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
-            };
-
             using (MemoryStream stream = new MemoryStream())
-            using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
             {
-                Encode(messageContext, writer);
+                Encode(messageContext, stream);
                 return stream.ToArray();
             }
         }
@@ -278,45 +368,104 @@ namespace Opc.Ua.PubSub.Encoding
         /// Encodes the object in the specified stream.
         /// </summary>
         /// <param name="messageContext">The system context.</param>
-        /// <param name="writer">The stream to use.</param>
-        public override void Encode(IServiceMessageContext messageContext, StreamWriter writer)
+        /// <param name="stream">The stream to use.</param>
+        public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            using (BinaryEncoder encoder = new BinaryEncoder(writer.BaseStream, messageContext))
+            using (BinaryEncoder encoder = new BinaryEncoder(stream, messageContext))
             {
-                Encode(encoder);
+                if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
+                {
+                    EncodeDataSetNetworkMessageType(encoder);
+                }
+                else
+                {
+                    EncodeNetworkMessageHeader(encoder);
+
+                    if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                    {
+                        encoder.WriteByte("ResponseType", (byte)m_discoveryType);
+                        // A strictly monotonically increasing sequence number assigned to each discovery response sent in the scope of a PublisherId.
+                        encoder.WriteUInt16("SequenceNumber", SequenceNumber);
+
+                        switch (m_discoveryType)
+                        {
+                            case UADPNetworkMessageDiscoveryType.DataSetMetaData:
+                                EncodeDataSetMetaData(encoder);
+                                break;
+                            case UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration:
+                            case UADPNetworkMessageDiscoveryType.PublisherEndpoint:
+                                // not implemented
+                                break;
+                        }
+                    }
+                    else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
+                    {
+                        encoder.WriteByte("RequestType", (byte)m_discoveryType);
+                        // write DataSetWriterIds
+                        encoder.WriteUInt16Array("DataSetWriterIds", m_dataSetWriterIds);
+                    }
+                }
             }
         }
 
         /// <summary>
         /// Decodes the message 
         /// </summary>
+        /// <param name="context"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public override void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders)
+        public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
-            if (dataSetReaders == null || dataSetReaders.Count == 0)
+            using (BinaryDecoder binaryDecoder = new BinaryDecoder(message, context))
             {
-                return;
-            }
+                // 1. decode network message header (PublisherId & DataSetClassId)
+                DecodeNetworkMessageHeader(binaryDecoder);
 
-            IServiceMessageContext messageContext = new ServiceMessageContext();
+                //decode network messages according to their type
+                if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
+                {
+                    if (dataSetReaders == null || dataSetReaders.Count == 0)
+                    {
+                        return;
+                    }
+                    //decode bytes using dataset reader information
+                    DecodeSubscribedDataSets(binaryDecoder, dataSetReaders);
+                }
+                else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                {
+                    // Decode the Discovery Response Header
+                    m_discoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("ResponseType");
+                    // A strictly monotonically increasing sequence number assigned to each discovery response sent in the scope of a PublisherId.
+                    SequenceNumber = binaryDecoder.ReadUInt16("SequenceNumber");
 
-            using (BinaryDecoder decoder = new BinaryDecoder(message, messageContext))
-            {
-                //decode bytes using dataset reader information
-                DecodeSubscribedDataSets(decoder, dataSetReaders);
+                    switch (m_discoveryType)
+                    {
+                        case UADPNetworkMessageDiscoveryType.DataSetMetaData:
+                            DecodeMetaDataMessage(binaryDecoder);
+                            break;
+                        case UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration:
+                        case UADPNetworkMessageDiscoveryType.PublisherEndpoint:
+                            // not implemented
+                            break;
+                    }
+                }
+                else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
+                {
+                    // Decode the Discovery Response Header
+                    m_discoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("ResponseType");
+                    m_dataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds")?.ToArray();
+                }
             }
         }
+            #endregion
 
-        #endregion
-
-        #region Private Methods - Encoding
-        /// <summary>
-        /// Encodes the object in a binary stream.
-        /// </summary>
-        /// <param name="binaryEncoder"></param>
-        private void Encode(BinaryEncoder binaryEncoder)
-        {
+            #region Private Methods - Encoding
+            /// <summary>
+            /// Encodes the DataSet Network message in a binary stream.
+            /// </summary>
+            /// <param name="binaryEncoder"></param>
+            private void EncodeDataSetNetworkMessageType(BinaryEncoder binaryEncoder)
+            {
             if (binaryEncoder == null)
             {
                 throw new ArgumentException(nameof(binaryEncoder));
@@ -331,11 +480,36 @@ namespace Opc.Ua.PubSub.Encoding
             //EncodeSignature(encoder);
         }
 
+        /// <summary>
+        /// Encodes the NetworkMessage as a DiscoveryResponse of DataSetMetaData Type 
+        /// </summary>
+        /// <param name="binaryEncoder"></param>
+        private void EncodeDataSetMetaData(BinaryEncoder binaryEncoder)
+        {
+            if (DataSetWriterId != null)
+            {
+                binaryEncoder.WriteUInt16("DataSetWriterId", DataSetWriterId.Value);
+            }
+            else
+            {
+                Utils.Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The DataSetWriterId property is missing. Value 0 will be used.");
+                binaryEncoder.WriteUInt16("DataSetWriterId", 0);
+            }
+
+            if (m_metadata == null)
+            {
+                Utils.Trace("The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
+            }
+            binaryEncoder.WriteEncodeable("MetaData", m_metadata, typeof(DataSetMetaDataType));
+
+            // temporary write StatusCode.Good 
+            binaryEncoder.WriteStatusCode("StatusCode", StatusCodes.Good);
+        }
 
         /// <summary>
-        /// Set All flags before encode/decode
+        /// Set All flags before encode/decode for a NetworkMessage that contains DataSet messages
         /// </summary>
-        private void SetFlags()
+        private void SetFlagsDataSetNetworkMessageType()
         {
             UADPFlags = 0;
             ExtendedFlags1 &= (ExtendedFlags1EncodingMask)kPublishedIdTypeUsedBits;
@@ -465,6 +639,44 @@ namespace Opc.Ua.PubSub.Encoding
             #endregion
         }
 
+
+        /// <summary>
+        /// Set All flags before encode/decode for a NetworkMessage that contains A DiscoveryResponse containing data set metadata
+        /// </summary>
+        private void SetFlagsDiscoveryResponseMetaData()
+        {
+            /* DiscoveryResponse:
+             * UADPFlags bits 5 and 6 shall be false, bits 4 and 7 shall be true
+             * ExtendedFlags1 bits 3, 5 and 6 shall be false, bit 7 shall be true (erata 9):Bit 4 of ExtendedFlags1 shall be true
+             * ExtendedFlags2 bit 1 shall be false and the NetworkMessage type shall be discovery response
+             * */
+            UADPFlags = UADPFlagsEncodingMask.PublisherId | UADPFlagsEncodingMask.ExtendedFlags1;
+            ExtendedFlags1 = ExtendedFlags1EncodingMask.Security | ExtendedFlags1EncodingMask.ExtendedFlags2;
+            ExtendedFlags2 = ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse;
+
+            // enable encoding of PublisherId in message header 
+            NetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId;
+        }
+
+        /// <summary>
+        /// Set All flags before encode/decode for a NetworkMessage that contains A DiscoveryRequest 
+        /// </summary>
+        private void SetFlagsDiscoveryRequest()
+        {
+            /* The NetworkMessage flags used with the discovery request messages shall use the following
+             * bit values.
+             *  UADPFlags bits 5 and 6 shall be false, bits 4 and 7 shall be true
+             *  ExtendedFlags1 bits 3, 5 and 6 shall be false, bits 4 and 7 shall be true
+             *  ExtendedFlags2 bit 2 shall be true, all other bits shall be false
+             */
+            UADPFlags = UADPFlagsEncodingMask.PublisherId | UADPFlagsEncodingMask.ExtendedFlags1;
+            ExtendedFlags1 = ExtendedFlags1EncodingMask.Security | ExtendedFlags1EncodingMask.ExtendedFlags2;
+            ExtendedFlags2 = ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest;
+        }
+
+
+
+
         /// <summary>
         /// Decode the stream from decoder parameter and produce a Dataset 
         /// </summary> 
@@ -481,15 +693,6 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
-
-                // 1. decode network message header (PublisherId & DataSetClassId)
-                DecodeNetworkMessageHeader(binaryDecoder);
-
-                //ignore network messages that are not dataSet messages
-                if (m_uadpNetworkMessageType != UADPNetworkMessageType.DataSetMessage)
-                {
-                    return;
-                }
 
                 /* 6.2.8.1 PublisherId
                  The parameter PublisherId defines the Publisher to receive NetworkMessages from.
@@ -555,6 +758,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         uadpDataSetMessages.Add(new UadpDataSetMessage());
                     }
+
                     // 6.2 Decode payload into DataSets 
                     // Restore the encoded fields (into dataset for now) for each possible dataset reader
                     foreach (UadpDataSetMessage uadpDataSetMessage in uadpDataSetMessages)
@@ -563,6 +767,7 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             continue; // this dataset message was already decoded
                         }
+
                         if (dataSetReader.DataSetWriterId == 0 || uadpDataSetMessage.DataSetWriterId == dataSetReader.DataSetWriterId)
                         {
                             //atempt to decode dataset message using the reader
@@ -570,6 +775,10 @@ namespace Opc.Ua.PubSub.Encoding
                             if (uadpDataSetMessage.DataSet != null)
                             {
                                 dataSetMessages.Add(uadpDataSetMessage);
+                            }
+                            else if (uadpDataSetMessage.IsMetadataMajorVersionChange)
+                            {
+                                OnDataSetDecodeErrorOccurred(new DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason.MetadataMajorVersion, this, dataSetReader));
                             }
                         }
                     }
@@ -580,12 +789,42 @@ namespace Opc.Ua.PubSub.Encoding
                     // set the list of dataset messages to the network message
                     m_uaDataSetMessages.AddRange(dataSetMessages);
                 }
+                else
+                {
+                    dataSetMessages = new List<UaDataSetMessage>();
+                    // check if DataSets are decoded into the existing dataSetMessages
+                    foreach (var dataSetMessage in m_uaDataSetMessages)
+                    {
+                        if (dataSetMessage.DataSet != null)
+                        {
+                            dataSetMessages.Add(dataSetMessage);
+                        }
+                    }
+                    m_uaDataSetMessages.Clear();
+                    m_uaDataSetMessages.AddRange(dataSetMessages);
+                }
+                
             }
             catch (Exception ex)
             {
                 // Unexpected exception in DecodeSubscribedDataSets
                 Utils.Trace(ex, "UadpNetworkMessage.DecodeSubscribedDataSets");
             }
+        }
+
+        /// <summary>
+        /// Decode the binaryDecoder content as a MetaData message
+        /// </summary>
+        /// <param name="binaryDecoder"></param>
+        private void DecodeMetaDataMessage(BinaryDecoder binaryDecoder)
+        {
+            DataSetWriterId = binaryDecoder.ReadUInt16("DataSetWriterId");
+            m_metadata = binaryDecoder.ReadEncodeable("MetaData", typeof(DataSetMetaDataType)) as DataSetMetaDataType;
+
+            // temporary write StatusCode.Good 
+            StatusCode statusCode = binaryDecoder.ReadStatusCode("StatusCode");
+            Utils.Trace("DecodeMetaDataMessage returned: ", statusCode);
+
         }
 
         /// <summary>
@@ -608,29 +847,36 @@ namespace Opc.Ua.PubSub.Encoding
                 encoder.WriteByte("ExtendedFlags2", (byte)ExtendedFlags2);
             }
 
-            if ((NetworkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
+            if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
             {
-                PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
-                switch (publisherIdType)
+                if (PublisherId == null)
                 {
-                    case PublisherIdTypeEncodingMask.Byte:
-                        encoder.WriteByte("PublisherId", Convert.ToByte(PublisherId));
-                        break;
-                    case PublisherIdTypeEncodingMask.UInt16:
-                        encoder.WriteUInt16("PublisherId", Convert.ToUInt16(PublisherId));
-                        break;
-                    case PublisherIdTypeEncodingMask.UInt32:
-                        encoder.WriteUInt32("PublisherId", Convert.ToUInt32(PublisherId));
-                        break;
-                    case PublisherIdTypeEncodingMask.UInt64:
-                        encoder.WriteUInt64("PublisherId", Convert.ToUInt64(PublisherId));
-                        break;
-                    case PublisherIdTypeEncodingMask.String:
-                        encoder.WriteString("PublisherId", Convert.ToString(PublisherId));
-                        break;
-                    default:
-                        // Reserved - no type provided
-                        break;
+                    Utils.Trace(TraceMasks.Error, "NetworkMessageHeader cannot be encoded. PublisherId is null but it is expected to be encoded.");
+                }
+                else
+                {
+                    PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
+                    switch (publisherIdType)
+                    {
+                        case PublisherIdTypeEncodingMask.Byte:
+                            encoder.WriteByte("PublisherId", Convert.ToByte(PublisherId));
+                            break;
+                        case PublisherIdTypeEncodingMask.UInt16:
+                            encoder.WriteUInt16("PublisherId", Convert.ToUInt16(PublisherId));
+                            break;
+                        case PublisherIdTypeEncodingMask.UInt32:
+                            encoder.WriteUInt32("PublisherId", Convert.ToUInt32(PublisherId));
+                            break;
+                        case PublisherIdTypeEncodingMask.UInt64:
+                            encoder.WriteUInt64("PublisherId", Convert.ToUInt64(PublisherId));
+                            break;
+                        case PublisherIdTypeEncodingMask.String:
+                            encoder.WriteString("PublisherId", Convert.ToString(PublisherId));
+                            break;
+                        default:
+                            // Reserved - no type provided
+                            break;
+                    }
                 }
             }
 
@@ -638,7 +884,6 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 encoder.WriteGuid("DataSetClassId", DataSetClassId);
             }
-
         }
 
         /// <summary>
@@ -723,7 +968,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="encoder"></param>
         private void EncodePromotedFields(BinaryEncoder encoder)
         {
-            // todo: Promnoted fields not supported
+            // todo: Promoted fields not supported
         }
 
         /// <summary>
@@ -862,9 +1107,6 @@ namespace Opc.Ua.PubSub.Encoding
                         m_publisherId = decoder.ReadString("PublisherId");
                         break;
                     case PublisherIdTypeEncodingMask.Byte:
-                    default:
-                        // 000 The PublisherId is of DataType Byte
-                        // This is the default value if ExtendedFlags1 is omitted
                         m_publisherId = decoder.ReadByte("PublisherId");
                         break;
                 }
@@ -967,7 +1209,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="decoder"></param>
         private void DecodePromotedFields(BinaryDecoder decoder)
         {
-            // todo:
+            // todo: Promoted fields not supported
         }
 
         /// <summary>

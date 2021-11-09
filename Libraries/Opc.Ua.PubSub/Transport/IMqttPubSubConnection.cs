@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,17 +27,23 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-
-#if NETFRAMEWORK
-namespace Opc.Ua.Gds.Tests
+namespace Opc.Ua.PubSub.Transport
 {
-    static class Program
+    /// <summary>
+    /// The interface for the MQTT PubSub connection
+    /// </summary>
+    public interface IMqttPubSubConnection : IUaPubSubConnection
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-        }
+        /// <summary>
+        /// Determine if the connection can publish metadata for specified writer group and data set writer
+        /// </summary>
+        bool CanPublishMetaData(WriterGroupDataType writerGroupConfiguration, DataSetWriterDataType dataSetWriter);
+
+        /// <summary> 
+        /// Create and return the DataSetMetaData message for a DataSetWriter
+        /// </summary>
+        /// <returns></returns>
+        UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup,
+            DataSetWriterDataType dataSetWriter);
     }
 }
-#endif

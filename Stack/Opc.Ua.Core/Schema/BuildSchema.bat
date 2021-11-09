@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal
 
 echo Processing NodeSet Schema
@@ -14,3 +14,5 @@ svcutil /dconly /namespace:*,Opc.Ua.Security /out:SecuredApplication.cs SecuredA
 echo #pragma warning disable 1591 > temp.txt
 type SecuredApplication.cs >> temp.txt
 type temp.txt > SecuredApplication.cs 
+
+del /Q temp.txt

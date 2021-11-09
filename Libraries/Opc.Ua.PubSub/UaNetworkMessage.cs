@@ -41,6 +41,15 @@ namespace Opc.Ua.PubSub
     {
         private ushort m_dataSetWriterId;
 
+        #region Public Events
+
+        /// <summary>
+        /// The Default event for an error encountered during decoding the dataset messages
+        /// </summary>
+        public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
+
+        #endregion
+
         #region Protected Fields
         /// <summary>
         /// The DataSetMetaData
@@ -149,22 +158,35 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
-        /// <returns></returns>
-        public abstract byte[] Encode();
+        /// <param name="messageContext">The context.</param>
+        public abstract byte[] Encode(IServiceMessageContext messageContext);
 
         /// <summary>
         /// Encodes the object in the specified stream.
         /// </summary>
         /// <param name="messageContext">The context.</param>
-        /// <param name="writer">The stream to use.</param>
-        public abstract void Encode(IServiceMessageContext messageContext, StreamWriter writer);
+        /// <param name="stream">The stream to use.</param>
+        public abstract void Encode(IServiceMessageContext messageContext, Stream stream);
 
         /// <summary>
         /// Decodes the message
         /// </summary>
+        /// <param name="messageContext"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public abstract void Decode(byte[] message, IList<DataSetReaderDataType> dataSetReaders);
+        public abstract void Decode(IServiceMessageContext messageContext, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
         #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// The DataSetDecodeErrorOccurred event handler
+        /// </summary>
+        /// <param name="e"></param>
+        protected virtual void OnDataSetDecodeErrorOccurred(DataSetDecodeErrorEventArgs e)
+        {
+            DataSetDecodeErrorOccurred?.Invoke(this, e);
+        }
+        #endregion
+
     }
 }

@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.IO;
 
 namespace Opc.Ua
 {
@@ -74,10 +75,11 @@ namespace Opc.Ua
         /// The path to the default PKI Root.
         /// </summary>
 #if NETFRAMEWORK
-        public static readonly string DefaultPKIRoot = "%CommonApplicationData%/OPC Foundation/pki";
+        public static readonly string DefaultPKIRoot = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki");
 #else
-        public static readonly string DefaultPKIRoot = "%LocalApplicationData%/OPC Foundation/pki";
+        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%","OPC Foundation","pki");
 #endif
+
         /// <summary>
         /// The path to the current user X509Store.
         /// </summary>
@@ -137,15 +139,20 @@ namespace Opc.Ua
             switch (storeType)
             {
                 case CertificateStoreType.X509Store:
-                    {
-                        store = new X509CertificateStore();
-                        break;
-                    }
+                {
+                    store = new X509CertificateStore();
+                    break;
+                }
                 case CertificateStoreType.Directory:
-                    {
-                        store = new DirectoryCertificateStore();
-                        break;
-                    }
+                {
+                    store = new DirectoryCertificateStore();
+                    break;
+                }
+
+                default:
+                {
+                    throw new ArgumentException($"Invalid store type name: {storeType}", nameof(storeType));
+                }
             }
             return store;
         }

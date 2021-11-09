@@ -26,7 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-using System;
 
 namespace Opc.Ua.PubSub
 {
@@ -49,9 +48,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
-        /// <param name="deltaFrame">TRUE if the a delta frame is being created.</param>
         /// <returns></returns>
-        DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, bool deltaFrame = false);
+        DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value);
 
         /// <summary>
         /// Updates the metadata if it has changed from when the DataStore was created.

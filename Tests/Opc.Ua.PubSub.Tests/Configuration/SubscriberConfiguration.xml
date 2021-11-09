@@ -12160,7 +12160,7 @@
               </SubscribedDataSet>
             </DataSetReaderDataType>
             <DataSetReaderDataType>
-             <Name>Reader 12</Name>
+              <Name>Reader 12</Name>
               <Enabled>true</Enabled>
               <PublisherId>
                 <Value>
@@ -16045,10 +16045,20 @@
               <SecurityGroupId i:nil="true" />
               <SecurityKeyServices />
               <DataSetReaderProperties />
-              <TransportSettings i:nil="true" />
+              <TransportSettings>
+                <TypeId>
+                  <Identifier>i=16023</Identifier>
+                </TypeId>
+                <Body>
+                  <BrokerDataSetReaderTransportDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                    <QueueName>Json_WriterGroup_1</QueueName>
+                    <RequestedDeliveryGuarantee>NotSpecified_0</RequestedDeliveryGuarantee>
+                  </BrokerDataSetReaderTransportDataType>
+                </Body>
+              </TransportSettings>
               <MessageSettings>
                 <TypeId>
-                  <Identifier>i=16016</Identifier>
+                  <Identifier>i=16019</Identifier>
                 </TypeId>
                 <Body>
                   <JsonDataSetReaderMessageDataType xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
@@ -19854,10 +19864,10 @@
             </DataSetReaderDataType>
           </DataSetReaders>
         </ReaderGroupDataType>
-        
+
       </ReaderGroups>
     </PubSubConnectionDataType>
-    
+
   </Connections>
   <Enabled>true</Enabled>
 </PubSubConfigurationDataType>

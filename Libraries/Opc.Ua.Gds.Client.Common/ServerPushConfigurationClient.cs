@@ -529,33 +529,6 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Add certificate.
-        /// </summary>
-        public void AddCrl(X509CRL crl, bool isTrustedCertificate)
-        {
-            if (!IsConnected)
-            {
-                Connect();
-            }
-
-            IUserIdentity oldUser = ElevatePermissions();
-            try
-            {
-                m_session.Call(
-                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, m_session.NamespaceUris),
-                    crl.RawData,
-                    isTrustedCertificate
-                    );
-            }
-            finally
-            {
-                RevertPermissions(oldUser);
-            }
-        }
-
-
-        /// <summary>
         /// Remove certificate.
         /// </summary>
         public void RemoveCertificate(string thumbprint, bool isTrustedCertificate)

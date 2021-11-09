@@ -1448,13 +1448,12 @@ namespace Opc.Ua
                 }
 
                 var ostrm = new MemoryStream();
-
-                using (JsonTextWriter writer = new JsonTextWriter(new StreamWriter(ostrm)))
+                using (var stream = new StreamWriter(ostrm))
+                using (JsonTextWriter writer = new JsonTextWriter(stream))
                 {
                     EncodeAsJson(writer, token);
+                    return new ExtensionObject(typeId, ostrm.ToArray());
                 }
-
-                return new ExtensionObject(typeId, ostrm.ToArray());
             }
             finally
             {

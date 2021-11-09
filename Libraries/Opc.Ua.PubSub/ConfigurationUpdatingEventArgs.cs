@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,15 +29,31 @@
 
 using System;
 
-#if NETFRAMEWORK
-namespace Opc.Ua.Core.Tests
+namespace Opc.Ua.PubSub
 {
-    static class Program
+    /// <summary>
+    /// Class that contains data related to ConfigurationUpdating event 
+    /// </summary>
+    public class ConfigurationUpdatingEventArgs : EventArgs
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-        }
+        /// <summary>
+        /// The Property of <see cref="Parent"/> that should receive <see cref="NewValue"/>.
+        /// </summary>
+        public ConfigurationProperty ChangedProperty { get; set; }
+
+        /// <summary>
+        /// The the configuration object that should receive a <see cref="NewValue"/> in its <see cref="ChangedProperty"/>.
+        /// </summary>
+        public object Parent { get; set; }
+
+        /// <summary>
+        /// The new value that shall be set to the <see cref="Parent"/> in <see cref="ChangedProperty"/> property.
+        /// </summary>
+        public object NewValue { get; set; }
+
+        /// <summary>
+        /// Flag that indicates if the Configuration update should be canceled.
+        /// </summary>
+        public bool Cancel { get; set; }
     }
 }
-#endif

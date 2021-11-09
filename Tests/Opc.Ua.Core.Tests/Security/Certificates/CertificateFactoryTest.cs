@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 var cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}")
                     .SetIssuer(issuerCertificate)
-                    .SetRSAKeySize(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048)
+                    .SetRSAKeySize((ushort) (keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
                     .CreateForRSA();
                 revokedCerts.Add(cert);
                 Assert.False(X509Utils.VerifySelfSigned(cert));

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,16 +28,47 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Xml;
+using System.IO;
+using System.Reflection;
+using Opc.Ua;
 
-#if NETFRAMEWORK
-namespace Opc.Ua.Client.ComplexTypes.Tests
+namespace TestData
 {
-    static class Program
+    public partial class TestSystemConditionState
     {
-        // Main Method 
-        static public void Main(String[] args)
+        #region Initialization
+        /// <summary>
+        /// Initializes the object as a collection of counters which change value on read.
+        /// </summary>
+        protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
+            base.OnAfterCreate(context, node);
+
+            this.MonitoredNodeCount.OnSimpleReadValue = OnReadMonitoredNodeCount;
         }
+        #endregion
+
+        #region Protected Methods
+        /// <summary>
+        /// Reads the value for the MonitoredNodeCount.
+        /// </summary>
+        protected virtual ServiceResult OnReadMonitoredNodeCount(
+            ISystemContext context, 
+            NodeState node, 
+            ref object value)
+        {
+            TestDataSystem system = context.SystemHandle as TestDataSystem;
+
+            if (system == null)
+            {
+                return StatusCodes.BadOutOfService;
+            }
+
+            value = system.MonitoredNodeCount;
+            return ServiceResult.Good;
+        }
+        #endregion
     }
 }
-#endif

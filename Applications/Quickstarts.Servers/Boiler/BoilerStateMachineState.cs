@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,33 +28,43 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.InteropServices;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Environments;
-using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Running;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+using Opc.Ua;
 
-namespace Opc.Ua.Security.Certificates.Tests
+namespace Boiler
 {
-    static class Program
+    public partial class BoilerStateMachineState
     {
-        // Main Method 
-        static public void Main(String[] args)
+        #region Initialization
+        /// <summary>
+        /// Initializes the object as a collection of counters which change value on read.
+        /// </summary>
+        protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
-            var config = ManualConfig
-                    .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
-                    // need this option because of reference to nunit.framework
-                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-                    ;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
-            }
+            base.OnAfterCreate(context, node);
 
-            _ = BenchmarkRunner.Run<Benchmarks>(config);
+            Start.OnCallMethod = OnStart;
+            Start.OnReadExecutable = IsStartExecutable;
+            Start.OnReadUserExecutable = IsStartUserExecutable;
+
+            Suspend.OnCallMethod = OnSuspend;
+            Suspend.OnReadExecutable = IsSuspendExecutable;
+            Suspend.OnReadUserExecutable = IsSuspendUserExecutable;
+
+            Resume.OnCallMethod = OnResume;
+            Resume.OnReadExecutable = IsResumeExecutable;
+            Resume.OnReadUserExecutable = IsResumeUserExecutable;
+
+            Halt.OnCallMethod = OnHalt;
+            Halt.OnReadExecutable = IsHaltExecutable;
+            Halt.OnReadUserExecutable = IsHaltUserExecutable;
+
+            Reset.OnCallMethod = OnReset;
+            Reset.OnReadExecutable = IsResetExecutable;
+            Reset.OnReadUserExecutable = IsResetUserExecutable;
         }
+        #endregion
     }
 }
-

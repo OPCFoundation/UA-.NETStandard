@@ -46,11 +46,17 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [TestFixtureSource(nameof(FixtureArgs))]
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest
     {
+        static object[] FixtureArgs = {
+            new object [] { Utils.UriSchemeOpcTcp},
+            new object [] { Utils.UriSchemeHttps}
+        };
+
         const int MaxReferences = 100;
         const int MaxTimeout = 10000;
         ServerFixture<ReferenceServer> m_serverFixture;
@@ -60,7 +66,14 @@ namespace Opc.Ua.Client.Tests
         ReferenceDescriptionCollection m_referenceDescriptions;
         Session m_session;
         OperationLimits m_operationLimits;
+        string m_uriScheme;
+        string m_pkiRoot;
         Uri m_url;
+
+        public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp)
+        {
+            m_uriScheme = uriScheme;
+        }
 
         #region DataPointSources
         [DatapointSource]
@@ -84,19 +97,35 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
+            // pki directory root for test runs. 
+            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>();
-            m_clientFixture = new ClientFixture();
-            m_serverFixture.AutoAccept = true;
-            m_serverFixture.OperationLimits = true;
+            m_serverFixture = new ServerFixture<ReferenceServer> {
+                UriScheme = m_uriScheme,
+                SecurityNone = true,
+                AutoAccept = true,
+                OperationLimits = true
+            };
             if (writer != null)
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            await m_clientFixture.LoadClientConfiguration();
-            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+
+            m_clientFixture = new ClientFixture();
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
+            m_clientFixture.Config.TransportQuotas.MaxMessageSize =
+            m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
+            m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
+            try
+            {
+                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
+            }
         }
 
         /// <summary>
@@ -105,11 +134,13 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            m_session.Close();
-            m_session.Dispose();
-            m_session = null;
-            await m_serverFixture.StopAsync();
-            await Task.Delay(1000);
+            if (m_session != null)
+            {
+                m_session.Close();
+                m_session.Dispose();
+                m_session = null;
+            }
+            await m_serverFixture.StopAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -150,15 +181,14 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
         [Test, Order(100)]
-        [Benchmark]
         public async Task GetEndpoints()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
-            endpointConfiguration.OperationTimeout = 1000;
+            endpointConfiguration.OperationTimeout = 10000;
 
             using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
             {
-                m_endpoints = await client.GetEndpointsAsync(null);
+                m_endpoints = await client.GetEndpointsAsync(null).ConfigureAwait(false);
             }
         }
 
@@ -178,7 +208,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(200)]
         public async Task Connect(string securityPolicy)
         {
-            var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints);
+            var session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
             Assert.NotNull(session);
             var result = session.Close();
             Assert.NotNull(result);
@@ -219,18 +249,18 @@ namespace Opc.Ua.Client.Tests
         public void OperationLimits()
         {
             var operationLimits = new OperationLimits() {
-                MaxNodesPerRead = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead).Value,
-                MaxNodesPerHistoryReadData = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData).Value,
-                MaxNodesPerHistoryReadEvents = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents).Value,
-                MaxNodesPerWrite = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite).Value,
-                MaxNodesPerHistoryUpdateData = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData).Value,
-                MaxNodesPerHistoryUpdateEvents = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents).Value,
-                MaxNodesPerBrowse = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse).Value,
-                MaxMonitoredItemsPerCall = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall).Value,
-                MaxNodesPerNodeManagement = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement).Value,
-                MaxNodesPerRegisterNodes = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes).Value,
-                MaxNodesPerTranslateBrowsePathsToNodeIds = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds).Value,
-                MaxNodesPerMethodCall = (uint)m_session.ReadValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall).Value
+                MaxNodesPerRead = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead),
+                MaxNodesPerHistoryReadData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData),
+                MaxNodesPerHistoryReadEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents),
+                MaxNodesPerWrite = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite),
+                MaxNodesPerHistoryUpdateData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData),
+                MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents),
+                MaxNodesPerBrowse = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse),
+                MaxMonitoredItemsPerCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall),
+                MaxNodesPerNodeManagement = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement),
+                MaxNodesPerRegisterNodes = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes),
+                MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds),
+                MaxNodesPerMethodCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
             };
             m_operationLimits = operationLimits;
         }
@@ -277,6 +307,23 @@ namespace Opc.Ua.Client.Tests
             m_session.ChangePreferredLocales(locale);
         }
 
+        [Test]
+        public void ReadDataTypeDefinition()
+        {
+            // Test Read a DataType Node
+            var node = m_session.ReadNode(DataTypeIds.ProgramDiagnosticDataType);
+            Assert.NotNull(node);
+            var dataTypeNode = (DataTypeNode)node;
+            Assert.NotNull(dataTypeNode);
+            var dataTypeDefinition = dataTypeNode.DataTypeDefinition;
+            Assert.NotNull(dataTypeDefinition);
+            Assert.True(dataTypeDefinition is ExtensionObject);
+            Assert.NotNull(dataTypeDefinition.Body);
+            Assert.True(dataTypeDefinition.Body is StructureDefinition);
+            StructureDefinition structureDefinition = dataTypeDefinition.Body as StructureDefinition;
+            Assert.AreEqual(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary, structureDefinition.DefaultEncodingId);
+        }
+
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy)
         {
@@ -290,7 +337,7 @@ namespace Opc.Ua.Client.Tests
             Session session;
             if (securityPolicy != null)
             {
-                session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints);
+                session = await m_clientFixture.ConnectAsync(m_url, securityPolicy, m_endpoints).ConfigureAwait(false);
             }
             else
             {
@@ -310,7 +357,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(410)]
         public async Task ReadDisplayNames()
         {
-            if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null); }
+            if (m_referenceDescriptions == null) { await BrowseFullAddressSpace(null).ConfigureAwait(false); }
             var nodeIds = m_referenceDescriptions.Select(n => ExpandedNodeId.ToNodeId(n.NodeId, m_session.NamespaceUris)).ToList();
             if (m_operationLimits.MaxNodesPerRead > 0 &&
                 nodeIds.Count > m_operationLimits.MaxNodesPerRead)
@@ -415,7 +462,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_referenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null);
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
             foreach (var reference in m_referenceDescriptions.Take(MaxReferences))
@@ -445,7 +492,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (m_referenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null);
+                await BrowseFullAddressSpace(null).ConfigureAwait(false);
             }
 
             foreach (var reference in m_referenceDescriptions.Take(MaxReferences))
@@ -475,13 +522,15 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(700)]
         public async Task LoadDataTypeSystem()
         {
-            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => { var t = await m_session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson); });
+            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
+                var t = await m_session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
+            });
             Assert.AreEqual(StatusCodes.BadNodeIdInvalid, sre.StatusCode);
-            var typeSystem = await m_session.LoadDataTypeSystem();
+            var typeSystem = await m_session.LoadDataTypeSystem().ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem);
+            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
-            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem);
+            typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
         #endregion
@@ -509,6 +558,22 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
+
+        private uint GetOperationLimitValue(NodeId nodeId)
+        {
+            try
+            {
+                return (uint)m_session.ReadValue(nodeId).Value;
+            }
+            catch (ServiceResultException sre)
+            {
+                if (sre.StatusCode == StatusCodes.BadNodeIdUnknown)
+                {
+                    return 0;
+                }
+                throw;
+            }
+        }
         #endregion
     }
 }

@@ -27,33 +27,44 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Runtime.InteropServices;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Environments;
-using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Running;
+using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
 {
-    static class Program
+    /// <summary>
+    /// Test Standard Server stratup.
+    /// </summary>
+    [TestFixture, Category("Server")]
+    [SetCulture("en-us"), SetUICulture("en-us")]
+    [Parallelizable]
+    public class ServerStartupTests
     {
-        // Main Method 
-        static public void Main(String[] args)
-        {
-            var config = ManualConfig
-                    .Create(DefaultConfig.Instance)
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core21))
-                    .AddJob(Job.Default.WithRuntime(CoreRuntime.Core31))
-                    // need this option because of reference to nunit.framework
-                    .WithOptions(ConfigOptions.DisableOptimizationsValidator)
-                    ;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                config.AddJob(Job.Default.WithRuntime(ClrRuntime.Net462).AsBaseline());
-            }
+        const double MaxAge = 10000;
+        const uint TimeoutHint = 10000;
 
-            _ = BenchmarkRunner.Run<ReferenceServerTests>(config);
+        [DatapointSource]
+        public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps };
+
+        #region Test Methods
+        /// <summary>
+        /// Start a server fixture with different uri schemes.
+        /// </summary>
+        [Theory]
+        public async Task StartServerAsync(
+            string uriScheme
+            )
+        {
+            var fixture = new ServerFixture<StandardServer>();
+            Assert.NotNull(fixture);
+            fixture.UriScheme = uriScheme;
+
+            var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            fixture.SetTraceOutput(TestContext.Out);
+            Assert.NotNull(server);
+            await Task.Delay(1000);
+            await fixture.StopAsync().ConfigureAwait(false);
         }
+        #endregion
     }
 }

@@ -23,7 +23,7 @@ namespace Opc.Ua
     /// <remarks>
     /// A class that stores a numeric range.
     /// </remarks>
-	public struct NumericRange : IFormattable
+    public struct NumericRange : IFormattable, IEquatable<NumericRange>
     {
         #region Constructors
         /// <summary>
@@ -268,14 +268,24 @@ namespace Opc.Ua
         /// <param name="obj">The object to test against this</param>
         public override bool Equals(object obj)
         {
-            NumericRange? range = obj as NumericRange?;
-
-            if (range == null)
+            if (obj is NumericRange)
             {
-                return false;
+                return this.Equals((NumericRange)obj);
             }
 
-            return (range.Value.m_begin == m_begin) && (range.Value.m_end == m_end);
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true if the objects are equal.
+        /// </summary>
+        /// <remarks>
+        /// Returns true if the objects are equal.
+        /// </remarks>
+        /// <param name="other">The NumericRange to test against this</param>
+        public bool Equals(NumericRange other)
+        {
+            return (other.m_begin == m_begin) && (other.m_end == m_end);
         }
 
         /// <summary>

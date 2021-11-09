@@ -75,15 +75,18 @@ namespace Opc.Ua.Client.Tests
             }
 
             // start ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>();
-            m_clientFixture = new ClientFixture();
-            m_serverFixture.AutoAccept = true;
-            m_serverFixture.ReverseConnectTimeout = MaxTimeout;
-            m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+            m_serverFixture = new ServerFixture<ReferenceServer> {
+                AutoAccept = true,
+                SecurityNone = true,
+                ReverseConnectTimeout = MaxTimeout,
+                TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
+            };
             m_server = await m_serverFixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+
             // create client
-            await m_clientFixture.LoadClientConfiguration();
-            await m_clientFixture.StartReverseConnectHost();
+            m_clientFixture = new ClientFixture();
+            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            await m_clientFixture.StartReverseConnectHost().ConfigureAwait(false);
             m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + m_serverFixture.Port.ToString()));
             // start reverse connection
             m_server.AddReverseConnection(new Uri(m_clientFixture.ReverseConnectUri), MaxTimeout);
@@ -95,8 +98,8 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            await m_serverFixture.StopAsync();
-            await Task.Delay(1000);
+            await m_serverFixture.StopAsync().ConfigureAwait(false);
+            await Task.Delay(1000).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -116,7 +119,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(100)]
         public async Task GetEndpoints()
         {
-            await RequireEndpoints();
+            await RequireEndpoints().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -129,7 +132,7 @@ namespace Opc.Ua.Client.Tests
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
                 connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
-                    m_endpointUrl, null, cancellationTokenSource.Token);
+                    m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
             var endpointConfiguration = EndpointConfiguration.Create();
@@ -148,7 +151,7 @@ namespace Opc.Ua.Client.Tests
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
                 connection = await m_clientFixture.ReverseConnectManager.WaitForConnection(
-                    m_endpointUrl, null, cancellationTokenSource.Token);
+                    m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
             var selectedEndpoint = CoreClientUtils.SelectEndpoint(config, connection, true, MaxTimeout);
@@ -159,7 +162,7 @@ namespace Opc.Ua.Client.Tests
         public async Task ReverseConnect(string securityPolicy)
         {
             // ensure endpoints are available
-            await RequireEndpoints();
+            await RequireEndpoints().ConfigureAwait(false);
 
             // get a connection
             var config = m_clientFixture.Config;
@@ -180,7 +183,7 @@ namespace Opc.Ua.Client.Tests
 
             // connect
             var session = await Session.Create(config, connection, endpoint, false, false, "Reverse Connect Client",
-                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null);
+                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
             // default request header
@@ -205,7 +208,7 @@ namespace Opc.Ua.Client.Tests
             string securityPolicy = SecurityPolicies.Basic256Sha256;
 
             // ensure endpoints are available
-            await RequireEndpoints();
+            await RequireEndpoints().ConfigureAwait(false);
 
             // get a connection
             var config = m_clientFixture.Config;
@@ -219,7 +222,7 @@ namespace Opc.Ua.Client.Tests
 
             // connect
             var session = await Session.Create(config, m_clientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
-                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null);
+                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
             // header
@@ -242,12 +245,12 @@ namespace Opc.Ua.Client.Tests
         #region Private Methods
         private async Task RequireEndpoints()
         {
-            await m_requiredLock.WaitAsync();
+            await m_requiredLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (m_endpoints == null)
                 {
-                    await GetEndpointsInternal();
+                    await GetEndpointsInternal().ConfigureAwait(false);
                 }
             }
             finally

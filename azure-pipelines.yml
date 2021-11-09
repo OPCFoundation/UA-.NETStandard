@@ -2,6 +2,18 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+trigger:
+  batch: 'true'
+  branches:
+    include:
+    - '*'
+  paths:
+    include:
+    - '*' 
+    exclude:
+    - 'Docs/*' 
+    - 'README.md' 
+
 pr: 
   autoCancel: 'true'
   branches:
@@ -30,7 +42,7 @@ stages:
   jobs:
   - template: .azurepipelines/sln.yml
 - stage: testrelease
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Release'
   jobs:
   - template: .azurepipelines/test.yml
@@ -49,7 +61,7 @@ stages:
       framework: netcoreapp3.1
       jobnamesuffix: core3
 - stage: testdebug
-  dependsOn: []
+  dependsOn: [build]
   displayName: 'Test Core and SDK Debug'
   jobs:
   - template: .azurepipelines/test.yml
@@ -59,6 +71,7 @@ stages:
 - stage: coverage
   dependsOn: [testdebug,testrelease]
   displayName: 'Code Coverage'
+  condition: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   jobs:
   - template: .azurepipelines/testcc.yml
     parameters:

@@ -20,6 +20,11 @@ namespace Opc.Ua
     public class SessionLessServiceMessage 
     {
         /// <summary>
+        /// The VersionTime of the namespaces URIs on the server.
+        /// </summary>
+        public UInt32 UriVersion;
+
+        /// <summary>
         /// The namespaces URIs referenced by the message.
         /// </summary>
         public NamespaceTable NamespaceUris;
@@ -30,6 +35,11 @@ namespace Opc.Ua
         public StringTable ServerUris;
 
         /// <summary>
+        /// The locale Ids referenced by the message.
+        /// </summary>
+        public StringTable LocaleIds;
+
+        /// <summary>
         /// The message to encode or the decoded message.
         /// </summary>
         public IEncodeable Message;
@@ -37,6 +47,7 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
         {
+            encoder.WriteUInt32("UriVersion", UriVersion);
             if (NamespaceUris != null && NamespaceUris.Count > 1)
             {
                 string[] uris = new string[NamespaceUris.Count - 1];
@@ -69,6 +80,15 @@ namespace Opc.Ua
                 encoder.WriteStringArray("ServerUris", Array.Empty<string>());
             }
 
+            if (LocaleIds != null && LocaleIds.Count > 1)
+            {
+                encoder.WriteStringArray("LocaleIds", LocaleIds.ToArray());
+            }
+            else
+            {
+                encoder.WriteStringArray("LocaleIds", Array.Empty<string>());
+            }
+
             if (Message != null)
             {
                 encoder.SetMappingTables(NamespaceUris, ServerUris);
@@ -90,8 +110,9 @@ namespace Opc.Ua
         /// <inheritdoc cref="IEncodeable.Decode(IDecoder)" />
         public void Decode(IDecoder decoder)
         {
-            NamespaceUris = new NamespaceTable();
+            UriVersion = decoder.ReadUInt32("UriVersion");
 
+            NamespaceUris = new NamespaceTable();
             var uris = decoder.ReadStringArray("NamespaceUris");
 
             if (uris != null && uris.Count > 0)
@@ -110,6 +131,16 @@ namespace Opc.Ua
                 foreach (var uri in uris)
                 {
                     ServerUris.Append(uri);
+                }
+            }
+
+            LocaleIds = new StringTable();
+            uris = decoder.ReadStringArray("LocaleIds");
+            if (uris != null && uris.Count > 0)
+            {
+                foreach (var uri in uris)
+                {
+                    LocaleIds.Append(uri);
                 }
             }
 

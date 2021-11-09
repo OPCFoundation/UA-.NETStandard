@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -57,7 +56,7 @@ namespace Opc.Ua.Server.Tests
 
         #region Test Setup
         /// <summary>
-        /// Set up a Global Discovery Server and Client instance and connect the session
+        /// Set up a Server fixture.
         /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUp()
@@ -69,7 +68,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Tear down the Global Discovery Server and disconnect the Client
+        /// Tear down the server fixture.
         /// </summary>
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
