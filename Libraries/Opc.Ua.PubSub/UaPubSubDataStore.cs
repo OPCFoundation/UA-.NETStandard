@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
         /// <param name="deltaFrame">TRUE if a delta frame is being created.</param>
         /// <returns></returns>
-        public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, bool deltaFrame = false)
+        public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
         {
             // todo find out why the deltaFrame parameter is not used
             if (nodeId == null)
