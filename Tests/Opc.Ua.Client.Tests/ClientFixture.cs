@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -53,13 +54,13 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
-        public async Task LoadClientConfiguration(string clientName = "TestClient")
+        public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
 
-            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
             // build the application configuration.
             Config = await application
@@ -142,7 +143,7 @@ namespace Opc.Ua.Client.Tests
                 serverHalted = false;
                 try
                 {
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Config, endpointUrl, true);
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(Config);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
@@ -217,7 +218,7 @@ namespace Opc.Ua.Client.Tests
             {
                 endpoints = await GetEndpoints(url).ConfigureAwait(false);
             }
-            var endpointDescription = SelectEndpoint(endpoints, url, securityPolicy);
+            var endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
             {
                 Assert.Ignore("The endpoint is not supported by the server.");
@@ -231,6 +232,7 @@ namespace Opc.Ua.Client.Tests
         /// Select a security endpoint from description.
         /// </summary>
         public static EndpointDescription SelectEndpoint(
+            ApplicationConfiguration configuration,
             EndpointDescriptionCollection endpoints,
             Uri url,
             string securityPolicy)

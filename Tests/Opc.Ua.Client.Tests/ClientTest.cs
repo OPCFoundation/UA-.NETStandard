@@ -405,7 +405,7 @@ namespace Opc.Ua.Client.Tests
             var nodesToBrowse = new ExpandedNodeIdCollection {
                 ObjectIds.ObjectsFolder
             };
-
+            m_session.NodeCache.LoadUaDefinedTypes(m_session.SystemContext);
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
@@ -415,28 +415,14 @@ namespace Opc.Ua.Client.Tests
                     {
                         var organizers = m_session.NodeCache.FindReferences(
                             node,
-                            ReferenceTypeIds.Organizes,
+                            ReferenceTypeIds.HierarchicalReferences,
                             false,
                             true);
-                        var components = m_session.NodeCache.FindReferences(
-                            node,
-                            ReferenceTypeIds.HasComponent,
-                            false,
-                            false);
-                        var properties = m_session.NodeCache.FindReferences(
-                            node,
-                            ReferenceTypeIds.HasProperty,
-                            false,
-                            false);
-                        nextNodesToBrowse.AddRange(organizers
-                            .Where(n => n is ObjectNode)
-                            .Select(n => n.NodeId).ToList());
-                        nextNodesToBrowse.AddRange(components
-                            .Where(n => n is ObjectNode)
-                            .Select(n => n.NodeId).ToList());
-                        result.AddRange(organizers.Where(n => n is VariableNode));
-                        result.AddRange(components.Where(n => n is VariableNode));
-                        result.AddRange(properties.Where(n => n is VariableNode));
+                        var objectNodes = organizers.Where(n => n is ObjectNode);
+                        nextNodesToBrowse.AddRange(objectNodes.Select(n => n.NodeId));
+                        var variableNodes = organizers.Where(n => n is VariableNode);
+                        nextNodesToBrowse.AddRange(variableNodes.Select(n => n.NodeId).ToList());
+                        result.AddRange(variableNodes);
                     }
                     catch (ServiceResultException sre)
                     {

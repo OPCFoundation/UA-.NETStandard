@@ -72,7 +72,7 @@ namespace Opc.Ua.Configuration.Tests
             try
             {
                 // pki directory root for test runs. 
-                Directory.Delete(m_pkiRoot);
+                Directory.Delete(m_pkiRoot, true);
             }
             catch
             { }

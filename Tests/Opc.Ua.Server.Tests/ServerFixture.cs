@@ -190,8 +190,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public Task StopAsync()
         {
-            Server.Stop();
-            Server.Dispose();
+            Server?.Stop();
+            Server?.Dispose();
             Server = null;
             return Task.Delay(100);
         }
