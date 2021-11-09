@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.0" PrivateAssets="All"/>
   </ItemGroup>
   
   <!-- Deterministic build is currently not supported for code coverage tests. -->
