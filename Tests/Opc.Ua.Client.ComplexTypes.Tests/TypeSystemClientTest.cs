@@ -98,8 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.All;
             }
-            await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);

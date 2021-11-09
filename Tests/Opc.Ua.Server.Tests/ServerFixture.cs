@@ -121,12 +121,25 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Start server fixture on random or fixed port.
         /// </summary>
-        public async Task<T> StartAsync(TextWriter writer, int port = 0)
+        public Task<T> StartAsync(TextWriter writer, int port = 0)
+        {
+            return StartAsync(writer, null, port);
+        }
+
+        /// <summary>
+        /// Start server fixture on random or fixed port with dedicated PKI.
+        /// </summary>
+        public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
         {
             Random m_random = new Random();
             bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
+
+            if (Application == null)
+            {
+                await LoadConfiguration(pkiRoot);
+            }
 
             if (port <= 0)
             {
