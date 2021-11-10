@@ -313,7 +313,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
 #if NET472_OR_GREATER
-            throw new NotSupportedException("Import a ECDsaPublicKey is not supported on this platform.");
+            throw new NotSupportedException("Import a RSAPublicKey is not supported on this platform.");
 #else
             int bytes = 0;
             try
