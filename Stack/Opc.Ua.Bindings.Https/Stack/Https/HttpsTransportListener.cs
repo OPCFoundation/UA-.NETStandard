@@ -319,7 +319,8 @@ namespace Opc.Ua.Bindings
                         {
                             if (value.StartsWith("Bearer"))
                             {
-                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim());
+                                // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
+                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim(), 0);
                             }
                         }
                     }
