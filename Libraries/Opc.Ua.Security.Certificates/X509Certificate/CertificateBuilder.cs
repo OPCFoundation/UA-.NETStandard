@@ -128,24 +128,7 @@ namespace Opc.Ua.Security.Certificates
                     );
             }
 
-            if (rsaKeyPair == null)
-            {
-                return signedCert;
-            }
-            else
-            {
-                var privateKey = signedCert.CopyWithPrivateKey(rsaKeyPair);
-                signedCert.Dispose();
-                rsaKeyPair.Dispose();
-                // see https://github.com/dotnet/runtime/issues/29144
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                {
-                    var temp = Guid.NewGuid().ToString();
-                    byte [] pfxCert = privateKey.Export(X509ContentType.Pfx, temp);
-                    return X509PfxUtils.CreateCertificateFromPKCS12(pfxCert, temp);
-                }
-                return privateKey;
-            }
+            return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
         }
 
         /// <inheritdoc/>
