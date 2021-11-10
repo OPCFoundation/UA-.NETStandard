@@ -781,8 +781,7 @@ namespace Opc.Ua.Configuration
 
             Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
 
-            // dispose temp cert with key pair
-            certificate.Dispose();
+            // do not dispose temp cert, or X509Store certs become unusable
 
             return id.Certificate;
         }
