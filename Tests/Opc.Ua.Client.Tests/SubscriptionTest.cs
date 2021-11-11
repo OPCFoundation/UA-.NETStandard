@@ -508,9 +508,9 @@ namespace Opc.Ua.Client.Tests
                 Assert.True(result);
             }
         }
-#endregion
+        #endregion
 
-#region Private Methods
-#endregion
+        #region Private Methods
+        #endregion
     }
 }

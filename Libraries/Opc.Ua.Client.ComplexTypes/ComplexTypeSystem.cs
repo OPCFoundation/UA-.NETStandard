@@ -201,6 +201,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Convert all structured types in the dictionaries to the DataTypeDefinion attribute, if possible.
         /// - Create all structured types from the dictionaries using the converted DataTypeDefinion attribute..
         /// </remarks>
+        /// <returns>true if all DataTypes were loaded.</returns>
         public async Task<bool> Load(bool onlyEnumTypes = false, bool throwOnError = false)
         {
             try
