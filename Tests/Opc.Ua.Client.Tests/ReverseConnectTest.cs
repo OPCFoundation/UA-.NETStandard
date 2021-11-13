@@ -54,6 +54,7 @@ namespace Opc.Ua.Client.Tests
         ReferenceServer m_server;
         EndpointDescriptionCollection m_endpoints;
         Uri m_endpointUrl;
+        string m_pkiRoot;
 
         #region DataPointSources
         [DatapointSource]
@@ -68,11 +69,14 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-            // this test fails on macOS, ignore
+            // this test fails on macOS, ignore (TODO)
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 Assert.Ignore("Reverse connect fails on mac OS.");
             }
+
+            // pki directory root for test runs. 
+            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server
             m_serverFixture = new ServerFixture<ReferenceServer> {
@@ -81,11 +85,11 @@ namespace Opc.Ua.Client.Tests
                 ReverseConnectTimeout = MaxTimeout,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
-            m_server = await m_serverFixture.StartAsync(TestContext.Out).ConfigureAwait(false);
+            m_server = await m_serverFixture.StartAsync(TestContext.Out, m_pkiRoot).ConfigureAwait(false);
 
             // create client
             m_clientFixture = new ClientFixture();
-            await m_clientFixture.LoadClientConfiguration().ConfigureAwait(false);
+            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             await m_clientFixture.StartReverseConnectHost().ConfigureAwait(false);
             m_endpointUrl = new Uri(Utils.ReplaceLocalhost("opc.tcp://localhost:" + m_serverFixture.Port.ToString()));
             // start reverse connection

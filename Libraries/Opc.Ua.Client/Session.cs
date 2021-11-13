@@ -1587,7 +1587,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
+                        Utils.Trace(Utils.TraceMasks.Error, "Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
                     }
                 }
             }

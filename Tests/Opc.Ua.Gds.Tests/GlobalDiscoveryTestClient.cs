@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Tests
             // load the application configuration.
             Configuration = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else
-            string root = "%LocalApplicationData%/OPC";
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
             var clientConfig = new GlobalDiscoveryTestClientConfiguration() {
                 GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
@@ -73,23 +73,11 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
-            var transportQuotas = new TransportQuotas() {
-                OperationTimeout = 120000,
-                MaxStringLength = 1048576,
-                MaxByteStringLength = 1048576,
-                MaxArrayLength = 65535,
-                MaxMessageSize = 4194304,
-                MaxBufferSize = 65535,
-                ChannelLifetime = 300000,
-                SecurityTokenLifetime = 3600000,
-            };
-
             // build the application configuration.
             Configuration = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
-                .SetTransportQuotas(transportQuotas)
                 .AsClient()
                 .SetDefaultSessionTimeout(600000)
                 .SetMinSubscriptionLifetime(10000)

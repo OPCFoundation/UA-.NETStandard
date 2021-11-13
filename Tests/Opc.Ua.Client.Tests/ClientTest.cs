@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -107,16 +108,25 @@ namespace Opc.Ua.Client.Tests
                 AutoAccept = true,
                 OperationLimits = true
             };
+
             if (writer != null)
             {
                 m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
             }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
+
+            await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);
+            m_serverFixture.Config.TransportQuotas.MaxMessageSize =
+            m_serverFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
+            m_serverFixture.Config.TransportQuotas.MaxByteStringLength =
+            m_serverFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
+            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
 
             m_clientFixture = new ClientFixture();
             await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize =
             m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
+            m_clientFixture.Config.TransportQuotas.MaxByteStringLength =
+            m_clientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
             try
             {
@@ -425,16 +435,36 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Browse all variables in the objects folder.
+        /// Load Ua types in node cache.
         /// </summary>
         [Test, Order(500)]
+        public void NodeCache_LoadUaDefinedTypes()
+        {
+            INodeCache nodeCache = m_session.NodeCache;
+            Assert.IsNotNull(nodeCache);
+
+            // clear node cache
+            nodeCache.Clear();
+
+            // load the predefined types
+            nodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+
+            // reload the predefined types
+            nodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+        }
+
+        /// <summary>
+        /// Browse all variables in the objects folder.
+        /// </summary>
+        [Test, Order(510)]
         public void NodeCache_BrowseAllVariables()
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection {
                 ObjectIds.ObjectsFolder
             };
-
+            m_session.NodeCache.Clear();
+            m_session.NodeCache.LoadUaDefinedTypes(m_session.SystemContext);
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
@@ -444,28 +474,14 @@ namespace Opc.Ua.Client.Tests
                     {
                         var organizers = m_session.NodeCache.FindReferences(
                             node,
-                            ReferenceTypeIds.Organizes,
+                            ReferenceTypeIds.HierarchicalReferences,
                             false,
                             true);
-                        var components = m_session.NodeCache.FindReferences(
-                            node,
-                            ReferenceTypeIds.HasComponent,
-                            false,
-                            false);
-                        var properties = m_session.NodeCache.FindReferences(
-                            node,
-                            ReferenceTypeIds.HasProperty,
-                            false,
-                            false);
-                        nextNodesToBrowse.AddRange(organizers
-                            .Where(n => n is ObjectNode)
-                            .Select(n => n.NodeId).ToList());
-                        nextNodesToBrowse.AddRange(components
-                            .Where(n => n is ObjectNode)
-                            .Select(n => n.NodeId).ToList());
-                        result.AddRange(organizers.Where(n => n is VariableNode));
-                        result.AddRange(components.Where(n => n is VariableNode));
-                        result.AddRange(properties.Where(n => n is VariableNode));
+                        var objectNodes = organizers.Where(n => n is ObjectNode);
+                        nextNodesToBrowse.AddRange(objectNodes.Select(n => n.NodeId));
+                        var variableNodes = organizers.Where(n => n is VariableNode);
+                        nextNodesToBrowse.AddRange(variableNodes.Select(n => n.NodeId).ToList());
+                        result.AddRange(variableNodes);
                     }
                     catch (ServiceResultException sre)
                     {
@@ -486,7 +502,54 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("Browsed {0} variables", result.Count);
         }
 
-        [Test, Order(500)]
+        /// <summary>
+        /// Load Ua types in node cache.
+        /// </summary>
+        [Test, Order(520)]
+        public void NodeCache_References()
+        {
+            INodeCache nodeCache = m_session.NodeCache;
+            Assert.IsNotNull(nodeCache);
+
+            // ensure the predefined types are loaded
+            nodeCache.LoadUaDefinedTypes(m_session.SystemContext);
+
+            // check on all reference type ids
+            var refTypeDictionary = typeof(ReferenceTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Where(f => f.FieldType == typeof(NodeId))
+                .ToDictionary(f => f.Name, f => (NodeId)f.GetValue(null));
+
+            TestContext.Out.WriteLine("Testing {0} references", refTypeDictionary.Count);
+            foreach (var property in refTypeDictionary)
+            {
+                TestContext.Out.WriteLine("FindReferenceTypeName({0})={1}", property.Value, property.Key);
+                // find the Qualified Name
+                var qn = nodeCache.FindReferenceTypeName(property.Value);
+                Assert.NotNull(qn);
+                Assert.AreEqual(property.Key, qn.Name);
+                // find the node by name
+                var refId = nodeCache.FindReferenceType(new QualifiedName(property.Key));
+                Assert.NotNull(refId);
+                Assert.AreEqual(property.Value, refId);
+                // is the node id known?
+                var isKnown = nodeCache.IsKnown(property.Value);
+                Assert.IsTrue(isKnown);
+                // is it a reference?
+                var isTypeOf = nodeCache.IsTypeOf(
+                    NodeId.ToExpandedNodeId(refId, m_session.NamespaceUris),
+                    NodeId.ToExpandedNodeId(ReferenceTypeIds.References, m_session.NamespaceUris));
+                Assert.IsTrue(isTypeOf);
+                // negative test
+                isTypeOf = nodeCache.IsTypeOf(
+                    NodeId.ToExpandedNodeId(refId, m_session.NamespaceUris),
+                    NodeId.ToExpandedNodeId(DataTypeIds.Byte, m_session.NamespaceUris));
+                Assert.IsFalse(isTypeOf);
+                var subTypes = nodeCache.FindSubTypes(NodeId.ToExpandedNodeId(refId, m_session.NamespaceUris));
+                Assert.NotNull(subTypes);
+            }
+        }
+
+        [Test, Order(550)]
         public async Task Read()
         {
             if (m_referenceDescriptions == null)
@@ -549,7 +612,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(700)]
-        public async Task LoadDataTypeSystem()
+        public async Task LoadStandardDataTypeSystem()
         {
             var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
                 var t = await m_session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
@@ -562,9 +625,60 @@ namespace Opc.Ua.Client.Tests
             typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
-#endregion
 
-#region Benchmarks
+        public static NodeId[] TypeSystems = {
+            ObjectIds.OPCBinarySchema_TypeSystem,
+            ObjectIds.XmlSchema_TypeSystem
+        };
+
+        [Test, Order(710)]
+        [TestCaseSource(nameof(TypeSystems))]
+        public async Task LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
+        {
+            // find the dictionary for the description.
+            Browser browser = new Browser(m_session);
+            browser.BrowseDirection = BrowseDirection.Forward;
+            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            browser.IncludeSubtypes = false;
+            browser.NodeClassMask = 0;
+
+            ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
+            Assert.NotNull(references);
+
+            TestContext.Out.WriteLine("  Found {0} references", references.Count);
+
+            // read all type dictionaries in the type system
+            foreach (var r in references)
+            {
+                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
+                var dictionaryToLoad = new DataDictionary(m_session);
+                await dictionaryToLoad.Load(dictionaryId, r.BrowseName.Name).ConfigureAwait(false);
+
+                // internal API for testing only
+                var dictionary = dictionaryToLoad.ReadDictionary(dictionaryId);
+                // TODO: workaround known issues in the Xml type system.
+                // https://mantis.opcfoundation.org/view.php?id=7393
+                if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))
+                {
+                    try
+                    {
+                        await dictionaryToLoad.Validate(dictionary, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        Assert.Inconclusive(ex.Message);
+                    }
+                }
+                else
+                {
+                    await dictionaryToLoad.Validate(dictionary, true);
+                }
+            }
+        }
+        #endregion
+
+        #region Benchmarks
         /// <summary>
         /// Enumerator for security policies.
         /// </summary>
@@ -584,9 +698,9 @@ namespace Opc.Ua.Client.Tests
         {
             await BrowseFullAddressSpace(null).ConfigureAwait(false);
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
 
         private uint GetOperationLimitValue(NodeId nodeId)
         {
@@ -603,6 +717,6 @@ namespace Opc.Ua.Client.Tests
                 throw;
             }
         }
-#endregion
+        #endregion
     }
 }

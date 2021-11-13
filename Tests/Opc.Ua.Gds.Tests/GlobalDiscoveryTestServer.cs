@@ -211,23 +211,11 @@ namespace Opc.Ua.Gds.Tests
                 DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
             };
 
-            var transportQuotas = new TransportQuotas() {
-                OperationTimeout = 120000,
-                MaxStringLength = 1048576,
-                MaxByteStringLength = 1048576,
-                MaxArrayLength = 65535,
-                MaxMessageSize = 4194304,
-                MaxBufferSize = 65535,
-                ChannelLifetime = 300000,
-                SecurityTokenLifetime = 3600000,
-            };
-
             // build the application configuration.
             ApplicationConfiguration config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestServer")
-                .SetTransportQuotas(transportQuotas)
                 .AsServer(new string[] { "opc.tcp://localhost:58810/GlobalDiscoveryTestServer" })
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)

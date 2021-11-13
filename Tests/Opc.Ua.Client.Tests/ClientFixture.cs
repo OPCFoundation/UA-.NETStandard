@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Configuration;
@@ -53,11 +54,13 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
-        public async Task LoadClientConfiguration(string pkiRoot = "%LocalApplicationData%/OPC/pki", string clientName = "TestClient")
+        public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = clientName
             };
+
+            pkiRoot = pkiRoot ?? Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
             // build the application configuration.
             Config = await application
@@ -72,7 +75,7 @@ namespace Opc.Ua.Client.Tests
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetMinimumCertificateKeySize(1024)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Client.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
                 .Create().ConfigureAwait(false);
 

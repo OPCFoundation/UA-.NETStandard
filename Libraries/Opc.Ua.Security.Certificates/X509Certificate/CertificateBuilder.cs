@@ -309,6 +309,9 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+#if NET472_OR_GREATER
+            throw new NotSupportedException("Import a RSAPublicKey is not supported on this platform.");
+#else
             int bytes = 0;
             try
             {
@@ -335,12 +338,11 @@ namespace Opc.Ua.Security.Certificates
             {
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
-
             return this;
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Create some defaults needed to build the certificate.
         /// </summary>
@@ -452,10 +454,10 @@ namespace Opc.Ua.Security.Certificates
                 return new X509BasicConstraintsExtension(m_isCA, false, 0, true);
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
-#endregion
+        #region Private Fields
+        #endregion
     }
 }
 #endif

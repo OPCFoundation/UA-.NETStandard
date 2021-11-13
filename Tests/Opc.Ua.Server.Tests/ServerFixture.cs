@@ -41,6 +41,8 @@ namespace Opc.Ua.Server.Tests
     public class ServerFixture<T> where T : ServerBase, new()
     {
         private NUnitTraceLogger m_traceLogger;
+        public ApplicationInstance Application { get; private set; }
+        public ApplicationConfiguration Config { get; private set; }
         public T Server { get; private set; }
         public bool LogConsole { get; set; }
         public bool AutoAccept { get; set; }
@@ -51,59 +53,17 @@ namespace Opc.Ua.Server.Tests
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
 
-        /// <summary>
-        /// Start server fixture on random or fixed port.
-        /// </summary>
-        public async Task<T> StartAsync(TextWriter writer, string pkiRoot = null, int port = 0)
+        public async Task LoadConfiguration(string pkiRoot = null)
         {
-            Random m_random = new Random();
-            bool retryStartServer = false;
-            int testPort = port;
-            int serverStartRetries = 1;
-
-            if (port <= 0)
-            {
-                testPort = ServerFixtureUtils.GetNextFreeIPPort();
-                serverStartRetries = 25;
-            }
-
-            do
-            {
-                try
-                {
-                    await InternalStartServerAsync(writer, testPort, pkiRoot).ConfigureAwait(false);
-                }
-                catch (ServiceResultException sre)
-                {
-                    if (serverStartRetries <= 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
-                    {
-                        throw;
-                    }
-                    serverStartRetries--;
-                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
-                    retryStartServer = true;
-                }
-                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
-            } while (retryStartServer);
-
-            return Server;
-        }
-
-        /// <summary>
-        /// Create the configuration and start the server.
-        /// </summary>
-        private async Task InternalStartServerAsync(TextWriter writer, int port, string pkiRoot = null)
-        {
-            ApplicationInstance application = new ApplicationInstance {
+            Application = new ApplicationInstance {
                 ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
             };
 
             // create the application configuration. Use temp path for cert stores.
             pkiRoot = pkiRoot ?? Path.GetTempPath() + Path.GetRandomFileName();
-            var endpointUrl = $"{UriScheme}://localhost:{port}/" + typeof(T).Name;
-            var serverConfig = application.Build(
+            var endpointUrl = $"{UriScheme}://localhost:0/" + typeof(T).Name;
+            var serverConfig = Application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,
                 "uri:opcfoundation.org:" + typeof(T).Name)
                 .AsServer(
@@ -153,20 +113,82 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
-            ApplicationConfiguration config = await serverConfig.AddSecurityConfiguration(
+            Config = await serverConfig.AddSecurityConfiguration(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     pkiRoot)
                 .SetApplicationCertificateTypes("nistP256,nistP384,brainpoolP256r1,brainpoolP384r1")
                 .SetAutoAcceptUntrustedCertificates(AutoAccept)
                 .Create().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Start server fixture on random or fixed port.
+        /// </summary>
+        public Task<T> StartAsync(TextWriter writer, int port = 0)
+        {
+            return StartAsync(writer, null, port);
+        }
+
+        /// <summary>
+        /// Start server fixture on random or fixed port with dedicated PKI.
+        /// </summary>
+        public async Task<T> StartAsync(TextWriter writer, string pkiRoot, int port = 0)
+        {
+            Random m_random = new Random();
+            bool retryStartServer = false;
+            int testPort = port;
+            int serverStartRetries = 1;
+
+            if (Application == null)
+            {
+                await LoadConfiguration(pkiRoot);
+            }
+
+            if (port <= 0)
+            {
+                testPort = ServerFixtureUtils.GetNextFreeIPPort();
+                serverStartRetries = 25;
+            }
+
+            do
+            {
+                try
+                {
+                    await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
+                }
+                catch (ServiceResultException sre)
+                {
+                    if (serverStartRetries <= 0 ||
+                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    {
+                        throw;
+                    }
+                    serverStartRetries--;
+                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
+                    retryStartServer = true;
+                }
+                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
+            } while (retryStartServer);
+
+            return Server;
+        }
+
+        /// <summary>
+        /// Create the configuration and start the server.
+        /// </summary>
+        private async Task InternalStartServerAsync(TextWriter writer, int port)
+        {
+            Config.ServerConfiguration.BaseAddresses = new StringCollection() {
+                $"{UriScheme}://localhost:{port}/{typeof(T).Name}"
+            };
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTraceLogger.Create(writer, config, TraceMasks);
+                m_traceLogger = NUnitTraceLogger.Create(writer, Config, TraceMasks);
             }
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificate(
+            bool haveAppCertificate = await Application.CheckApplicationInstanceCertificate(
                 true, CertificateFactory.DefaultKeySize, CertificateFactory.DefaultLifeTime).ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -175,7 +197,7 @@ namespace Opc.Ua.Server.Tests
 
             // start the server.
             T server = new T();
-            await application.Start(server).ConfigureAwait(false);
+            await Application.Start(server).ConfigureAwait(false);
             Server = server;
             Port = port;
         }
@@ -193,8 +215,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public Task StopAsync()
         {
-            Server.Stop();
-            Server.Dispose();
+            Server?.Stop();
+            Server?.Dispose();
             Server = null;
             return Task.Delay(100);
         }
