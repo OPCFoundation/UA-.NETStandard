@@ -407,8 +407,7 @@ namespace Opc.Ua
         /// <remarks>Calls GetType() on the current instance and passes that to the DataContractSerializer.</remarks>
         public void SaveToFile(string filePath)
         {
-            XmlWriterSettings settings = new XmlWriterSettings()
-            {
+            XmlWriterSettings settings = new XmlWriterSettings() {
                 Encoding = Encoding.UTF8,
                 Indent = true,
                 CloseOutput = true
@@ -442,12 +441,11 @@ namespace Opc.Ua
 
             // load private keys
             foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
-            await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
-
-            // TODO
-
-            Func<string> generateDefaultUri = () =>
             {
+                await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider).ConfigureAwait(false);
+            }
+
+            Func<string> generateDefaultUri = () => {
                 var sb = new StringBuilder();
                 sb.Append("urn:");
                 sb.Append(Utils.GetHostName());

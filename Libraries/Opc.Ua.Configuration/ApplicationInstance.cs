@@ -756,7 +756,7 @@ namespace Opc.Ua.Configuration
         /// Creates the application instance certificate.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
-        /// <param name="id"></param>
+        /// <param name="id">The certificate identifier.</param>
         /// <param name="keySize">Size of the key.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <returns>The new certificate</returns>
@@ -864,11 +864,11 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk.
-            id.Certificate = await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+            id.Certificate = await id.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
-            Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
+            Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", id.Certificate.Thumbprint);
 
             // do not dispose temp cert, or X509Store certs become unusable
 

@@ -165,7 +165,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.Trace("Exception creating HTTPS Client: " + ex.Message);
+                Utils.Trace(ex, "Failed to create HTTPS Client.");
                 throw;
             }
         }
@@ -223,7 +223,7 @@ namespace Opc.Ua.Bindings
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                        Utils.Trace(ex, "Failed to send HTTPS request.");
                         result.Exception = ex;
                         response = null;
                     }
@@ -235,7 +235,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                Utils.Trace(ex, "Failed to send HTTPS request.");
                 HttpsAsyncResult result = new HttpsAsyncResult(callback, callbackData, m_operationTimeout, request, response);
                 result.Exception = ex;
                 result.OperationCompleted();
@@ -263,7 +263,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.Trace("Exception reading HTTPS response: " + ex.Message);
+                Utils.Trace(ex, "Failed to read HTTPS response.");
                 result2.Exception = ex;
             }
             return result2 as IServiceResponse;
@@ -346,7 +346,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception ex)
             {
-                Utils.Trace("Exception sending HTTPS request: " + ex.Message);
+                Utils.Trace(ex, "Failed to send async HTTPS request.");
                 throw;
             }
         }

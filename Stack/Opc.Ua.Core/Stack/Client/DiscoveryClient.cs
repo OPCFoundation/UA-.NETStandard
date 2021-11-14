@@ -129,9 +129,7 @@ namespace Opc.Ua
 
             try
             {
-#pragma warning disable CS0618 // Type or member is obsolete
                 clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
-#pragma warning restore CS0618 // Type or member is obsolete
             }
             catch
             {

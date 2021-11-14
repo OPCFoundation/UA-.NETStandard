@@ -395,10 +395,17 @@ namespace Opc.Ua.Security
                     case SecurityPolicies.Basic256Sha256:
                     case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    case SecurityPolicies.Aes128_Sha256_nistP256:
+                    case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                    case SecurityPolicies.Aes256_Sha384_nistP384:
+                    case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                    case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                    case SecurityPolicies.ChaCha20Poly1305_curve448:
                     {
                         policy.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                         break;
                     }
+
                     default:
                         break;
                 }

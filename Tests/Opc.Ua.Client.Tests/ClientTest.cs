@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.Tests
 
             if (writer != null)
             {
-                m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
+                m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
             await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);

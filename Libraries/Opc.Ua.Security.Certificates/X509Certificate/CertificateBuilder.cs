@@ -42,7 +42,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public class CertificateBuilder : CertificateBuilderBase
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Create a Certificate builder.
         /// </summary>
@@ -74,9 +74,9 @@ namespace Opc.Ua.Security.Certificates
             : base(subjectName)
         {
         }
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
@@ -309,14 +309,11 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
-#if NET472_OR_GREATER
-            throw new NotSupportedException("Import a RSAPublicKey is not supported on this platform.");
-#else
             int bytes = 0;
             try
             {
                 m_rsaPublicKey = RSA.Create();
-#if NET472
+#if NET472_OR_GREATER
                 var asymmetricKeyParameter = Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey);
                 var rsaKeyParameters = asymmetricKeyParameter as Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters;
                 var parameters = new RSAParameters {

@@ -255,12 +255,6 @@ namespace Opc.Ua
 
         private static Nonce CreateNonce(ECCurve curve)
         {
-#if NET472
-            var ecdh = (ECDiffieHellman)ECDiffieHellmanCng.Create(curve);
-            byte[] data = ecdh.Key.Export(CngKeyBlobFormat.EccPublicBlob);
-            var senderNonce = new byte[data.Length - 8];
-            Buffer.BlockCopy(data, 8, senderNonce, 0, senderNonce.Length);
-#else
             var ecdh = (ECDiffieHellman)ECDiffieHellman.Create(curve);
             var ecdhParameters = ecdh.ExportParameters(false);
             int xLen = ecdhParameters.Q.X.Length;
@@ -268,7 +262,6 @@ namespace Opc.Ua
             byte[] senderNonce = new byte[xLen + yLen];
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
             Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
-#endif
 
             var nonce = new Nonce() {
                 Data = senderNonce,
