@@ -754,12 +754,14 @@ namespace Opc.Ua
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
         /// <param name="listener">The transport listener.</param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
+        /// <param name="bindToSpecifiedAddress">Specifies if the host endpoint should bind only to the network card on which the endpointUri is configured or bind on all local network cards</param>
         public virtual void CreateServiceHostEndpoint(
             Uri endpointUri,
             EndpointDescriptionCollection endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidator certificateValidator
+            ICertificateValidator certificateValidator,
+            bool bindToSpecifiedAddress = false
             )
         {
             // create the stack listener.
@@ -773,6 +775,7 @@ namespace Opc.Ua
                 settings.CertificateValidator = certificateValidator;
                 settings.NamespaceUris = MessageContext.NamespaceUris;
                 settings.Factory = MessageContext.Factory;
+                settings.BindToSpecifiedAddress = bindToSpecifiedAddress;
 
                 listener.Open(
                    endpointUri,

@@ -117,6 +117,17 @@ namespace Opc.Ua
             get { return m_reverseConnectListener; }
             set { m_reverseConnectListener = value; }
         }
+
+        /// <summary>
+        /// Indicates if the transport listener should bind to the network card which contains the specified address.
+        /// In case the value is false the transport listener will bind to all local network cards.
+        /// </summary>
+        public bool BindToSpecifiedAddress
+        {
+            get => m_bindToSpecifiedAddress;
+            set => m_bindToSpecifiedAddress = value;
+        }
+
         #endregion
 
         #region Private Fields
@@ -128,6 +139,7 @@ namespace Opc.Ua
         private NamespaceTable m_namespaceUris;
         private IEncodeableFactory m_channelFactory;
         private bool m_reverseConnectListener;
+        private bool m_bindToSpecifiedAddress;
         #endregion
     }
 }

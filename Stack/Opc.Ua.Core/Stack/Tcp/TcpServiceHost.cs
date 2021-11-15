@@ -72,9 +72,11 @@ namespace Opc.Ua.Bindings
 
                 UriBuilder uri = new UriBuilder(baseAddresses[ii]);
 
-                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+                UriHostNameType hostType = Uri.CheckHostName(uri.Host);
+                if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
                 {
                     uri.Host = computerName;
+                    configuration.ServerConfiguration.BindToSpecifiedAddress = false;
                 }
 
                 ITransportListener listener = this.Create();
@@ -123,7 +125,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     serverBase.CreateServiceHostEndpoint(uri.Uri, listenerEndpoints, endpointConfiguration, listener,
-                        configuration.CertificateValidator.GetChannelValidator()
+                        configuration.CertificateValidator.GetChannelValidator(), configuration.ServerConfiguration.BindToSpecifiedAddress
                         );
 
                     endpoints.AddRange(listenerEndpoints);

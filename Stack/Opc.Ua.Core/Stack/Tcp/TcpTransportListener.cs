@@ -143,6 +143,8 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
+            m_bindToSpecifiedAddress = settings.BindToSpecifiedAddress;
+
             // start the listener.
             Start();
         }
@@ -285,10 +287,16 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                // create IPv4 socket.
+                IPAddress ipAddress = IPAddress.Any;
+                if (m_bindToSpecifiedAddress)
+                {
+                    ipAddress = IPAddress.Parse(m_uri.Host);
+                }
+             
+                // create IPv4 or IPv6 socket.
                 try
                 {
-                    IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, port);
+                    IPEndPoint endpoint = new IPEndPoint(ipAddress, port);
                     m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                     SocketAsyncEventArgs args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
@@ -311,32 +319,34 @@ namespace Opc.Ua.Bindings
                     Utils.Trace("failed to create IPv4 listening socket: " + ex.Message);
                 }
 
-                // create IPv6 socket
-                try
+                if (ipAddress == IPAddress.Any)
                 {
-                    IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
-                    m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocketIPv6;
-                    m_listeningSocketIPv6.Bind(endpointIPv6);
-                    m_listeningSocketIPv6.Listen(Int32.MaxValue);
-                    if (!m_listeningSocketIPv6.AcceptAsync(args))
+                    // create IPv6 socket
+                    try
                     {
-                        OnAccept(null, args);
+                        IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
+                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                        SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                        args.Completed += OnAccept;
+                        args.UserToken = m_listeningSocketIPv6;
+                        m_listeningSocketIPv6.Bind(endpointIPv6);
+                        m_listeningSocketIPv6.Listen(Int32.MaxValue);
+                        if (!m_listeningSocketIPv6.AcceptAsync(args))
+                        {
+                            OnAccept(null, args);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // no IPv6 support
+                        if (m_listeningSocketIPv6 != null)
+                        {
+                            m_listeningSocketIPv6.Dispose();
+                            m_listeningSocketIPv6 = null;
+                        }
+                        Utils.Trace("failed to create IPv6 listening socket: " + ex.Message);
                     }
                 }
-                catch (Exception ex)
-                {
-                    // no IPv6 support
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        m_listeningSocketIPv6.Dispose();
-                        m_listeningSocketIPv6 = null;
-                    }
-                    Utils.Trace("failed to create IPv6 listening socket: " + ex.Message);
-                }
-
                 if (m_listeningSocketIPv6 == null && m_listeningSocket == null)
                 {
                     throw ServiceResultException.Create(
@@ -637,6 +647,7 @@ namespace Opc.Ua.Bindings
         private Dictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
+        private bool m_bindToSpecifiedAddress;
         #endregion
     }
 
