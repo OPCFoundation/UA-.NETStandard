@@ -179,8 +179,6 @@ namespace Opc.Ua.Bindings
 
             m_serverCert = settings.ServerCertificate;
 
-            m_bindToSpecifiedAddress = settings.BindToSpecifiedAddress;
-
             // start the listener
             Start();
         }
@@ -245,7 +243,14 @@ namespace Opc.Ua.Bindings
 #else
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
-            if (m_bindToSpecifiedAddress)
+            bool bindToSpecifiedAddress = true;
+            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+            {
+                bindToSpecifiedAddress = false;
+            }
+
+            if (bindToSpecifiedAddress)
             {
                 IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
                 m_hostBuilder.UseKestrel(options => {
@@ -446,7 +451,6 @@ namespace Opc.Ua.Bindings
         private IWebHostBuilder m_hostBuilder;
         private IWebHost m_host;
         private X509Certificate2 m_serverCert;
-        private bool m_bindToSpecifiedAddress;
         #endregion
     }
 }

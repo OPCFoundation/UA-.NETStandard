@@ -91,11 +91,9 @@ namespace Opc.Ua.Bindings
                     uri.Path += "/";
                 }
 
-                UriHostNameType hostType = Uri.CheckHostName(uri.Host);
-                if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+                if (String.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                 {
                     uri.Host = computerName;
-                    configuration.ServerConfiguration.BindToSpecifiedAddress = false;
                 }
 
                 uris.Add(uri.Uri);
@@ -157,7 +155,7 @@ namespace Opc.Ua.Bindings
                     {
                         endpoints.Add(description);
                         serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
-                            configuration.CertificateValidator.GetChannelValidator(), configuration.ServerConfiguration.BindToSpecifiedAddress);
+                            configuration.CertificateValidator.GetChannelValidator());
                     }
                     else
                     {

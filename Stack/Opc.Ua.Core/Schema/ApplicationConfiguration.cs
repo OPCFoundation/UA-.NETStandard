@@ -1439,7 +1439,6 @@ namespace Opc.Ua
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
             m_maxTrustListSize = 0;
             m_multicastDnsEnabled = false;
-            m_bindToSpecifiedAddress = false;
         }
 
         /// <summary>
@@ -1851,16 +1850,6 @@ namespace Opc.Ua
             get { return m_operationLimits; }
             set { m_operationLimits = value; }
         }
-
-        /// <summary>
-        /// Gets or sets the flag which enables binding to specific address instead of binding to all addressed on local network cards.
-        /// </summary>
-        [DataMember(IsRequired = false, Order = 36)]
-        public bool BindToSpecifiedAddress
-        {
-            get { return m_bindToSpecifiedAddress; }
-            set { m_bindToSpecifiedAddress = value; }
-        }
         #endregion
 
         #region Private Members
@@ -1897,7 +1886,6 @@ namespace Opc.Ua
         private bool m_multicastDnsEnabled;
         private ReverseConnectServerConfiguration m_reverseConnect;
         private OperationLimits m_operationLimits;
-        private bool m_bindToSpecifiedAddress;
         #endregion
     }
     #endregion

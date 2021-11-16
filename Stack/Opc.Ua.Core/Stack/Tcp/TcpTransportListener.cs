@@ -143,8 +143,6 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_bindToSpecifiedAddress = settings.BindToSpecifiedAddress;
-
             // start the listener.
             Start();
         }
@@ -287,8 +285,15 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
+                bool bindToSpecifiedAddress = true;
+                UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+                if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+                {
+                    bindToSpecifiedAddress = false;
+                }
+
                 IPAddress ipAddress = IPAddress.Any;
-                if (m_bindToSpecifiedAddress)
+                if (bindToSpecifiedAddress)
                 {
                     ipAddress = IPAddress.Parse(m_uri.Host);
                 }
@@ -647,7 +652,6 @@ namespace Opc.Ua.Bindings
         private Dictionary<uint, TcpListenerChannel> m_channels;
         private ITransportListenerCallback m_callback;
         private bool m_reverseConnectListener;
-        private bool m_bindToSpecifiedAddress;
         #endregion
     }
 
