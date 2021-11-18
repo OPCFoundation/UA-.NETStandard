@@ -1516,7 +1516,7 @@ namespace Opc.Ua
                             {
                                 m_totalThreadCount--;
 
-                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Thread.CurrentThread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
+                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Environment.CurrentManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
 
                                 return;
                             }

@@ -207,7 +207,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (String.IsNullOrWhiteSpace(moduleName))
             {
-                Uri uri = new Uri(targetNamespace, UriKind.RelativeOrAbsolute);
+                // remove space chars in malformed namespace url
+                var tempNamespace = targetNamespace.Replace(" ", "");
+                Uri uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
                 var tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
 
                 tempName = tempName.Replace("/", "");

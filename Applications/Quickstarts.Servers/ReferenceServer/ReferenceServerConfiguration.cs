@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Runtime.Serialization;
-using Quickstarts.Servers;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -59,7 +58,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
         #endregion

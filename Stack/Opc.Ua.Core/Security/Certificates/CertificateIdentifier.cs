@@ -139,9 +139,7 @@ namespace Opc.Ua
             get { return m_validationOptions; }
             set { m_validationOptions = value; }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Gets or sets the actual certificate.
         /// </summary>
@@ -151,7 +149,9 @@ namespace Opc.Ua
             get { return m_certificate; }
             set { m_certificate = value; }
         }
+        #endregion
 
+        #region Public Methods
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
