@@ -113,7 +113,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (this.ConfirmedState != null)
+            if (SupportsConfirm())
             {
                 if (!this.ConfirmedState.Id.Value)
                 {
@@ -148,14 +148,42 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                SetAcknowledgedState(context, true);
+                AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
+
+                if ( branch != null )
+                {
+                    branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
+
+                    if (SupportsConfirm())
+                    {
+                        ReplaceBranchEvent(eventId, branch);
+                    }
+                    else
+                    { 
+                        RemoveBranchEvent(eventId);
+                    }
+                }
+                else
+                {
+                    SetAcknowledgedState(context, true);
+
+                    if (SupportsConfirm())
+                    {
+                        SetConfirmedState(context, false);
+                    }
+                }
+
+                // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
                     SetComment(context, comment, GetCurrentUserId(context));
                 }
+
+                UpdateRetainState();
+
             }
 
-            if (this.AreEventsMonitored)
+            if (EventsMonitored())
             {
                 // report a state change event.
                 if (ServiceResult.IsGood(error))
@@ -293,14 +321,28 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                SetConfirmedState(context, true);
+                AcknowledgeableConditionState branch = GetAcknowledgeableBranch(eventId);
+
+                if (branch != null)
+                {
+                    branch.OnConfirmCalled(context, method, objectId, eventId, comment);
+                    RemoveBranchEvent(eventId);
+                }
+                else
+                {
+                    SetConfirmedState(context, true);
+                }
+
+                // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
                     SetComment(context, comment, GetCurrentUserId(context));
                 }
+
+                UpdateRetainState();
             }
 
-            if (this.AreEventsMonitored)
+            if (EventsMonitored())
             {
                 // report a state change event.
                 if (ServiceResult.IsGood(error))
@@ -455,6 +497,82 @@ namespace Opc.Ua
 
             return canSetComment;
         }
+
+        /// <summary>
+        /// Determines if this Event supports Confirm.
+        /// </summary>
+        /// <returns>
+        /// Boolean stating whether the Confirm is supported
+        /// </returns>
+        public bool SupportsConfirm()
+        {
+            bool supportsConfirm = false;
+
+            if (this.ConfirmedState != null && this.ConfirmedState.Value != null )
+            {
+                supportsConfirm = true;
+            }
+
+            return supportsConfirm;
+        }
+
+        /// <summary>
+        /// Determines whether a specified branch exists, and returns it as AcknowledgeableConditionState
+        /// </summary>
+        /// <param name="eventId">Desired Event Id</param>
+        /// <returns>
+        /// AcknowledgeableConditionState branch if it exists
+        /// </returns>
+        private AcknowledgeableConditionState GetAcknowledgeableBranch(byte[] eventId)
+        {
+            AcknowledgeableConditionState acknowledgeableBranch = null;
+            ConditionState branch = GetBranch(eventId);
+
+            if (branch != null)
+            {
+                object acknowledgeable = branch as AcknowledgeableConditionState;
+                if (acknowledgeable != null)
+                {
+                    acknowledgeableBranch = (AcknowledgeableConditionState)acknowledgeable;
+                }
+            }
+
+            return acknowledgeableBranch;
+        }
+
+        /// <summary>
+        /// Determines the desired Retain state based off of the values of AckedState and
+        /// ConfirmedState if ConfirmedState is supported
+        /// </summary>
+        /// <remarks>
+        /// All implementations of this method should check the enabled state
+        /// </remarks>
+        protected override bool GetRetainState()
+        {
+            bool retainState = false;
+
+            if (this.EnabledState.Id.Value)
+            {
+                retainState = base.GetRetainState();
+
+                if (!this.AckedState.Id.Value)
+                {
+                    retainState = true;
+                }
+                else
+                {
+                    if ( SupportsConfirm() && !this.ConfirmedState.Id.Value)
+                    {
+                        retainState = true;
+                    }
+                }
+            }
+
+            return retainState;
+        }
+
+
+
         #endregion
 
         #region Public Interface

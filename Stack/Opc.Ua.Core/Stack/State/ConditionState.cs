@@ -12,6 +12,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Xml;
 using System.Text;
 using System.IO;
@@ -143,6 +145,213 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Create a branch based off the original Event
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="branchId">The Desired Branch Id</param>
+        /// <returns>ConditionState newly created branch</returns>
+        public virtual ConditionState CreateBranch( ISystemContext context, NodeId branchId )
+        {
+            ConditionState state = null;
+
+            Type alarmType = this.GetType();
+            object branchedAlarm = Activator.CreateInstance(alarmType, this);
+            if ( branchedAlarm != null )
+            {
+                ConditionState branchedNodeState = (ConditionState)branchedAlarm;
+                branchedNodeState.Initialize(context, this);
+                branchedNodeState.BranchId.Value = branchId;
+                branchedNodeState.AutoReportStateChanges = AutoReportStateChanges;
+                branchedNodeState.ReportStateChange(context, false );
+
+                string postEventId = Utils.ToHexString(branchedNodeState.EventId.Value as byte[]);
+
+                Dictionary<string, ConditionState> branches = GetBranches();
+
+                branches.Add(postEventId, branchedNodeState);
+
+                state = branchedNodeState;
+            }
+
+            return state;
+        }
+
+        /// <summary>
+        /// Retrieves the branches for the current ConditionState.
+        /// Creates the branches dictionary if required
+        /// </summary>
+        /// <remarks>
+        /// Function exists because constructor is in auto generated code.
+        /// </remarks>
+        /// <returns></returns>
+        public Dictionary< string, ConditionState >GetBranches()
+        {
+            if (m_branches == null)
+            {
+                m_branches = new Dictionary<string, ConditionState>();
+            }
+
+            return m_branches;
+        }
+
+
+        /// <summary>
+        /// Finds an event, whether it is the original event, or a branch
+        /// </summary>
+        /// <param name="eventId">Desired Event Id</param>
+        /// <returns>ConditionState branch if it exists</returns>
+        public virtual ConditionState GetEventByEventId(byte[] eventId)
+        {
+            ConditionState alarm = null;
+
+            if (this.EventId.Value.SequenceEqual(eventId))
+            {
+                alarm = this;
+            }
+            else
+            {
+                alarm = GetBranch(eventId);
+            }
+
+            return alarm;
+        }
+
+        /// <summary>
+        /// Determines whether a specified branch exists, and returns it as ConditionState
+        /// </summary>
+        /// <param name="eventId">Desired Event Id</param>
+        /// <returns>ConditionState branch if it exists</returns>
+        public ConditionState GetBranch(byte[] eventId)
+        {
+            ConditionState alarm = null;
+
+            Dictionary<string, ConditionState> branches = GetBranches();
+
+            foreach (ConditionState branchEvent in branches.Values)
+            {
+                if (branchEvent.EventId.Value.SequenceEqual(eventId))
+                {
+                    alarm = branchEvent;
+                    break;
+                }
+            }
+
+            return alarm;
+        }
+
+        /// <summary>
+        /// Replace the Event Id of a branch, usually due to an Acknowledgement
+        /// </summary>
+        /// <param name="originalEventId">Event Id prior to the Acknowledgement</param>
+        /// <param name="alarm">Branch, containing the updated EventId to be stored</param>
+        protected void ReplaceBranchEvent(byte[] originalEventId, ConditionState alarm)
+        {
+            string originalKey = Utils.ToHexString(originalEventId);
+            string newKey = Utils.ToHexString(alarm.EventId.Value);
+
+            Dictionary<string, ConditionState> branches = GetBranches();
+
+            branches.Remove(originalKey);
+            branches.Add(newKey, alarm);
+        }
+
+        /// <summary>
+        /// Remove a specific branch
+        /// </summary>
+        /// <param name="eventId">The desired event to remove</param>
+        protected void RemoveBranchEvent(byte[] eventId)
+        {
+            string key = Utils.ToHexString(eventId);
+
+            Dictionary<string, ConditionState> branches = GetBranches();
+
+            branches.Remove(key);
+        }
+
+        /// <summary>
+        /// Clear all branches for this event
+        /// </summary>
+        public void ClearBranches()
+        {
+            Dictionary<string, ConditionState> branches = GetBranches();
+            branches.Clear();
+        }
+
+
+        /// <summary>
+        /// Updates the value of Retain based off all effective alarm properties
+        /// ActiveState, AckedState, ConfirmedState, Branches, Enabled
+        /// </summary>
+        protected virtual void UpdateRetainState()
+        {
+            bool retainState = GetRetainState();
+
+            if ( this.Retain.Value != retainState )
+            {
+                this.Retain.Value = retainState;
+            }
+        }
+
+        /// <summary>
+        /// Determines the desired Retain state based off Enabled state, and whether there are any branches
+        /// </summary>
+        /// <remarks>
+        /// All implementations of this method should check the enabled state
+        /// </remarks>
+        protected virtual bool GetRetainState()
+        {
+            bool retainState = false;
+
+            if (this.EnabledState.Id.Value)
+            {
+                Dictionary<string, ConditionState> branches = GetBranches();
+
+                foreach (ConditionState branch in branches.Values)
+                {
+                    branch.UpdateRetainState();
+                    if (branch.Retain.Value)
+                    {
+                        retainState = true;
+                    }
+                }
+            }
+
+            return retainState;
+        }
+
+        /// <summary>
+        /// Get the Number of Branches currently utilized by this event
+        /// </summary>
+        /// <returns>
+        /// Int contain the number of Branches
+        /// </returns>
+        public virtual int GetBranchCount()
+        {
+            Dictionary<string, ConditionState> branches = GetBranches();
+
+            return branches.Count;
+        }
+
+        /// <summary>
+        /// Determines if Events are monitored for this event.  If this is a branch, then the original event is checked
+        /// </summary>
+        /// <returns>
+        /// Boolean determining if this event is monitored, and should be reported</returns>
+        public bool EventsMonitored( )
+        {
+            bool areEventsMonitored = this.AreEventsMonitored;
+
+            if ( IsBranch() )
+            {
+                areEventsMonitored = Parent.AreEventsMonitored;
+            }
+
+            return areEventsMonitored;
+        }
+
+
         #endregion
 
         #region Event Handlers
@@ -171,6 +380,12 @@ namespace Opc.Ua
         {
             if (this.Retain.Value)
             {
+                Dictionary<string, ConditionState> branches = GetBranches();
+
+                foreach (ConditionState branch in branches.Values)
+                {
+                    branch.ConditionRefresh(context, events, includeChildren);
+                }
                 events.Add(this);
             }
         }
@@ -198,7 +413,7 @@ namespace Opc.Ua
                 ClearChangeMasks(context, includeChildren: true);
 
                 // report a state change event.
-                if (this.AreEventsMonitored)
+                if (EventsMonitored())
                 {
                     InstanceStateSnapshot snapshot = new InstanceStateSnapshot();
                     snapshot.Initialize(context, this);
@@ -236,10 +451,17 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
-                SetComment(context, comment, GetCurrentUserId(context));
+                string currentUserId = GetCurrentUserId(context);
+                ConditionState branch = GetBranch(eventId);
+                if ( branch != null )
+                {
+                    branch.OnAddCommentCalled(context, method, objectId, eventId, comment);
+                }
+
+                SetComment(context, comment, currentUserId);
             }
 
-            if (this.AreEventsMonitored)
+            if (EventsMonitored())
             {
                 // report a state change event.
                 if (ServiceResult.IsGood(error))
@@ -343,6 +565,14 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
+                Dictionary<string, ConditionState> branches = GetBranches();
+
+                // Enable all branches
+                foreach ( ConditionState branch in branches.Values )
+                {
+                    OnEnableCalled(context, method, inputArguments, outputArguments);
+                }
+
                 UpdateStateAfterEnable(context);
             }
 
@@ -395,6 +625,13 @@ namespace Opc.Ua
 
             if (ServiceResult.IsGood(error))
             {
+                Dictionary<string, ConditionState> branches = GetBranches();
+
+                foreach (ConditionState branch in branches.Values)
+                {
+                    OnDisableCalled(context, method, inputArguments, outputArguments);
+                }
+
                 UpdateStateAfterDisable(context);
             }
 
@@ -511,10 +748,24 @@ namespace Opc.Ua
 
             UpdateEffectiveState(context);
         }
+
+        /// <summary>
+        /// Determines if this event is a branch
+        /// </summary>
+        /// <returns>true if branch</returns>
+        protected bool IsBranch()
+        {
+            return !(this.BranchId.Value.IsNullNodeId);
+        }
         #endregion
-        
+
         #region Private Fields
         private bool m_autoReportStateChanges;
+        /// <summary>
+        /// 
+        /// </summary>
+        protected Dictionary<string, ConditionState> m_branches = null;
+
         #endregion
     }
 
