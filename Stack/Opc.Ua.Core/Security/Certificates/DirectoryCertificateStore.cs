@@ -759,42 +759,9 @@ namespace Opc.Ua
                 fileName.Append(ch);
             }
 
-            if (X509Utils.IsECDsaSignature(certificate))
-            {
-                string signatureQualifier = "ECC";
-                PublicKey encodedPublicKey = certificate.PublicKey;
-                string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
-
-                // New values can be determined by running the dotted-decimal OID value
-                // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
-
-                switch (keyParameters)
-                {
-                    case "06-08-2A-86-48-CE-3D-03-01-07":
-                    {
-                        signatureQualifier = "nistP256";
-                        break;
-                    }
-
-                    case "06-05-2B-81-04-00-22":
-                    {
-                        signatureQualifier = "nistP384";
-                        break;
-                    }
-
-                    case "06-09-2B-24-03-03-02-08-01-01-07":
-                    {
-                        signatureQualifier = "brainpoolP256r1";
-                        break;
-                    }
-
-                    case "06-09-2B-24-03-03-02-08-01-01-0B":
-                    {
-                        signatureQualifier = "brainpoolP384r1";
-                        break;
-                    }
-
-                }
+            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
+            if (signatureQualifier != null)
+            { 
                 fileName.Append(" [");
                 fileName.Append(signatureQualifier);
                 fileName.Append(']');

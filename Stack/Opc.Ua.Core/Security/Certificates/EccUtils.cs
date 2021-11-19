@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#if ECC_SUPPORT
 
 using System;
 using System.Text;
@@ -40,6 +39,16 @@ namespace Opc.Ua
     /// </summary>
     public static class EccUtils
     {
+        public const string NistP256 = nameof(NistP256);
+        public const string NistP384 = nameof(NistP384);
+        public const string BrainpoolP256r1 = nameof(BrainpoolP256r1);
+        public const string BrainpoolP384r1 = nameof(BrainpoolP384r1);
+
+        private const string NistP256KeyParameters = "06-08-2A-86-48-CE-3D-03-01-07";
+        private const string NistP384KeyParameters = "06-05-2B-81-04-00-22";
+        private const string BrainpoolP256r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-07";
+        private const string BrainpoolP384r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-0B";
+
         public static bool IsEccPolicy(string securityPolicyUri)
         {
             if (securityPolicyUri != null)
@@ -61,18 +70,73 @@ namespace Opc.Ua
             return false;
         }
 
-        public static string[] GetSupportedSecurityPolicyUris(X509Certificate2 certificate)
+        public static NodeId GetEccCertificateTypeId(X509Certificate2 certificate)
         {
-            string[] securityPolicyUris;
-
-            if (GetPublicKey(certificate, out securityPolicyUris) == null)
+            var keyAlgorithm = certificate.GetKeyAlgorithm();
+            if (keyAlgorithm != Oids.ECPublicKey)
             {
-                return null;
+                return NodeId.Null;
             }
 
-            return securityPolicyUris;
+            PublicKey encodedPublicKey = certificate.PublicKey;
+            string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
+            switch (keyParameters)
+            {
+                // nistP256
+                case NistP256KeyParameters: return ObjectTypeIds.EccNistP256ApplicationCertificateType;
+                // nistP384
+                case NistP384KeyParameters: return ObjectTypeIds.EccNistP384ApplicationCertificateType;
+                // brainpoolP256r1
+                case BrainpoolP256r1KeyParameters: return ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType;
+                // brainpoolP384r1
+                case BrainpoolP384r1KeyParameters: return ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType;
+                default: return NodeId.Null;
+            }
         }
 
+        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        {
+            if (X509Utils.IsECDsaSignature(certificate))
+            {
+                string signatureQualifier = "ECDsa";
+                PublicKey encodedPublicKey = certificate.PublicKey;
+                string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
+
+                // New values can be determined by running the dotted-decimal OID value
+                // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
+
+                switch (keyParameters)
+                {
+                    case NistP256KeyParameters:
+                    {
+                        signatureQualifier = NistP256;
+                        break;
+                    }
+
+                    case NistP384KeyParameters:
+                    {
+                        signatureQualifier = NistP384;
+                        break;
+                    }
+
+                    case BrainpoolP256r1KeyParameters:
+                    {
+                        signatureQualifier = BrainpoolP256r1;
+                        break;
+                    }
+
+                    case BrainpoolP384r1KeyParameters:
+                    {
+                        signatureQualifier = BrainpoolP384r1;
+                        break;
+                    }
+                }
+                return signatureQualifier;
+            }
+            return string.Empty;
+        }
+
+#if ECC_SUPPORT
         public static ECDsa GetPublicKey(X509Certificate2 certificate)
         {
             string[] securityPolicyUris;
@@ -135,28 +199,28 @@ namespace Opc.Ua
 
             switch (keyParameters)
             {
-                case "06-08-2A-86-48-CE-3D-03-01-07":
+                case NistP256KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP256;
                     securityPolicyUris = new string[] { SecurityPolicies.Aes128_Sha256_nistP256 };
                     break;
                 }
 
-                case "06-05-2B-81-04-00-22":
+                case NistP384KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP384;
                     securityPolicyUris = new string[] { SecurityPolicies.Aes256_Sha384_nistP384, SecurityPolicies.Aes128_Sha256_nistP256 };
                     break;
                 }
 
-                case "06-09-2B-24-03-03-02-08-01-01-07":
+                case BrainpoolP256r1KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
                     securityPolicyUris = new string[] { SecurityPolicies.Aes128_Sha256_brainpoolP256r1 };
                     break;
                 }
 
-                case "06-09-2B-24-03-03-02-08-01-01-0B":
+                case BrainpoolP384r1KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
                     securityPolicyUris = new string[] { SecurityPolicies.Aes256_Sha384_brainpoolP384r1, SecurityPolicies.Aes128_Sha256_brainpoolP256r1 };
@@ -173,7 +237,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the length of a ECDSA signature of a digest.
+        /// Returns the length of a ECDsa signature of a digest.
         /// </summary>
         public static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
@@ -342,7 +406,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Verifies an ECDSA signature.
+        /// Verifies a ECDsa signature.
         /// </summary>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
@@ -354,7 +418,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Verifies an ECDSA signature.
+        /// Verifies a ECDsa signature.
         /// </summary>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
@@ -397,13 +461,8 @@ namespace Opc.Ua
 #endif
             using (ECDsa ecdsa = EccUtils.GetPublicKey(signingCertificate))
             {
-                if (!ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm))
-                {
-                    return false;
-                }
+                return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
             }
-
-            return true;
         }
     }
 
@@ -992,6 +1051,6 @@ namespace Opc.Ua
 
             return secret;
         }
+#endif
     }
 }
-#endif

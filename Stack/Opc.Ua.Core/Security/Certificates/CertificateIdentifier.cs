@@ -516,31 +516,14 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
-                    var keyAlgorithm = certificate.GetKeyAlgorithm();
-                    if (keyAlgorithm != Oids.ECPublicKey)
-                    {
-                        break;
-                    }
+                    return EccUtils.GetEccCertificateTypeId(certificate);
 
-                    PublicKey encodedPublicKey = certificate.PublicKey;
-                    string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
-                    switch (keyParameters)
-                    {
-                        // nistP256
-                        case "06-08-2A-86-48-CE-3D-03-01-07": return ObjectTypeIds.EccNistP256ApplicationCertificateType;
-                        // nistP384
-                        case "06-05-2B-81-04-00-22": return ObjectTypeIds.EccNistP384ApplicationCertificateType;
-                        // brainpoolP256r1
-                        case "06-09-2B-24-03-03-02-08-01-01-07": return ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType;
-                        // brainpoolP384r1
-                        case "06-09-2B-24-03-03-02-08-01-01-0B": return ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType;
-                        default: return NodeId.Null;
-                    }
-
-                case Oids.RsaPkcs1Sha1: return ObjectTypeIds.RsaMinApplicationCertificateType;
                 case Oids.RsaPkcs1Sha256:
                 case Oids.RsaPkcs1Sha384:
-                case Oids.RsaPkcs1Sha512: return ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                case Oids.RsaPkcs1Sha512:
+                    return ObjectTypeIds.RsaSha256ApplicationCertificateType;
+                case Oids.RsaPkcs1Sha1:
+                    return ObjectTypeIds.RsaMinApplicationCertificateType;
             }
             return NodeId.Null;
         }
@@ -552,79 +535,48 @@ namespace Opc.Ua
         /// <param name="certificateType">The NodeId of the certificate type.</param>
         public static bool ValidateCertificateType(X509Certificate2 certificate, NodeId certificateType)
         {
-            bool result = false;
-
             switch (certificate.SignatureAlgorithm.Value)
             {
                 case Oids.ECDsaWithSha1:
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
-                    var keyAlgorithm = certificate.GetKeyAlgorithm();
-                    if (keyAlgorithm != Oids.ECPublicKey)
+                    var certType = EccUtils.GetEccCertificateTypeId(certificate);
+                    if (certType.IsNullNodeId)
                     {
-                        break;
+                        return false;
+                    }
+                    else if (certType == certificateType)
+                    {
+                        return true;
                     }
 
-                    PublicKey encodedPublicKey = certificate.PublicKey;
-                    string keyParameters = BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData);
-                    switch (keyParameters)
+                    // special cases
+                    if (certType == ObjectTypeIds.EccNistP384ApplicationCertificateType &&
+                        certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
                     {
-                        // nistP256
-                        case "06-08-2A-86-48-CE-3D-03-01-07":
-                        {
-                            if (certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
-                            {
-                                result = true;
-                            }
-                            break;
-                        }
+                        return true;
+                    }
 
-                        // nistP384
-                        case "06-05-2B-81-04-00-22":
-                        {
-                            if (certificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType ||
-                                certificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType)
-                            {
-                                result = true;
-                            }
-                            break;
-                        }
-
-                        // brainpoolP256r1
-                        case "06-09-2B-24-03-03-02-08-01-01-07":
-                        {
-                            if (certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-                            {
-                                result = true;
-                            }
-                            break;
-                        }
-
-                        // brainpoolP384r1
-                        case "06-09-2B-24-03-03-02-08-01-01-0B":
-                        {
-                            if (certificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType ||
-                                certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
-                            {
-                                result = true;
-                            }
-                            break;
-                        }
+                    if (certType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType &&
+                        certificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+                    {
+                        return true;
                     }
                     break;
 
                 default:
+                    // TODO: check SHA1/key size
                     if (certificateType == null ||
                         certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
                         certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
                         certificateType == ObjectTypeIds.ApplicationCertificateType)
                     {
-                        result = true;
+                        return true;
                     }
                     break;
             }
-            return result;
+            return false;
         }
 
         /// <summary>
