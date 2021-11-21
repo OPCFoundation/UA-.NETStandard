@@ -1221,7 +1221,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="arrayDimensions">The array dimensions.</param>
         /// <returns>The XML string value.</returns>
-        internal static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
+        public static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
         {
             if (arrayDimensions == null)
             {
@@ -1248,7 +1248,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The XML string value.</param>
         /// <returns>The array dimensions list.</returns>
-        internal static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
+        public static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
         {
             if (String.IsNullOrEmpty(value))
             {

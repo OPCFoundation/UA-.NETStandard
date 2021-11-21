@@ -184,9 +184,9 @@ namespace Opc.Ua.Export
                     UAMethod value = new UAMethod();
                     value.Executable = o.Executable;
 
-                    if (o.TypeDefinitionId != null && !o.TypeDefinitionId.IsNullNodeId && o.TypeDefinitionId != o.NodeId)
+                    if (o.MethodDeclarationId != null && !o.MethodDeclarationId.IsNullNodeId && o.MethodDeclarationId != o.NodeId)
                     {
-                        value.MethodDeclarationId = Export(o.TypeDefinitionId, context.NamespaceUris);
+                        value.MethodDeclarationId = Export(o.MethodDeclarationId, context.NamespaceUris);
                     }
 
                     if (o.Parent != null)
@@ -530,7 +530,7 @@ namespace Opc.Ua.Export
                     MethodState value = new MethodState(null);
                     value.Executable = o.Executable;
                     value.UserExecutable = o.Executable;
-                    value.TypeDefinitionId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
+                    value.MethodDeclarationId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
                     importedNode = value;
                     break;
                 }

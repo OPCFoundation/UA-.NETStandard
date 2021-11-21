@@ -652,7 +652,7 @@ namespace Opc.Ua
         /// Flags which control the serialization of a NodeState in a stream.
         /// </summary>
         [Flags]
-        public enum AttributesToSave
+        public enum AttributesToSave : uint
         {
             /// <summary>
             /// The default value.
@@ -807,7 +807,12 @@ namespace Opc.Ua
             /// <summary>
             /// The DataTypeDefinition attribute of a DataType Node.
             /// </summary>
-            DataTypeDefinition = 0x40000000
+            DataTypeDefinition = 0x40000000,
+
+            /// <summary>
+            /// The MethodDeclarationId of a Method Node.
+            /// </summary>
+            MethodDeclarationId = 0x80000000
         }
         #endregion
 
