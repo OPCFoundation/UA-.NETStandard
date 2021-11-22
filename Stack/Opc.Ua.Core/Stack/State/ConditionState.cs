@@ -570,7 +570,7 @@ namespace Opc.Ua
                 // Enable all branches
                 foreach ( ConditionState branch in branches.Values )
                 {
-                    OnEnableCalled(context, method, inputArguments, outputArguments);
+                    branch.OnEnableCalled(context, method, inputArguments, outputArguments);
                 }
 
                 UpdateStateAfterEnable(context);
@@ -629,7 +629,7 @@ namespace Opc.Ua
 
                 foreach (ConditionState branch in branches.Values)
                 {
-                    OnDisableCalled(context, method, inputArguments, outputArguments);
+                    branch.OnDisableCalled(context, method, inputArguments, outputArguments);
                 }
 
                 UpdateStateAfterDisable(context);
