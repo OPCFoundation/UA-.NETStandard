@@ -81,7 +81,18 @@ namespace Opc.Ua
         /// <summary>
         /// The identifier for the declaration of the method in the type model.
         /// </summary>
-        public NodeId MethodDeclarationId { get; set; }
+        public NodeId MethodDeclarationId
+        {
+            get
+            {
+                return base.TypeDefinitionId;
+            }
+
+            set
+            {
+                base.TypeDefinitionId = value;
+            }
+        }
 
         /// <summary>
         /// Whether the method can be called.
@@ -198,11 +209,6 @@ namespace Opc.Ua
                 encoder.WriteBoolean("UserExecutable", m_executable);
             }
 
-            if (!NodeId.IsNull(this.MethodDeclarationId) && MethodDeclarationId != NodeId)
-            {
-                encoder.WriteNodeId("MethodDeclarationId", MethodDeclarationId);
-            }
-
             encoder.PopNamespace();
         }
 
@@ -225,11 +231,6 @@ namespace Opc.Ua
             if (decoder.Peek("UserExecutable"))
             {
                 UserExecutable = decoder.ReadBoolean("UserExecutable");
-            }
-
-            if (decoder.Peek("MethodDeclarationId"))
-            {
-                MethodDeclarationId = decoder.ReadNodeId("MethodDeclarationId");
             }
 
             decoder.PopNamespace();
@@ -256,7 +257,7 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(this.MethodDeclarationId) && MethodDeclarationId != NodeId)
             {
-                attributesToSave |= AttributesToSave.MethodDeclarationId;
+                attributesToSave |= AttributesToSave.TypeDefinitionId;
             }
 
             return attributesToSave;
@@ -281,11 +282,6 @@ namespace Opc.Ua
             {
                 encoder.WriteBoolean(null, m_userExecutable);
             }
-
-            if ((attributesToSave & AttributesToSave.MethodDeclarationId) != 0)
-            {
-                encoder.WriteNodeId(null, MethodDeclarationId);
-            }
         }
 
         /// <summary>
@@ -306,11 +302,6 @@ namespace Opc.Ua
             if ((attibutesToLoad & AttributesToSave.UserExecutable) != 0)
             {
                 m_userExecutable = decoder.ReadBoolean(null);
-            }
-
-            if ((attibutesToLoad & AttributesToSave.MethodDeclarationId) != 0)
-            {
-                MethodDeclarationId = decoder.ReadNodeId(null);
             }
         }
         #endregion
