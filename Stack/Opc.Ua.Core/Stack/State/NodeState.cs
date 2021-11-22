@@ -807,12 +807,7 @@ namespace Opc.Ua
             /// <summary>
             /// The DataTypeDefinition attribute of a DataType Node.
             /// </summary>
-            DataTypeDefinition = 0x40000000,
-
-            /// <summary>
-            /// The MethodDeclarationId of a Method Node.
-            /// </summary>
-            MethodDeclarationId = 0x80000000
+            DataTypeDefinition = 0x40000000
         }
         #endregion
 
