@@ -35,6 +35,7 @@ using System.Numerics;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Range = Opc.Ua.Range;
+using System.Diagnostics;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -401,33 +402,6 @@ namespace Quickstarts.ReferenceServer
                     #region Scalar_Simulation
                     FolderState simulationFolder = CreateFolder(scalarFolder, "Scalar_Simulation", "Simulation");
                     const string scalarSimulation = "Scalar_Simulation_";
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Boolean", "Boolean", DataTypeIds.Boolean, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Byte", "Byte", DataTypeIds.Byte, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "ByteString", "ByteString", DataTypeIds.ByteString, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "DateTime", "DateTime", DataTypeIds.DateTime, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Double", "Double", DataTypeIds.Double, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Duration", "Duration", DataTypeIds.Duration, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Float", "Float", DataTypeIds.Float, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Guid", "Guid", DataTypeIds.Guid, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Int16", "Int16", DataTypeIds.Int16, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Int32", "Int32", DataTypeIds.Int32, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Int64", "Int64", DataTypeIds.Int64, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Integer", "Integer", DataTypeIds.Integer, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "LocaleId", "LocaleId", DataTypeIds.LocaleId, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "LocalizedText", "LocalizedText", DataTypeIds.LocalizedText, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "NodeId", "NodeId", DataTypeIds.NodeId, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Number", "Number", DataTypeIds.Number, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "QualifiedName", "QualifiedName", DataTypeIds.QualifiedName, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "SByte", "SByte", DataTypeIds.SByte, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "String", "String", DataTypeIds.String, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Time", "Time", DataTypeIds.Time, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "UInt16", "UInt16", DataTypeIds.UInt16, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "UInt32", "UInt32", DataTypeIds.UInt32, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "UInt64", "UInt64", DataTypeIds.UInt64, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "UInteger", "UInteger", DataTypeIds.UInteger, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "Variant", "Variant", BuiltInType.Variant, ValueRanks.Scalar);
-                    CreateDynamicVariable(simulationFolder, scalarSimulation + "XmlElement", "XmlElement", DataTypeIds.XmlElement, ValueRanks.Scalar);
 
                     BaseDataVariableState intervalVariable = CreateVariable(simulationFolder, scalarSimulation + "Interval", "Interval", DataTypeIds.UInt16, ValueRanks.Scalar);
                     intervalVariable.Value = m_simulationInterval;
@@ -1418,19 +1392,25 @@ namespace Quickstarts.ReferenceServer
                     const string myCompany = "Kreonta_";
 
                     BaseDataVariableState myCompanyInstructions = CreateVariable(myCompanyFolder, myCompany + "Instructions", "Instructions", DataTypeIds.String, ValueRanks.Scalar);
-                    myCompanyInstructions.Value = "A place for the vendor to describe their address-space.";
+                    myCompanyInstructions.Value = "We provide manufacturing software solutions to gain insights into your manufacturing processes.";
                     variables.Add(myCompanyInstructions);
 
                     BaseDataVariableState myCompanyEmployeeCount = CreateVariable(myCompanyFolder, myCompany + "EmployeeCount", "EmployeeCount", BuiltInType.Int32, ValueRanks.Scalar);
                     myCompanyEmployeeCount.Value = 5;
                     myCompanyEmployeeCount.OnSimpleWriteValue = new NodeValueSimpleEventHandler(OnWriteMyCompanyEmployeeCount);
 
-                    const string myCompanyMachine = myCompany + "LEN-009";
-                    FolderState myCompanyMachineFolder = CreateFolder(myCompanyFolder, myCompanyMachine, "LEN-009");
+                    CreateProductionLine(myCompanyFolder, variables, "AAL_001");
+                    CreateProductionLine(myCompanyFolder, variables, "AAL_002");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-001");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-002");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-003");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-004");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-005");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-006");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-007");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-008");
+                    CreateProductionLine(myCompanyFolder, variables, "LEN-009");
 
-                    BaseDataVariableState myCompanyMachineSpeed = CreateDynamicVariable(myCompanyMachineFolder, myCompanyMachine + "_MachineSpeed", "MachineSpeed", BuiltInType.UInt16, ValueRanks.Scalar);
-                    myCompanyMachineSpeed.Value = 600;
-                    variables.Add(myCompanyMachineSpeed);
                     #endregion
                 }
                 catch (Exception e)
@@ -1439,8 +1419,169 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 AddPredefinedNode(SystemContext, root);
-                m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
+                // m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
+                m_timer = new Timer(UpdateCountersForProductionLine, null, 1000, 1000);
             }
+        }
+
+        private void CreateProductionLine(FolderState companyFolder, List<BaseDataVariableState> variables, string productionline)
+        {
+            string myCompany = String.Format("{0}_", companyFolder.DisplayName.Text);
+
+            string myCompanyMachine = myCompany + productionline;
+            FolderState myCompanyMachineFolder = CreateFolder(companyFolder, myCompanyMachine, productionline);
+
+            BaseDataVariableState speed = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_MachineSpeed", "MachineSpeed", BuiltInType.UInt32, ValueRanks.Scalar);
+            speed.Value = 600;
+
+            BaseDataVariableState goodpieces = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_GoodPieces", "GoodPieces", BuiltInType.UInt32, ValueRanks.Scalar);
+            goodpieces.Value = 0;
+
+            BaseDataVariableState badpieces = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_BadPieces", "BadPieces", BuiltInType.UInt32, ValueRanks.Scalar);
+            badpieces.Value = 0;
+
+            BaseDataVariableState downtimes = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_DownTimes", "DownTimes", BuiltInType.UInt32, ValueRanks.Scalar);
+            downtimes.Value = 1;
+
+            BaseDataVariableState enabled = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_Enabled", "Enabled", BuiltInType.UInt32, ValueRanks.Scalar);
+            enabled.Value = 1;
+
+            var nodes = new List<BaseDataVariableState> {
+                speed,
+                badpieces,
+                goodpieces,
+                downtimes,
+                enabled
+            };
+
+            variables.Add(speed);
+            variables.Add(goodpieces);
+            variables.Add(badpieces);
+            variables.Add(downtimes);
+            variables.Add(enabled);
+
+            m_prod_nodes_list.Add(nodes);
+        }
+
+        Timer m_timer;
+        List<List<BaseDataVariableState>> m_prod_nodes_list = new List<List<BaseDataVariableState>>();
+        private void UpdateCountersForProductionLine(object state)
+        {
+            try
+            {
+                lock (Lock)
+                {
+                    Debug.WriteLine(String.Format("Started timer for {0} production lines", m_prod_nodes_list.Count));
+                    foreach (var nodes in m_prod_nodes_list)
+                    {
+                        Debug.WriteLine(String.Format("Line: {0} - Speed is {1}, Good Pieces are {2}, Bad Pieces are {3}",
+                            nodes[0].BrowseName.ToString(),
+                            nodes[0].Value.ToString(),
+                            nodes[2].Value.ToString(),
+                            nodes[1].Value.ToString()
+                            ));
+                        foreach (var item in nodes)
+                        {
+                            item.Timestamp = DateTime.UtcNow;
+                            item.Value = GetNewCounterValue(nodes, item);
+                            item.ClearChangeMasks(SystemContext, false);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine("Error updating counters: {0}", e.Message);
+            }
+        }
+
+        private enum PROD_INDEXES
+        {
+            SPEED = 0,
+            BAD = 1,
+            GOOD = 2,
+            DOWNTIME = 3,
+            ENABLED = 4
+        }
+
+        private Random m_random = new Random();
+        private double previousspeed;
+        private double _badPieceRate;
+        private Dictionary<string, bool> prevDisabled = new Dictionary<string, bool>();
+
+        private uint GetNewCounterValue(List<BaseDataVariableState> list, BaseDataVariableState item)
+        {
+            try
+            {
+                var speed = UInt32.Parse(list[0].Value.ToString());
+                var bad = UInt32.Parse(list[1].Value.ToString());
+                var good = UInt32.Parse(list[2].Value.ToString());
+                var downtimes = UInt32.Parse(list[3].Value.ToString());
+                var enabled = UInt32.Parse(list[4].Value.ToString());
+
+
+                switch (item.DisplayName.Text)
+                {
+                    case "MachineSpeed":
+                        previousspeed = speed;
+                        if (enabled < 1)
+                        {
+                            prevDisabled[item.NodeId.ToString()] = true;
+                            return 0;
+                        }
+                        if (downtimes > 0)
+                        {
+                            if (speed != 0)
+                            {
+                                if (m_random.Next(0, 1000) <= 2)
+                                {
+                                    return 0;
+                                };
+                            } else
+                            {
+                                try
+                                {
+                                    if (prevDisabled[item.NodeId.ToString()])
+                                    {
+                                        prevDisabled[item.NodeId.ToString()] = false;
+                                        return (uint)m_random.Next(600, 700);
+                                    }
+                                }
+                                catch (KeyNotFoundException)
+                                {
+
+                                }
+                                if (m_random.Next(0, 1000) >= 5)
+                                {
+                                    return 0;
+                                }
+                            }
+                        }
+                        return (uint)m_random.Next(600, 700);
+                    case "BadPieces":
+                        _badPieceRate = (uint)m_random.Next(0, 10);
+                        if (bad >= 100000)
+                        {
+                            return (uint)((_badPieceRate / 100) * (previousspeed / 60));
+                        }
+                        return (uint)Math.Round(bad + _badPieceRate / 100 * (previousspeed / 60));
+
+                    case "GoodPieces":
+                        if (good >= 100000)
+                        {
+                            return (uint)((previousspeed / 60) - ((previousspeed / 60) * (_badPieceRate / 100)));
+                        }
+                        return (uint)(good + ((previousspeed / 60) - ((previousspeed / 60) * (_badPieceRate / 100))));
+                    default:
+                        return UInt32.Parse(item.Value.ToString());
+                }
+            }
+            catch (Exception e)
+            {
+
+                Debug.WriteLine(e.Message);
+            }
+            return default;
         }
 
         private ServiceResult OnWriteMyCompanyEmployeeCount(ISystemContext ctx, NodeState node, ref object value)

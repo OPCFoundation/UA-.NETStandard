@@ -272,7 +272,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!--TraceMasks>519</TraceMasks -->
+    <!--TraceMasks>519</TraceMasks-->
   </TraceConfiguration>
   
 </ApplicationConfiguration>
