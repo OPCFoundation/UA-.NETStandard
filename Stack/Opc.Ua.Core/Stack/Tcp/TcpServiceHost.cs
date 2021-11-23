@@ -118,8 +118,7 @@ namespace Opc.Ua.Bindings
                     }
 
                     serverBase.CreateServiceHostEndpoint(uri.Uri, listenerEndpoints, endpointConfiguration, listener,
-                        configuration.CertificateValidator.GetChannelValidator()
-                        );
+                        configuration.CertificateValidator.GetChannelValidator());
 
                     endpoints.AddRange(listenerEndpoints);
                 }

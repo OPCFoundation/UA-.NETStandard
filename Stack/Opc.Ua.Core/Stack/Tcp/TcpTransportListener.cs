@@ -284,10 +284,23 @@ namespace Opc.Ua.Bindings
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                // create IPv4 socket.
+                bool bindToSpecifiedAddress = true;
+                UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+                if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+                {
+                    bindToSpecifiedAddress = false;
+                }
+
+                IPAddress ipAddress = IPAddress.Any;
+                if (bindToSpecifiedAddress)
+                {
+                    ipAddress = IPAddress.Parse(m_uri.Host);
+                }
+             
+                // create IPv4 or IPv6 socket.
                 try
                 {
-                    IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, port);
+                    IPEndPoint endpoint = new IPEndPoint(ipAddress, port);
                     m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                     SocketAsyncEventArgs args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
@@ -310,32 +323,34 @@ namespace Opc.Ua.Bindings
                     Utils.Trace(ex, "Failed to create IPv4 listening socket.");
                 }
 
-                // create IPv6 socket
-                try
+                if (ipAddress == IPAddress.Any)
                 {
-                    IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
-                    m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocketIPv6;
-                    m_listeningSocketIPv6.Bind(endpointIPv6);
-                    m_listeningSocketIPv6.Listen(Int32.MaxValue);
-                    if (!m_listeningSocketIPv6.AcceptAsync(args))
+                    // create IPv6 socket
+                    try
                     {
-                        OnAccept(null, args);
+                        IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
+                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                        SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                        args.Completed += OnAccept;
+                        args.UserToken = m_listeningSocketIPv6;
+                        m_listeningSocketIPv6.Bind(endpointIPv6);
+                        m_listeningSocketIPv6.Listen(Int32.MaxValue);
+                        if (!m_listeningSocketIPv6.AcceptAsync(args))
+                        {
+                            OnAccept(null, args);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // no IPv6 support
+                        if (m_listeningSocketIPv6 != null)
+                        {
+                            m_listeningSocketIPv6.Dispose();
+                            m_listeningSocketIPv6 = null;
+                        }
+                        Utils.Trace("failed to create IPv6 listening socket: " + ex.Message);
                     }
                 }
-                catch (Exception ex)
-                {
-                    // no IPv6 support
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        m_listeningSocketIPv6.Dispose();
-                        m_listeningSocketIPv6 = null;
-                    }
-                    Utils.Trace(ex, "Failed to create IPv6 listening socket.");
-                }
-
                 if (m_listeningSocketIPv6 == null && m_listeningSocket == null)
                 {
                     throw ServiceResultException.Create(
