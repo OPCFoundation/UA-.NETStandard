@@ -11,8 +11,21 @@ namespace Opc.Ua
     /// <summary>
     /// ILogger extension methods for common scenarios.
     /// </summary>
-    public static class LoggerExtensions
+    public static class Log
     {
+        /// <summary>
+        /// Logger abstraction.
+        /// </summary>
+        public static ILogger Logger { get; private set; } = new TraceEventLogger();
+
+        /// <summary>
+        /// Sets the logger.
+        /// </summary>
+        public static void SetLogger(ILogger logger)
+        {
+            Logger = logger;
+        }
+
         //------------------------------------------DEBUG------------------------------------------//
 
         /// <summary>
@@ -412,6 +425,7 @@ namespace Opc.Ua
             }
         }
 
+        ///
         private static int GetTraceMask(EventId eventId, LogLevel logLevel)
         {
             int mask = eventId.Id & 0x1ff;
