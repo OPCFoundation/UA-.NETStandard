@@ -44,7 +44,7 @@ jobs:
       command: restore
       projects: '**/@(Console|NetCore)*.csproj'
       # note: /p:RCS=true is used to enable the Roslynator build analyzer
-      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
+      restoreArguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
@@ -64,7 +64,7 @@ jobs:
     inputs:
       command: restore
       projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
+      restoreArguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
