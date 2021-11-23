@@ -43,13 +43,14 @@ jobs:
     inputs:
       command: restore
       projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }}'
+      # note: /p:RCS=true is used to enable the Roslynator build analyzer
+      arguments: '--framework ${{ parameters.framework }} --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Release Build
     inputs:
       command: build
       projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }}'
+      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Release ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Release Pack 
     condition: eq(variables['poolImage'], 'windows-2022')
@@ -63,13 +64,13 @@ jobs:
     inputs:
       command: restore
       projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }}'
+      arguments: '--framework ${{ parameters.framework }} --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Debug Build
     inputs:
       command: build
       projects: '**/@(Console|NetCore)*.csproj'
-      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }}'
+      arguments: '--framework ${{ parameters.framework }} --no-restore --configuration Debug ${{ parameters.buildoption }} /p:RCS=true'
   - task: DotNetCoreCLI@2
     displayName: Debug Pack 
     condition: eq(variables['poolImage'], 'windows-2022')
