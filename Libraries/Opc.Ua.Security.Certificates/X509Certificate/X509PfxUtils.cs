@@ -55,18 +55,26 @@ namespace Opc.Ua.Security.Certificates
                 using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
                 using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
                 {
-                    X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                    if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+                    // For non RSA certificates, RSA keys are null
+                    if (rsaPrivateKey != null && rsaPublicKey != null)
                     {
-                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                    }
-                    else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                    {
-                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                        X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+                        if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
+                        {
+                            result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                        }
+                        else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+                        {
+                            result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
+                        }
+                        else
+                        {
+                            throw new CryptographicException("Don't know how to verify the public/private key pair.");
+                        }
                     }
                     else
                     {
-                        throw new CryptographicException("Don't know how to verify the public/private key pair.");
+                        throw new CryptographicException("The certificate does not contain a RSA public/private key pair.");
                     }
                 }
             }

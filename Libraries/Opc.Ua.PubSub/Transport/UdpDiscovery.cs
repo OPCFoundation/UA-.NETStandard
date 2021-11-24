@@ -94,7 +94,7 @@ namespace Opc.Ua.PubSub.Transport
                     // initialize Discovery channels
                     m_discoveryUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Discovery, DiscoveryNetworkInterfaceName, DiscoveryNetworkAddressEndPoint);                    
                 }
-            });
+            }).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
 
-            await Task.CompletedTask;
+            await Task.CompletedTask.ConfigureAwait(false);
         }
         #endregion
                

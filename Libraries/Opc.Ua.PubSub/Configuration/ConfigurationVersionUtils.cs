@@ -35,7 +35,7 @@ namespace Opc.Ua.PubSub.Configuration
     /// <summary>
     /// Helper class that calculates the ConfigurationVersion for MetaData 
     /// </summary>
-    public class ConfigurationVersionUtils
+    public static class ConfigurationVersionUtils
     {
         // The epoch date is midnight UTC (00:00) on January 1, 2000.
         private static readonly DateTime kEpochDate = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
