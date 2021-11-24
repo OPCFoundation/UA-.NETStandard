@@ -37,7 +37,7 @@ using System.ComponentModel;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
-    public class MessagesHelper
+    public static class MessagesHelper
     {
         /// <summary>
         /// Ua data message type
