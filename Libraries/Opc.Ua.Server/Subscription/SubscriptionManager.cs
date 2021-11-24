@@ -1121,11 +1121,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Attaches a groups a subscriptions to a different sesssion.
+        /// Attaches a groups of subscriptions to a different session.
         /// </summary>
         public void TransferSubscriptions(
             OperationContext             context,
             UInt32Collection             subscriptionIds,
+            bool sendInitialValues,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
@@ -1144,11 +1145,36 @@ namespace Opc.Ua.Server
                     if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out subscription))
                     {
                         result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                        results.Add(result);
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            diagnosticInfos.Add(null);
+                        }
                         continue;
                     }
                 }
 
-                result.StatusCode = StatusCodes.BadNotImplemented;
+                // TODO: validate credentials of sessions
+                // if (subscription.Session.ClientCertificate != 
+
+                // transfer session
+                subscription.TransferSession(context.Session);
+
+                if (sendInitialValues)
+                {
+                    // TODO
+                }
+
+                // ok
+                result.StatusCode = StatusCodes.Good;
+
+                // save results.
+                results.Add(result);
+
+                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    diagnosticInfos.Add(null);
+                }
             }
         }
 

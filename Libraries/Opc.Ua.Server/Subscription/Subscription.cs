@@ -518,6 +518,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Transfers the subscription to a new session.
+        /// </summary>
+        /// <param name="session">The session to which the subscription is transferred.</param>
+        public void TransferSession(Session session)
+        {
+            lock (m_lock)
+            {
+                m_session = session;
+            }
+
+            // TODO: transfer monitored items
+
+            lock (DiagnosticsWriteLock)
+            {
+                m_diagnostics.SessionId = m_session.Id;
+            }
+        }
+
+        /// <summary>
         /// Tells the subscription that the owning session is being closed.
         /// </summary>
         public void SessionClosed()
@@ -2019,7 +2038,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // build list of items to refresh.
-                if ( m_monitoredItems.ContainsKey(monitoredItemId) )
+                if (m_monitoredItems.ContainsKey(monitoredItemId))
                 {
                     LinkedListNode<IMonitoredItem> monitoredItem = m_monitoredItems[monitoredItemId];
 
@@ -2034,7 +2053,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid,
-                        "Cannot refresh conditions for a monitored item that does not exist.") ;
+                        "Cannot refresh conditions for a monitored item that does not exist.");
                 }
 
                 // nothing to do if no event subscriptions.
@@ -2050,12 +2069,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Refreshes the conditions.  Works for both ConditionRefresh and ConditionRefresh2
         /// </summary>
-        private void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId )
+        private void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId)
         {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
 
             string messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}.", m_id);
-            if ( monitoredItemId > 0 )
+            if (monitoredItemId > 0)
             {
                 messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}, monitored item {1}.", m_id, monitoredItemId);
             }
@@ -2070,7 +2089,7 @@ namespace Opc.Ua.Server
                 message = new TranslationInfo(
                     "RefreshStartEvent",
                     "en-US",
-                    String.Format(messageTemplate, "started") );
+                    String.Format(messageTemplate, "started"));
 
                 e.Initialize(
                     systemContext,

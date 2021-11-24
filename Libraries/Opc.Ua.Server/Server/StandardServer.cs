@@ -1311,6 +1311,63 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="subscriptionIds">The list of Subscriptions to delete.</param>
+        /// <param name="sendInitialValues">If the initial values should be sent.</param>
+        /// <param name="results">The list of result StatusCodes for the Subscriptions to delete.</param>
+        /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
+        public override ResponseHeader TransferSubscriptions(
+            RequestHeader                requestHeader,
+            UInt32Collection             subscriptionIds,
+            bool                         sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            results = null;
+            diagnosticInfos = null;
+
+#if TODO
+            return CreateResponse(requestHeader, StatusCodes.BadServiceUnsupported);
+#else
+            OperationContext context = ValidateRequest(requestHeader, RequestType.TransferSubscriptions);
+
+            try
+            {
+                ValidateOperationLimits(subscriptionIds);
+
+                ServerInternal.SubscriptionManager.TransferSubscriptions(
+                    context,
+                    subscriptionIds,
+                    sendInitialValues,
+                    out results,
+                    out diagnosticInfos);
+
+                return CreateResponse(requestHeader, context.StringTable);
+            }
+            catch (ServiceResultException e)
+            {
+                lock (ServerInternal.DiagnosticsWriteLock)
+                {
+                    ServerInternal.ServerDiagnostics.RejectedRequestsCount++;
+
+                    if (IsSecurityError(e.StatusCode))
+                    {
+                        ServerInternal.ServerDiagnostics.SecurityRejectedRequestsCount++;
+                    }
+                }
+
+                throw TranslateException(context, e);
+            }
+            finally
+            {
+                OnRequestComplete(context);
+            }
+#endif
+        }
+
+        /// <summary>
         /// Invokes the DeleteSubscriptions service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
