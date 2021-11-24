@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem
+    public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem, ITransferableMonitoredItem
     {
         #region Constructors
         /// <summary>
@@ -346,6 +346,13 @@ namespace Opc.Ua.Server
                     return m_session;
                 }
             }
+            set
+            {
+                lock(m_lock)
+                {
+                    m_session = value;
+                }
+            }
         }
 
         /// <summary>
@@ -446,7 +453,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns a description of the item being monitored. 
+        /// Returns a description of the item being monitored.
         /// </summary>
         public ReadValueId GetReadValueId()
         {
@@ -627,7 +634,7 @@ namespace Opc.Ua.Server
 
                 m_samplingInterval = samplingInterval;
 
-                // calculate the next sampling interval.                
+                // calculate the next sampling interval.
                 long newSamplingInterval = (long)m_samplingInterval;
 
                 if (m_samplingInterval > 0)
@@ -720,7 +727,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // this method should only be called for variables. 
+                // this method should only be called for variables.
                 if ((m_typeMask & MonitoredItemTypeMask.DataChange) == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
@@ -928,7 +935,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                // this method should only be called for objects or views. 
+                // this method should only be called for objects or views.
                 if ((m_typeMask & MonitoredItemTypeMask.Events) == 0)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);

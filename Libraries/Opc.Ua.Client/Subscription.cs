@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -376,7 +376,7 @@ namespace Opc.Ua.Client
         /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
         /// </value>
         /// <remarks>
-        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in a "single-threaded" manner and callbacks will not be invoked in parallel. 
+        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in a "single-threaded" manner and callbacks will not be invoked in parallel.
         /// </remarks>
         [DataMember(Order = 13)]
         public bool SequentialPublishing
@@ -809,7 +809,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // supress exception if silent flag is set. 
+            // supress exception if silent flag is set.
             catch (Exception e)
             {
                 if (!silent)
@@ -1752,7 +1752,7 @@ namespace Opc.Ua.Client
                     {
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
-                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) //If sequential publishing is enabled, only release messages in perfect sequence. 
+                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) //If sequential publishing is enabled, only release messages in perfect sequence.
                         {
                             if (messagesToProcess == null)
                             {
@@ -2165,7 +2165,7 @@ namespace Opc.Ua.Client
                 // save the message.
                 eventFields.Message = message;
 
-                // save in cache.                                             
+                // save in cache.
                 monitoredItem.SaveValueInCache(eventFields);
             }
         }
@@ -2279,12 +2279,12 @@ namespace Opc.Ua.Client
         Modified = 0x04,
 
         /// <summary>
-        /// Monitored items were added to the subscription (but not created on the server) 
+        /// Monitored items were added to the subscription (but not created on the server)
         /// </summary>
         ItemsAdded = 0x08,
 
         /// <summary>
-        /// Monitored items were removed to the subscription (but not deleted on the server) 
+        /// Monitored items were removed to the subscription (but not deleted on the server)
         /// </summary>
         ItemsRemoved = 0x10,
 

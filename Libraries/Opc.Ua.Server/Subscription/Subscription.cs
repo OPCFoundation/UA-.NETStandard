@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
             m_maxMessageCount = maxMessageCount;
             m_sentMessages = new List<NotificationMessage>();
 
-            m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
+            m_monitoredItems = new Dictionary<uint, IMonitoredItem>();
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
             m_itemsToPublish = new LinkedList<IMonitoredItem>();
             m_itemsToTrigger = new Dictionary<uint, List<ITriggeredMonitoredItem>>();
@@ -521,14 +521,33 @@ namespace Opc.Ua.Server
         /// Transfers the subscription to a new session.
         /// </summary>
         /// <param name="session">The session to which the subscription is transferred.</param>
-        public void TransferSession(Session session)
+        /// <param name="sendInitialValues">the first Publish response(s) after the TransferSubscriptions
+        /// call shall contain the current values of all Monitored Items in the Subscription where the
+        /// Monitoring Mode is set to Reporting.</param>
+        public void TransferSession(Session session, bool sendInitialValues)
         {
             lock (m_lock)
             {
                 m_session = session;
             }
 
-            // TODO: transfer monitored items
+            foreach(var monitoredItem in m_monitoredItems.Values)
+            {
+                var transferableMonitoredItem = (monitoredItem as ITransferableMonitoredItem);
+                if (transferableMonitoredItem != null)
+                {
+                    transferableMonitoredItem.Session = session;
+                }
+
+                if (sendInitialValues)
+                {
+                    var triggeredMonitoredItem = (monitoredItem as ITriggeredMonitoredItem);
+                    if (triggeredMonitoredItem != null)
+                    {
+                        triggeredMonitoredItem.SetTriggered();
+                    }
+                }
+            }
 
             lock (DiagnosticsWriteLock)
             {
@@ -860,7 +879,7 @@ namespace Opc.Ua.Server
                 // create a keep alive message.
                 NotificationMessage message = new NotificationMessage();
 
-                // use the sequence number for the next message.                    
+                // use the sequence number for the next message.
                 message.SequenceNumber = (uint)m_sequenceNumber;
                 message.PublishTime = DateTime.UtcNow;
 
@@ -1181,9 +1200,7 @@ namespace Opc.Ua.Server
                 ResetLifetimeCount();
 
                 // look up triggering item.
-                LinkedListNode<IMonitoredItem> triggerNode = null;
-
-                if (!m_monitoredItems.TryGetValue(triggeringItemId, out triggerNode))
+                if (!m_monitoredItems.TryGetValue(triggeringItemId, out var triggerNode))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -1240,9 +1257,7 @@ namespace Opc.Ua.Server
                 {
                     addResults.Add(StatusCodes.Good);
 
-                    LinkedListNode<IMonitoredItem> node = null;
-
-                    if (!m_monitoredItems.TryGetValue(linksToAdd[ii], out node))
+                    if (!m_monitoredItems.TryGetValue(linksToAdd[ii], out var node))
                     {
                         addResults[ii] = StatusCodes.BadMonitoredItemIdInvalid;
 
@@ -1258,7 +1273,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check if triggering interface is supported.
-                    ITriggeredMonitoredItem triggeredItem = node.Value as ITriggeredMonitoredItem;
+                    ITriggeredMonitoredItem triggeredItem = node as ITriggeredMonitoredItem;
 
                     if (triggeredItem == null)
                     {
@@ -1399,7 +1414,7 @@ namespace Opc.Ua.Server
                             monitoredItem.SubscriptionCallback = this;
 
                             LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
-                            m_monitoredItems.Add(monitoredItem.Id, node);
+                            m_monitoredItems.Add(monitoredItem.Id, node.Value);
 
                             errors[ii] = monitoredItem.GetCreateResult(out result);
 
@@ -1552,9 +1567,7 @@ namespace Opc.Ua.Server
                 {
                     filterResults.Add(null);
 
-                    LinkedListNode<IMonitoredItem> node = null;
-
-                    if (!m_monitoredItems.TryGetValue(itemsToModify[ii].MonitoredItemId, out node))
+                    if (!m_monitoredItems.TryGetValue(itemsToModify[ii].MonitoredItemId, out var monitoredItem))
                     {
                         monitoredItems.Add(null);
                         errors.Add(StatusCodes.BadMonitoredItemIdInvalid);
@@ -1570,7 +1583,6 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IMonitoredItem monitoredItem = node.Value;
                     monitoredItems.Add(monitoredItem);
                     originalSamplingIntervals[ii] = monitoredItem.SamplingInterval;
 
@@ -1713,11 +1725,10 @@ namespace Opc.Ua.Server
                 // clear lifetime counter.
                 ResetLifetimeCount();
 
+                var idsToList = new List<uint>();
                 for (int ii = 0; ii < count; ii++)
                 {
-                    LinkedListNode<IMonitoredItem> node = null;
-
-                    if (!m_monitoredItems.TryGetValue(monitoredItemIds[ii], out node))
+                    if (!m_monitoredItems.TryGetValue(monitoredItemIds[ii], out var monitoredItem))
                     {
                         monitoredItems.Add(null);
                         errors.Add(StatusCodes.BadMonitoredItemIdInvalid);
@@ -1733,7 +1744,6 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IMonitoredItem monitoredItem = node.Value;
                     monitoredItems.Add(monitoredItem);
 
                     // remove the item from the internal lists.
@@ -1754,11 +1764,7 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
-
-                    if (node.List != null)
-                    {
-                        node.List.Remove(node);
-                    }
+                    idsToList.Remove(monitoredItemIds[ii]);
 
                     originalSamplingIntervals[ii] = monitoredItem.SamplingInterval;
                     originalMonitoringModes[ii] = monitoredItem.MonitoringMode;
@@ -1771,6 +1777,11 @@ namespace Opc.Ua.Server
                     {
                         diagnosticInfos.Add(null);
                     }
+                }
+
+                foreach(var id in idsToList)
+                {
+                    m_monitoredItems.Remove(id);
                 }
             }
 
@@ -1867,9 +1878,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < count; ii++)
                 {
-                    LinkedListNode<IMonitoredItem> node = null;
-
-                    if (!m_monitoredItems.TryGetValue(monitoredItemIds[ii], out node))
+                    if (!m_monitoredItems.TryGetValue(monitoredItemIds[ii], out var monitoredItem))
                     {
                         monitoredItems.Add(null);
                         errors.Add(StatusCodes.BadMonitoredItemIdInvalid);
@@ -1885,7 +1894,6 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IMonitoredItem monitoredItem = node.Value;
                     monitoredItems.Add(monitoredItem);
                     originalMonitoringModes[ii] = monitoredItem.MonitoringMode;
 
@@ -2007,9 +2015,9 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // build list of items to refresh.
-                foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
+                foreach (IMonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+                    MonitoredItem eventMonitoredItem = monitoredItem as MonitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2040,9 +2048,9 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 if (m_monitoredItems.ContainsKey(monitoredItemId))
                 {
-                    LinkedListNode<IMonitoredItem> monitoredItem = m_monitoredItems[monitoredItemId];
+                    IMonitoredItem monitoredItem = m_monitoredItems[monitoredItemId];
 
-                    MonitoredItem eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+                    MonitoredItem eventMonitoredItem = monitoredItem as MonitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2182,10 +2190,10 @@ namespace Opc.Ua.Server
 
                 int ii = 0;
 
-                foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> entry in m_monitoredItems)
+                foreach (KeyValuePair<uint, IMonitoredItem> entry in m_monitoredItems)
                 {
                     serverHandles[ii] = entry.Key;
-                    clientHandles[ii] = entry.Value.Value.ClientHandle;
+                    clientHandles[ii] = entry.Value.ClientHandle;
                     ii++;
                 }
             }
@@ -2279,7 +2287,7 @@ namespace Opc.Ua.Server
         private int m_lastSentMessage;
         private long m_sequenceNumber;
         private uint m_maxMessageCount;
-        private Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
+        private Dictionary<uint, IMonitoredItem> m_monitoredItems;
         private LinkedList<IMonitoredItem> m_itemsToCheck;
         private LinkedList<IMonitoredItem> m_itemsToPublish;
         private NodeId m_diagnosticsId;

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -33,13 +33,13 @@ using System.Diagnostics;
 using System.Xml;
 using System.Threading;
 
-namespace Opc.Ua.Server 
+namespace Opc.Ua.Server
 {
 	/// <summary>
 	/// Manages a monitored item created by a client.
 	/// </summary>
 	public interface IMonitoredItem
-    {        
+    {
 		/// <summary>
 		/// The node manager that created the item.
 		/// </summary>
@@ -53,8 +53,8 @@ namespace Opc.Ua.Server
 		/// <summary>
 		/// The identifier for the item that is unique within the server.
 		/// </summary>
-		uint Id { get; } 
-        
+		uint Id { get; }
+
 		/// <summary>
 		/// The identifier for the subscription that is unique within the server.
 		/// </summary>
@@ -63,17 +63,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The identifier for the client handle assigned to the monitored item.
         /// </summary>
-        uint ClientHandle { get; } 
+        uint ClientHandle { get; }
 
         /// <summary>
         /// The object to call when item is ready to publish.
         /// </summary>
-        ISubscription SubscriptionCallback { get; set; } 
+        ISubscription SubscriptionCallback { get; set; }
 
 		/// <summary>
 		/// The handle assigned by the NodeManager.
 		/// </summary>
-		object ManagerHandle { get; } 
+		object ManagerHandle { get; }
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
         /// </summary>
         double SamplingInterval { get; }
 	}
-    
+
 	/// <summary>
 	/// A monitored item that can be triggered.
 	/// </summary>
@@ -123,13 +123,24 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The identifier for the item that is unique within the server.
         /// </summary>
-        uint Id { get; } 
-        
+        uint Id { get; }
+
         /// <summary>
         /// Flags the monitored item as triggered.
         /// </summary>
         /// <returns>True if there is something to publish.</returns>
         bool SetTriggered();
+    }
+
+    /// <summary>
+    /// A monitored item were the base subscription can be transfered
+    /// </summary>
+    public interface ITransferableMonitoredItem
+    {
+        /// <summary>
+		/// The session that owns the monitored item.
+		/// </summary>
+		Session Session { get; set; }
     }
 
 	/// <summary>
@@ -146,7 +157,7 @@ namespace Opc.Ua.Server
         /// Adds an event to the queue.
         /// </summary>
         void QueueEvent(IFilterTarget instance);
-        
+
 		/// <summary>
 		/// The filter used by the monitored item.
 		/// </summary>
@@ -177,7 +188,7 @@ namespace Opc.Ua.Server
         /// </summary>
         void SetMonitoringMode(MonitoringMode monitoringMode);
 	}
-    
+
 	/// <summary>
 	/// Manages a monitored item created by a client.
 	/// </summary>
@@ -187,7 +198,7 @@ namespace Opc.Ua.Server
 		/// Updates the queue with a data value or an error.
 		/// </summary>
 		void QueueValue(DataValue value, ServiceResult error);
-        
+
 		/// <summary>
 		/// The filter used by the monitored item.
 		/// </summary>
@@ -198,11 +209,11 @@ namespace Opc.Ua.Server
 		/// </summary>
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
 		bool Publish(
-            OperationContext                 context, 
+            OperationContext                 context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics);
 	}
-    
+
 	/// <summary>
 	/// Manages a monitored item created by a client.
 	/// </summary>
@@ -223,7 +234,7 @@ namespace Opc.Ua.Server
     /// Manages a monitored item created by a client.
     /// </summary>
     public interface ISampledDataChangeMonitoredItem : IDataChangeMonitoredItem2
-    {  
+    {
         /// <summary>
         /// The diagnostics mask specified fro the monitored item.
         /// </summary>
@@ -238,7 +249,7 @@ namespace Opc.Ua.Server
         /// The minimum sampling interval for the item.
         /// </summary>
         double MinimumSamplingInterval { get; }
-        
+
         /// <summary>
         /// Used to check whether the item is ready to sample.
         /// </summary>
@@ -262,12 +273,12 @@ namespace Opc.Ua.Server
             double             samplingInterval,
             uint               queueSize,
             bool               discardOldest);
-		
+
         /// <summary>
 		/// Changes the monitoring mode for the item.
 		/// </summary>
         void SetMonitoringMode(MonitoringMode monitoringMode);
-        
+
 		/// <summary>
 		/// Updates the sampling interval for an item.
 		/// </summary>

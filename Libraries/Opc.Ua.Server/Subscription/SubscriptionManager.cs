@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -1126,7 +1126,7 @@ namespace Opc.Ua.Server
         public void TransferSubscriptions(
             OperationContext             context,
             UInt32Collection             subscriptionIds,
-            bool sendInitialValues,
+            bool                         sendInitialValues,
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
@@ -1136,15 +1136,29 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < subscriptionIds.Count; ii++)
             {
                 TransferResult result = new TransferResult();
-
-                // find subscription.
-                Subscription subscription = null;
-
-                lock (m_lock)
+                try
                 {
-                    if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out subscription))
+                    // find subscription.
+                    Subscription subscription = null;
+                    lock (m_lock)
                     {
-                        result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                        if (!m_subscriptions.TryGetValue(subscriptionIds[ii], out subscription))
+                        {
+                            result.StatusCode = StatusCodes.BadSubscriptionIdInvalid;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // check if new and old sessions are different
+                    var oldSession = subscription.Session;
+                    if (oldSession.Id == context.Session.Id)
+                    {
+                        result.StatusCode = StatusCodes.BadNothingToDo;
                         results.Add(result);
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
@@ -1152,28 +1166,39 @@ namespace Opc.Ua.Server
                         }
                         continue;
                     }
+
+                    // TODO: validate credentials of sessions
+                    // The Server shall validate that the Client of that Session is operating on behalf of the same user
+                    // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
+                    // --> Bad_UserAccessDenied
+                    // --> Bad_InsufficientClientProfile
+                    // if (subscription.Session.ClientCertificate !=
+
+                    // transfer session
+                    subscription.TransferSession(context.Session, sendInitialValues);
+                    result.StatusCode = StatusCodes.Good;
+
+                    //TODO: Server shall issue a StatusChangeNotification notificationMessage with the status code Good_SubscriptionTransferred to the old Session.
+                    //oldSession.
+
+                    //TODO: If the Server transfers the Subscription, it returns the sequence numbers of the NotificationMessages that are available for retransmission.
+                    //The Client should acknowledge all Messages in this list for which it will not request retransmission.
+                    //result.AvailableSequenceNumbers =
+
+                    // save results.
+                    results.Add(result);
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                    {
+                        diagnosticInfos.Add(null);
+                    }
                 }
-
-                // TODO: validate credentials of sessions
-                // if (subscription.Session.ClientCertificate != 
-
-                // transfer session
-                subscription.TransferSession(context.Session);
-
-                if (sendInitialValues)
+                catch(Exception e)
                 {
-                    // TODO
-                }
-
-                // ok
-                result.StatusCode = StatusCodes.Good;
-
-                // save results.
-                results.Add(result);
-
-                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                {
-                    diagnosticInfos.Add(null);
+                    result.StatusCode = StatusCodes.Bad;
+                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                    {
+                        diagnosticInfos.Add(new DiagnosticInfo(e, context.DiagnosticsMask, false, null));
+                    }
                 }
             }
         }
