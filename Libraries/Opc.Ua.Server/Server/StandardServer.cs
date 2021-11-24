@@ -2060,9 +2060,9 @@ namespace Opc.Ua.Server
                 OnRequestComplete(context);
             }
         }
-        #endregion
+#endregion
 
-        #region Public Methods used by the Host Process
+#region Public Methods used by the Host Process
         /// <summary>
         /// The state object associated with the server.
         /// It provides the shared components for the Server.
@@ -2307,9 +2307,9 @@ namespace Opc.Ua.Server
                 Utils.Trace(e, "Unexpected exception handling registration timer.");
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Members used for Request Processing
+#region Protected Members used for Request Processing
         /// <summary>
         /// The synchronization object.
         /// </summary>
@@ -2429,10 +2429,10 @@ namespace Opc.Ua.Server
 
             OperationContext context = ServerInternal.SessionManager.ValidateRequest(requestHeader, requestType);
 
-            Utils.Trace(
-                (int)Utils.TraceMasks.Service,
-                "{0} Validated. ID={1}",
-                context.RequestType,
+            Utils.EventLog.ServerCall(
+                //(int)Utils.TraceMasks.Service,
+                //"{0} Validated. ID={1}",
+                context.RequestType.ToString(),
                 context.RequestId);
 
             // notify the request manager.
@@ -2567,9 +2567,9 @@ namespace Opc.Ua.Server
                 m_serverInternal.RequestManager.RequestCompleted(context);
             }
         }
-        #endregion
+#endregion
 
-        #region Protected Members used for Initialization
+#region Protected Members used for Initialization
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
@@ -3133,13 +3133,13 @@ namespace Opc.Ua.Server
         {
             // may be overridden by the subclass.
         }
-        #endregion
+#endregion
 
-        #region Private Properties
+#region Private Properties
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private readonly object m_lock = new object();
         private readonly object m_registrationLock = new object();
         private ServerInternalData m_serverInternal;
@@ -3152,6 +3152,6 @@ namespace Opc.Ua.Server
         private int m_lastRegistrationInterval;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        #endregion
+#endregion
     }
 }

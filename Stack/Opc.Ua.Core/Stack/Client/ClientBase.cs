@@ -403,9 +403,9 @@ namespace Opc.Ua
         {
             UpdateRequestHeader(request, useDefaults);
 
-            Utils.Trace(
-                (int)Utils.TraceMasks.Service, 
-                "{0} Called. RequestHandle={1}, PendingRequestCount={2}",
+            Utils.EventLog.ServiceCall(
+                //(int)Utils.TraceMasks.Service, 
+                //"{0} Called. RequestHandle={1}, PendingRequestCount={2}",
                 serviceName,
                 request.RequestHeader.RequestHandle,
                 Interlocked.Increment(ref m_pendingRequestCount));
@@ -441,19 +441,20 @@ namespace Opc.Ua
 
             if (statusCode != StatusCodes.Good)
             {
-                Utils.Trace(
-                    (int)Utils.TraceMasks.Service,
-                    "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}",
+                Utils.EventLog.ServiceCompletedBad(
+                    //(int)Utils.TraceMasks.Service,
+                    //"{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}",
                     serviceName,
                     requestHandle,
-                    statusCode,
-                    pendingRequestCount);
+                    statusCode.Code,
+                    pendingRequestCount
+                    );
             }
             else
             {
-                Utils.Trace(
-                    (int)Utils.TraceMasks.Service,
-                    "{0} Completed. RequestHandle={1}, PendingRequestCount={2}",
+                Utils.EventLog.ServiceCompleted(
+                    //(int)Utils.TraceMasks.Service,
+                    //"{0} Completed. RequestHandle={1}, PendingRequestCount={2}",
                     serviceName,
                     requestHandle,
                     pendingRequestCount);

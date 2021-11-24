@@ -389,10 +389,7 @@ namespace Opc.Ua
             {
                 result = new ServiceResult(sre);
 
-                Utils.Trace(
-                    Utils.TraceMasks.Service,
-                    "Service Fault Occured. Reason={0}",
-                    result);
+                Utils.EventLog.ServiceFault(result.Code);
             }
             else
             {

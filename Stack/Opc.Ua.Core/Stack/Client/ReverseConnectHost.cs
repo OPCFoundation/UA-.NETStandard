@@ -72,6 +72,8 @@ namespace Opc.Ua
                     ReverseConnectListener = true
                 };
 
+                Utils.Trace("Open reverse connect listener for {0}.", Url);
+
                 m_listener.Open(
                    Url,
                    settings,

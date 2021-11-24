@@ -1456,7 +1456,7 @@ namespace Opc.Ua
                             m_totalThreadCount++;
                             m_activeThreadCount++;  // new threads start in an active state
 
-                            Utils.Trace(Utils.TraceMasks.Error, "Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
+                            Utils.Trace("Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
                         }
                     }
                 }

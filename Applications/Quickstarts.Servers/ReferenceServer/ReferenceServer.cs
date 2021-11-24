@@ -61,7 +61,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            Utils.Trace("Creating the Node Managers.");
+            Utils.Trace(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Managers.");
 
             List<INodeManager> nodeManagers = new List<INodeManager>();
 
@@ -133,7 +133,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
-            Utils.Trace("The server is starting.");
+            Utils.Trace(Utils.TraceMasks.StartStop, "The server is starting.");
 
             base.OnServerStarting(configuration);
 
@@ -208,6 +208,8 @@ namespace Quickstarts.ReferenceServer
             {
                 args.Identity = VerifyPassword(userNameToken);
 
+                Utils.Trace(Utils.TraceMasks.Security, "Username Token Accepted: {0}", args.Identity?.DisplayName);
+
                 // set AuthenticatedUser role for accepted user/password authentication
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
 
@@ -228,7 +230,7 @@ namespace Quickstarts.ReferenceServer
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 args.Identity = new UserIdentity(x509Token);
-                Utils.Trace("X509 Token Accepted: {0}", args.Identity.DisplayName);
+                Utils.Trace(Utils.TraceMasks.Security, "X509 Token Accepted: {0}", args.Identity?.DisplayName);
 
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);

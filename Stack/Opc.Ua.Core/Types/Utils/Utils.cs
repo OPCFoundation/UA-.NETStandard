@@ -26,53 +26,52 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Net;
 using System.Collections.ObjectModel;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// Defines various static utility functions.
     /// </summary>
-    public static class Utils
+    public static partial class Utils
     {
         #region Public Constants
         /// <summary>
-        /// The URI scheme for the HTTP protocol. 
+        /// The URI scheme for the HTTP protocol.
         /// </summary>
         public const string UriSchemeHttp = "http";
 
         /// <summary>
-        /// The URI scheme for the HTTPS protocol. 
+        /// The URI scheme for the HTTPS protocol.
         /// </summary>
         public const string UriSchemeHttps = "https";
 
         /// <summary>
-        /// The URI scheme for the UA TCP protocol. 
+        /// The URI scheme for the UA TCP protocol.
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";
 
         /// <summary>
-        /// The URI scheme for the UA TCP protocol over Secure WebSockets. 
+        /// The URI scheme for the UA TCP protocol over Secure WebSockets.
         /// </summary>
         public const string UriSchemeOpcWss = "opc.wss";
 
         /// <summary>
-        /// The URI scheme for the UDP protocol. 
+        /// The URI scheme for the UDP protocol.
         /// </summary>
         public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
-        /// The URI scheme for the MQTT protocol. 
+        /// The URI scheme for the MQTT protocol.
         /// </summary>
         public const string UriSchemeMqtt = "mqtt";
 
         /// <summary>
-        /// The URI scheme for the MQTTS protocol. 
+        /// The URI scheme for the MQTTS protocol.
         /// </summary>
         public const string UriSchemeMqtts = "mqtts";
 
         /// <summary>
-        /// The URI schemes which are supported in the core server. 
+        /// The URI schemes which are supported in the core server.
         /// </summary>
         public static readonly string[] DefaultUriSchemes = new string[]
         {
@@ -143,11 +142,6 @@ namespace Opc.Ua
         #endregion
 
         #region Trace Support
-        /// <summary>
-        /// Logger abstraction.
-        /// </summary>
-        public static ILogger Logger { get; private set; } = new TraceEventLogger();
-
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
         private static int s_traceMasks = (int)TraceMasks.All;
@@ -157,7 +151,6 @@ namespace Opc.Ua
 #endif
 
         private static string s_traceFileName = string.Empty;
-        private static long s_baseLineTicks = DateTime.UtcNow.Ticks;
         private static object s_traceFileLock = new object();
 
         /// <summary>
@@ -246,18 +239,40 @@ namespace Opc.Ua
             /// <summary>
             /// Output all messages.
             /// </summary>
-            public const int All = 0x7FFFFFFF;
-        }
+            public const int All = 0x3FF;
 
-        /// <summary>
-        /// Sets the logger (thread safe).
-        /// </summary>
-        public static void SetLogger(ILogger logger)
-        {
-            lock (s_traceFileLock)
-            {
-                Logger = logger;
-            }
+            // The following Tracemasks are used to define
+            // zones for event ids
+
+            /// <summary>
+            /// A message from the server zone.
+            /// </summary>
+            public const int Server = 0x10000;
+
+            /// <summary>
+            /// A message from the client zone.
+            /// </summary>
+            public const int Client = 0x20000;
+
+            /// <summary>
+            /// A message related to monitored items.
+            /// </summary>
+            public const int MonitoredItem = 0x40000;
+
+            /// <summary>
+            /// A message related to subscriptions.
+            /// </summary>
+            public const int Subscription = 0x80000;
+
+            /// <summary>
+            /// A message related to PublishRequest.
+            /// </summary>
+            public const int PublishRequest = 0x100000;
+
+            /// <summary>
+            /// A message related to network transport.
+            /// </summary>
+            public const int MessageSocket = 0x200000;
         }
 
         /// <summary>
@@ -417,7 +432,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string message)
         {
-            Logger.LogTrace(message);
+            LogInformation(message);
         }
 
         /// <summary>
@@ -425,17 +440,16 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            Logger.LogTrace(format, args);
+            LogInformation(format, args);
         }
 
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
         [Conditional("DEBUG")]
-        //[Obsolete("Use Logger.LogDebug instead")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Logger.LogDebug(format, args);
+            LogDebug(format, args);
         }
 
         /// <summary>
@@ -443,7 +457,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(Exception e, string message)
         {
-            Logger.LogError(e, message);
+            LogError(e, message);
         }
 
         /// <summary>
@@ -451,7 +465,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(Exception e, string format, params object[] args)
         {
-            Logger.LogError(e, format, args);
+            LogError(e, format, args);
         }
 
         /// <summary>
@@ -525,21 +539,19 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
-            if ((traceMask & TraceMasks.Error) != 0)
+            const int InformationMask = (TraceMasks.Information | TraceMasks.StartStop | TraceMasks.Security);
+            const int ErrorMask = (TraceMasks.Error | TraceMasks.StackTrace);
+            if ((traceMask & ErrorMask) != 0)
             {
-                Logger.LogError(format, args);
+                LogError(traceMask, format, args);
             }
-            else if ((traceMask & TraceMasks.Security) != 0)
+            else if ((traceMask & InformationMask) != 0)
             {
-                Logger.LogWarning(traceMask, format, args);
-            }
-            else if ((traceMask & (TraceMasks.Information | TraceMasks.StartStop)) != 0)
-            {
-                Logger.LogInformation(format, args);
+                LogInformation(traceMask, format, args);
             }
             else
             {
-                Logger.LogTrace(traceMask, format, args);
+                LogTrace(traceMask, format, args);
             }
         }
 
@@ -1391,11 +1403,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a multidimension array to a flat array. 
+        /// Converts a multidimension array to a flat array.
         /// </summary>
         /// <remarks>
         /// The higher rank dimensions are written first.
-        /// e.g. a array with dimensions [2,2,2] is written in this order: 
+        /// e.g. a array with dimensions [2,2,2] is written in this order:
         /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
         /// </remarks>
         public static Array FlattenArray(Array array)
@@ -2690,7 +2702,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the linker timestamp for an assembly. 
+        /// Returns the linker timestamp for an assembly.
         /// </summary>
         public static DateTime GetAssemblyTimestamp()
         {
@@ -2727,7 +2739,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a XmlReaderSetting with safe defaults.
         /// DtdProcessing Prohibited, XmlResolver disabled and
-        /// ConformanceLevel Document. 
+        /// ConformanceLevel Document.
         /// </summary>
         internal static XmlReaderSettings DefaultXmlReaderSettings()
         {
@@ -2855,7 +2867,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Cryptographic Nonce helper functions. 
+        /// Cryptographic Nonce helper functions.
         /// </summary>
         public static class Nonce
         {

@@ -4,22 +4,26 @@
 using System;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// ILogger extension methods for common scenarios.
+    /// Logger Utils methods.
     /// </summary>
-    public static class Log
+    public static partial class Utils
     {
         /// <summary>
-        /// Logger abstraction.
+        /// The high performance EventSource log interface.
+        /// </summary>
+        public static OpcUaEventSource EventLog => OpcUaEventSource.Log;
+
+        /// <summary>
+        /// ILogger abstraction used by all Utils.LogXXX methods.
         /// </summary>
         public static ILogger Logger { get; private set; } = new TraceEventLogger();
 
         /// <summary>
-        /// Sets the logger.
+        /// Sets the ILogger.
         /// </summary>
         public static void SetLogger(ILogger logger)
         {
@@ -31,57 +35,53 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a debug log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogDebug(0, exception, "Error while processing request from {Address}", address)</example>
+        /// <example>LogDebug(0, exception, "Error while processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
-        public static void LogDebug(this ILogger logger, EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogDebug(EventId eventId, Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Debug, eventId, exception, message, args);
+            Log(LogLevel.Debug, eventId, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a debug log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogDebug(0, "Processing request from {Address}", address)</example>
+        /// <example>LogDebug(0, "Processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
-        public static void LogDebug(this ILogger logger, EventId eventId, string message, params object[] args)
+        public static void LogDebug(EventId eventId, string message, params object[] args)
         {
-            logger.Log(LogLevel.Debug, eventId, message, args);
+            Log(LogLevel.Debug, eventId, message, args);
         }
 
         /// <summary>
         /// Formats and writes a debug log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogDebug(exception, "Error while processing request from {Address}", address)</example>
+        /// <example>LogDebug(exception, "Error while processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
-        public static void LogDebug(this ILogger logger, Exception exception, string message, params object[] args)
+        public static void LogDebug(Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Debug, exception, message, args);
+            Log(LogLevel.Debug, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a debug log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogDebug("Processing request from {Address}", address)</example>
+        /// <example>LogDebug("Processing request from {Address}", address)</example>
         [Conditional("DEBUG")]
-        public static void LogDebug(this ILogger logger, string message, params object[] args)
+        public static void LogDebug(string message, params object[] args)
         {
-            logger.Log(LogLevel.Debug, message, args);
+            Log(LogLevel.Debug, message, args);
         }
 
         //------------------------------------------TRACE------------------------------------------//
@@ -89,53 +89,49 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a trace log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogTrace(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogTrace(this ILogger logger, EventId eventId, Exception exception, string message, params object[] args)
+        /// <example>LogTrace(0, exception, "Error while processing request from {Address}", address)</example>
+        public static void LogTrace(EventId eventId, Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Trace, eventId, exception, message, args);
+            Log(LogLevel.Trace, eventId, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a trace log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogTrace(0, "Processing request from {Address}", address)</example>
-        public static void LogTrace(this ILogger logger, EventId eventId, string message, params object[] args)
+        /// <example>LogTrace(0, "Processing request from {Address}", address)</example>
+        public static void LogTrace(EventId eventId, string message, params object[] args)
         {
-            logger.Log(LogLevel.Trace, eventId, message, args);
+            Log(LogLevel.Trace, eventId, message, args);
         }
 
         /// <summary>
         /// Formats and writes a trace log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogTrace(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogTrace(this ILogger logger, Exception exception, string message, params object[] args)
+        /// <example>LogTrace(exception, "Error while processing request from {Address}", address)</example>
+        public static void LogTrace(Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Trace, exception, message, args);
+            Log(LogLevel.Trace, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a trace log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogTrace("Processing request from {Address}", address)</example>
-        public static void LogTrace(this ILogger logger, string message, params object[] args)
+        /// <example>LogTrace("Processing request from {Address}", address)</example>
+        public static void LogTrace(string message, params object[] args)
         {
-            logger.Log(LogLevel.Trace, message, args);
+            Log(LogLevel.Trace, message, args);
         }
 
         //------------------------------------------INFORMATION------------------------------------------//
@@ -143,53 +139,49 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes an informational log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInformation(this ILogger logger, EventId eventId, Exception exception, string message, params object[] args)
+        /// <example>LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
+        public static void LogInformation(EventId eventId, Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Information, eventId, exception, message, args);
+            Log(LogLevel.Information, eventId, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes an informational log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogInformation(0, "Processing request from {Address}", address)</example>
-        public static void LogInformation(this ILogger logger, EventId eventId, string message, params object[] args)
+        /// <example>LogInformation(0, "Processing request from {Address}", address)</example>
+        public static void LogInformation(EventId eventId, string message, params object[] args)
         {
-            logger.Log(LogLevel.Information, eventId, message, args);
+            Log(LogLevel.Information, eventId, message, args);
         }
 
         /// <summary>
         /// Formats and writes an informational log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogInformation(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInformation(this ILogger logger, Exception exception, string message, params object[] args)
+        /// <example>LogInformation(exception, "Error while processing request from {Address}", address)</example>
+        public static void LogInformation(Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Information, exception, message, args);
+            Log(LogLevel.Information, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes an informational log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogInformation("Processing request from {Address}", address)</example>
-        public static void LogInformation(this ILogger logger, string message, params object[] args)
+        /// <example>LogInformation("Processing request from {Address}", address)</example>
+        public static void LogInformation(string message, params object[] args)
         {
-            logger.Log(LogLevel.Information, message, args);
+            Log(LogLevel.Information, message, args);
         }
 
         //------------------------------------------WARNING------------------------------------------//
@@ -197,53 +189,49 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a warning log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogWarning(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogWarning(this ILogger logger, EventId eventId, Exception exception, string message, params object[] args)
+        /// <example>LogWarning(0, exception, "Error while processing request from {Address}", address)</example>
+        public static void LogWarning(EventId eventId, Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Warning, eventId, exception, message, args);
+            Log(LogLevel.Warning, eventId, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a warning log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogWarning(0, "Processing request from {Address}", address)</example>
-        public static void LogWarning(this ILogger logger, EventId eventId, string message, params object[] args)
+        /// <example>LogWarning(0, "Processing request from {Address}", address)</example>
+        public static void LogWarning(EventId eventId, string message, params object[] args)
         {
-            logger.Log(LogLevel.Warning, eventId, message, args);
+            Log(LogLevel.Warning, eventId, message, args);
         }
 
         /// <summary>
         /// Formats and writes a warning log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogWarning(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogWarning(this ILogger logger, Exception exception, string message, params object[] args)
+        /// <example>LogWarning(exception, "Error while processing request from {Address}", address)</example>
+        public static void LogWarning(Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Warning, exception, message, args);
+            Log(LogLevel.Warning, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a warning log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogWarning("Processing request from {Address}", address)</example>
-        public static void LogWarning(this ILogger logger, string message, params object[] args)
+        /// <example>LogWarning("Processing request from {Address}", address)</example>
+        public static void LogWarning(string message, params object[] args)
         {
-            logger.Log(LogLevel.Warning, message, args);
+            Log(LogLevel.Warning, message, args);
         }
 
         //------------------------------------------ERROR------------------------------------------//
@@ -251,53 +239,49 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes an error log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogError(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogError(this ILogger logger, EventId eventId, Exception exception, string message, params object[] args)
+        /// <example>LogError(0, exception, "Error while processing request from {Address}", address)</example>
+        public static void LogError(EventId eventId, Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Error, eventId, exception, message, args);
+            Log(LogLevel.Error, eventId, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes an error log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogError(0, "Processing request from {Address}", address)</example>
-        public static void LogError(this ILogger logger, EventId eventId, string message, params object[] args)
+        /// <example>LogError(0, "Processing request from {Address}", address)</example>
+        public static void LogError(EventId eventId, string message, params object[] args)
         {
-            logger.Log(LogLevel.Error, eventId, message, args);
+            Log(LogLevel.Error, eventId, message, args);
         }
 
         /// <summary>
         /// Formats and writes an error log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogError(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogError(this ILogger logger, Exception exception, string message, params object[] args)
+        /// <example>LogError(exception, "Error while processing request from {Address}", address)</example>
+        public static void LogError(Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Error, exception, message, args);
+            Log(LogLevel.Error, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes an error log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogError("Processing request from {Address}", address)</example>
-        public static void LogError(this ILogger logger, string message, params object[] args)
+        /// <example>LogError("Processing request from {Address}", address)</example>
+        public static void LogError(string message, params object[] args)
         {
-            logger.Log(LogLevel.Error, message, args);
+            Log(LogLevel.Error, message, args);
         }
 
         //------------------------------------------CRITICAL------------------------------------------//
@@ -305,140 +289,113 @@ namespace Opc.Ua
         /// <summary>
         /// Formats and writes a critical log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogCritical(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogCritical(this ILogger logger, EventId eventId, Exception exception, string message, params object[] args)
+        /// <example>LogCritical(0, exception, "Error while processing request from {Address}", address)</example>
+        public static void LogCritical(EventId eventId, Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Critical, eventId, exception, message, args);
+            Log(LogLevel.Critical, eventId, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a critical log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogCritical(0, "Processing request from {Address}", address)</example>
-        public static void LogCritical(this ILogger logger, EventId eventId, string message, params object[] args)
+        /// <example>LogCritical(0, "Processing request from {Address}", address)</example>
+        public static void LogCritical(EventId eventId, string message, params object[] args)
         {
-            logger.Log(LogLevel.Critical, eventId, message, args);
+            Log(LogLevel.Critical, eventId, message, args);
         }
 
         /// <summary>
         /// Formats and writes a critical log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogCritical(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogCritical(this ILogger logger, Exception exception, string message, params object[] args)
+        /// <example>LogCritical(exception, "Error while processing request from {Address}", address)</example>
+        public static void LogCritical(Exception exception, string message, params object[] args)
         {
-            logger.Log(LogLevel.Critical, exception, message, args);
+            Log(LogLevel.Critical, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a critical log message.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        /// <example>logger.LogCritical("Processing request from {Address}", address)</example>
-        public static void LogCritical(this ILogger logger, string message, params object[] args)
+        /// <example>LogCritical("Processing request from {Address}", address)</example>
+        public static void LogCritical(string message, params object[] args)
         {
-            logger.Log(LogLevel.Critical, message, args);
+            Log(LogLevel.Critical, message, args);
         }
 
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(this ILogger logger, LogLevel logLevel, string message, params object[] args)
+        private static void Log(LogLevel logLevel, string message, params object[] args)
         {
-            logger.Log(logLevel, 0, null, message, args);
+            Log(logLevel, 0, null, message, args);
         }
 
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(this ILogger logger, LogLevel logLevel, EventId eventId, string message, params object[] args)
+        private static void Log(LogLevel logLevel, EventId eventId, string message, params object[] args)
         {
             if (Tracing.IsEnabled())
             {
+                // call the legacy logging handler (TraceEvent)
                 Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
             }
             else
             {
-                Microsoft.Extensions.Logging.LoggerExtensions.Log(logger, logLevel, eventId, null, message, args);
+                Logger.Log(logLevel, eventId, null, message, args);
             }
         }
 
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(this ILogger logger, LogLevel logLevel, Exception exception, string message, params object[] args)
+        private static void Log(LogLevel logLevel, Exception exception, string message, params object[] args)
         {
-            logger.Log(logLevel, 0, exception, message, args);
+            Log(logLevel, 0, exception, message, args);
         }
 
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to write to.</param>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(this ILogger logger, LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
+        private static void Log(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
         {
-            if (logger == null)
-            {
-                throw new ArgumentNullException(nameof(logger));
-            }
-
             if (Tracing.IsEnabled())
             {
+                // call the legacy logging handler (TraceEvent)
                 Utils.Trace(exception, GetTraceMask(eventId, logLevel), message, false, args);
             }
             else
             {
-                Microsoft.Extensions.Logging.LoggerExtensions.Log(logger, logLevel, eventId, exception, message, args);
+                Logger.Log(logLevel, eventId, exception, message, args);
             }
-        }
-
-        ///
-        private static int GetTraceMask(EventId eventId, LogLevel logLevel)
-        {
-            int mask = eventId.Id & 0x1ff;
-            if (mask == 0)
-            {
-                switch (logLevel)
-                {
-                    case LogLevel.Error: mask = TraceMasks.Error | TraceMasks.StackTrace; break;
-                    default:
-                    case LogLevel.Information: mask = TraceMasks.Information; break;
-                }
-            }
-            return mask;
         }
 
         //------------------------------------------Scope------------------------------------------//
@@ -446,26 +403,44 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the message and creates a scope.
         /// </summary>
-        /// <param name="logger">The <see cref="ILogger"/> to create the scope in.</param>
         /// <param name="messageFormat">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <returns>A disposable scope object. Can be null.</returns>
         /// <example>
-        /// using(logger.BeginScope("Processing request from {Address}", address))
+        /// using(BeginScope("Processing request from {Address}", address))
         /// {
         /// }
         /// </example>
         public static IDisposable BeginScope(
-            this ILogger logger,
             string messageFormat,
             params object[] args)
         {
-            if (logger == null)
-            {
-                throw new ArgumentNullException(nameof(logger));
-            }
+            return Logger.BeginScope(messageFormat, args);
+        }
 
-            return Microsoft.Extensions.Logging.LoggerExtensions.BeginScope(logger, messageFormat, args);
+        //------------------------------------------Private------------------------------------------//
+
+        /// <summary>
+        /// To determine a mask from the log level.
+        /// </summary>
+        /// <param name="eventId">The event id.</param>
+        /// <param name="logLevel">The log level.</param>
+        private static int GetTraceMask(EventId eventId, LogLevel logLevel)
+        {
+            int mask = eventId.Id & TraceMasks.All;
+            if (mask == 0)
+            {
+                switch (logLevel)
+                {
+                    case LogLevel.Error:
+                        mask = TraceMasks.Error | TraceMasks.StackTrace;
+                        break;
+                    default:
+                    case LogLevel.Information:
+                        mask = TraceMasks.Information; break;
+                }
+            }
+            return mask;
         }
     }
 }
