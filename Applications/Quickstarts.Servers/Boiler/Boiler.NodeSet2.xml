@@ -5,7 +5,7 @@
   </NamespaceUris>
   <Models>
     <Model ModelUri="http://opcfoundation.org/UA/Boiler/">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.04.10" PublicationDate="2021-09-15T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.04.10" PublicationDate="2021-09-15T00:00:00Z" />
     </Model>
   </Models>
   <Aliases>
