@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Test;
@@ -210,6 +211,31 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             collection = (ExtensionObjectCollection)collection.MemberwiseClone();
             // default value is null
             Assert.Null(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject));
+        }
+        #endregion
+
+        #region NodeId utilities
+        [Test]
+        public void NodeIdComparison()
+        {
+            NodeId nodeId = new NodeId(0, 0);
+            DataValue nodeIdBasedDataValue = new DataValue(nodeId);
+
+            DataValue dataValue = new DataValue(Attributes.NodeClass);
+            dataValue.Value = (int)Attributes.NodeClass; // without this cast the second and third asserts evaluate correctly.
+            dataValue.StatusCode = nodeIdBasedDataValue.StatusCode;
+
+            bool comparisonResult1b = dataValue.Equals(nodeIdBasedDataValue);
+            Assert.IsFalse(comparisonResult1b); // assert succeeds
+
+            bool comparisonResult1a = nodeIdBasedDataValue.Equals(dataValue);
+            Assert.IsFalse(comparisonResult1a); // assert fails (symmetry for Equals is broken)
+
+            bool comparisonResult1c = EqualityComparer<DataValue>.Default.Equals(nodeIdBasedDataValue, dataValue);
+            Assert.IsFalse(comparisonResult1c); // assert fails
+
+            int comparisonResult2 = nodeId.CompareTo(dataValue);
+            Assert.IsFalse(comparisonResult2 == 0); // assert fails - this is the root cause for the previous assertion failures
         }
         #endregion
     }
