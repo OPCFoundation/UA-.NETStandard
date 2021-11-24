@@ -259,4 +259,3 @@ GoodCascadeNotSelected,0x04040000,"The value source supports cascade handshaking
 GoodFaultStateActive,0x04070000,"There is a fault state condition active in the value source."
 GoodInitiateFaultState,0x04080000,"A fault state condition is being requested of the destination."
 GoodCascade,0x04090000,"The value is accurate, and the signal source supports cascade handshaking."
-BadDataSetIdInvalid,0x80E70000,"The DataSet specified for the DataSetWriter creation is invalid."
