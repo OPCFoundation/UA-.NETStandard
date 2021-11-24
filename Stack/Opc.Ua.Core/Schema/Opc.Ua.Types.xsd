@@ -532,11 +532,7 @@
   </xs:complexType>
   <xs:element name="ListOfUnion" type="tns:ListOfUnion" nillable="true"></xs:element>
 
-  <xs:element name="UriString" type="xs:string" />
-
   <xs:element name="BitFieldMaskDataType" type="xs:unsignedLong" />
-
-  <xs:element name="SemanticVersionString" type="xs:string" />
 
   <xs:complexType name="KeyValuePair">
     <xs:sequence>
@@ -757,7 +753,6 @@
       <xs:enumeration value="Anonymous_5" />
       <xs:enumeration value="AuthenticatedUser_6" />
       <xs:enumeration value="Application_7" />
-      <xs:enumeration value="X509Subject_8" />
     </xs:restriction>
   </xs:simpleType>
   <xs:element name="IdentityCriteriaType" type="tns:IdentityCriteriaType" />
@@ -947,51 +942,6 @@
   </xs:complexType>
   <xs:element name="ListOfUABinaryFileDataType" type="tns:ListOfUABinaryFileDataType" nillable="true"></xs:element>
 
-  <xs:complexType name="PortableQualifiedName">
-    <xs:sequence>
-      <xs:element name="NamespaceUri" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="PortableQualifiedName" type="tns:PortableQualifiedName" />
-
-  <xs:complexType name="ListOfPortableQualifiedName">
-    <xs:sequence>
-      <xs:element name="PortableQualifiedName" type="tns:PortableQualifiedName" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfPortableQualifiedName" type="tns:ListOfPortableQualifiedName" nillable="true"></xs:element>
-
-  <xs:complexType name="PortableNodeId">
-    <xs:sequence>
-      <xs:element name="NamespaceUri" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="Identifier" type="ua:NodeId" minOccurs="0" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="PortableNodeId" type="tns:PortableNodeId" />
-
-  <xs:complexType name="ListOfPortableNodeId">
-    <xs:sequence>
-      <xs:element name="PortableNodeId" type="tns:PortableNodeId" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfPortableNodeId" type="tns:ListOfPortableNodeId" nillable="true"></xs:element>
-
-  <xs:complexType name="UnsignedRationalNumber">
-    <xs:sequence>
-      <xs:element name="Numerator" type="xs:unsignedInt" minOccurs="0" />
-      <xs:element name="Denominator" type="xs:unsignedInt" minOccurs="0" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" />
-
-  <xs:complexType name="ListOfUnsignedRationalNumber">
-    <xs:sequence>
-      <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" minOccurs="0" maxOccurs="unbounded" nillable="true" />
-    </xs:sequence>
-  </xs:complexType>
-  <xs:element name="ListOfUnsignedRationalNumber" type="tns:ListOfUnsignedRationalNumber" nillable="true"></xs:element>
-
   <xs:simpleType  name="PubSubState">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Disabled_0" />
@@ -1082,7 +1032,7 @@
       <xs:element name="DataSetFolder" type="ua:ListOfString" minOccurs="0" nillable="true" />
       <xs:element name="DataSetMetaData" type="tns:DataSetMetaDataType" minOccurs="0" nillable="true" />
       <xs:element name="ExtensionFields" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="DataSetSource" type="tns:PublishedDataSetSourceDataType" minOccurs="0" nillable="true" />
+      <xs:element name="DataSetSource" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="PublishedDataSetDataType" type="tns:PublishedDataSetDataType" />
@@ -1188,8 +1138,8 @@
       <xs:element name="KeyFrameCount" type="xs:unsignedInt" minOccurs="0" />
       <xs:element name="DataSetName" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="DataSetWriterProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="TransportSettings" type="tns:DataSetWriterTransportDataType" minOccurs="0" nillable="true" />
-      <xs:element name="MessageSettings" type="tns:DataSetWriterMessageDataType" minOccurs="0" nillable="true" />
+      <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="DataSetWriterDataType" type="tns:DataSetWriterDataType" />
@@ -1257,8 +1207,8 @@
           <xs:element name="Priority" type="xs:unsignedByte" minOccurs="0" />
           <xs:element name="LocaleIds" type="ua:ListOfString" minOccurs="0" nillable="true" />
           <xs:element name="HeaderLayoutUri" type="xs:string" minOccurs="0" nillable="true" />
-          <xs:element name="TransportSettings" type="tns:WriterGroupTransportDataType" minOccurs="0" nillable="true" />
-          <xs:element name="MessageSettings" type="tns:WriterGroupMessageDataType" minOccurs="0" nillable="true" />
+          <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
           <xs:element name="DataSetWriters" type="tns:ListOfDataSetWriterDataType" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
@@ -1305,9 +1255,9 @@
       <xs:element name="Enabled" type="xs:boolean" minOccurs="0" />
       <xs:element name="PublisherId" type="ua:Variant" minOccurs="0" />
       <xs:element name="TransportProfileUri" type="xs:string" minOccurs="0" nillable="true" />
-      <xs:element name="Address" type="tns:NetworkAddressDataType" minOccurs="0" nillable="true" />
+      <xs:element name="Address" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
       <xs:element name="ConnectionProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="TransportSettings" type="tns:ConnectionTransportDataType" minOccurs="0" nillable="true" />
+      <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
       <xs:element name="WriterGroups" type="tns:ListOfWriterGroupDataType" minOccurs="0" nillable="true" />
       <xs:element name="ReaderGroups" type="tns:ListOfReaderGroupDataType" minOccurs="0" nillable="true" />
     </xs:sequence>
@@ -1370,8 +1320,8 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:PubSubGroupDataType">
         <xs:sequence>
-          <xs:element name="TransportSettings" type="tns:ReaderGroupTransportDataType" minOccurs="0" nillable="true" />
-          <xs:element name="MessageSettings" type="tns:ReaderGroupMessageDataType" minOccurs="0" nillable="true" />
+          <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+          <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
           <xs:element name="DataSetReaders" type="tns:ListOfDataSetReaderDataType" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
@@ -1428,9 +1378,9 @@
       <xs:element name="SecurityGroupId" type="xs:string" minOccurs="0" nillable="true" />
       <xs:element name="SecurityKeyServices" type="tns:ListOfEndpointDescription" minOccurs="0" nillable="true" />
       <xs:element name="DataSetReaderProperties" type="tns:ListOfKeyValuePair" minOccurs="0" nillable="true" />
-      <xs:element name="TransportSettings" type="tns:DataSetReaderTransportDataType" minOccurs="0" nillable="true" />
-      <xs:element name="MessageSettings" type="tns:DataSetReaderMessageDataType" minOccurs="0" nillable="true" />
-      <xs:element name="SubscribedDataSet" type="tns:SubscribedDataSetDataType" minOccurs="0" nillable="true" />
+      <xs:element name="TransportSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="MessageSettings" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
+      <xs:element name="SubscribedDataSet" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
     </xs:sequence>
   </xs:complexType>
   <xs:element name="DataSetReaderDataType" type="tns:DataSetReaderDataType" />
@@ -1766,7 +1716,7 @@
     <xs:complexContent mixed="false">
       <xs:extension base="tns:ConnectionTransportDataType">
         <xs:sequence>
-          <xs:element name="DiscoveryAddress" type="tns:NetworkAddressDataType" minOccurs="0" nillable="true" />
+          <xs:element name="DiscoveryAddress" type="ua:ExtensionObject" minOccurs="0" nillable="true" />
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
@@ -2109,6 +2059,21 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfTsnListenerStatus" type="tns:ListOfTsnListenerStatus" nillable="true"></xs:element>
+
+  <xs:complexType name="UnsignedRationalNumber">
+    <xs:sequence>
+      <xs:element name="Numerator" type="xs:unsignedInt" minOccurs="0" />
+      <xs:element name="Denominator" type="xs:unsignedInt" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" />
+
+  <xs:complexType name="ListOfUnsignedRationalNumber">
+    <xs:sequence>
+      <xs:element name="UnsignedRationalNumber" type="tns:UnsignedRationalNumber" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfUnsignedRationalNumber" type="tns:ListOfUnsignedRationalNumber" nillable="true"></xs:element>
 
   <xs:simpleType  name="IdType">
     <xs:restriction base="xs:string">
@@ -2509,6 +2474,10 @@
   <xs:element name="Duration" type="xs:double" />
 
   <xs:element name="UtcTime" type="xs:dateTime" />
+
+  <xs:element name="Time" type="xs:string" />
+
+  <xs:element name="Date" type="xs:dateTime" />
 
   <xs:element name="LocaleId" type="xs:string" />
 
