@@ -151,16 +151,18 @@ namespace Opc.Ua.Export {
         
         private string modelUriField;
         
+        private string xmlSchemaUriField;
+        
         private string versionField;
         
         private System.DateTime publicationDateField;
         
         private bool publicationDateFieldSpecified;
         
-        private byte accessRestrictionsField;
+        private ushort accessRestrictionsField;
         
         public ModelTableEntry() {
-            this.accessRestrictionsField = ((byte)(0));
+            this.accessRestrictionsField = ((ushort)(0));
         }
         
         /// <remarks/>
@@ -193,6 +195,17 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.modelUriField = value;
+            }
+        }
+        
+        /// <remarks/>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string XmlSchemaUri {
+            get {
+                return this.xmlSchemaUriField;
+            }
+            set {
+                this.xmlSchemaUriField = value;
             }
         }
         
@@ -231,8 +244,8 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "0")]
-        public byte AccessRestrictions {
+        [System.ComponentModel.DefaultValueAttribute(typeof(ushort), "0")]
+        public ushort AccessRestrictions {
             get {
                 return this.accessRestrictionsField;
             }
@@ -918,7 +931,7 @@ namespace Opc.Ua.Export {
         
         private uint userWriteMaskField;
         
-        private byte accessRestrictionsField;
+        private ushort accessRestrictionsField;
         
         private bool accessRestrictionsFieldSpecified;
         
@@ -1059,7 +1072,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public byte AccessRestrictions {
+        public ushort AccessRestrictions {
             get {
                 return this.accessRestrictionsField;
             }
