@@ -446,7 +446,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// recursively checks whether any of the service results or inner service results
+        /// Recursively checks whether any of the service results or inner service results
         /// of the input sr must not be suppressed.
         /// The list of supressible status codes is - for backwards compatibiliyt - longer
         /// than the spec would imply.
@@ -496,7 +496,18 @@ namespace Opc.Ua
                         try
                         {
                             store.Delete(certificate.Thumbprint);
-                            store.Add(certificate);
+                            // save only public key
+                            if (certificate.HasPrivateKey)
+                            {
+                                using (var cert = new X509Certificate2(certificate.RawData))
+                                {
+                                    store.Add(cert);
+                                }
+                            }
+                            else
+                            {
+                                store.Add(certificate);
+                            }
                         }
                         finally
                         {

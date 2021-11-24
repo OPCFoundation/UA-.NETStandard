@@ -56,6 +56,7 @@ namespace Opc.Ua
         }
         #endregion
     }
+
     /// <summary>
     /// Represents the location of a configuration file.
     /// </summary>

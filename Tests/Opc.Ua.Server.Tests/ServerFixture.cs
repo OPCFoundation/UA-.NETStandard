@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Start server fixture on random or fixed port.
         /// </summary>
-        public async Task<T> StartAsync(TextWriter writer, int port = 0)
+        public async Task<T> StartAsync(TextWriter writer, string pkiRoot = null, int port = 0)
         {
             Random m_random = new Random();
             bool retryStartServer = false;
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests
             {
                 try
                 {
-                    await InternalStartServerAsync(writer, testPort).ConfigureAwait(false);
+                    await InternalStartServerAsync(writer, testPort, pkiRoot).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create the configuration and start the server.
         /// </summary>
-        private async Task InternalStartServerAsync(TextWriter writer, int port)
+        private async Task InternalStartServerAsync(TextWriter writer, int port, string pkiRoot = null)
         {
             ApplicationInstance application = new ApplicationInstance {
                 ApplicationName = typeof(T).Name,
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             // create the application configuration. Use temp path for cert stores.
-            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
+            pkiRoot = pkiRoot ?? Path.GetTempPath() + Path.GetRandomFileName();
             var endpointUrl = $"{UriScheme}://localhost:{port}/" + typeof(T).Name;
             var serverConfig = application.Build(
                 "urn:localhost:UA:" + typeof(T).Name,

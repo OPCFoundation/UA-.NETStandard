@@ -1,5 +1,16 @@
 <Project>
   <Choose>
+    <!-- Visual Studio 2022 -->
+    <When  Condition="'$(VisualStudioVersion)' == '17.0'">
+      <PropertyGroup>
+        <AppTargetFrameworks>net462;netcoreapp3.1;net6.0</AppTargetFrameworks>
+        <AppTargetFramework>net6.0</AppTargetFramework>
+        <TestsTargetFrameworks>net462;netcoreapp2.1;netcoreapp3.1;net6.0</TestsTargetFrameworks>
+        <LibTargetFrameworks>net462;netstandard2.0;netstandard2.1;net6.0</LibTargetFrameworks>
+        <LibxTargetFrameworks>net462;netcoreapp2.1;netstandard2.1;net6.0</LibxTargetFrameworks>
+      </PropertyGroup>
+    </When>
+    <!-- Visual Studio 2019 -->
     <When  Condition="'$(VisualStudioVersion)' == '16.0'">
       <PropertyGroup>
         <AppTargetFrameworks>net462;netcoreapp3.1</AppTargetFrameworks>

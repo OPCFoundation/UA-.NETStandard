@@ -616,10 +616,7 @@ namespace Opc.Ua
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                if (value != null)
-                {
-                    WriteUInt32("Code", value.Code);
-                }
+                WriteUInt32("Code", value.Code);
 
                 PopNamespace();
 

@@ -281,7 +281,7 @@ namespace Opc.Ua
             return new X509CRL(crlBuilder.CreateForRSA(issuerCertificate));
         }
 
-#if NETSTANDARD2_1 || NET5_0
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Creates a certificate signing request from an existing certificate.
         /// </summary>
@@ -602,7 +602,7 @@ namespace Opc.Ua
 
             if (domainNames != null && domainNames.Count > 0)
             {
-                if (!subjectName.Contains("DC=") && !subjectName.Contains("="))
+                if (!subjectName.Contains("DC=") && !subjectName.Contains('='))
                 {
                     subjectName += Utils.Format(", DC={0}", domainNames[0]);
                 }
