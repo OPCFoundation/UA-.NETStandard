@@ -111,8 +111,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 urlHostNameChanged = localhostIP;
             }
-            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(string.Concat(UrlScheme, urlHostNameChanged, ":", DiscoveryPortNo));
-            Assert.IsNotNull(ipEndPoint, "Url hostname(address) is not corect!");
+            var address = string.Concat(UrlScheme, urlHostNameChanged, ":", DiscoveryPortNo);
+            IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint(address);
+            Assert.IsNotNull(ipEndPoint, $"Url hostname({address}) is not correct!");
         }
 
         [Test(Description = "Validate url hostname as computer bane value (DNS might be necessary)")]

@@ -750,6 +750,7 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
+            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
             X509Certificate2 certificate = CertificateFactory.CreateCertificate(
                 configuration.ApplicationUri,
                 configuration.ApplicationName,
@@ -759,8 +760,8 @@ namespace Opc.Ua.Configuration
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
 
+            // need id for password provider
             id.Certificate = certificate;
-            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
             certificate.AddToStore(
                 id.StoreType,
                 id.StorePath,
@@ -773,12 +774,16 @@ namespace Opc.Ua.Configuration
                 await AddToTrustedStore(configuration, certificate).ConfigureAwait(false);
             }
 
+            // reload the certificate from disk.
+            id.Certificate = await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
             Utils.Trace(Utils.TraceMasks.Information, "Certificate created. Thumbprint={0}", certificate.Thumbprint);
 
-            // reload the certificate from disk.
-            return await configuration.SecurityConfiguration.ApplicationCertificate.LoadPrivateKeyEx(passwordProvider).ConfigureAwait(false);
+            // do not dispose temp cert, or X509Store certs become unusable
+
+            return id.Certificate;
         }
 
         /// <summary>
@@ -857,7 +862,7 @@ namespace Opc.Ua.Configuration
 
                 if (store == null)
                 {
-                    Utils.Trace("Could not open trusted peer store. StorePath={0}", storePath);
+                    Utils.Trace("Could not open trusted peer store.");
                     return;
                 }
 
@@ -871,7 +876,7 @@ namespace Opc.Ua.Configuration
                         return;
                     }
 
-                    Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to trusted peer store. StorePath={0}", storePath);
+                    Utils.Trace(Utils.TraceMasks.Information, "Adding certificate to trusted peer store.");
 
                     List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
@@ -903,7 +908,7 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not add certificate to trusted peer store. StorePath={0}", storePath);
+                Utils.Trace(e, "Could not add certificate to trusted peer store.");
             }
         }
 

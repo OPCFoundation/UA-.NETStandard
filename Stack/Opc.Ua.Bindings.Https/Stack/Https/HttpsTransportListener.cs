@@ -243,11 +243,31 @@ namespace Opc.Ua.Bindings
 #else
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
-            m_hostBuilder.UseKestrel(options => {
-                options.ListenAnyIP(m_uri.Port, listenOptions => {
-                    listenOptions.UseHttps(httpsOptions);
+            bool bindToSpecifiedAddress = true;
+            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+            {
+                bindToSpecifiedAddress = false;
+            }
+
+            if (bindToSpecifiedAddress)
+            {
+                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
+                m_hostBuilder.UseKestrel(options => {
+                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
                 });
-            });
+            }
+            else
+            {
+                m_hostBuilder.UseKestrel(options => {
+                    options.ListenAnyIP(m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
+                });
+            }
+
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
@@ -319,7 +339,8 @@ namespace Opc.Ua.Bindings
                         {
                             if (value.StartsWith("Bearer"))
                             {
-                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim());
+                                // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
+                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim(), 0);
                             }
                         }
                     }
