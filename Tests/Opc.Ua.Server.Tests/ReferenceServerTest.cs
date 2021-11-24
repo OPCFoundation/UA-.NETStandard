@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -322,6 +322,79 @@ namespace Opc.Ua.Server.Tests
             CommonTestWorkers.SubscriptionTest(serverTestServices, m_requestHeader);
 
         }
+
+        [Test]
+        public void TransferSubscription()
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+
+            var subscriptionId = CreateSubscription(serverTestServices);
+            MonitoreItem(serverTestServices, subscriptionId);
+
+            var requestHeader = m_server.CreateAndActivateSession("Test");
+
+            //
+            var transferRequest = new TransferSubscriptionsRequest();
+            UInt32Collection subscriptionIds = new UInt32Collection();
+            subscriptionIds.Add(subscriptionId);
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            var responseHeader = m_server.TransferSubscriptions(requestHeader, subscriptionIds, false, out var results, out var diagnosticsInfos);
+            Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
+
+            Assert.AreEqual(1, results.Count);
+            var transferResult = results[0];
+            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+        }
         #endregion
+
+        private uint CreateSubscription(IServerTestServices services)
+        {
+            // start time
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+
+            // create subscription
+            double publishingInterval = 1000.0;
+            uint lifetimeCount = 60;
+            uint maxKeepAliveCount = 2;
+            uint maxNotificationPerPublish = 0;
+            byte priority = 128;
+            bool enabled = false;
+
+            var response = services.CreateSubscription(m_requestHeader,
+                publishingInterval, lifetimeCount, maxKeepAliveCount,
+                maxNotificationPerPublish, enabled, priority,
+                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            return id;
+        }
+
+        private void MonitoreItem(IServerTestServices services, uint subscriptionId)
+        {
+            uint queueSize = 5;
+            var itemsToCreate = new MonitoredItemCreateRequestCollection();
+
+            // add item
+            uint handleCounter = 1;
+            itemsToCreate.Add(new MonitoredItemCreateRequest() {
+                ItemToMonitor = new ReadValueId() {
+                    AttributeId = Attributes.Value,
+                    NodeId = VariableIds.Server_ServerStatus_CurrentTime
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters() {
+                    ClientHandle = ++handleCounter,
+                    SamplingInterval = -1,
+                    Filter = null,
+                    DiscardOldest = true,
+                    QueueSize = queueSize
+                }
+            });
+            var response = services.CreateMonitoredItems(m_requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
+                out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
+        }
     }
 }
