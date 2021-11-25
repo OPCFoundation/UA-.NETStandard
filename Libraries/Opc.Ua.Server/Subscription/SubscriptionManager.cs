@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Server
 
                     // check if new and old sessions are different
                     var oldSession = subscription.Session;
-                    if (oldSession.Id == context.Session.Id)
+                    if (oldSession.Id == null || oldSession.Id == NodeId.Null || oldSession.Id == context.Session.Id)
                     {
                         result.StatusCode = StatusCodes.BadNothingToDo;
                         results.Add(result);
@@ -1164,26 +1164,41 @@ namespace Opc.Ua.Server
                         {
                             diagnosticInfos.Add(null);
                         }
-                        continue;
+                        break;
                     }
 
-                    // TODO: validate credentials of sessions
                     // The Server shall validate that the Client of that Session is operating on behalf of the same user
                     // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
                     // --> Bad_UserAccessDenied
-                    // --> Bad_InsufficientClientProfile
-                    // if (subscription.Session.ClientCertificate !=
+                    // --> Bad_InsufficientClientProfile <<<< TODO
+                    if (!oldSession.IdentityToken.IsEqual(context.Session.IdentityToken))
+                    {
+                        result.StatusCode = StatusCodes.BadUserAccessDenied;
+                        results.Add(result);
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            diagnosticInfos.Add(null);
+                        }
+                        break;
+                    }
 
                     // transfer session
                     subscription.TransferSession(context.Session, sendInitialValues);
                     result.StatusCode = StatusCodes.Good;
 
-                    //TODO: Server shall issue a StatusChangeNotification notificationMessage with the status code Good_SubscriptionTransferred to the old Session.
+                    //Server shall issue a StatusChangeNotification notificationMessage with the status code Good_SubscriptionTransferred to the old Session.
                     //oldSession.
+                    var message = new StatusMessage();
+                    message.SubscriptionId = subscription.Id;
+                    message.Message = subscription.SubscriptionTransfered();
+                    if (oldSession.Id != null && m_statusMessages.TryGetValue(oldSession.Id, out var queue))
+                    {
+                        queue.Enqueue(message);
+                    }
 
-                    //TODO: If the Server transfers the Subscription, it returns the sequence numbers of the NotificationMessages that are available for retransmission.
+                    //If the Server transfers the Subscription, it returns the sequence numbers of the NotificationMessages that are available for retransmission.
                     //The Client should acknowledge all Messages in this list for which it will not request retransmission.
-                    //result.AvailableSequenceNumbers =
+                    result.AvailableSequenceNumbers = subscription.AvailableSequenceNumbersForRetransmission();
 
                     // save results.
                     results.Add(result);

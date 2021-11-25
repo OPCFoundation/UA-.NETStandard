@@ -323,6 +323,11 @@ namespace Opc.Ua.Server.Tests
 
         }
 
+        /// <summary>
+        /// Create a subscription with a monitored item.
+        /// Create a secondary Session
+        /// Transfer subscription with a monitored item from one session to the other
+        /// </summary>
         [Test]
         public void TransferSubscription()
         {
@@ -331,20 +336,26 @@ namespace Opc.Ua.Server.Tests
             var subscriptionId = CreateSubscription(serverTestServices);
             MonitoreItem(serverTestServices, subscriptionId);
 
+            // save old security context, test fixture can only work with one session
+            var securityContext = SecureChannelContext.Current;
             var requestHeader = m_server.CreateAndActivateSession("Test");
 
-            //
-            var transferRequest = new TransferSubscriptionsRequest();
             UInt32Collection subscriptionIds = new UInt32Collection();
             subscriptionIds.Add(subscriptionId);
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            var responseHeader = m_server.TransferSubscriptions(requestHeader, subscriptionIds, false, out var results, out var diagnosticsInfos);
+            var responseHeader = m_server.TransferSubscriptions(requestHeader, subscriptionIds, false, out var results, out var _);
             Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
 
             Assert.AreEqual(1, results.Count);
             var transferResult = results[0];
             Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            m_server.CloseSession(requestHeader);
+
+            //restore security context, that close connection can work
+            SecureChannelContext.Current = securityContext;
         }
         #endregion
 

@@ -734,6 +734,34 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Publishes a SubscriptionTransfered status message.
+        /// </summary>
+        public NotificationMessage SubscriptionTransfered()
+        {
+            NotificationMessage message = null;
+
+            lock (m_lock)
+            {
+                message = new NotificationMessage();
+                message.SequenceNumber = (uint)m_sequenceNumber;
+                message.PublishTime = DateTime.UtcNow;
+
+                Utils.IncrementIdentifier(ref m_sequenceNumber);
+
+                lock (DiagnosticsWriteLock)
+                {
+                    m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
+                }
+
+                StatusChangeNotification notification = new StatusChangeNotification();
+                notification.Status = StatusCodes.GoodSubscriptionTransferred;
+                message.NotificationData.Add(new ExtensionObject(notification));
+            }
+
+            return message;
+        }
+
+        /// <summary>
         /// Returns all available notifications.
         /// </summary>
         private NotificationMessage InnerPublish(
@@ -941,6 +969,23 @@ namespace Opc.Ua.Server
 
             // TraceState("PUBLISH NEW MESSAGE");
             return m_sentMessages[m_lastSentMessage++];
+        }
+
+        /// <summary>
+        /// Returns the available sequence numbers for retransmission
+        /// For example used in Transfer Subscription
+        /// </summary>
+        public UInt32Collection AvailableSequenceNumbersForRetransmission()
+        {
+            var availableSequenceNumbers = new UInt32Collection();
+            // Assumption we do not check if (m_lastSentMessage < m_sentMessages.Count) because
+            // in case of subscription transfer original client might have crashed by handling message,
+            // therefor new client should have to chance to process all available messages
+            for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
+            {
+                availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
+            }
+            return availableSequenceNumbers;
         }
 
         /// <summary>
