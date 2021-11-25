@@ -981,7 +981,7 @@ namespace Opc.Ua.Server
             // Assumption we do not check if (m_lastSentMessage < m_sentMessages.Count) because
             // in case of subscription transfer original client might have crashed by handling message,
             // therefor new client should have to chance to process all available messages
-            for (int ii = 0; ii <= m_lastSentMessage && ii < m_sentMessages.Count; ii++)
+            for (int ii = 0; ii < m_sentMessages.Count; ii++)
             {
                 availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
             }
