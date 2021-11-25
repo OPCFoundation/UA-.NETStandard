@@ -11,14 +11,8 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using System.Xml;
-using System.IO;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {       
@@ -529,7 +523,7 @@ namespace Opc.Ua
                 node.ReferenceTable.Add(referenceTypeId, true, this.Parent.NodeId);
             }
 
-            if (!NodeId.IsNull(this.TypeDefinitionId) && (NodeClass == NodeClass.Object || NodeClass == NodeClass.Variable))
+            if (!NodeId.IsNull(m_typeDefinitionId) && m_typeDefinitionId != this.NodeId)
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, this.TypeDefinitionId);
             }
@@ -556,7 +550,7 @@ namespace Opc.Ua
                 encoder.WriteNodeId("ReferenceTypeId", m_referenceTypeId);
             }
 
-            if (!NodeId.IsNull(m_typeDefinitionId) && (NodeClass == NodeClass.Object || NodeClass == NodeClass.Variable))
+            if (!NodeId.IsNull(m_typeDefinitionId) && m_typeDefinitionId != this.NodeId)
             {
                 encoder.WriteNodeId("TypeDefinitionId", m_typeDefinitionId);
             }
@@ -588,7 +582,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ReferenceTypeId;
             }
 
-            if (!NodeId.IsNull(m_typeDefinitionId) && (NodeClass == NodeClass.Object || NodeClass == NodeClass.Variable))
+            if (!NodeId.IsNull(m_typeDefinitionId) && m_typeDefinitionId != this.NodeId)
             {
                 attributesToSave |= AttributesToSave.TypeDefinitionId;
             }

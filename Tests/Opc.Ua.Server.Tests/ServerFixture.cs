@@ -138,7 +138,7 @@ namespace Opc.Ua.Server.Tests
 
             if (Application == null)
             {
-                await LoadConfiguration(pkiRoot);
+                await LoadConfiguration(pkiRoot).ConfigureAwait(false);
             }
 
             if (port <= 0)

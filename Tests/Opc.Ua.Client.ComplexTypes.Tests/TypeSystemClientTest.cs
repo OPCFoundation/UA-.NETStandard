@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
 
-            bool success = await typeSystem.Load(onlyEnumTypes, true);
+            bool success = await typeSystem.Load(onlyEnumTypes, true).ConfigureAwait(false);
             Assert.IsTrue(success);
 
             var types = typeSystem.GetDefinedTypes();

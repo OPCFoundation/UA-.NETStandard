@@ -74,7 +74,7 @@ namespace Quickstarts.ReferenceServer
             {
                 loggerConfiguration.WriteTo.File(
                     Utils.ReplaceSpecialFolderNames(config.TraceConfiguration.OutputFilePath),
-                    rollingInterval: RollingInterval.Day,
+                    rollingInterval: RollingInterval.Infinite,
                     rollOnFileSizeLimit: true,
                     restrictedToMinimumLevel: fileMinimumLevel,
                     retainedFileCountLimit: 10,

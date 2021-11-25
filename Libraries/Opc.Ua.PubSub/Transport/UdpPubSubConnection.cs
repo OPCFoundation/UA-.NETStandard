@@ -95,7 +95,7 @@ namespace Opc.Ua.PubSub.Transport
         protected override async Task InternalStart()
         {
             //cleanup all existing UdpClient previously open
-            await InternalStop();
+            await InternalStop().ConfigureAwait(false);
 
             if (NetworkAddressEndPoint == null)
             {
@@ -111,7 +111,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
 
                 m_udpDiscoveryPublisher = new UdpDiscoveryPublisher(this);
-                await m_udpDiscoveryPublisher.StartAsync(MessageContext);
+                await m_udpDiscoveryPublisher.StartAsync(MessageContext).ConfigureAwait(false);
             }
 
             //subscriber initialization   
@@ -137,7 +137,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 // initialize the discovery channel
                 m_udpDiscoverySubscriber = new UdpDiscoverySubscriber(this);
-                await m_udpDiscoverySubscriber.StartAsync(MessageContext);
+                await m_udpDiscoverySubscriber.StartAsync(MessageContext).ConfigureAwait(false);
 
                 // add handler to metaDataReceived event
                 this.Application.MetaDataReceived += Application_MetaDataReceived;
@@ -167,12 +167,12 @@ namespace Opc.Ua.PubSub.Transport
 
             if (m_udpDiscoveryPublisher != null)
             {
-               await m_udpDiscoveryPublisher.StopAsync();
+               await m_udpDiscoveryPublisher.StopAsync().ConfigureAwait(false);
             }
 
             if (m_udpDiscoverySubscriber != null)
             {
-                await m_udpDiscoverySubscriber.StopAsync();
+                await m_udpDiscoverySubscriber.StopAsync().ConfigureAwait(false);
 
                 // remove handler to metaDataReceived event
                 this.Application.MetaDataReceived -= Application_MetaDataReceived;               
