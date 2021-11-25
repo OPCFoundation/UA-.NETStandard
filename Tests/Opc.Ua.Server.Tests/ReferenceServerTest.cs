@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            await m_fixture.StopAsync();
+            await m_fixture.StopAsync().ConfigureAwait(false);
             Thread.Sleep(1000);
         }
 

@@ -237,17 +237,17 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list.First());
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
-            bool result = await m_session.RemoveSubscriptionAsync(subscription);
+            bool result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
-            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
             Assert.False(result);
             result = m_session.AddSubscription(subscription);
             Assert.True(result);
             result = m_session.AddSubscription(subscription);
             Assert.False(result);
-            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription });
+            result = await m_session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
             Assert.True(result);
-            result = await m_session.RemoveSubscriptionAsync(subscription);
+            result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
             result = m_session.AddSubscription(subscription);
             Assert.True(result);
@@ -479,7 +479,7 @@ namespace Opc.Ua.Client.Tests
                 subscription.AddItems(list);
                 var result = m_session.AddSubscription(subscription);
                 Assert.True(result);
-                await subscription.CreateAsync();
+                await subscription.CreateAsync().ConfigureAwait(false);
                 var publishInterval = (int)subscription.CurrentPublishingInterval;
                 TestContext.Out.WriteLine($"CurrentPublishingInterval: {publishInterval}");
 
@@ -492,19 +492,19 @@ namespace Opc.Ua.Client.Tests
 
             var stopwatch = Stopwatch.StartNew();
 
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
 
             // verify that number of active publishrequests is never exceeded
             while (stopwatch.ElapsedMilliseconds < TestWaitTime)
             {
                 // use the sample server default for max publish request count
                 Assert.GreaterOrEqual(MaxServerPublishRequest, m_session.GoodPublishRequestCount);
-                await Task.Delay(100);
+                await Task.Delay(100).ConfigureAwait(false);
             }
 
             foreach (var subscription in subscriptionList)
             {
-                var result = await m_session.RemoveSubscriptionAsync(subscription);
+                var result = await m_session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
                 Assert.True(result);
             }
         }

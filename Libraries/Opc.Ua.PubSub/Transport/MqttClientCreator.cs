@@ -38,7 +38,7 @@ using MQTTnet.Client.Options;
 
 namespace Opc.Ua.PubSub.Transport
 {
-    internal class MqttClientCreator
+    internal static class MqttClientCreator
     {
         #region Private
         private static readonly Lazy<MqttFactory> mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
@@ -108,7 +108,7 @@ namespace Opc.Ua.PubSub.Transport
                         mqttClient?.Options?.ClientId,
                         e.Reason,
                         e.ClientWasConnected);
-                    await Connect(reconnectInterval, mqttClientOptions, mqttClient);
+                    await Connect(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
                 }
                 catch (Exception excOnDisconnect)
                 {
@@ -116,7 +116,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
             });
 
-            await Connect(reconnectInterval, mqttClientOptions, mqttClient);
+            await Connect(reconnectInterval, mqttClientOptions, mqttClient).ConfigureAwait(false);
 
             return mqttClient;
         }
