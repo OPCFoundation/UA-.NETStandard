@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Server
                         {
                             diagnosticInfos.Add(null);
                         }
-                        break;
+                        continue;
                     }
 
                     // The Server shall validate that the Client of that Session is operating on behalf of the same user
@@ -1179,7 +1179,7 @@ namespace Opc.Ua.Server
                         {
                             diagnosticInfos.Add(null);
                         }
-                        break;
+                        continue;
                     }
 
                     // transfer session
