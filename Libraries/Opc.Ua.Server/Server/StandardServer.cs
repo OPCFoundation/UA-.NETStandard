@@ -1361,7 +1361,6 @@ namespace Opc.Ua.Server
             {
                 OnRequestComplete(context);
             }
-#endif
         }
 
         /// <summary>
