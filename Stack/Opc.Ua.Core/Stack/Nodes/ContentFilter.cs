@@ -1191,12 +1191,12 @@ namespace Opc.Ua
         /// <returns>The result of the validation</returns>
         public override ServiceResult Validate(FilterContext context, int index)
         {
-            if (m_index < 0)
+            if (index < 0)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadFilterOperandInvalid, 
                     "ElementOperand specifies an Index that is less than zero ({0}).", 
-                    m_index);
+                    index);
             }
 
             if (m_index <= index)
