@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2021-09-15T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2021-11-25T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.04.10" PublicationDate="2021-09-15T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.04.11-RC" PublicationDate="2021-11-25T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -95,13 +95,13 @@
   <UADataType NodeId="i=24" BrowseName="BaseDataType" IsAbstract="true">
     <DisplayName>BaseDataType</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.7</Documentation>
     <References />
   </UADataType>
   <UADataType NodeId="i=26" BrowseName="Number" IsAbstract="true">
     <DisplayName>Number</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.30</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -109,7 +109,7 @@
   <UADataType NodeId="i=27" BrowseName="Integer" IsAbstract="true">
     <DisplayName>Integer</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.24</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -117,7 +117,7 @@
   <UADataType NodeId="i=28" BrowseName="UInteger" IsAbstract="true">
     <DisplayName>UInteger</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.33</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -125,7 +125,7 @@
   <UADataType NodeId="i=29" BrowseName="Enumeration" IsAbstract="true">
     <DisplayName>Enumeration</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -134,7 +134,7 @@
   <UADataType NodeId="i=1" BrowseName="Boolean">
     <DisplayName>Boolean</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -142,7 +142,7 @@
   <UADataType NodeId="i=2" BrowseName="SByte">
     <DisplayName>SByte</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.17</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
@@ -150,7 +150,7 @@
   <UADataType NodeId="i=3" BrowseName="Byte">
     <DisplayName>Byte</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
@@ -158,7 +158,7 @@
   <UADataType NodeId="i=4" BrowseName="Int16">
     <DisplayName>Int16</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.25</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
@@ -166,7 +166,7 @@
   <UADataType NodeId="i=5" BrowseName="UInt16">
     <DisplayName>UInt16</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.34</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
@@ -174,7 +174,7 @@
   <UADataType NodeId="i=6" BrowseName="Int32">
     <DisplayName>Int32</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.26</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
@@ -182,7 +182,7 @@
   <UADataType NodeId="i=7" BrowseName="UInt32">
     <DisplayName>UInt32</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.35</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
@@ -190,7 +190,7 @@
   <UADataType NodeId="i=8" BrowseName="Int64">
     <DisplayName>Int64</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.27</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
     </References>
@@ -198,7 +198,7 @@
   <UADataType NodeId="i=9" BrowseName="UInt64">
     <DisplayName>UInt64</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.15</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.36</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
@@ -206,7 +206,7 @@
   <UADataType NodeId="i=10" BrowseName="Float">
     <DisplayName>Float</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -214,7 +214,7 @@
   <UADataType NodeId="i=11" BrowseName="Double">
     <DisplayName>Double</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -222,7 +222,7 @@
   <UADataType NodeId="i=12" BrowseName="String">
     <DisplayName>String</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.31</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -230,7 +230,7 @@
   <UADataType NodeId="i=13" BrowseName="DateTime">
     <DisplayName>DateTime</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -238,7 +238,7 @@
   <UADataType NodeId="i=14" BrowseName="Guid">
     <DisplayName>Guid</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -246,7 +246,7 @@
   <UADataType NodeId="i=15" BrowseName="ByteString">
     <DisplayName>ByteString</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -254,7 +254,7 @@
   <UADataType NodeId="i=16" BrowseName="XmlElement">
     <DisplayName>XmlElement</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.38</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -262,7 +262,7 @@
   <UADataType NodeId="i=17" BrowseName="NodeId">
     <DisplayName>NodeId</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -286,7 +286,7 @@
   <UADataType NodeId="i=20" BrowseName="QualifiedName">
     <DisplayName>QualifiedName</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -294,7 +294,7 @@
   <UADataType NodeId="i=21" BrowseName="LocalizedText">
     <DisplayName>LocalizedText</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -302,7 +302,7 @@
   <UADataType NodeId="i=22" BrowseName="Structure" IsAbstract="true">
     <DisplayName>Structure</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.32</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -326,7 +326,7 @@
   <UADataType NodeId="i=30" BrowseName="Image" IsAbstract="true">
     <DisplayName>Image</DisplayName>
     <Category>Base Info Image DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3/#12.2.3.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.19</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
@@ -334,7 +334,7 @@
   <UADataType NodeId="i=50" BrowseName="Decimal">
     <DisplayName>Decimal</DisplayName>
     <Category>Base Info Decimal DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.54</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
@@ -342,13 +342,13 @@
   <UAReferenceType NodeId="i=31" BrowseName="References" IsAbstract="true" Symmetric="true">
     <DisplayName>References</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/4.3.4</Documentation>
     <References />
   </UAReferenceType>
   <UAReferenceType NodeId="i=32" BrowseName="NonHierarchicalReferences" IsAbstract="true" Symmetric="true">
     <DisplayName>NonHierarchicalReferences</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=31</Reference>
     </References>
@@ -356,7 +356,7 @@
   <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
     <DisplayName>HierarchicalReferences</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=31</Reference>
     </References>
@@ -365,7 +365,7 @@
   <UAReferenceType NodeId="i=34" BrowseName="HasChild" IsAbstract="true">
     <DisplayName>HasChild</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -374,7 +374,7 @@
   <UAReferenceType NodeId="i=35" BrowseName="Organizes">
     <DisplayName>Organizes</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -383,7 +383,7 @@
   <UAReferenceType NodeId="i=36" BrowseName="HasEventSource">
     <DisplayName>HasEventSource</DisplayName>
     <Category>Address Space Source Hierarchy</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.17</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -392,7 +392,7 @@
   <UAReferenceType NodeId="i=37" BrowseName="HasModellingRule">
     <DisplayName>HasModellingRule</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -401,7 +401,7 @@
   <UAReferenceType NodeId="i=38" BrowseName="HasEncoding">
     <DisplayName>HasEncoding</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -418,7 +418,7 @@
   <UAReferenceType NodeId="i=40" BrowseName="HasTypeDefinition">
     <DisplayName>HasTypeDefinition</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -427,7 +427,7 @@
   <UAReferenceType NodeId="i=41" BrowseName="GeneratesEvent">
     <DisplayName>GeneratesEvent</DisplayName>
     <Category>Address Space Events 2</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.16</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -436,7 +436,7 @@
   <UAReferenceType NodeId="i=3065" BrowseName="AlwaysGeneratesEvent">
     <DisplayName>AlwaysGeneratesEvent</DisplayName>
     <Category>Address Space Events 2</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.17</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=41</Reference>
     </References>
@@ -445,7 +445,7 @@
   <UAReferenceType NodeId="i=44" BrowseName="Aggregates" IsAbstract="true">
     <DisplayName>Aggregates</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=34</Reference>
     </References>
@@ -454,7 +454,7 @@
   <UAReferenceType NodeId="i=45" BrowseName="HasSubtype">
     <DisplayName>HasSubtype</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=34</Reference>
     </References>
@@ -463,7 +463,7 @@
   <UAReferenceType NodeId="i=46" BrowseName="HasProperty">
     <DisplayName>HasProperty</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -472,7 +472,7 @@
   <UAReferenceType NodeId="i=47" BrowseName="HasComponent">
     <DisplayName>HasComponent</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -481,7 +481,7 @@
   <UAReferenceType NodeId="i=48" BrowseName="HasNotifier">
     <DisplayName>HasNotifier</DisplayName>
     <Category>Address Space Notifier Hierarchy</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.15</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.18</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=36</Reference>
     </References>
@@ -490,7 +490,7 @@
   <UAReferenceType NodeId="i=49" BrowseName="HasOrderedComponent">
     <DisplayName>HasOrderedComponent</DisplayName>
     <Category>Base Info HasOrderedComponent</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -941,7 +941,7 @@
   <UAReferenceType NodeId="i=129" BrowseName="HasArgumentDescription">
     <DisplayName>HasArgumentDescription</DisplayName>
     <Category>Address Space Method Meta Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.18</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.7.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -950,7 +950,7 @@
   <UAReferenceType NodeId="i=131" BrowseName="HasOptionalInputArgumentDescription">
     <DisplayName>HasOptionalInputArgumentDescription</DisplayName>
     <Category>Address Space Method Meta Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.19</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.7.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=129</Reference>
     </References>
@@ -990,7 +990,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.04.10</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.04.11-RC</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15960" BrowseName="NamespacePublicationDate" ParentNodeId="i=15957" DataType="DateTime">
@@ -1000,7 +1000,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2021-09-15T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2021-11-25T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15961" BrowseName="IsNamespaceSubset" ParentNodeId="i=15957" DataType="Boolean">
@@ -1205,7 +1205,7 @@
   <UADataType NodeId="i=2000" BrowseName="ImageBMP">
     <DisplayName>ImageBMP</DisplayName>
     <Category>Base Info Image DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3/#12.2.3.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.20</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
@@ -1213,7 +1213,7 @@
   <UADataType NodeId="i=2001" BrowseName="ImageGIF">
     <DisplayName>ImageGIF</DisplayName>
     <Category>Base Info Image DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3/#12.2.3.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.21</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
@@ -1221,7 +1221,7 @@
   <UADataType NodeId="i=2002" BrowseName="ImageJPG">
     <DisplayName>ImageJPG</DisplayName>
     <Category>Base Info Image DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3/#12.2.3.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.22</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
@@ -1229,7 +1229,7 @@
   <UADataType NodeId="i=2003" BrowseName="ImagePNG">
     <DisplayName>ImagePNG</DisplayName>
     <Category>Base Info Image DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3/#12.2.3.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.23</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
     </References>
@@ -1237,7 +1237,7 @@
   <UADataType NodeId="i=16307" BrowseName="AudioDataType">
     <DisplayName>AudioDataType</DisplayName>
     <Category>Base Info Audio Type</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.3/#12.2.3.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.53</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
@@ -1245,7 +1245,7 @@
   <UADataType NodeId="i=12756" BrowseName="Union" IsAbstract="true">
     <DisplayName>Union</DisplayName>
     <Category>Base Info OptionSet DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.41</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -14176,7 +14176,7 @@
   <UAReferenceType NodeId="i=17603" BrowseName="HasInterface">
     <DisplayName>HasInterface</DisplayName>
     <Category>Address Space Interfaces</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.20</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.19</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -14185,7 +14185,7 @@
   <UAReferenceType NodeId="i=17604" BrowseName="HasAddIn">
     <DisplayName>HasAddIn</DisplayName>
     <Category>Address Space AddIn Reference</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.21</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.20</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -14194,7 +14194,7 @@
   <UADataType NodeId="i=23498" BrowseName="CurrencyUnitType">
     <DisplayName>CurrencyUnitType</DisplayName>
     <Category>Base Info Currency</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.61</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41250,24 +41250,16 @@
   <UADataType NodeId="i=256" BrowseName="IdType">
     <DisplayName>IdType</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.5/#12.2.5.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.2.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7591</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="IdType">
-      <Field Name="Numeric" Value="0">
-        <Description>The identifier is a numeric value. 0 is a null value.</Description>
-      </Field>
-      <Field Name="String" Value="1">
-        <Description>The identifier is a string value. An empty string is a null value.</Description>
-      </Field>
-      <Field Name="Guid" Value="2">
-        <Description>The identifier is a 16 byte structure. 16 zero bytes is a null value.</Description>
-      </Field>
-      <Field Name="Opaque" Value="3">
-        <Description>The identifier is an array of bytes. A zero length array is a null value.</Description>
-      </Field>
+      <Field Name="Numeric" Value="0" />
+      <Field Name="String" Value="1" />
+      <Field Name="Guid" Value="2" />
+      <Field Name="Opaque" Value="3" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=7591" BrowseName="EnumStrings" ParentNodeId="i=256" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
@@ -41296,39 +41288,21 @@
   <UADataType NodeId="i=257" BrowseName="NodeClass">
     <DisplayName>NodeClass</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.5/#12.2.5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11878</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="NodeClass">
-      <Field Name="Unspecified" Value="0">
-        <Description>No classes are selected.</Description>
-      </Field>
-      <Field Name="Object" Value="1">
-        <Description>The node is an object.</Description>
-      </Field>
-      <Field Name="Variable" Value="2">
-        <Description>The node is a variable.</Description>
-      </Field>
-      <Field Name="Method" Value="4">
-        <Description>The node is a method.</Description>
-      </Field>
-      <Field Name="ObjectType" Value="8">
-        <Description>The node is an object type.</Description>
-      </Field>
-      <Field Name="VariableType" Value="16">
-        <Description>The node is an variable type.</Description>
-      </Field>
-      <Field Name="ReferenceType" Value="32">
-        <Description>The node is a reference type.</Description>
-      </Field>
-      <Field Name="DataType" Value="64">
-        <Description>The node is a data type.</Description>
-      </Field>
-      <Field Name="View" Value="128">
-        <Description>The node is a view.</Description>
-      </Field>
+      <Field Name="Unspecified" Value="0" />
+      <Field Name="Object" Value="1" />
+      <Field Name="Variable" Value="2" />
+      <Field Name="Method" Value="4" />
+      <Field Name="ObjectType" Value="8" />
+      <Field Name="VariableType" Value="16" />
+      <Field Name="ReferenceType" Value="32" />
+      <Field Name="DataType" Value="64" />
+      <Field Name="View" Value="128" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=11878" BrowseName="EnumValues" ParentNodeId="i=257" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
@@ -41349,9 +41323,6 @@
               <DisplayName>
                 <Text>Unspecified</Text>
               </DisplayName>
-              <Description>
-                <Text>No classes are selected.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41365,9 +41336,6 @@
               <DisplayName>
                 <Text>Object</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is an object.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41381,9 +41349,6 @@
               <DisplayName>
                 <Text>Variable</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is a variable.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41397,9 +41362,6 @@
               <DisplayName>
                 <Text>Method</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is a method.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41413,9 +41375,6 @@
               <DisplayName>
                 <Text>ObjectType</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is an object type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41429,9 +41388,6 @@
               <DisplayName>
                 <Text>VariableType</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is an variable type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41445,9 +41401,6 @@
               <DisplayName>
                 <Text>ReferenceType</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is a reference type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41461,9 +41414,6 @@
               <DisplayName>
                 <Text>DataType</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is a data type.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41477,9 +41427,6 @@
               <DisplayName>
                 <Text>View</Text>
               </DisplayName>
-              <Description>
-                <Text>The node is a view.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -41731,7 +41678,7 @@
   <UADataType NodeId="i=95" BrowseName="AccessRestrictionType">
     <DisplayName>AccessRestrictionType</DisplayName>
     <Category>Security Role Server Base</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.56</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=15035</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=5</Reference>
@@ -41769,7 +41716,7 @@
   <UADataType NodeId="i=96" BrowseName="RolePermissionType">
     <DisplayName>RolePermissionType</DisplayName>
     <Category>Security Role Server Base</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41781,7 +41728,7 @@
   <UADataType NodeId="i=97" BrowseName="DataTypeDefinition" IsAbstract="true">
     <DisplayName>DataTypeDefinition</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.47</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41790,7 +41737,7 @@
   <UADataType NodeId="i=98" BrowseName="StructureType">
     <DisplayName>StructureType</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.5/#12.2.5.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.49</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=14528</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -41832,7 +41779,7 @@
   <UADataType NodeId="i=101" BrowseName="StructureField">
     <DisplayName>StructureField</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.51</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41849,7 +41796,7 @@
   <UADataType NodeId="i=99" BrowseName="StructureDefinition">
     <DisplayName>StructureDefinition</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.48</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=97</Reference>
     </References>
@@ -41863,7 +41810,7 @@
   <UADataType NodeId="i=100" BrowseName="EnumDefinition">
     <DisplayName>EnumDefinition</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.50</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=97</Reference>
     </References>
@@ -41874,7 +41821,7 @@
   <UADataType NodeId="i=296" BrowseName="Argument">
     <DisplayName>Argument</DisplayName>
     <Category>Base Info Method Argument DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41889,7 +41836,7 @@
   <UADataType NodeId="i=7594" BrowseName="EnumValueType">
     <DisplayName>EnumValueType</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.39</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41902,7 +41849,7 @@
   <UADataType NodeId="i=102" BrowseName="EnumField">
     <DisplayName>EnumField</DisplayName>
     <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.52</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7594</Reference>
     </References>
@@ -41913,7 +41860,7 @@
   <UADataType NodeId="i=12755" BrowseName="OptionSet" IsAbstract="true">
     <DisplayName>OptionSet</DisplayName>
     <Category>Base Info OptionSet DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.40</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41925,7 +41872,7 @@
   <UADataType NodeId="i=12877" BrowseName="NormalizedString">
     <DisplayName>NormalizedString</DisplayName>
     <Category>Base Info NormalizedString DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11/#12.2.11.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.45</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -41933,7 +41880,7 @@
   <UADataType NodeId="i=12878" BrowseName="DecimalString">
     <DisplayName>DecimalString</DisplayName>
     <Category>Base Info DecimalString DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11/#12.2.11.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.43</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -41941,7 +41888,7 @@
   <UADataType NodeId="i=12879" BrowseName="DurationString">
     <DisplayName>DurationString</DisplayName>
     <Category>Base Info Date DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11/#12.2.11.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.44</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -41949,7 +41896,7 @@
   <UADataType NodeId="i=12880" BrowseName="TimeString">
     <DisplayName>TimeString</DisplayName>
     <Category>Base Info Date DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11/#12.2.11.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.46</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -41957,7 +41904,7 @@
   <UADataType NodeId="i=12881" BrowseName="DateString">
     <DisplayName>DateString</DisplayName>
     <Category>Base Info Date DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11/#12.2.11.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.42</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -41965,7 +41912,7 @@
   <UADataType NodeId="i=290" BrowseName="Duration">
     <DisplayName>Duration</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.9/#12.2.9.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11</Reference>
     </References>
@@ -41973,7 +41920,7 @@
   <UADataType NodeId="i=294" BrowseName="UtcTime">
     <DisplayName>UtcTime</DisplayName>
     <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.4/#12.2.4.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.37</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=13</Reference>
     </References>
@@ -41993,7 +41940,7 @@
   <UADataType NodeId="i=295" BrowseName="LocaleId">
     <DisplayName>LocaleId</DisplayName>
     <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.11/#12.2.11.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -42001,7 +41948,7 @@
   <UADataType NodeId="i=8912" BrowseName="TimeZoneDataType">
     <DisplayName>TimeZoneDataType</DisplayName>
     <Category>Base Info LocalTime</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2.12/#12.2.12.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.28</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42032,18 +41979,10 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="ApplicationType">
-      <Field Name="Server" Value="0">
-        <Description>The application is a server.</Description>
-      </Field>
-      <Field Name="Client" Value="1">
-        <Description>The application is a client.</Description>
-      </Field>
-      <Field Name="ClientAndServer" Value="2">
-        <Description>The application is a client and a server.</Description>
-      </Field>
-      <Field Name="DiscoveryServer" Value="3">
-        <Description>The application is a discovery server.</Description>
-      </Field>
+      <Field Name="Server" Value="0" />
+      <Field Name="Client" Value="1" />
+      <Field Name="ClientAndServer" Value="2" />
+      <Field Name="DiscoveryServer" Value="3" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=7597" BrowseName="EnumStrings" ParentNodeId="i=307" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
@@ -42123,18 +42062,10 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="MessageSecurityMode">
-      <Field Name="Invalid" Value="0">
-        <Description>An invalid mode.</Description>
-      </Field>
-      <Field Name="None" Value="1">
-        <Description>No security is used.</Description>
-      </Field>
-      <Field Name="Sign" Value="2">
-        <Description>The message is signed.</Description>
-      </Field>
-      <Field Name="SignAndEncrypt" Value="3">
-        <Description>The message is signed and encrypted.</Description>
-      </Field>
+      <Field Name="Invalid" Value="0" />
+      <Field Name="None" Value="1" />
+      <Field Name="Sign" Value="2" />
+      <Field Name="SignAndEncrypt" Value="3" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=7595" BrowseName="EnumStrings" ParentNodeId="i=302" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
@@ -42168,18 +42099,10 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="UserTokenType">
-      <Field Name="Anonymous" Value="0">
-        <Description>An anonymous user.</Description>
-      </Field>
-      <Field Name="UserName" Value="1">
-        <Description>A user identified by a user name and password.</Description>
-      </Field>
-      <Field Name="Certificate" Value="2">
-        <Description>A user identified by an X509 certificate.</Description>
-      </Field>
-      <Field Name="IssuedToken" Value="3">
-        <Description>A user identified by WS-Security XML token.</Description>
-      </Field>
+      <Field Name="Anonymous" Value="0" />
+      <Field Name="UserName" Value="1" />
+      <Field Name="Certificate" Value="2" />
+      <Field Name="IssuedToken" Value="3" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=7596" BrowseName="EnumStrings" ParentNodeId="i=303" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
@@ -42281,12 +42204,8 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="SecurityTokenRequestType">
-      <Field Name="Issue" Value="0">
-        <Description>The channel is being created.</Description>
-      </Field>
-      <Field Name="Renew" Value="1">
-        <Description>The channel is being renewed.</Description>
-      </Field>
+      <Field Name="Issue" Value="0" />
+      <Field Name="Renew" Value="1" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=7598" BrowseName="EnumStrings" ParentNodeId="i=315" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
@@ -42388,111 +42307,41 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
     </References>
     <Definition Name="NodeAttributesMask">
-      <Field Name="None" Value="0">
-        <Description>No attribuites provided.</Description>
-      </Field>
-      <Field Name="AccessLevel" Value="1">
-        <Description>The access level attribute is specified.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" Value="2">
-        <Description>The array dimensions attribute is specified.</Description>
-      </Field>
-      <Field Name="BrowseName" Value="4">
-        <Description>The browse name attribute is specified.</Description>
-      </Field>
-      <Field Name="ContainsNoLoops" Value="8">
-        <Description>The contains no loops attribute is specified.</Description>
-      </Field>
-      <Field Name="DataType" Value="16">
-        <Description>The data type attribute is specified.</Description>
-      </Field>
-      <Field Name="Description" Value="32">
-        <Description>The description attribute is specified.</Description>
-      </Field>
-      <Field Name="DisplayName" Value="64">
-        <Description>The display name attribute is specified.</Description>
-      </Field>
-      <Field Name="EventNotifier" Value="128">
-        <Description>The event notifier attribute is specified.</Description>
-      </Field>
-      <Field Name="Executable" Value="256">
-        <Description>The executable attribute is specified.</Description>
-      </Field>
-      <Field Name="Historizing" Value="512">
-        <Description>The historizing attribute is specified.</Description>
-      </Field>
-      <Field Name="InverseName" Value="1024">
-        <Description>The inverse name attribute is specified.</Description>
-      </Field>
-      <Field Name="IsAbstract" Value="2048">
-        <Description>The is abstract attribute is specified.</Description>
-      </Field>
-      <Field Name="MinimumSamplingInterval" Value="4096">
-        <Description>The minimum sampling interval attribute is specified.</Description>
-      </Field>
-      <Field Name="NodeClass" Value="8192">
-        <Description>The node class attribute is specified.</Description>
-      </Field>
-      <Field Name="NodeId" Value="16384">
-        <Description>The node id attribute is specified.</Description>
-      </Field>
-      <Field Name="Symmetric" Value="32768">
-        <Description>The symmetric attribute is specified.</Description>
-      </Field>
-      <Field Name="UserAccessLevel" Value="65536">
-        <Description>The user access level attribute is specified.</Description>
-      </Field>
-      <Field Name="UserExecutable" Value="131072">
-        <Description>The user executable attribute is specified.</Description>
-      </Field>
-      <Field Name="UserWriteMask" Value="262144">
-        <Description>The user write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="ValueRank" Value="524288">
-        <Description>The value rank attribute is specified.</Description>
-      </Field>
-      <Field Name="WriteMask" Value="1048576">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="Value" Value="2097152">
-        <Description>The value attribute is specified.</Description>
-      </Field>
-      <Field Name="DataTypeDefinition" Value="4194304">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="RolePermissions" Value="8388608">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="AccessRestrictions" Value="16777216">
-        <Description>The write mask attribute is specified.</Description>
-      </Field>
-      <Field Name="All" Value="33554431">
-        <Description>All attributes are specified.</Description>
-      </Field>
-      <Field Name="BaseNode" Value="26501220">
-        <Description>All base attributes are specified.</Description>
-      </Field>
-      <Field Name="Object" Value="26501348">
-        <Description>All object attributes are specified.</Description>
-      </Field>
-      <Field Name="ObjectType" Value="26503268">
-        <Description>All object type attributes are specified.</Description>
-      </Field>
-      <Field Name="Variable" Value="26571383">
-        <Description>All variable attributes are specified.</Description>
-      </Field>
-      <Field Name="VariableType" Value="28600438">
-        <Description>All variable type attributes are specified.</Description>
-      </Field>
-      <Field Name="Method" Value="26632548">
-        <Description>All method attributes are specified.</Description>
-      </Field>
-      <Field Name="ReferenceType" Value="26537060">
-        <Description>All reference type attributes are specified.</Description>
-      </Field>
-      <Field Name="View" Value="26501356">
-        <Description>All view attributes are specified.</Description>
-      </Field>
+      <Field Name="None" Value="0" />
+      <Field Name="AccessLevel" Value="1" />
+      <Field Name="ArrayDimensions" Value="2" />
+      <Field Name="BrowseName" Value="4" />
+      <Field Name="ContainsNoLoops" Value="8" />
+      <Field Name="DataType" Value="16" />
+      <Field Name="Description" Value="32" />
+      <Field Name="DisplayName" Value="64" />
+      <Field Name="EventNotifier" Value="128" />
+      <Field Name="Executable" Value="256" />
+      <Field Name="Historizing" Value="512" />
+      <Field Name="InverseName" Value="1024" />
+      <Field Name="IsAbstract" Value="2048" />
+      <Field Name="MinimumSamplingInterval" Value="4096" />
+      <Field Name="NodeClass" Value="8192" />
+      <Field Name="NodeId" Value="16384" />
+      <Field Name="Symmetric" Value="32768" />
+      <Field Name="UserAccessLevel" Value="65536" />
+      <Field Name="UserExecutable" Value="131072" />
+      <Field Name="UserWriteMask" Value="262144" />
+      <Field Name="ValueRank" Value="524288" />
+      <Field Name="WriteMask" Value="1048576" />
+      <Field Name="Value" Value="2097152" />
+      <Field Name="DataTypeDefinition" Value="4194304" />
+      <Field Name="RolePermissions" Value="8388608" />
+      <Field Name="AccessRestrictions" Value="16777216" />
+      <Field Name="All" Value="33554431" />
+      <Field Name="BaseNode" Value="26501220" />
+      <Field Name="Object" Value="26501348" />
+      <Field Name="ObjectType" Value="26503268" />
+      <Field Name="Variable" Value="26571383" />
+      <Field Name="VariableType" Value="28600438" />
+      <Field Name="Method" Value="26632548" />
+      <Field Name="ReferenceType" Value="26537060" />
+      <Field Name="View" Value="26501356" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=11881" BrowseName="EnumValues" ParentNodeId="i=348" DataType="i=7594" ValueRank="1" ArrayDimensions="0">
@@ -42513,9 +42362,6 @@
               <DisplayName>
                 <Text>None</Text>
               </DisplayName>
-              <Description>
-                <Text>No attribuites provided.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42529,9 +42375,6 @@
               <DisplayName>
                 <Text>AccessLevel</Text>
               </DisplayName>
-              <Description>
-                <Text>The access level attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42545,9 +42388,6 @@
               <DisplayName>
                 <Text>ArrayDimensions</Text>
               </DisplayName>
-              <Description>
-                <Text>The array dimensions attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42561,9 +42401,6 @@
               <DisplayName>
                 <Text>BrowseName</Text>
               </DisplayName>
-              <Description>
-                <Text>The browse name attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42577,9 +42414,6 @@
               <DisplayName>
                 <Text>ContainsNoLoops</Text>
               </DisplayName>
-              <Description>
-                <Text>The contains no loops attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42593,9 +42427,6 @@
               <DisplayName>
                 <Text>DataType</Text>
               </DisplayName>
-              <Description>
-                <Text>The data type attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42609,9 +42440,6 @@
               <DisplayName>
                 <Text>Description</Text>
               </DisplayName>
-              <Description>
-                <Text>The description attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42625,9 +42453,6 @@
               <DisplayName>
                 <Text>DisplayName</Text>
               </DisplayName>
-              <Description>
-                <Text>The display name attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42641,9 +42466,6 @@
               <DisplayName>
                 <Text>EventNotifier</Text>
               </DisplayName>
-              <Description>
-                <Text>The event notifier attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42657,9 +42479,6 @@
               <DisplayName>
                 <Text>Executable</Text>
               </DisplayName>
-              <Description>
-                <Text>The executable attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42673,9 +42492,6 @@
               <DisplayName>
                 <Text>Historizing</Text>
               </DisplayName>
-              <Description>
-                <Text>The historizing attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42689,9 +42505,6 @@
               <DisplayName>
                 <Text>InverseName</Text>
               </DisplayName>
-              <Description>
-                <Text>The inverse name attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42705,9 +42518,6 @@
               <DisplayName>
                 <Text>IsAbstract</Text>
               </DisplayName>
-              <Description>
-                <Text>The is abstract attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42721,9 +42531,6 @@
               <DisplayName>
                 <Text>MinimumSamplingInterval</Text>
               </DisplayName>
-              <Description>
-                <Text>The minimum sampling interval attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42737,9 +42544,6 @@
               <DisplayName>
                 <Text>NodeClass</Text>
               </DisplayName>
-              <Description>
-                <Text>The node class attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42753,9 +42557,6 @@
               <DisplayName>
                 <Text>NodeId</Text>
               </DisplayName>
-              <Description>
-                <Text>The node id attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42769,9 +42570,6 @@
               <DisplayName>
                 <Text>Symmetric</Text>
               </DisplayName>
-              <Description>
-                <Text>The symmetric attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42785,9 +42583,6 @@
               <DisplayName>
                 <Text>UserAccessLevel</Text>
               </DisplayName>
-              <Description>
-                <Text>The user access level attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42801,9 +42596,6 @@
               <DisplayName>
                 <Text>UserExecutable</Text>
               </DisplayName>
-              <Description>
-                <Text>The user executable attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42817,9 +42609,6 @@
               <DisplayName>
                 <Text>UserWriteMask</Text>
               </DisplayName>
-              <Description>
-                <Text>The user write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42833,9 +42622,6 @@
               <DisplayName>
                 <Text>ValueRank</Text>
               </DisplayName>
-              <Description>
-                <Text>The value rank attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42849,9 +42635,6 @@
               <DisplayName>
                 <Text>WriteMask</Text>
               </DisplayName>
-              <Description>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42865,9 +42648,6 @@
               <DisplayName>
                 <Text>Value</Text>
               </DisplayName>
-              <Description>
-                <Text>The value attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42881,9 +42661,6 @@
               <DisplayName>
                 <Text>DataTypeDefinition</Text>
               </DisplayName>
-              <Description>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42897,9 +42674,6 @@
               <DisplayName>
                 <Text>RolePermissions</Text>
               </DisplayName>
-              <Description>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42913,9 +42687,6 @@
               <DisplayName>
                 <Text>AccessRestrictions</Text>
               </DisplayName>
-              <Description>
-                <Text>The write mask attribute is specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42929,9 +42700,6 @@
               <DisplayName>
                 <Text>All</Text>
               </DisplayName>
-              <Description>
-                <Text>All attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42945,9 +42713,6 @@
               <DisplayName>
                 <Text>BaseNode</Text>
               </DisplayName>
-              <Description>
-                <Text>All base attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42961,9 +42726,6 @@
               <DisplayName>
                 <Text>Object</Text>
               </DisplayName>
-              <Description>
-                <Text>All object attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42977,9 +42739,6 @@
               <DisplayName>
                 <Text>ObjectType</Text>
               </DisplayName>
-              <Description>
-                <Text>All object type attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -42993,9 +42752,6 @@
               <DisplayName>
                 <Text>Variable</Text>
               </DisplayName>
-              <Description>
-                <Text>All variable attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -43009,9 +42765,6 @@
               <DisplayName>
                 <Text>VariableType</Text>
               </DisplayName>
-              <Description>
-                <Text>All variable type attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -43025,9 +42778,6 @@
               <DisplayName>
                 <Text>Method</Text>
               </DisplayName>
-              <Description>
-                <Text>All method attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -43041,9 +42791,6 @@
               <DisplayName>
                 <Text>ReferenceType</Text>
               </DisplayName>
-              <Description>
-                <Text>All reference type attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -43057,9 +42804,6 @@
               <DisplayName>
                 <Text>View</Text>
               </DisplayName>
-              <Description>
-                <Text>All view attributes are specified.</Text>
-              </Description>
             </EnumValueType>
           </Body>
         </ExtensionObject>
@@ -43134,84 +42878,32 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
     <Definition Name="AttributeWriteMask" IsOptionSet="true">
-      <Field Name="AccessLevel" Value="0">
-        <Description>The access level attribute is writable.</Description>
-      </Field>
-      <Field Name="ArrayDimensions" Value="1">
-        <Description>The array dimensions attribute is writable.</Description>
-      </Field>
-      <Field Name="BrowseName" Value="2">
-        <Description>The browse name attribute is writable.</Description>
-      </Field>
-      <Field Name="ContainsNoLoops" Value="3">
-        <Description>The contains no loops attribute is writable.</Description>
-      </Field>
-      <Field Name="DataType" Value="4">
-        <Description>The data type attribute is writable.</Description>
-      </Field>
-      <Field Name="Description" Value="5">
-        <Description>The description attribute is writable.</Description>
-      </Field>
-      <Field Name="DisplayName" Value="6">
-        <Description>The display name attribute is writable.</Description>
-      </Field>
-      <Field Name="EventNotifier" Value="7">
-        <Description>The event notifier attribute is writable.</Description>
-      </Field>
-      <Field Name="Executable" Value="8">
-        <Description>The executable attribute is writable.</Description>
-      </Field>
-      <Field Name="Historizing" Value="9">
-        <Description>The historizing attribute is writable.</Description>
-      </Field>
-      <Field Name="InverseName" Value="10">
-        <Description>The inverse name attribute is writable.</Description>
-      </Field>
-      <Field Name="IsAbstract" Value="11">
-        <Description>The is abstract attribute is writable.</Description>
-      </Field>
-      <Field Name="MinimumSamplingInterval" Value="12">
-        <Description>The minimum sampling interval attribute is writable.</Description>
-      </Field>
-      <Field Name="NodeClass" Value="13">
-        <Description>The node class attribute is writable.</Description>
-      </Field>
-      <Field Name="NodeId" Value="14">
-        <Description>The node id attribute is writable.</Description>
-      </Field>
-      <Field Name="Symmetric" Value="15">
-        <Description>The symmetric attribute is writable.</Description>
-      </Field>
-      <Field Name="UserAccessLevel" Value="16">
-        <Description>The user access level attribute is writable.</Description>
-      </Field>
-      <Field Name="UserExecutable" Value="17">
-        <Description>The user executable attribute is writable.</Description>
-      </Field>
-      <Field Name="UserWriteMask" Value="18">
-        <Description>The user write mask attribute is writable.</Description>
-      </Field>
-      <Field Name="ValueRank" Value="19">
-        <Description>The value rank attribute is writable.</Description>
-      </Field>
-      <Field Name="WriteMask" Value="20">
-        <Description>The write mask attribute is writable.</Description>
-      </Field>
-      <Field Name="ValueForVariableType" Value="21">
-        <Description>The value attribute is writable.</Description>
-      </Field>
-      <Field Name="DataTypeDefinition" Value="22">
-        <Description>The DataTypeDefinition attribute is writable.</Description>
-      </Field>
-      <Field Name="RolePermissions" Value="23">
-        <Description>The RolePermissions attribute is writable.</Description>
-      </Field>
-      <Field Name="AccessRestrictions" Value="24">
-        <Description>The AccessRestrictions attribute is writable.</Description>
-      </Field>
-      <Field Name="AccessLevelEx" Value="25">
-        <Description>The AccessLevelEx attribute is writable.</Description>
-      </Field>
+      <Field Name="AccessLevel" Value="0" />
+      <Field Name="ArrayDimensions" Value="1" />
+      <Field Name="BrowseName" Value="2" />
+      <Field Name="ContainsNoLoops" Value="3" />
+      <Field Name="DataType" Value="4" />
+      <Field Name="Description" Value="5" />
+      <Field Name="DisplayName" Value="6" />
+      <Field Name="EventNotifier" Value="7" />
+      <Field Name="Executable" Value="8" />
+      <Field Name="Historizing" Value="9" />
+      <Field Name="InverseName" Value="10" />
+      <Field Name="IsAbstract" Value="11" />
+      <Field Name="MinimumSamplingInterval" Value="12" />
+      <Field Name="NodeClass" Value="13" />
+      <Field Name="NodeId" Value="14" />
+      <Field Name="Symmetric" Value="15" />
+      <Field Name="UserAccessLevel" Value="16" />
+      <Field Name="UserExecutable" Value="17" />
+      <Field Name="UserWriteMask" Value="18" />
+      <Field Name="ValueRank" Value="19" />
+      <Field Name="WriteMask" Value="20" />
+      <Field Name="ValueForVariableType" Value="21" />
+      <Field Name="DataTypeDefinition" Value="22" />
+      <Field Name="RolePermissions" Value="23" />
+      <Field Name="AccessRestrictions" Value="24" />
+      <Field Name="AccessLevelEx" Value="25" />
     </Definition>
   </UADataType>
   <UAVariable NodeId="i=15036" BrowseName="OptionSetValues" ParentNodeId="i=347" DataType="LocalizedText" ValueRank="1" ArrayDimensions="0">
