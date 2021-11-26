@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Server
 
                     // check if new and old sessions are different
                     var oldSession = subscription.Session;
-                    if (oldSession.Id == null || oldSession.Id == NodeId.Null || oldSession.Id == context.Session.Id)
+                    if (oldSession != null && (oldSession.Id == null || oldSession.Id == NodeId.Null || oldSession.Id == context.Session.Id))
                     {
                         result.StatusCode = StatusCodes.BadNothingToDo;
                         results.Add(result);
@@ -1170,8 +1170,8 @@ namespace Opc.Ua.Server
                     // The Server shall validate that the Client of that Session is operating on behalf of the same user
                     // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
                     // --> Bad_UserAccessDenied
-                    // --> Bad_InsufficientClientProfile <<<< TODO
-                    if (!oldSession.IdentityToken.IsEqual(context.Session.IdentityToken))
+                    // --> Bad_InsufficientClientProfile <<<< TODO (context.SecurityPolicyUri ?)
+                    if (oldSession != null && (!oldSession.IdentityToken.IsEqual(context.Session.IdentityToken)))
                     {
                         result.StatusCode = StatusCodes.BadUserAccessDenied;
                         results.Add(result);
@@ -1183,7 +1183,47 @@ namespace Opc.Ua.Server
                     }
 
                     // transfer session
-                    subscription.TransferSession(context.Session, sendInitialValues);
+                    lock (m_lock)
+                    {
+                        subscription.TransferSession(context.Session, sendInitialValues);
+                        if (!m_publishQueues.TryGetValue(context.SessionId, out var publishQueue))
+                        {
+                            if (publishQueue == null)
+                            {
+                                m_publishQueues[context.SessionId] = publishQueue = new SessionPublishQueue(m_server, context.Session, m_maxPublishRequestCount);
+                            }
+                            publishQueue.Add(subscription);
+                        }
+                    }
+
+                    lock (m_statusMessagesLock)
+                    {
+                        if (!m_statusMessages.TryGetValue(context.SessionId, out var messagesQueue) && messagesQueue == null)
+                        {
+                            m_statusMessages[context.SessionId] = new Queue<StatusMessage>();
+                        }
+                    }
+
+                    lock (m_server.DiagnosticsWriteLock)
+                    {
+                        var publishingIntervalCount = GetPublishingIntervalCount();
+                        ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
+                        diagnostics.CurrentSubscriptionCount++;
+                        diagnostics.CumulatedSubscriptionCount++;
+                        diagnostics.PublishingIntervalCount = publishingIntervalCount;
+                    }
+
+                    if (context.Session != null)
+                    {
+                        lock (context.Session.DiagnosticsLock)
+                        {
+                            SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
+                            diagnostics.CurrentSubscriptionsCount++;
+                        }
+                    }
+
+                    // raise subscription event.
+                    RaiseSubscriptionEvent(subscription, false);
                     result.StatusCode = StatusCodes.Good;
 
                     //Server shall issue a StatusChangeNotification notificationMessage with the status code Good_SubscriptionTransferred to the old Session.
@@ -1191,7 +1231,7 @@ namespace Opc.Ua.Server
                     var message = new StatusMessage();
                     message.SubscriptionId = subscription.Id;
                     message.Message = subscription.SubscriptionTransfered();
-                    if (oldSession.Id != null && m_statusMessages.TryGetValue(oldSession.Id, out var queue))
+                    if (oldSession != null && oldSession.Id != null && m_statusMessages.TryGetValue(oldSession.Id, out var queue))
                     {
                         queue.Enqueue(message);
                     }
