@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Tests
         /// <param name="writer">The test output writer.</param>
         public async Task OneTimeSetUpAsync(TextWriter writer = null)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
@@ -646,6 +646,72 @@ namespace Opc.Ua.Client.Tests
                     await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
                 }
             }
+        }
+
+        [Test, Order(800)]
+        public async Task TestSubscriptionTransfer()
+        {
+            var subscription = new Subscription(m_session.DefaultSubscription) {
+                PublishingInterval = 1000,
+            };
+            m_session.AddSubscription(subscription);
+            subscription.Create();
+
+            NodeId resolvedNodeId = VariableIds.Server_ServerStatus_CurrentTime;
+            var newMonitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                StartNodeId = resolvedNodeId,
+                AttributeId = Attributes.Value,
+                DisplayName = "Current Time",
+                SamplingInterval = 500
+            };
+
+            uint oldSessionCounter = 0;
+            uint newSessionCounter = 0;
+            newMonitoredItem.Notification += (_, __) => {
+                    oldSessionCounter++;
+            };
+            subscription.AddItem(newMonitoredItem);
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+
+            await Task.Delay(10_000).ConfigureAwait(false);
+
+            var filePath = Path.GetTempFileName();
+            m_session.Save(filePath);
+
+            //await m_session.CloseSessionAsync(null, false, default);
+
+            // create second session
+            var newSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            //transfer subscription
+            var transferRequest = new TransferSubscriptionsRequest();
+            var subscriptionIds = new UInt32Collection();
+            subscriptionIds.Add(subscription.Id);
+            newSession.TransferSubscriptions(transferRequest.RequestHeader, subscriptionIds, true, out var results, out var diagInfos);
+            results.ForEach((result) => Assert.IsTrue(StatusCode.IsGood(result.StatusCode)) );
+            //restore client state
+            var newSubscriptions = newSession.Load(filePath).ToList();
+            Assert.AreEqual(1, newSubscriptions.Count);
+            Assert.AreEqual(1, newSession.Subscriptions.Count());
+            //
+            var publishingRequest = new SetPublishingModeRequest();
+            //newSession.SetPublishingMode(publishingRequest.RequestHeader, true, subscriptionIds, out var setPublishingModeResults, out var setPublishingModeDiagInfo);
+            //setPublishingModeResults.ForEach((result) => Assert.IsTrue(StatusCode.IsGood(result.Code)));
+
+            var newMonitoredItems = newSubscriptions.First().MonitoredItems.ToList();
+            Assert.AreEqual(1, newMonitoredItems.Count);
+            Assert.AreNotSame(m_session, newMonitoredItems.First().Subscription.Session);
+            newMonitoredItems.First().Notification += (_, __) => {
+                newSessionCounter++;
+            };
+
+            // wait for some events
+            await Task.Delay(10_000).ConfigureAwait(false);
+            //verify that subscription was susccfully transfered
+            Assert.IsTrue(oldSessionCounter > 10);
+            Assert.IsTrue(newSessionCounter > 10);
+
+            newSession.Close();
+            File.Delete(filePath);
         }
         #endregion
 
