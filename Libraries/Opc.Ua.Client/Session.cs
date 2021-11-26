@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -149,7 +149,7 @@ namespace Opc.Ua.Client
             m_configuration = configuration;
             m_endpoint = endpoint;
 
-            // update the default subscription. 
+            // update the default subscription.
             m_defaultSubscription.MinLifetimeInterval = (uint)configuration.ClientConfiguration.MinSubscriptionLifetime;
 
             if (m_endpoint.Description.SecurityPolicyUri != SecurityPolicies.None)
@@ -434,7 +434,7 @@ namespace Opc.Ua.Client
         /// Raised when an exception occurs while processing a publish response.
         /// </summary>
         /// <remarks>
-        /// Exceptions in a publish response are not necessarily fatal and the Session will 
+        /// Exceptions in a publish response are not necessarily fatal and the Session will
         /// attempt to recover by issuing Republish requests if missing messages are detected.
         /// That said, timeout errors may be a symptom of a OperationTimeout that is too short
         /// when compared to the shortest PublishingInterval/KeepAliveCount amount the current
@@ -1708,7 +1708,7 @@ namespace Opc.Ua.Client
                             continue;
                         }
 
-                        // ignore errors on optional attributes 
+                        // ignore errors on optional attributes
                         if (StatusCode.IsBad(values[ii].StatusCode))
                         {
                             if (attributeId == Attributes.AccessRestrictions ||
@@ -3636,6 +3636,41 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
+
+        /// <summary>
+        /// Invokes the TransferSubscriptions service.
+        /// </summary>
+        public override ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            var response = base.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
+            StartKeepAliveTimer();
+            foreach(var subscription in m_subscriptions)
+            {
+                if (subscriptionIds.Contains(subscription.Id))
+                {
+                    subscription.SetPublishingMode(true);
+                }
+            }
+
+            for (int i = 0; i < results.Count; i++)
+            {
+                if (StatusCode.IsGood(results[i].StatusCode))
+                {
+                    foreach (var sequenceNumber in results[i].AvailableSequenceNumbers)
+                    {
+                        //feature: let client acknowledge the sequence numbers that were already handled
+                        Republish(subscriptionIds[i], sequenceNumber);
+                    }
+                }
+            }
+
+            return response;
+        }
         #endregion
 
         #region Protected Methods
@@ -3664,7 +3699,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Inspects the software certificates provided by the server. 
+        /// Inspects the software certificates provided by the server.
         /// </summary>
         protected virtual void ValidateSoftwareCertificates(List<SoftwareCertificate> softwareCertificates)
         {
@@ -4180,7 +4215,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // raise an error event.     
+                // raise an error event.
                 ServiceResult error = new ServiceResult(e);
 
                 if (error.Code != StatusCodes.BadNoSubscription)
@@ -4280,7 +4315,7 @@ namespace Opc.Ua.Client
                     case StatusCodes.BadMessageNotAvailable:
                         Utils.Trace("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                         break;
-                    // if encoding limits are exceeded, the issue is logged and 
+                    // if encoding limits are exceeded, the issue is logged and
                     // the published data is acknoledged to prevent the endless republish loop.
                     case StatusCodes.BadEncodingLimitsExceeded:
                         Utils.Trace(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
@@ -4453,7 +4488,7 @@ namespace Opc.Ua.Client
                     Utils.Trace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
-                // update subscription cache.                                 
+                // update subscription cache.
                 subscription.SaveMessageInCache(
                     availableSequenceNumbers,
                     notificationMessage,
