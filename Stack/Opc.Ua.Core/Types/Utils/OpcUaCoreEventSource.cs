@@ -346,7 +346,7 @@ namespace Opc.Ua
         {
             if (IsEnabled())
             {
-            var message = Utils.TraceExceptionMessage(ex, format, args).ToString();
+                var message = Utils.TraceExceptionMessage(ex, format, args).ToString();
                 if (ex is ServiceResultException sre)
                 {
                     ServiceResultException((int)sre.StatusCode, message);

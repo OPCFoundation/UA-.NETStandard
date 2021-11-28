@@ -1532,7 +1532,7 @@ namespace Opc.Ua
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error processing incoming request.");
+                            Utils.LogError(e, "Unexpected error processing incoming request.");
                         }
                         finally
                         {

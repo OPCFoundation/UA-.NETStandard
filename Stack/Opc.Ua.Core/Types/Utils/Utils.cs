@@ -447,7 +447,6 @@ namespace Opc.Ua
         /// Writes an informational message to the trace log.
         /// </summary>
         [Conditional("DEBUG")]
-        [Obsolete("Use Utils.LogDebug instead.")]
         public static void TraceDebug(string format, params object[] args)
         {
             LogDebug(format, args);
