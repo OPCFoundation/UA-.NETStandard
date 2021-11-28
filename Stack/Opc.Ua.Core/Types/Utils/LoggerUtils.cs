@@ -147,8 +147,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        //------------------------------------------DEBUG------------------------------------------//
-
+        #region Debug Log Methods
         /// <summary>
         /// Formats and writes a debug log message.
         /// </summary>
@@ -200,9 +199,9 @@ namespace Opc.Ua
         {
             Log(LogLevel.Debug, message, args);
         }
+        #endregion
 
-        //------------------------------------------TRACE------------------------------------------//
-
+        #region Trace Log Methods
         /// <summary>
         /// Formats and writes a trace log message.
         /// </summary>
@@ -278,9 +277,9 @@ namespace Opc.Ua
                 Log(LogLevel.Trace, message, args);
             }
         }
+        #endregion
 
-        //------------------------------------------INFORMATION------------------------------------------//
-
+        #region Information Log Methods
         /// <summary>
         /// Formats and writes an informational log message.
         /// </summary>
@@ -328,9 +327,9 @@ namespace Opc.Ua
         {
             Log(LogLevel.Information, message, args);
         }
+        #endregion
 
-        //------------------------------------------WARNING------------------------------------------//
-
+        #region Warning Log Methods
         /// <summary>
         /// Formats and writes a warning log message.
         /// </summary>
@@ -378,9 +377,9 @@ namespace Opc.Ua
         {
             Log(LogLevel.Warning, message, args);
         }
+        #endregion
 
-        //------------------------------------------ERROR------------------------------------------//
-
+        #region Error Log Methods
         /// <summary>
         /// Formats and writes an error log message.
         /// </summary>
@@ -428,9 +427,9 @@ namespace Opc.Ua
         {
             Log(LogLevel.Error, message, args);
         }
+        #endregion
 
-        //------------------------------------------CRITICAL------------------------------------------//
-
+        #region Critical Log Methods
         /// <summary>
         /// Formats and writes a critical log message.
         /// </summary>
@@ -478,7 +477,9 @@ namespace Opc.Ua
         {
             Log(LogLevel.Critical, message, args);
         }
+        #endregion
 
+        #region Private Log Methods
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
@@ -550,9 +551,9 @@ namespace Opc.Ua
                 Logger.Log(logLevel, eventId, exception, message, args);
             }
         }
+        #endregion
 
-        //------------------------------------------Scope------------------------------------------//
-
+        #region Scope Method
         /// <summary>
         /// Formats the message and creates a scope.
         /// </summary>
@@ -570,6 +571,7 @@ namespace Opc.Ua
         {
             return Logger.BeginScope(messageFormat, args);
         }
+        #endregion
 
         #region Private Methods
         /// <summary>

@@ -16,6 +16,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -427,7 +428,7 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.LogCertificate(Microsoft.Extensions.Logging.LogLevel.Error, "Certificate rejected. Reason={1}.",
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
                         certificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
 
                     SaveCertificate(certificate);
@@ -1016,7 +1017,7 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.LogCertificate(Microsoft.Extensions.Logging.LogLevel.Error, "Certificate rejected. Reason={1}.",
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
                         serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
                     SaveCertificate(serverCertificate);
 
