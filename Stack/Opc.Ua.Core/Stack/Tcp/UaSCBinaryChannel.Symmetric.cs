@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings
             token.CreatedAt = DateTime.UtcNow;
             token.Lifetime = (int)Quotas.SecurityTokenLifetime;
 
-            Utils.Trace("Token #{0} created. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}", Id, token.TokenId, token.CreatedAt, token.Lifetime);
 
             return token;
         }
@@ -65,7 +65,7 @@ namespace Opc.Ua.Bindings
             m_currentToken = token;
             m_renewedToken = null;
 
-            Utils.Trace("Token #{0} activated. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}", Id, token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
         /// <summary>
@@ -74,8 +74,7 @@ namespace Opc.Ua.Bindings
         protected void SetRenewedToken(ChannelToken token)
         {
             m_renewedToken = token;
-
-            Utils.Trace("RenewedToken #{0} set. CreatedAt = {1:HH:mm:ss.fff} . Lifetime = {2}", token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: RenewedToken #{1} set. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}", Id, token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
         /// <summary>
@@ -484,7 +483,7 @@ namespace Opc.Ua.Bindings
             {
                 ActivateToken(RenewedToken);
 
-                Utils.Trace("Token #{0} activated forced.", CurrentToken.TokenId);
+                Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
             }
 
             // check for valid token.
@@ -500,10 +499,9 @@ namespace Opc.Ua.Bindings
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
-                    "TokenId is not known. ChanneId={0}, TokenId={1}, CurrentTokenId={2}, PreviousTokenId={3}",
-                    channelId,
-                    tokenId,
-                    currentToken.TokenId,
+                    "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
+                    Id, channelId,
+                    tokenId, currentToken.TokenId,
                     (PreviousToken != null) ? (int)PreviousToken.TokenId : -1);
             }
 
@@ -518,7 +516,9 @@ namespace Opc.Ua.Bindings
             // check if token has expired.
             if (token.Expired)
             {
-                throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Token #{0} has expired. Lifetime={1:HH:mm:ss.fff}", token.TokenId, token.CreatedAt);
+                throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
+                    "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}",
+                    Id, token.TokenId, token.CreatedAt);
             }
 
             int headerSize = decoder.Position;
@@ -542,7 +542,7 @@ namespace Opc.Ua.Bindings
                 // verify the signature.
                 if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
                 {
-                    Utils.Trace("Could not verify signature on message.");
+                    Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
                 }
             }
@@ -706,7 +706,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Verifies a HMAC for a message.
         /// </summary>
-        private static bool SymmetricVerify(
+        private bool SymmetricVerify(
             ChannelToken token,
             byte[] signature,
             ArraySegment<byte> dataToVerify,
@@ -731,11 +731,11 @@ namespace Opc.Ua.Bindings
                     string actualSignature = Utils.ToHexString(signature);
 
                     var message = new StringBuilder();
-                    message.AppendLine("Could not validate signature.");
-                    message.AppendLine("ChannelId={0}, TokenId={1}, MessageType={2}, Length={3}");
-                    message.AppendLine("ExpectedSignature={4}");
-                    message.AppendLine("ActualSignature={5}");
-                    Utils.Trace(message.ToString(), token.ChannelId, token.TokenId,
+                    message.AppendLine("Channel{0}: Could not validate signature.");
+                    message.AppendLine("ChannelId={1}, TokenId={2}, MessageType={3}, Length={4}");
+                    message.AppendLine("ExpectedSignature={5}");
+                    message.AppendLine("ActualSignature={6}");
+                    Utils.LogError(message.ToString(), Id, token.ChannelId, token.TokenId,
                         messageType, messageLength, expectedSignature, actualSignature);
 
                     return false;

@@ -342,7 +342,7 @@ namespace Opc.Ua
                 // write to debug trace listeners.
                 if (s_traceOutput == (int)TraceOutput.DebugAndFile)
                 {
-                    System.Diagnostics.Debug.WriteLine(output);
+                    Debug.WriteLine(output);
                 }
 
                 string traceFileName = s_traceFileName;
@@ -432,7 +432,7 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string message)
         {
-            LogInformation(message);
+            LogInfo(message);
         }
 
         /// <summary>
@@ -440,13 +440,14 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            LogInformation(format, args);
+            LogInfo(format, args);
         }
 
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
         [Conditional("DEBUG")]
+        [Obsolete("Use Utils.LogDebug instead.")]
         public static void TraceDebug(string format, params object[] args)
         {
             LogDebug(format, args);
@@ -547,7 +548,7 @@ namespace Opc.Ua
             }
             else if ((traceMask & InformationMask) != 0)
             {
-                LogInformation(traceMask, format, args);
+                LogInfo(traceMask, format, args);
             }
             else
             {
@@ -633,7 +634,6 @@ namespace Opc.Ua
         /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
         {
-
             // nothing to do for nulls.
             if (String.IsNullOrEmpty(input))
             {
@@ -857,7 +857,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not create file: {0}", filePath);
+                Utils.LogError(e, "Could not create file: {0}", filePath);
 
                 if (throwOnError)
                 {
@@ -1022,7 +1022,7 @@ namespace Opc.Ua
 #if DEBUG
             catch (Exception e)
             {
-                Utils.Trace(e, "Error disposing object: {0}", disposable.GetType().Name);
+                Utils.LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
             }
 #else
             catch (Exception) {;}
@@ -1146,7 +1146,6 @@ namespace Opc.Ua
                 return ipAddress;
             }
         }
-
 
         /// <summary>
         /// Replaces the localhost domain with the current host name.
@@ -1547,7 +1546,6 @@ namespace Opc.Ua
         {
             return String.Format(CultureInfo.InvariantCulture, text, args);
         }
-
 
         /// <summary>
         /// Checks if a string is a valid locale identifier.
@@ -2540,7 +2538,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace("Exception parsing extension: " + ex.Message);
+                    Utils.LogError("Exception parsing extension: " + ex.Message);
                     throw;
                 }
                 finally

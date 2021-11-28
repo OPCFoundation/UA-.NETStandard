@@ -34,6 +34,7 @@ using System.Xml;
 using System.Threading;
 using System.Runtime.Serialization;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -368,7 +369,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Delete items for subscription failed.");
+                    Utils.LogError(e, "Delete items for subscription failed.");
                 }
             }
         }
@@ -817,9 +818,7 @@ namespace Opc.Ua.Server
                 // check for missing notifications.
                 if (!keepAliveIfNoData && messages.Count == 0)
                 {
-                    Utils.Trace(
-                        (int)Utils.TraceMasks.Error,
-                        "Oops! MonitoredItems queued but no notifications availabled.");
+                    Utils.LogError("Oops! MonitoredItems queued but no notifications available.");
 
                     m_waitingForPublish = false;
 
@@ -860,7 +859,7 @@ namespace Opc.Ua.Server
             if (overflowCount > 0)
             {
 
-                Utils.Trace(
+                Utils.LogWarning(
                     "WARNING: QUEUE OVERFLOW. Dropping {2} Messages. Increase MaxMessageQueueSize. SubId={0}, MaxMessageQueueSize={1}",
                     m_id,
                     m_maxMessageCount,
@@ -2019,7 +2018,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // build list of items to refresh.
-                if ( m_monitoredItems.ContainsKey(monitoredItemId) )
+                if (m_monitoredItems.ContainsKey(monitoredItemId))
                 {
                     LinkedListNode<IMonitoredItem> monitoredItem = m_monitoredItems[monitoredItemId];
 
@@ -2034,7 +2033,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid,
-                        "Cannot refresh conditions for a monitored item that does not exist.") ;
+                        "Cannot refresh conditions for a monitored item that does not exist.");
                 }
 
                 // nothing to do if no event subscriptions.
@@ -2050,12 +2049,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Refreshes the conditions.  Works for both ConditionRefresh and ConditionRefresh2
         /// </summary>
-        private void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId )
+        private void ConditionRefresh(List<IEventMonitoredItem> monitoredItems, uint monitoredItemId)
         {
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(m_session);
 
             string messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}.", m_id);
-            if ( monitoredItemId > 0 )
+            if (monitoredItemId > 0)
             {
                 messageTemplate = String.Format("Condition refresh {{0}} for subscription {0}, monitored item {1}.", m_id, monitoredItemId);
             }
@@ -2070,7 +2069,7 @@ namespace Opc.Ua.Server
                 message = new TranslationInfo(
                     "RefreshStartEvent",
                     "en-US",
-                    String.Format(messageTemplate, "started") );
+                    String.Format(messageTemplate, "started"));
 
                 e.Initialize(
                     systemContext,
@@ -2211,11 +2210,11 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
-            if ((Utils.TraceMask & Utils.TraceMasks.Information) == 0)
+            if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }
-
+            //TODO:  create eventsource
             StringBuilder buffer = new StringBuilder();
 
             lock (m_lock)
@@ -2237,7 +2236,7 @@ namespace Opc.Ua.Server
                 buffer.AppendFormat(", MessageCount={0}", m_sentMessages.Count);
             }
 
-            Utils.Trace("{0}", buffer.ToString());
+            Utils.EventLog.Trace("{0}", buffer.ToString());
         }
         #endregion
 

@@ -1421,7 +1421,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error creating the ReferenceNodeManager address space.");
+                    Utils.LogError(e, "Error creating the ReferenceNodeManager address space.");
                 }
 
                 AddPredefinedNode(SystemContext, root);
@@ -1444,7 +1444,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error writing Interval variable.");
+                Utils.LogError(e, "Error writing Interval variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Interval variable.");
             }
         }
@@ -1468,7 +1468,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error writing Enabled variable.");
+                Utils.LogError(e, "Error writing Enabled variable.");
                 return ServiceResult.Create(e, StatusCodes.Bad, "Error writing Enabled variable.");
             }
         }
@@ -2648,7 +2648,7 @@ namespace Quickstarts.ReferenceServer
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error doing simulation.");
+                Utils.LogError(e, "Unexpected error doing simulation.");
             }
         }
 

@@ -20,7 +20,6 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Validates certificates.
     /// </summary>
@@ -363,7 +362,6 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
-
                     InternalValidate(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
@@ -376,14 +374,14 @@ namespace Opc.Ua
                 if (ContainsUnsuppressibleSC(se.Result))
                 {
                     SaveCertificate(certificate);
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}.", certificate.Subject, se.Result.ToString());
-                    TraceInnerServiceResults(se.Result);
+                    Utils.LogCertificate("Certificate rejected. Reason={1}", certificate, se.Result.ToString());
+                    LogInnerServiceResults(se.Result);
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
                 else
                 {
-                    Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}", certificate.Subject, se.ToLongString());
-                    TraceInnerServiceResults(se.Result);
+                    Utils.LogCertificate("Certificate Validation failed. Reason={0}", certificate, se.ToLongString());
+                    LogInnerServiceResults(se.Result);
                 }
 
                 // invoke callback.
@@ -410,7 +408,7 @@ namespace Opc.Ua
                             serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                         {
                             accept = true;
-                            Utils.Trace(Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", certificate.Subject);
+                            Utils.LogCertificate("Auto accepted certificate: ", certificate);
                         }
 
                         if (accept)
@@ -429,8 +427,9 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
-                        certificate.Subject, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                    Utils.LogCertificate(Microsoft.Extensions.Logging.LogLevel.Error, "Certificate rejected. Reason={1}.",
+                        certificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+
                     SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -439,7 +438,7 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
-                    Utils.Trace("Validation error suppressed for '{0}'.", certificate.Subject);
+                    Utils.LogCertificate("Validation error suppressed for '{0}'.", certificate);
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
@@ -470,11 +469,11 @@ namespace Opc.Ua
         /// <summary>
         /// List all reasons for failing cert validation.
         /// </summary>
-        private static void TraceInnerServiceResults(ServiceResult result)
+        private static void LogInnerServiceResults(ServiceResult result)
         {
             while (result != null)
             {
-                Utils.Trace(Utils.TraceMasks.Security, " -- {0}", result.ToString());
+                Utils.LogInfo(Utils.TraceMasks.Security, " -- {0}", result.ToString());
                 result = result.InnerResult;
             }
         }
@@ -488,7 +487,7 @@ namespace Opc.Ua
             {
                 if (m_rejectedCertificateStore != null)
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
+                    Utils.LogTrace("Writing rejected certificate to: {0}", m_rejectedCertificateStore);
                     try
                     {
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
@@ -516,7 +515,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                        Utils.LogError(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
                     }
                 }
             }
@@ -1017,8 +1016,8 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
-                        serverCertificate.Subject, serviceResult.ToString());
+                    Utils.LogCertificate(Microsoft.Extensions.Logging.LogLevel.Error, "Certificate rejected. Reason={1}.",
+                        serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
                     SaveCertificate(serverCertificate);
 
                     throw serviceResult;

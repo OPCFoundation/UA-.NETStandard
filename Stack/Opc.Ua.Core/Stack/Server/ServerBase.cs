@@ -189,7 +189,7 @@ namespace Opc.Ua
                 throw new ArgumentException(nameof(url), "No suitable listener found.");
             }
 
-            Utils.Trace((int)Utils.TraceMasks.Information, "Connecting to Client at {0}.", url);
+            Utils.LogInfo("Reverse Connect to Client at {0}.", url);
             listener.CreateReverseConnection(url, timeout);
         }
 
@@ -437,7 +437,6 @@ namespace Opc.Ua
                 maxRequestThreadCount = configuration.ServerConfiguration.MaxRequestThreadCount;
                 maxQueuedRequestCount = configuration.ServerConfiguration.MaxQueuedRequestCount;
             }
-
             else if (configuration.DiscoveryServerConfiguration != null)
             {
                 minRequestThreadCount = configuration.DiscoveryServerConfiguration.MinRequestThreadCount;
@@ -503,7 +502,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
+                        Utils.LogError(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
                     }
                 }
 
@@ -792,7 +791,7 @@ namespace Opc.Ua
                     message.Append(' ')
                         .Append(e.InnerException.Message);
                 }
-                Utils.Trace(e, message.ToString());
+                Utils.LogError(e, message.ToString());
                 throw;
             }
         }
@@ -1456,7 +1455,7 @@ namespace Opc.Ua
                             m_totalThreadCount++;
                             m_activeThreadCount++;  // new threads start in an active state
 
-                            Utils.Trace("Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
+                            Utils.LogTrace("Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
                         }
                     }
                 }
@@ -1477,7 +1476,7 @@ namespace Opc.Ua
                 {
                     Interlocked.Decrement(ref m_activeThreadCount);
                     request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
-                    Utils.Trace(Utils.TraceMasks.Error, "Too many operations. Active thread count: {0}", m_activeThreadCount);
+                    Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
                     return;
                 }
 
@@ -1515,9 +1514,7 @@ namespace Opc.Ua
                             if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
-
-                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Environment.CurrentManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
-
+                                Utils.LogTrace("Thread ended: " + Environment.CurrentManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
                                 return;
                             }
 

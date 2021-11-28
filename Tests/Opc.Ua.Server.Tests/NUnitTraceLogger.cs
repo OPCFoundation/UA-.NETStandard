@@ -34,8 +34,10 @@ using Opc.Ua;
 
 namespace Opc.Ua.Server.Tests
 {
+
+
     /// <summary>
-    /// A sample serilog trace logger replacement.
+    /// A NUnit trace logger replacement.
     /// </summary>
     public class NUnitTraceLogger
     {

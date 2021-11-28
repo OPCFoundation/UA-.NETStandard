@@ -279,7 +279,7 @@ namespace Boiler
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error during boiler simulation.");
+                Utils.LogError(e, "Unexpected error during boiler simulation.");
             }
         }
         #endregion

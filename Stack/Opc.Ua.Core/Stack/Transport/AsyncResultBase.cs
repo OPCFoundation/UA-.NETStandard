@@ -237,7 +237,7 @@ namespace Opc.Ua
                 catch (ObjectDisposedException ode)
                 {
                     // ignore 
-                    Utils.Trace(ode, "Unexpected error handling OperationCompleted for AsyncResult operation.");
+                    Utils.LogTrace(ode, "Unexpected error handling OperationCompleted for AsyncResult operation.");
                 }
             }
 
@@ -261,7 +261,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    Utils.Trace(e, "Unexpected error handling dispose of timer for AsyncResult operation.");
+                    Utils.LogTrace(e, "Unexpected error handling dispose of timer for AsyncResult operation.");
                 }
                 finally
                 {
@@ -290,7 +290,7 @@ namespace Opc.Ua
                 catch (Exception e)
                 {
                     // ignore
-                    Utils.Trace(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
+                    Utils.LogTrace(e, "Unexpected error handling dispose of wait handle for AsyncResult operation.");
                 }
             }
         }
@@ -308,7 +308,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error handling timeout for ChannelAsyncResult operation.");
+                Utils.LogTrace(e, "Unexpected error handling timeout for ChannelAsyncResult operation.");
             }
         }
         #endregion

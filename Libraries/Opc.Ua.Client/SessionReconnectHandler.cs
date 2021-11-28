@@ -137,7 +137,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error during reconnect.");
+                Utils.LogError(exception, "Unexpected error during reconnect.");
             }
 
             // schedule the next reconnect.
@@ -176,10 +176,13 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception exception)
                 {
+                    Utils.LogWarning("Reconnect failed. {0}", exception.Message);
+
                     // recreate the session if it has been closed.
                     ServiceResultException sre = exception as ServiceResultException;
 
                     // check if the server endpoint could not be reached.
+                    // TODO: reconnect stopped working for https
                     if ((sre != null &&
                         (sre.StatusCode == StatusCodes.BadTcpInternalError ||
                          sre.StatusCode == StatusCodes.BadCommunicationError ||
@@ -189,7 +192,7 @@ namespace Opc.Ua.Client
                         // check if reconnecting is still an option.
                         if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
                         {
-                            Utils.Trace("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
+                            Utils.LogInfo("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
                             return false;
                         }
                     }
@@ -221,7 +224,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace("Could not reconnect the Session. {0}", exception.Message);
+                Utils.LogError("Could not reconnect the Session. {0}", exception.Message);
                 return false;
             }
         }

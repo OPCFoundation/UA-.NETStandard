@@ -267,7 +267,7 @@ namespace Opc.Ua.Server
                 m_end = 1;
                 m_overflow = -1;
 
-                Utils.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
+                Utils.EventLog.Debug("ENQUEUE VALUE: Value={0}", value.WrappedValue);
 
                 m_values[m_start] = value;
 
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    Utils.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
+                    Utils.EventLog.Trace("ENQUEUE VALUE: Value={0}", value.WrappedValue);
                 }
             }
             else
@@ -393,7 +393,8 @@ namespace Opc.Ua.Server
                 m_start = 0;
             }
 
-            Utils.Trace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}", value.WrappedValue, value.StatusCode.Code, value.StatusCode.Overflow);
+            Utils.EventLog.Trace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}",
+                value.WrappedValue, value.StatusCode.Code, value.StatusCode.Overflow);
 
             return true;
         }

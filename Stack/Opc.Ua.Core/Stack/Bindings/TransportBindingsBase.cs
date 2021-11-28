@@ -152,7 +152,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Failed to load the assembly {0} for transport binding {1}.",
+                    Utils.LogError("Failed to load the assembly {0} for transport binding {1}.",
                         fullName, scheme
                         );
                 }
@@ -165,7 +165,7 @@ namespace Opc.Ua.Bindings
             }
             else
             {
-                Utils.Trace(Utils.TraceMasks.Error, "The transport binding {0} is unsupported.", scheme);
+                Utils.LogError("The transport binding {0} is unsupported.", scheme);
             }
             return false;
         }

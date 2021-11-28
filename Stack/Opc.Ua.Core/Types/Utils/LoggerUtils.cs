@@ -3,6 +3,8 @@
 
 using System;
 using System.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -10,12 +12,19 @@ namespace Opc.Ua
     /// <summary>
     /// Logger Utils methods.
     /// </summary>
+    /// <remarks>
+    /// To simplify porting from Utils.Trace and to avoid
+    /// name collisons with anything that is called 'Log'
+    /// the Utils class has been chosen as the home for
+    /// the new logging abstraction functions.
+    /// </remarks>
     public static partial class Utils
     {
+        #region Public Logger Objects
         /// <summary>
         /// The high performance EventSource log interface.
         /// </summary>
-        public static OpcUaEventSource EventLog => OpcUaEventSource.Log;
+        public static OpcUaCoreEventSource EventLog = new OpcUaCoreEventSource();
 
         /// <summary>
         /// ILogger abstraction used by all Utils.LogXXX methods.
@@ -28,7 +37,79 @@ namespace Opc.Ua
         public static void SetLogger(ILogger logger)
         {
             Logger = logger;
+            UseTraceEvent = false;
         }
+
+        /// <summary>
+        /// If the legacy trace event handler should be used.
+        /// </summary>
+        /// <remarks>By default true, however a call to SetLogger disables it.</remarks>
+        public static bool UseTraceEvent { get; set; } = true;
+        #endregion
+
+        #region Certificate Log Methods
+        /// <summary>
+        /// Formats and writes a log message for a certificate.
+        /// </summary>
+        /// <param name="message">The log message as string.</param>
+        /// <param name="certificate">The certificate information to be logged.</param>
+        /// <param name="args">An object array that contains zero or more objects to format.</param>
+        public static void LogCertificate(string message, X509Certificate2 certificate, params object[] args)
+        {
+            LogCertificate(LogLevel.Information, 0, message, certificate, args);
+        }
+
+        /// <summary>
+        /// Formats and writes a log message for a certificate.
+        /// </summary>
+        /// <param name="logLevel">Entry will be written on this level.</param>
+        /// <param name="message">The log message as string.</param>
+        /// <param name="certificate">The certificate information to be logged.</param>
+        /// <param name="args">An object array that contains zero or more objects to format.</param>
+        public static void LogCertificate(LogLevel logLevel, string message, X509Certificate2 certificate, params object[] args)
+        {
+            LogCertificate(logLevel, 0, message, certificate, args);
+        }
+
+        /// <summary>
+        /// Formats and writes a log message for a certificate.
+        /// </summary>
+        /// <param name="eventId">The event id associated with the log.</param>
+        /// <param name="message">The log message as string.</param>
+        /// <param name="certificate">The certificate information to be logged.</param>
+        /// <param name="args">An object array that contains zero or more objects to format.</param>
+        public static void LogCertificate(EventId eventId, string message, X509Certificate2 certificate, params object[] args)
+        {
+            LogCertificate(LogLevel.Information, eventId, message, certificate, args);
+        }
+
+        /// <summary>
+        /// Formats and writes a log message for a certificate.
+        /// </summary>
+        /// <param name="logLevel">Entry will be written on this level.</param>
+        /// <param name="eventId">The event id associated with the log.</param>
+        /// <param name="message">The log message as string.</param>
+        /// <param name="certificate">The certificate information to be logged.</param>
+        /// <param name="args">An object array that contains zero or more objects to format.</param>
+        public static void LogCertificate(LogLevel logLevel, EventId eventId, string message, X509Certificate2 certificate, params object[] args)
+        {
+            if (Logger.IsEnabled(logLevel))
+            {
+                var builder = new StringBuilder()
+                    .AppendFormat(message, args)
+                    .Append(" [{0}]");
+                if (certificate != null)
+                {
+                    builder.Append(" [{1}]");
+                    Log(logLevel, eventId, builder.ToString(), certificate.Subject, certificate.Thumbprint);
+                }
+                else
+                {
+                    Log(logLevel, eventId, builder.ToString(), "(none)");
+                }
+            }
+        }
+        #endregion
 
         //------------------------------------------DEBUG------------------------------------------//
 
@@ -96,7 +177,14 @@ namespace Opc.Ua
         /// <example>LogTrace(0, exception, "Error while processing request from {Address}", address)</example>
         public static void LogTrace(EventId eventId, Exception exception, string message, params object[] args)
         {
-            Log(LogLevel.Trace, eventId, exception, message, args);
+            if (EventLog.IsEnabled())
+            {
+                EventLog.LogLog(LogLevel.Trace, eventId, exception, message, args);
+            }
+            else
+            {
+                Log(LogLevel.Trace, eventId, exception, message, args);
+            }
         }
 
         /// <summary>
@@ -108,7 +196,14 @@ namespace Opc.Ua
         /// <example>LogTrace(0, "Processing request from {Address}", address)</example>
         public static void LogTrace(EventId eventId, string message, params object[] args)
         {
-            Log(LogLevel.Trace, eventId, message, args);
+            if (EventLog.IsEnabled())
+            {
+                EventLog.LogLog(LogLevel.Trace, eventId, null, message, args);
+            }
+            else
+            {
+                Log(LogLevel.Trace, eventId, message, args);
+            }
         }
 
         /// <summary>
@@ -120,7 +215,14 @@ namespace Opc.Ua
         /// <example>LogTrace(exception, "Error while processing request from {Address}", address)</example>
         public static void LogTrace(Exception exception, string message, params object[] args)
         {
-            Log(LogLevel.Trace, exception, message, args);
+            if (EventLog.IsEnabled())
+            {
+                EventLog.LogLog(LogLevel.Trace, 0, exception, message, args);
+            }
+            else
+            {
+                Log(LogLevel.Trace, exception, message, args);
+            }
         }
 
         /// <summary>
@@ -131,7 +233,14 @@ namespace Opc.Ua
         /// <example>LogTrace("Processing request from {Address}", address)</example>
         public static void LogTrace(string message, params object[] args)
         {
-            Log(LogLevel.Trace, message, args);
+            if (EventLog.IsEnabled())
+            {
+                EventLog.LogLog(LogLevel.Trace, 0, message, args);
+            }
+            else
+            {
+                Log(LogLevel.Trace, message, args);
+            }
         }
 
         //------------------------------------------INFORMATION------------------------------------------//
@@ -144,7 +253,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInformation(EventId eventId, Exception exception, string message, params object[] args)
+        public static void LogInfo(EventId eventId, Exception exception, string message, params object[] args)
         {
             Log(LogLevel.Information, eventId, exception, message, args);
         }
@@ -156,7 +265,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(0, "Processing request from {Address}", address)</example>
-        public static void LogInformation(EventId eventId, string message, params object[] args)
+        public static void LogInfo(EventId eventId, string message, params object[] args)
         {
             Log(LogLevel.Information, eventId, message, args);
         }
@@ -168,7 +277,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation(exception, "Error while processing request from {Address}", address)</example>
-        public static void LogInformation(Exception exception, string message, params object[] args)
+        public static void LogInfo(Exception exception, string message, params object[] args)
         {
             Log(LogLevel.Information, exception, message, args);
         }
@@ -179,7 +288,7 @@ namespace Opc.Ua
         /// <param name="message">Format string of the log message in message template format. Example: <code>"User {User} logged in from {Address}"</code></param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         /// <example>LogInformation("Processing request from {Address}", address)</example>
-        public static void LogInformation(string message, params object[] args)
+        public static void LogInfo(string message, params object[] args)
         {
             Log(LogLevel.Information, message, args);
         }
@@ -354,7 +463,11 @@ namespace Opc.Ua
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         private static void Log(LogLevel logLevel, EventId eventId, string message, params object[] args)
         {
-            if (Tracing.IsEnabled())
+            if (EventLog.IsEnabled())
+            {
+                EventLog.LogLog(logLevel, eventId, message, args);
+            }
+            else if (UseTraceEvent)
             {
                 // call the legacy logging handler (TraceEvent)
                 Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
@@ -387,7 +500,11 @@ namespace Opc.Ua
         /// <param name="args">An object array that contains zero or more objects to format.</param>
         private static void Log(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
         {
-            if (Tracing.IsEnabled())
+            if (EventLog.IsEnabled())
+            {
+                EventLog.LogLog(logLevel, eventId, exception, message, args);
+            }
+            else if (UseTraceEvent)
             {
                 // call the legacy logging handler (TraceEvent)
                 Utils.Trace(exception, GetTraceMask(eventId, logLevel), message, false, args);
@@ -418,8 +535,7 @@ namespace Opc.Ua
             return Logger.BeginScope(messageFormat, args);
         }
 
-        //------------------------------------------Private------------------------------------------//
-
+        #region Private Methods
         /// <summary>
         /// To determine a mask from the log level.
         /// </summary>
@@ -432,15 +548,19 @@ namespace Opc.Ua
             {
                 switch (logLevel)
                 {
+                    case LogLevel.Critical:
+                    case LogLevel.Warning:
                     case LogLevel.Error:
-                        mask = TraceMasks.Error | TraceMasks.StackTrace;
+                        mask = TraceMasks.Error;
                         break;
                     default:
                     case LogLevel.Information:
-                        mask = TraceMasks.Information; break;
+                        mask = TraceMasks.Information;
+                        break;
                 }
             }
             return mask;
         }
+        #endregion
     }
 }

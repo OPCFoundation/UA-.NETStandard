@@ -782,5 +782,4 @@ namespace Opc.Ua
     public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
         ISystemContext context,
         AlarmConditionState alarm);
-
 }

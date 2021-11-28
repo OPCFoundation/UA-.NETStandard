@@ -20,7 +20,6 @@ using System.Threading;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Creates encodeable objects based on the type id.
     /// </summary>
@@ -96,7 +95,7 @@ namespace Opc.Ua
             }
             catch (Exception)
             {
-                Utils.Trace("Could not load encodeable types from assembly: {0}", assemblyName);
+                Utils.LogError("Could not load encodeable types from assembly: {0}", assemblyName);
             }
         }
         #endregion
@@ -231,7 +230,7 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.Trace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
+                    Utils.LogTrace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
                 }
 #endif
 
@@ -290,7 +289,7 @@ namespace Opc.Ua
 #if DEBUG
                     if (m_shared)
                     {
-                        Utils.Trace("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
+                        Utils.LogWarning("WARNING: Adding type '{0}' to shared Factory #{1}.", systemType.Name, m_instanceId);
                     }
 #endif
 
@@ -320,7 +319,7 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.Trace("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, m_instanceId);
+                    Utils.LogWarning("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, m_instanceId);
                 }
 #endif
 
@@ -402,5 +401,4 @@ namespace Opc.Ua
         #endregion
 
     }//class
-
 }//namespace

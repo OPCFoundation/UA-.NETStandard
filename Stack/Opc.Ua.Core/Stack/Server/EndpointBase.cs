@@ -388,13 +388,14 @@ namespace Opc.Ua
             if (sre != null)
             {
                 result = new ServiceResult(sre);
-
+                //TODO one error only
                 Utils.EventLog.ServiceFault(result.Code);
+                Utils.LogError("Service Fault Occured. Reason={0}", result.StatusCode);
             }
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                Utils.Trace(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
+                Utils.LogError(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
             }
 
             fault.ResponseHeader.ServiceResult = result.Code;
@@ -821,7 +822,6 @@ namespace Opc.Ua
 
                     // call the service.
                     m_response = m_service.Invoke(m_request);
-
                 }
                 catch (Exception e)
                 {

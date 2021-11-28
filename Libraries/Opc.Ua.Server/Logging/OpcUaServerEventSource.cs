@@ -16,53 +16,19 @@ using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
 
-namespace Opc.Ua
+namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// TODO is this interface needed?
-    /// </summary>
-    public interface IOpcUaEventSource
-    {
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
-        void Critical(string message);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
-        void Error(string message);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
-        void Warning(string message);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        void Trace(string message);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
-        void Debug(string message);
-    }
 
     /// <summary>
     /// Event source for high performance logging.
     /// </summary>
-    [EventSource(Name = "OPC-UA-Core")]
-    public class OpcUaEventSource : EventSource, IOpcUaEventSource
+    [EventSource(Name = "OPC-UA-Server")]
+    public class OpcUaServerEventSource : EventSource//, IOpcUaEventSource
     {
         /// <summary>
         /// 
         /// </summary>
-        public static OpcUaEventSource Log = new OpcUaEventSource();
+        public static OpcUaServerEventSource EventLog = new OpcUaServerEventSource();
 
         private const int CriticalId = 1;
         private const int ErrorId = CriticalId + 1;
@@ -73,29 +39,29 @@ namespace Opc.Ua
         private const int SecurityId = ExceptionId + 1;
         private const int ServiceResultExceptionId = SecurityId + 1;
 
-        private const int ServiceCallId = ServiceResultExceptionId + 1;
-        private const int ServiceCompletedId = ServiceCallId + 1;
-        private const int ServiceCompletedBadId = ServiceCompletedId + 1;
-        private const int ServiceFaultId = ServiceCompletedBadId + 1;
-        private const int ServerCallId = ServiceFaultId + 1;
+        private const int SessionStateId = ServiceResultExceptionId + 1;
 
         /// <summary>
         /// The messages used in event messages.
         /// </summary>
+        private const string SessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
+
+#if mist
         private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
         private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
         private const string ServerCallMessage = "Service Call={0}";
+#endif
 
         /// <summary>
         /// The ILogger event Ids used for event messages.
         /// </summary>
-        private readonly EventId ServiceCallEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCall));
-        private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompleted));
-        private readonly EventId ServiceCompletedBadEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompletedBad));
-        private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServiceFault));
-        private readonly EventId ServerCallEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServerCall));
+        private readonly EventId SessionStateMessageId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(SessionState));
+        //private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompleted));
+        //private readonly EventId ServiceCompletedBadEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompletedBad));
+        //private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServiceFault));
+        //private readonly EventId ServerCallEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServerCall));
 
         /// <summary>
         /// 
@@ -122,7 +88,14 @@ namespace Opc.Ua
             /// Service
             /// </summary>
             public const EventKeywords Security = (EventKeywords)16;
+            /// <summary>
+            /// Service
+            /// </summary>
+            public const EventKeywords Session = (EventKeywords)32;
+
         }
+
+#if mist
 
         /// <summary>
         /// 
@@ -332,7 +305,7 @@ namespace Opc.Ua
         [NonEvent]
         public void Exception(Exception ex, string format, params object[] args)
         {
-            var message = Utils.TraceExceptionMessage(ex, format, args).ToString();
+            var message = null;// Utils.TraceExceptionMessage(ex, format, args).ToString();
 
             if (IsEnabled())
             {
@@ -351,7 +324,25 @@ namespace Opc.Ua
                 Utils.LogError(ex, message);
             }
         }
+#endif
 
+        /// <summary>
+        ///
+        /// </summary>
+        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Verbose, Keywords = Keywords.Session)]
+        public void SessionState(string context, NodeId sessionId, string sessionName, string secureChannelId, string identity)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(SessionStateId, context, sessionId, sessionName, secureChannelId, identity);
+            }
+            else
+            {
+                Utils.LogTrace(SessionStateMessageId, SessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
+            }
+        }
+
+#if mist
         /// <summary>
         /// 
         /// </summary>
@@ -476,8 +467,9 @@ namespace Opc.Ua
             }
             else
             {
-                Utils.LogInformation(TraceMasks.Security, format, false, args);
+                Utils.LogInfo(TraceMasks.Security, format, false, args);
             }
         }
+#endif
     }
 }

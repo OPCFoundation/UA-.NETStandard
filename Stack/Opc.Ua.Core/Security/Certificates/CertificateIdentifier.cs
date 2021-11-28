@@ -220,7 +220,7 @@ namespace Opc.Ua
                             var message = new StringBuilder();
                             message.AppendLine("Loaded a certificate with private key from the directory store.");
                             message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
-                            Utils.Trace(Utils.TraceMasks.Error, message.ToString());
+                            Utils.LogError(message.ToString());
                         }
                     }
                 }

@@ -1282,7 +1282,7 @@ namespace Opc.Ua.Client
                         {
                             if (!entry.Processed)
                             {
-                                Utils.Trace("Subscription {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
+                                Utils.LogWarning("Subscription {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
                             }
 
                             m_lastSequenceNumberProcessed = entry.SequenceNumber;
@@ -1307,7 +1307,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error while raising PublishStateChanged event.");
+                    Utils.LogError(e, "Error while raising PublishStateChanged event.");
                 }
             }
         }
@@ -1516,7 +1516,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error while raising PublishStateChanged event.");
+                    Utils.LogError(e, "Error while raising PublishStateChanged event.");
                 }
             }
         }
@@ -1526,7 +1526,8 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void TraceState(string context)
         {
-            if ((Utils.TraceMask & Utils.TraceMasks.Information) == 0)
+            // TODO: create eventlog message
+            if (!Utils.EventLog.IsEnabled())
             {
                 return;
             }
@@ -1547,7 +1548,7 @@ namespace Opc.Ua.Client
             buffer.AppendFormat(", PublishingEnabled={0}", m_currentPublishingEnabled);
             buffer.AppendFormat(", MonitoredItemCount={0}", MonitoredItemCount);
 
-            Utils.Trace("{0}", buffer.ToString());
+            Utils.EventLog.Trace("{0}", buffer.ToString());
         }
 
         /// <summary>
@@ -1608,27 +1609,27 @@ namespace Opc.Ua.Client
 
             if (m_keepAliveCount != revisedKeepAliveCount)
             {
-                Utils.Trace("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
+                Utils.LogInfo("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
             }
 
             if (m_lifetimeCount != revisedLifetimeCounter)
             {
-                Utils.Trace("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
+                Utils.LogInfo("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
             }
 
             if (m_publishingInterval != revisedPublishingInterval)
             {
-                Utils.Trace("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
+                Utils.LogInfo("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
             }
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
             {
-                Utils.Trace("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
+                Utils.LogInfo("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
             }
 
             if (m_currentPriority == 0)
             {
-                Utils.Trace("For subscription {0}, the priority was set to 0.", Id);
+                Utils.LogInfo("For subscription {0}, the priority was set to 0.", Id);
             }
         }
 
@@ -1668,7 +1669,7 @@ namespace Opc.Ua.Client
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                Utils.Trace("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}. ", keepAliveCount, kDefaultKeepAlive, Id);
+                Utils.LogInfo("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}. ", keepAliveCount, kDefaultKeepAlive, Id);
                 keepAliveCount = kDefaultKeepAlive;
             }
 
@@ -1686,14 +1687,14 @@ namespace Opc.Ua.Client
                         lifetimeCount++;
                     }
 
-                    Utils.Trace("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
+                    Utils.LogInfo("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
                 }
             }
             else if (lifetimeCount == 0)
             {
                 // don't know what the sampling interval will be - use something large enough
                 // to ensure the user does not experience unexpected drop outs.
-                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, kDefaultLifeTime, Id);
+                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, kDefaultLifeTime, Id);
                 lifetimeCount = kDefaultLifeTime;
             }
 
@@ -1701,7 +1702,7 @@ namespace Opc.Ua.Client
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                Utils.Trace("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, minLifeTimeCount, Id);
+                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, minLifeTimeCount, Id);
                 lifetimeCount = minLifeTimeCount;
             }
         }
@@ -1711,14 +1712,17 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task OnMessageReceived()
         {
-            SemaphoreSlim semaphore; //Avoid semaphore being replaced for this instance while running, retain reference locally.
+            //Avoid semaphore being replaced for this instance while running, retain reference locally.
+            SemaphoreSlim semaphore; 
             lock (m_cache)
             {
-                //Semaphore is maintained under m_cache lock, avoid semaphore swap issues when possible. The wait call will still sync the message workers properly.
+                // Semaphore is maintained under m_cache lock, avoid semaphore swap issues when possible.
+                // The wait call will still sync the message workers properly.
                 semaphore = m_messageWorkersSemaphore;
             }
 
-            var needSemaphore = semaphore != null; //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
+            //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
+            var needSemaphore = semaphore != null; 
             if (needSemaphore)
             {
                 try
@@ -1727,10 +1731,13 @@ namespace Opc.Ua.Client
                 }
                 catch (ObjectDisposedException)
                 {
-                    Utils.Trace("Message Workers semaphore replaced, worker released");
+                    // Semaphore was replaced to change the number of maximum allowed workers - proceed without it,
+                    // momentarily more workers than allowed may exist.
+                    // Note for sequential publishing, this can only happen if sequential publishing is enabled or disabled,
+                    // so it will not interrupt it.
+                    // Changing max workers while sequential publishing is enabled will not trigger a semaphore change.
+                    Utils.LogWarning("Message Workers semaphore replaced, worker released.");
                     needSemaphore = false;
-                    //Semaphore was replaced to change the number of maximum allowed workers - proceed without it, momentarily more workers than allowed may exist.
-                    //Note for sequential publishing, this can only happen if sequential publishing is enabled or disabled, so it will not interrupt it. Changing max workers while sequential publishing is enabled will not trigger a semaphore change.
                 }
             }
             try
@@ -1752,7 +1759,8 @@ namespace Opc.Ua.Client
                     {
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
-                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) //If sequential publishing is enabled, only release messages in perfect sequence. 
+                            //If sequential publishing is enabled, only release messages in perfect sequence. 
+                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) 
                         {
                             if (messagesToProcess == null)
                             {
@@ -1806,7 +1814,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Error while raising PublishStateChanged event.");
+                        Utils.LogError(e, "Error while raising PublishStateChanged event.");
                     }
                 }
 
@@ -1863,18 +1871,19 @@ namespace Opc.Ua.Client
 
                                 if (statusChanged != null)
                                 {
-                                    Utils.Trace("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.", statusChanged.Status.ToString(), Id);
+                                    Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.", statusChanged.Status.ToString(), Id);
                                 }
                             }
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Error while processing incoming message #{0}.", message.SequenceNumber);
+                            Utils.LogError(e, "Error while processing incoming message #{0}.", message.SequenceNumber);
                         }
 
                         if (MaxNotificationsPerPublish != 0 && noNotificationsReceived > MaxNotificationsPerPublish)
                         {
-                            Utils.Trace("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}", Id, noNotificationsReceived, MaxNotificationsPerPublish);
+                            Utils.LogWarning("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}",
+                                Id, noNotificationsReceived, MaxNotificationsPerPublish);
                         }
                     }
                 }
@@ -1893,7 +1902,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error while processing incoming messages.");
+                Utils.LogError(e, "Error while processing incoming messages.");
             }
             finally
             {
@@ -1911,11 +1920,11 @@ namespace Opc.Ua.Client
                     }
                     catch (SemaphoreFullException e)
                     {
-                        Utils.Trace(e, "Released semaphore too many times");
+                        Utils.LogTrace(e, "Released semaphore too many times.");
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Error while finishing processing of incoming messages.");
+                        Utils.LogError(e, "Error while finishing processing of incoming messages.");
                     }
                 }
             }
@@ -2109,7 +2118,8 @@ namespace Opc.Ua.Client
             // check for empty monitored items list.
             if (notifications.MonitoredItems == null || notifications.MonitoredItems.Count == 0)
             {
-                Utils.Trace("Publish response contains empty MonitoredItems list for SubscritpionId = {0}.", m_id);
+                Utils.LogInfo("Publish response contains empty MonitoredItems list for SubscriptionId = {0}.", m_id);
+                return;
             }
 
             for (int ii = 0; ii < notifications.MonitoredItems.Count; ii++)
@@ -2123,7 +2133,7 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
                     {
-                        Utils.Trace("Publish response contains invalid MonitoredItem.SubscritpionId = {0}, ClientHandle = {1}", m_id, notification.ClientHandle);
+                        Utils.LogWarning("Publish response contains invalid MonitoredItem. SubscriptionId = {0}, ClientHandle = {1}", m_id, notification.ClientHandle);
                         continue;
                     }
                 }
@@ -2157,7 +2167,7 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(eventFields.ClientHandle, out monitoredItem))
                     {
-                        Utils.Trace("Publish response contains invalid MonitoredItem.SubscritpionId = {0}, ClientHandle = {1}", m_id, eventFields.ClientHandle);
+                        Utils.LogWarning("Publish response contains invalid MonitoredItem.SubscriptionId = {0}, ClientHandle = {1}", m_id, eventFields.ClientHandle);
                         continue;
                     }
                 }
@@ -2179,12 +2189,16 @@ namespace Opc.Ua.Client
             {
                 if (m_sequentialPublishing)
                 {
-                    if (m_messageWorkersSemaphore == null) //Only create the semaphore if it isn't already created. (Not already in sequential publishing mode)
-                        m_messageWorkersSemaphore = new SemaphoreSlim(1);//Sequential publishing means only one worker can be active, or else sequence can be violated.
+                    // Only create the semaphore if it isn't already created. (Not already in sequential publishing mode)
+                    if (m_messageWorkersSemaphore == null)
+                    {
+                        //Sequential publishing means only one worker can be active, or else sequence can be violated.
+                        m_messageWorkersSemaphore = new SemaphoreSlim(1);
+                    }
                 }
-                else //Not in sequential publishing mode - no need for semaphore.
+                else // Not in sequential publishing mode - no need for semaphore.
                 {
-                    //Semaphore is disposed if needed.
+                    // Semaphore is disposed if needed.
                     m_messageWorkersSemaphore?.Dispose();
                     m_messageWorkersSemaphore = null;
                 }

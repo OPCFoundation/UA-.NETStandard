@@ -969,7 +969,7 @@ namespace Opc.Ua.Bindings
 
             if (!Verify(dataToVerify, signature, senderCertificate))
             {
-                Utils.Trace("Could not verify signature on message.");
+                Utils.LogWarning("Could not verify signature on message.");
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
             }
 
@@ -1023,8 +1023,8 @@ namespace Opc.Ua.Bindings
             headerSize += decoder.Position;
             decoder.Close();
 
-            Utils.Trace("Security Policy: {0}", SecurityPolicyUri);
-            Utils.Trace("Sender Certificate: {0}", (senderCertificate != null) ? senderCertificate.Subject : "(none)");
+            Utils.LogInfo("Security Policy: {0}", SecurityPolicyUri);
+            Utils.LogCertificate("Sender Certificate:", senderCertificate);
 
             // return the body.
             return new ArraySegment<byte>(

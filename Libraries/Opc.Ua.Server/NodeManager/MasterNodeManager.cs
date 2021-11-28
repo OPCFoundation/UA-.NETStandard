@@ -303,7 +303,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.Trace(
+                Utils.LogInfo(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Startup - NodeManagers={0}",
                     m_nodeManagers.Count);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error creating address space for NodeManager #{0}.", ii);
+                        Utils.LogError(e, "Unexpected error creating address space for NodeManager #{0}.", ii);
                     }
                 }
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error adding references for NodeManager #{0}.", ii);
+                        Utils.LogError(e, "Unexpected error adding references for NodeManager #{0}.", ii);
                     }
                 }
             }
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error closing session for NodeManager #{0}.", ii);
+                            Utils.LogError(e, "Unexpected error closing session for NodeManager #{0}.", ii);
                         }
                     }
                 }
@@ -369,13 +369,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Shuts down the node managers a
+        /// Shuts down the node managers.
         /// </summary>
         public virtual void Shutdown()
         {
             lock (m_lock)
             {
-                Utils.Trace(
+                Utils.LogInfo(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Shutdown - NodeManagers={0}",
                     m_nodeManagers.Count);
@@ -593,7 +593,7 @@ namespace Opc.Ua.Server
                 registeredNodeIds.Add(nodesToRegister[ii]);
             }
 
-            Utils.Trace(
+            Utils.LogTrace(
                 (int)Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.RegisterNodes - Count={0}",
                 nodesToRegister.Count);
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server
         {
             if (nodesToUnregister == null) throw new ArgumentNullException(nameof(nodesToUnregister));
 
-            Utils.Trace(
+            Utils.LogTrace(
                 (int)Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.UnregisterNodes - Count={0}",
                 nodesToUnregister.Count);
@@ -869,7 +869,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error translating browse path.");
+                Utils.LogError(e, "Unexpected error translating browse path.");
                 return;
             }
 
@@ -1519,7 +1519,7 @@ namespace Opc.Ua.Server
             // add placeholder for each result.
             bool validItems = false;
 
-            Utils.Trace(
+            Utils.LogTrace(
                 (int)Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.Read - Count={0}",
                 nodesToRead.Count);
@@ -1555,7 +1555,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
-                    Utils.Trace(
+                    Utils.LogTrace(
                         (int)Utils.TraceMasks.ServiceDetail,
                         "MasterNodeManager.Read - Calling NodeManager {0} of {1}",
                         ii,
@@ -2079,7 +2079,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error calling ConditionRefresh on NodeManager.");
+                    Utils.LogError(e, "Error calling ConditionRefresh on NodeManager.");
                 }
             }
         }
@@ -2280,7 +2280,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.Trace(e, "NodeManager threw an exception subscribing to all events. NodeManager={0}", manager);
+                                Utils.LogError(e, "NodeManager threw an exception subscribing to all events. NodeManager={0}", manager);
                             }
                         }
                     }

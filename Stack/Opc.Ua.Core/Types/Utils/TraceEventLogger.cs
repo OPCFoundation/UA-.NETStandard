@@ -16,38 +16,23 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua
 {
     /// <summary>
-    /// 
+    /// The TraceEvent logger calls the legacy Utils.Trace API to
+    /// support applications which use TraceEvent or file/debug logging.
     /// </summary>
     public class TraceEventLogger : ILogger
     {
         /// <summary>
-        /// 
+        /// Set the log level
         /// </summary>
-        public TraceEventLogger()
-        { }
+        public LogLevel LogLevel { get; set; }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="TState"></typeparam>
-        /// <param name="state"></param>
+        /// <inheritdoc/>
         public IDisposable BeginScope<TState>(TState state) => default;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="logLevel"></param>
+        /// <inheritdoc/>
         public bool IsEnabled(LogLevel logLevel) => true;
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="TState"></typeparam>
-        /// <param name="logLevel"></param>
-        /// <param name="eventId"></param>
-        /// <param name="state"></param>
-        /// <param name="exception"></param>
-        /// <param name="formatter"></param>
+        /// <inheritdoc/>
         public void Log<TState>(
             LogLevel logLevel,
             EventId eventId,
