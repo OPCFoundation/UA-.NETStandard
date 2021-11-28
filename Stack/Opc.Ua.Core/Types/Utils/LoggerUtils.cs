@@ -131,16 +131,17 @@ namespace Opc.Ua
             if (Logger.IsEnabled(logLevel))
             {
                 var builder = new StringBuilder()
-                    .AppendFormat(message, args)
-                    .Append(" [{0}]");
+                    .Append(message);
                 if (certificate != null)
                 {
-                    builder.Append(" [{1}]");
-                    Log(logLevel, eventId, builder.ToString(), certificate.Subject, certificate.Thumbprint);
+                    int argsLength = args.Length;
+                    builder.AppendFormat(" [{{0}}] [{{1}}]", argsLength, argsLength + 1);
+                    Log(logLevel, eventId, builder.ToString(), args, certificate.Subject, certificate.Thumbprint);
                 }
                 else
                 {
-                    Log(logLevel, eventId, builder.ToString(), "(none)");
+                    builder.Append(" (none)");
+                    Log(logLevel, eventId, builder.ToString(), args);
                 }
             }
         }

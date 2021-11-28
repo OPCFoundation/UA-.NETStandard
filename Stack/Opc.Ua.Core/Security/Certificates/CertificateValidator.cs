@@ -438,7 +438,7 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
-                    Utils.LogCertificate("Validation error suppressed for '{0}'.", certificate);
+                    Utils.LogCertificate("Validation error suppressed: ", certificate);
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }

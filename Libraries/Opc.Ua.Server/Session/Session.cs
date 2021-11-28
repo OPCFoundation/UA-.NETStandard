@@ -870,7 +870,8 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
-            //if (!Utils.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Trace))
+            // TODO: check level?
+            //if (!Utils.Logger.IsEnabled(LogLevel.Trace))
             //{
             //    return;
             //}

@@ -796,7 +796,7 @@ namespace Opc.Ua.Configuration
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
-            Utils.LogCertificate("Certificate created.", certificate);
+            Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
 
