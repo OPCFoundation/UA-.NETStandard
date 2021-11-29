@@ -356,8 +356,11 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_keepAliveTimer);
-                m_keepAliveTimer = null;
+                lock (SyncRoot)
+                {
+                    Utils.SilentDispose(m_keepAliveTimer);
+                    m_keepAliveTimer = null;
+                }
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
@@ -1175,7 +1178,7 @@ namespace Opc.Ua.Client
                 else
                 {
                     // check if the channel supports reconnect.
-                    if ((TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    if (TransportChannel != null && (TransportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
                         TransportChannel.Reconnect();
                     }
@@ -1312,7 +1315,8 @@ namespace Opc.Ua.Client
                 {
                     AddSubscription(subscription);
                 }
-
+                m_lastKeepAliveTime = DateTime.UtcNow;
+                Reconnect();
                 return subscriptions;
             }
             finally
@@ -3647,15 +3651,16 @@ namespace Opc.Ua.Client
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            var response = base.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
-            StartKeepAliveTimer();
-            foreach(var subscription in m_subscriptions)
+            // stop old publishing requests
+            foreach (var subscription in m_subscriptions)
             {
                 if (subscriptionIds.Contains(subscription.Id))
                 {
-                    subscription.SetPublishingMode(true);
+                    subscription.PublishingEnabled = false;
                 }
             }
+
+            var response =  base.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
 
             for (int i = 0; i < results.Count; i++)
             {
@@ -3668,7 +3673,6 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-
             return response;
         }
         #endregion
