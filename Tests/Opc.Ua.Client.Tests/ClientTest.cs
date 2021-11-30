@@ -649,12 +649,25 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(800)]
-        public async Task TestSubscriptionTransfer()
+        public void TransferSubscription_WithOpenSession()
         {
-            var subscription = new Subscription(m_session.DefaultSubscription) {
+            TransferSubscription(closeSession: false).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        [Test, Order(810)]
+        public void TransferSubscription_WithCloseSession()
+        {
+            TransferSubscription(closeSession: true).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        private async Task TransferSubscription(bool closeSession)
+        {
+            var oldSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+
+            var subscription = new Subscription(oldSession.DefaultSubscription) {
                 PublishingInterval = 1000,
             };
-            m_session.AddSubscription(subscription);
+            oldSession.AddSubscription(subscription);
             subscription.Create();
 
             NodeId resolvedNodeId = VariableIds.Server_ServerStatus_CurrentTime;
@@ -667,8 +680,8 @@ namespace Opc.Ua.Client.Tests
 
             uint oldSessionCounter = 0;
             uint newSessionCounter = 0;
-            newMonitoredItem.Notification += (_, __) => {
-                    oldSessionCounter++;
+            newMonitoredItem.Notification += (sender, args) => {
+                oldSessionCounter++;
             };
             subscription.AddItem(newMonitoredItem);
             await subscription.ApplyChangesAsync().ConfigureAwait(false);
@@ -676,9 +689,11 @@ namespace Opc.Ua.Client.Tests
             await Task.Delay(10_000).ConfigureAwait(false);
 
             var filePath = Path.GetTempFileName();
-            m_session.Save(filePath);
-
-            //await m_session.CloseSessionAsync(null, false, default);
+            oldSession.Save(filePath);
+            if (closeSession)
+            {
+                await oldSession.CloseSessionAsync(null, false, default);
+            }
 
             // create second session
             var newSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
@@ -687,32 +702,38 @@ namespace Opc.Ua.Client.Tests
             var subscriptionIds = new UInt32Collection();
             subscriptionIds.Add(subscription.Id);
             newSession.TransferSubscriptions(transferRequest.RequestHeader, subscriptionIds, true, out var results, out var diagInfos);
-            results.ForEach((result) => Assert.IsTrue(StatusCode.IsGood(result.StatusCode)) );
+            results.ForEach((result) => Assert.IsTrue(StatusCode.IsGood(result.StatusCode)));
+
             //restore client state
             var newSubscriptions = newSession.Load(filePath).ToList();
             Assert.AreEqual(1, newSubscriptions.Count);
             Assert.AreEqual(1, newSession.Subscriptions.Count());
-            //
-            var publishingRequest = new SetPublishingModeRequest();
-            //newSession.SetPublishingMode(publishingRequest.RequestHeader, true, subscriptionIds, out var setPublishingModeResults, out var setPublishingModeDiagInfo);
-            //setPublishingModeResults.ForEach((result) => Assert.IsTrue(StatusCode.IsGood(result.Code)));
+            foreach(var newSubscription in newSubscriptions)
+            {
+                newSubscription.Create();
+            }
 
             var newMonitoredItems = newSubscriptions.First().MonitoredItems.ToList();
             Assert.AreEqual(1, newMonitoredItems.Count);
-            Assert.AreNotSame(m_session, newMonitoredItems.First().Subscription.Session);
-            newMonitoredItems.First().Notification += (_, __) => {
+            Assert.AreNotSame(oldSession, newMonitoredItems.First().Subscription.Session);
+            newMonitoredItems.First().Notification += (sender, args) => {
                 newSessionCounter++;
             };
 
             // wait for some events
             await Task.Delay(10_000).ConfigureAwait(false);
+
             //verify that subscription was susccfully transfered
-            Assert.IsTrue(oldSessionCounter > 10);
-            Assert.IsTrue(newSessionCounter > 10);
+            Assert.IsTrue(oldSessionCounter > 1);
+            Assert.IsTrue(newSessionCounter > 1);
 
             newSession.Close();
+            oldSession.Close();
+
             File.Delete(filePath);
         }
+
+
         #endregion
 
         #region Benchmarks
