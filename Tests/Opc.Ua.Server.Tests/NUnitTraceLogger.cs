@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     m_writer.WriteLine(e.Exception);
                 }
-                m_writer.WriteLine(string.Format(e.Format, e.Arguments ?? new object[0]));
+                m_writer.WriteLine(string.Format(e.Format, e.Arguments ?? Array.Empty<object>()));
             }
         }
     }
