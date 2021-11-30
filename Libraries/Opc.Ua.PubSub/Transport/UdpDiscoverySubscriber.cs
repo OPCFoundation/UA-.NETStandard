@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         public override async Task StartAsync(IServiceMessageContext messageContext)
         {
-            await base.StartAsync(messageContext);
+            await base.StartAsync(messageContext).ConfigureAwait(false);
 
             m_intervalRunner.Start();
         }
@@ -82,7 +82,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         public override async Task StopAsync()
         {
-            await base.StopAsync();
+            await base.StopAsync().ConfigureAwait(false);
 
             m_intervalRunner.Stop();
         }
