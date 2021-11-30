@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
             NodeId                  authenticationToken,
             byte[]                  clientNonce,
             byte[]                  serverNonce,
-            string                  sessionName, 
+            string                  sessionName,
             ApplicationDescription  clientDescription,
             string                  endpointUrl,
             X509Certificate2        clientCertificate,
@@ -80,7 +80,7 @@ namespace Opc.Ua.Server
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (server == null)  throw new ArgumentNullException(nameof(server));
-            
+
             // verify that a secure channel was specified.
             if (context.ChannelContext == null)
             {
@@ -100,10 +100,10 @@ namespace Opc.Ua.Server
             m_maxBrowseContinuationPoints  = maxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
             m_endpoint                     = context.ChannelContext.EndpointDescription;
-            
+
             // use anonymous the default identity.
             m_identity = new UserIdentity();
-            
+
             // initialize diagnostics.
             m_diagnostics = new SessionDiagnosticsDataType();
 
@@ -149,20 +149,20 @@ namespace Opc.Ua.Server
             m_diagnostics.QueryNextCount = new ServiceCounterDataType();
             m_diagnostics.RegisterNodesCount = new ServiceCounterDataType();
             m_diagnostics.UnregisterNodesCount = new ServiceCounterDataType();
-            
+
             // initialize security diagnostics.
             m_securityDiagnostics = new SessionSecurityDiagnosticsDataType();
-            
+
             m_securityDiagnostics.SessionId                = m_sessionId;
             m_securityDiagnostics.ClientUserIdOfSession    = m_identity.DisplayName;
             m_securityDiagnostics.AuthenticationMechanism  = m_identity.TokenType.ToString();
             m_securityDiagnostics.Encoding                 = context.ChannelContext.MessageEncoding.ToString();
-            
+
             m_securityDiagnostics.ClientUserIdHistory = new StringCollection();
             m_securityDiagnostics.ClientUserIdHistory.Add(m_identity.DisplayName);
 
             EndpointDescription description = context.ChannelContext.EndpointDescription;
-            
+
             if (description != null)
             {
                 m_securityDiagnostics.TransportProtocol = new Uri(description.EndpointUrl).Scheme;
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server
                 new LocalizedText(message),
                 true,
                 DateTime.UtcNow);
-            
+
             e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
             e.SetChildValue(systemContext, BrowseNames.SessionId, m_sessionId, false);
             e.SetChildValue(systemContext, BrowseNames.ServerId, m_server.ServerUris.GetString(0), false);
@@ -284,7 +284,7 @@ namespace Opc.Ua.Server
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server
                     browseCPs = m_browseContinuationPoints;
                     m_browseContinuationPoints = null;
                 }
-                                
+
                 if (browseCPs != null)
                 {
                     for (int ii = 0; ii < browseCPs.Count; ii++)
@@ -318,7 +318,7 @@ namespace Opc.Ua.Server
                     historyCPs = m_historyContinuationPoints;
                     m_historyContinuationPoints = null;
                 }
-                
+
                 if (historyCPs != null)
                 {
                     for (int ii = 0; ii < historyCPs.Count; ii++)
@@ -334,11 +334,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
-        public NodeId Id 
+        public NodeId Id
         {
-            get { return m_sessionId; } 
+            get { return m_sessionId; }
         }
-        
+
         /// <summary>
         /// The user identity provided by the client.
         /// </summary>
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server
         {
             get { return m_effectiveIdentity; }
         }
-        
+
         /// <summary>
         /// The user identity token provided by the client.
         /// </summary>
@@ -405,8 +405,8 @@ namespace Opc.Ua.Server
         public X509Certificate2 ClientCertificate
         {
             get { return m_clientCertificate; }
-        }        
-        
+        }
+
         /// <summary>
         /// The locales requested when the session was created.
         /// </summary>
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server
                     {
                         return true;
                     }
-                    
+
                     return false;
                 }
             }
@@ -452,7 +452,7 @@ namespace Opc.Ua.Server
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
             if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
-            
+
             lock (m_lock)
             {
                 // get the request context for the current thread.
@@ -463,7 +463,7 @@ namespace Opc.Ua.Server
                     UpdateDiagnosticCounters(requestType, true, true);
                     throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                 }
-            
+
                 // verify that session has been activated.
                 if (!m_activated)
                 {
@@ -496,7 +496,7 @@ namespace Opc.Ua.Server
                 return (m_secureChannelId == secureChannelId);
             }
         }
-                
+
         /// <summary>
         /// Updates the requested locale ids.
         /// </summary>
@@ -504,15 +504,15 @@ namespace Opc.Ua.Server
         public bool UpdateLocaleIds(StringCollection localeIds)
         {
             if (localeIds == null) throw new ArgumentNullException(nameof(localeIds));
-                        
+
             lock (m_lock)
-            {                
+            {
                 string[] ids = localeIds.ToArray();
 
                 if (!Utils.IsEqual(ids, m_localeIds))
                 {
                     m_localeIds = ids;
-                    
+
                     // update diagnostics.
                     lock (DiagnosticsLock)
                     {
@@ -525,7 +525,7 @@ namespace Opc.Ua.Server
                 return false;
             }
         }
-        
+
         /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
@@ -644,7 +644,7 @@ namespace Opc.Ua.Server
                         changed = true;
                     }
                 }
-                
+
                 // update local ids.
                 if (UpdateLocaleIds( localeIds ))
                 {
@@ -664,14 +664,14 @@ namespace Opc.Ua.Server
                 else
                 {
                     // bind to the new secure channel.
-                    m_secureChannelId = context.ChannelContext.SecureChannelId;      
+                    m_secureChannelId = context.ChannelContext.SecureChannelId;
 
-                    TraceState("RE-ACTIVATION");  
+                    TraceState("RE-ACTIVATION");
                 }
 
                 // update server nonce.
                 m_serverNonce = serverNonce;
-                    
+
                 // build list of signed certificates for audit event.
                 List<SignedSoftwareCertificate> signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
 
@@ -699,12 +699,12 @@ namespace Opc.Ua.Server
                 return changed;
             }
         }
-        
+
         /// <summary>
         /// Closes a session and removes itself from the address space.
         /// </summary>
         public void Close()
-        {   
+        {
             TraceState("CLOSED");
 
             m_server.DiagnosticsNodeManager.DeleteSessionDiagnostics(
@@ -761,7 +761,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                
+
                 Guid id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_browseContinuationPoints.Count; ii++)
@@ -863,7 +863,7 @@ namespace Opc.Ua.Server
             public DateTime Timestamp;
         }
         #endregion
-                      
+
         #region Private Methods
         /// <summary>
         /// Dumps the current state of the session queue.
@@ -876,12 +876,12 @@ namespace Opc.Ua.Server
             }
 
             StringBuilder buffer = new StringBuilder();
-            
+
             lock (m_lock)
             {
-                buffer.AppendFormat("Session {0}", context);             
-                buffer.AppendFormat(", Id={0}", m_sessionId);               
-                buffer.AppendFormat(", Name={0}", m_sessionName);     
+                buffer.AppendFormat("Session {0}", context);
+                buffer.AppendFormat(", Id={0}", m_sessionId);
+                buffer.AppendFormat(", Name={0}", m_sessionName);
                 buffer.AppendFormat(", ChannelId={0}", m_secureChannelId);
 
                 if (m_identity != null)
@@ -1102,8 +1102,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>true if the new identity is different from the old identity.</returns>
         private bool UpdateUserIdentity(
-            UserIdentityToken identityToken, 
-            IUserIdentity     identity, 
+            UserIdentityToken identityToken,
+            IUserIdentity     identity,
             IUserIdentity     effectiveIdentity)
         {
             if (identityToken == null) throw new ArgumentNullException(nameof(identityToken));
@@ -1111,12 +1111,12 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 bool changed = m_effectiveIdentity == null && effectiveIdentity != null;
-                
+
                 if (m_effectiveIdentity != null)
                 {
                     changed = !m_effectiveIdentity.Equals(effectiveIdentity);
                 }
-                
+
                 // always save the new identity since it may have additional information that does not affect equality.
                 m_identityToken = identityToken;
                 m_identity = identity;
@@ -1134,7 +1134,7 @@ namespace Opc.Ua.Server
                 return changed;
             }
         }
-        
+
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
@@ -1151,7 +1151,7 @@ namespace Opc.Ua.Server
                 m_diagnostics.TotalRequestCount.TotalCount++;
 
                 if (error)
-                {               
+                {
                     m_diagnostics.TotalRequestCount.ErrorCount++;
 
                     if (authorizationError)
@@ -1205,6 +1205,18 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
+        /// <summary>
+        /// Checks the security policies of a given EndpointDescription against
+        /// own security settings
+        /// </summary>
+        /// <param name="endpoint">EndpointDescription to check</param>
+        /// <returns>true if endpoint matches required security policy otherwise false</returns>
+        public bool CheckSecurityPolicyOfEndpoint(EndpointDescription endpoint)
+        {
+            return m_securityDiagnostics.SecurityPolicyUri == endpoint.SecurityPolicyUri
+                && m_securityDiagnostics.SecurityMode == endpoint.SecurityMode;
+        }
         #endregion
 
         #region Private Fields
@@ -1218,7 +1230,7 @@ namespace Opc.Ua.Server
         private IUserIdentity m_identity;
         private IUserIdentity m_effectiveIdentity;
         private bool m_activated;
-        
+
         private X509Certificate2 m_clientCertificate;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
@@ -1236,7 +1248,7 @@ namespace Opc.Ua.Server
         private double m_maxRequestAge;
         private int m_maxBrowseContinuationPoints;
         private int m_maxHistoryContinuationPoints;
-        
+
         private SessionDiagnosticsDataType m_diagnostics;
         private SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;

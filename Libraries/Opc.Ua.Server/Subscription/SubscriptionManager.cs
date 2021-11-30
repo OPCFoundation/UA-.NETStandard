@@ -1170,10 +1170,20 @@ namespace Opc.Ua.Server
                     // The Server shall validate that the Client of that Session is operating on behalf of the same user
                     // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
                     // --> Bad_UserAccessDenied
-                    // --> Bad_InsufficientClientProfile <<<< TODO (context.SecurityPolicyUri ?)
                     if (oldSession != null && (!oldSession.IdentityToken.IsEqual(context.Session.IdentityToken)))
                     {
                         result.StatusCode = StatusCodes.BadUserAccessDenied;
+                        results.Add(result);
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            diagnosticInfos.Add(null);
+                        }
+                        continue;
+                    }
+                    // --> Bad_InsufficientClientProfile
+                    if (!oldSession.CheckSecurityPolicyOfEndpoint(context.ChannelContext.EndpointDescription))
+                    {
+                        result.StatusCode = StatusCodes.BadInsufficientClientProfile;
                         results.Add(result);
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
