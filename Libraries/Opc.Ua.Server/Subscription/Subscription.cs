@@ -978,7 +978,7 @@ namespace Opc.Ua.Server
         public UInt32Collection AvailableSequenceNumbersForRetransmission()
         {
             var availableSequenceNumbers = new UInt32Collection();
-            // Assumption we do not check if (m_lastSentMessage < m_sentMessages.Count) because
+            // Assumption we do not check lastSentMessage < sentMessages.Count because
             // in case of subscription transfer original client might have crashed by handling message,
             // therefor new client should have to chance to process all available messages
             for (int ii = 0; ii < m_sentMessages.Count; ii++)
@@ -2332,7 +2332,7 @@ namespace Opc.Ua.Server
         private int m_lastSentMessage;
         private long m_sequenceNumber;
         private uint m_maxMessageCount;
-        private Dictionary<uint, IMonitoredItem> m_monitoredItems;
+        private readonly Dictionary<uint, IMonitoredItem> m_monitoredItems;
         private LinkedList<IMonitoredItem> m_itemsToCheck;
         private LinkedList<IMonitoredItem> m_itemsToPublish;
         private NodeId m_diagnosticsId;

@@ -387,15 +387,14 @@ namespace Opc.Ua.Server.Tests
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
 
             // add item
-            uint handleCounter = 1;
-            itemsToCreate.Add(new MonitoredItemCreateRequest() {
-                ItemToMonitor = new ReadValueId() {
+            itemsToCreate.Add(new MonitoredItemCreateRequest {
+                ItemToMonitor = new ReadValueId {
                     AttributeId = Attributes.Value,
                     NodeId = VariableIds.Server_ServerStatus_CurrentTime
                 },
                 MonitoringMode = MonitoringMode.Reporting,
-                RequestedParameters = new MonitoringParameters() {
-                    ClientHandle = ++handleCounter,
+                RequestedParameters = new MonitoringParameters {
+                    ClientHandle = 1u,
                     SamplingInterval = -1,
                     Filter = null,
                     DiscardOldest = true,
