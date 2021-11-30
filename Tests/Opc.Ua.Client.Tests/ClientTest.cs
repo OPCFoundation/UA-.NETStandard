@@ -684,7 +684,7 @@ namespace Opc.Ua.Client.Tests
                 oldSessionCounter++;
             };
             subscription.AddItem(newMonitoredItem);
-            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            subscription.ApplyChanges();
 
             await Task.Delay(10_000).ConfigureAwait(false);
 
@@ -692,7 +692,7 @@ namespace Opc.Ua.Client.Tests
             oldSession.Save(filePath);
             if (closeSession)
             {
-                await oldSession.CloseSessionAsync(null, false, default);
+                oldSession.CloseSession(null, false);
             }
 
             // create second session
@@ -728,7 +728,10 @@ namespace Opc.Ua.Client.Tests
             Assert.IsTrue(newSessionCounter > 1);
 
             newSession.Close();
-            oldSession.Close();
+            if (!closeSession)
+            {
+                oldSession.Close();
+            }
 
             File.Delete(filePath);
         }
