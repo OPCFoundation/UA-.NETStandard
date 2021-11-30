@@ -1270,8 +1270,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
 
-                        Assert.IsTrue(v == 2 ? StatusCodes.BadCertificateRevoked == serviceResultException.StatusCode :
-                            StatusCodes.BadCertificateRevocationUnknown == serviceResultException.StatusCode,
+                        Assert.IsTrue(StatusCodes.BadCertificateRevoked == serviceResultException.StatusCode ,
+                            //StatusCodes.BadCertificateRevocationUnknown == serviceResultException.StatusCode,
                             serviceResultException.Message);
                     }
                 }
@@ -1480,8 +1480,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_NotYetValidCertsApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                       // Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
-                        Assert.AreEqual(StatusCodes.BadCertificateRevocationUnknown, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
+                        //Assert.AreEqual(StatusCodes.BadCertificateRevocationUnknown, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
