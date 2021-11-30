@@ -680,7 +680,8 @@ namespace Opc.Ua.Client.Tests
 
             uint oldSessionCounter = 0;
             uint newSessionCounter = 0;
-            newMonitoredItem.Notification += (sender, args) => {
+            newMonitoredItem.Notification += (_, args) => {
+                TestContext.Out.WriteLine($"OldSession: Server Timestamp: {(args?.NotificationValue as MonitoredItemNotification).Value.Value.ToString() ?? string.Empty}");
                 oldSessionCounter++;
             };
             subscription.AddItem(newMonitoredItem);
@@ -716,7 +717,8 @@ namespace Opc.Ua.Client.Tests
             var newMonitoredItems = newSubscriptions.First().MonitoredItems.ToList();
             Assert.AreEqual(1, newMonitoredItems.Count);
             Assert.AreNotSame(oldSession, newMonitoredItems.First().Subscription.Session);
-            newMonitoredItems.First().Notification += (sender, args) => {
+            newMonitoredItems.First().Notification += (_, args) => {
+                TestContext.Out.WriteLine($"OldSession: Server Timestamp: {(args?.NotificationValue as MonitoredItemNotification).Value.Value.ToString() ?? string.Empty}");
                 newSessionCounter++;
             };
 
