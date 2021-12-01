@@ -1316,7 +1316,6 @@ namespace Opc.Ua.Client
                     AddSubscription(subscription);
                 }
                 m_lastKeepAliveTime = DateTime.UtcNow;
-                Reconnect();
                 return subscriptions;
             }
             finally
@@ -3668,7 +3667,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (var sequenceNumber in results[i].AvailableSequenceNumbers)
                     {
-                        //feature: let client acknowledge the sequence numbers that were already handled
+                        //TODO: let client acknowledge the sequence numbers that were already handled
                         Republish(subscriptionIds[i], sequenceNumber);
                     }
                 }

@@ -138,9 +138,9 @@ namespace Opc.Ua.Server
     public interface ITransferableMonitoredItem
     {
         /// <summary>
-		/// The session that owns the monitored item.
-		/// </summary>
-		Session Session { get; set; }
+        /// The session that owns the monitored item.
+        /// </summary>
+        Session Session { get; set; }
     }
 
 	/// <summary>
