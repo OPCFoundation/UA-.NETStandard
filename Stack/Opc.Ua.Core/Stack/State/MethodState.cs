@@ -255,6 +255,11 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.UserExecutable;
             }
             
+            if (!NodeId.IsNull(this.MethodDeclarationId) && MethodDeclarationId != NodeId)
+            {
+                attributesToSave |= AttributesToSave.TypeDefinitionId;
+            }
+
             return attributesToSave;
         }
 

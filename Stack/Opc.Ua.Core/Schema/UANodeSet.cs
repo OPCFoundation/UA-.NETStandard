@@ -151,18 +151,16 @@ namespace Opc.Ua.Export {
         
         private string modelUriField;
         
-        private string xmlSchemaUriField;
-        
         private string versionField;
         
         private System.DateTime publicationDateField;
         
         private bool publicationDateFieldSpecified;
         
-        private ushort accessRestrictionsField;
+        private byte accessRestrictionsField;
         
         public ModelTableEntry() {
-            this.accessRestrictionsField = ((ushort)(0));
+            this.accessRestrictionsField = ((byte)(0));
         }
         
         /// <remarks/>
@@ -195,17 +193,6 @@ namespace Opc.Ua.Export {
             }
             set {
                 this.modelUriField = value;
-            }
-        }
-        
-        /// <remarks/>
-        [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string XmlSchemaUri {
-            get {
-                return this.xmlSchemaUriField;
-            }
-            set {
-                this.xmlSchemaUriField = value;
             }
         }
         
@@ -244,8 +231,8 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        [System.ComponentModel.DefaultValueAttribute(typeof(ushort), "0")]
-        public ushort AccessRestrictions {
+        [System.ComponentModel.DefaultValueAttribute(typeof(byte), "0")]
+        public byte AccessRestrictions {
             get {
                 return this.accessRestrictionsField;
             }
@@ -931,7 +918,7 @@ namespace Opc.Ua.Export {
         
         private uint userWriteMaskField;
         
-        private ushort accessRestrictionsField;
+        private byte accessRestrictionsField;
         
         private bool accessRestrictionsFieldSpecified;
         
@@ -1072,7 +1059,7 @@ namespace Opc.Ua.Export {
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public ushort AccessRestrictions {
+        public byte AccessRestrictions {
             get {
                 return this.accessRestrictionsField;
             }

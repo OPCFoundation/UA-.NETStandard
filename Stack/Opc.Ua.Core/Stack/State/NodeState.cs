@@ -652,7 +652,7 @@ namespace Opc.Ua
         /// Flags which control the serialization of a NodeState in a stream.
         /// </summary>
         [Flags]
-        public enum AttributesToSave : uint
+        public enum AttributesToSave
         {
             /// <summary>
             /// The default value.
