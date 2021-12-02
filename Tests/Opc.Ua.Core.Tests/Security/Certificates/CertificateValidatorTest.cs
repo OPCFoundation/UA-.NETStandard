@@ -528,7 +528,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateRevoked, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual(v == 2 ?
+                            StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -561,7 +562,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateRevoked, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual( v == 2 ?
+                            StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -598,7 +600,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateRevoked, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual(v == 2 ?
+                            StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -630,7 +633,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateRevoked, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual(v == 2 ?
+                            StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -666,7 +670,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(StatusCodes.BadCertificateRevoked, serviceResultException.StatusCode, serviceResultException.Message);
+                        Assert.AreEqual(v == 2 ?
+                            StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -1270,9 +1275,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
 
-                        Assert.IsTrue(StatusCodes.BadCertificateRevoked == serviceResultException.StatusCode ,
-                            //StatusCodes.BadCertificateRevocationUnknown == serviceResultException.StatusCode,
-                            serviceResultException.Message);
+                        Assert.AreEqual(v == 2 ?
+                            StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
@@ -1319,6 +1323,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                         Assert.IsTrue(StatusCodes.BadCertificateRevocationUnknown == serviceResultException.StatusCode,
                             serviceResultException.Message);
+
+                        // ensure the missing issuer certificate is detected, also.
+                        int isPresentCertificateIssuerRevocationUnknown = 0;
+                        ServiceResult inner = serviceResultException.InnerResult;
+                        while (inner != null)
+                        {                            
+                            if (inner.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
+                            {
+                                isPresentCertificateIssuerRevocationUnknown++;
+                                
+                            }
+                            inner = inner.InnerResult;
+                        } ;
+                        Assert.IsTrue(isPresentCertificateIssuerRevocationUnknown == 2);
                     }
                 }
             }
@@ -1388,8 +1406,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         if (i != v)
                         {
-                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            // validator.TrustedStore.AddCRL(m_crlChain[i]);
+                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);                            
                         }
                     }
                     var certValidator = validator.Update();
@@ -1401,6 +1418,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
                         Assert.AreEqual(StatusCodes.BadCertificateChainIncomplete, serviceResultException.StatusCode, serviceResultException.Message);
+                        // no need to check for inner exceptions, since an incomplete chain error cannot be suppressed.
                     }
                 }
             }
@@ -1481,7 +1499,26 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
                         Assert.AreEqual(StatusCodes.BadCertificateTimeInvalid, serviceResultException.StatusCode, serviceResultException.Message);
-                        //Assert.AreEqual(StatusCodes.BadCertificateRevocationUnknown, serviceResultException.StatusCode, serviceResultException.Message);
+
+                        // BadCertificateTimeInvalid can be suppressed. Ensure the other issues are caught, as well:
+                        int isPresentCertificateIssuerRevocationUnknown = 0;
+                        int isPresentCertificateRevocationUnknown = 0;
+                        ServiceResult inner = serviceResultException.InnerResult;
+                        while (inner != null)
+                        {
+                            if (inner.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
+                            {
+                                isPresentCertificateIssuerRevocationUnknown++;
+
+                            }
+                            else if (inner.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
+                            {
+                                isPresentCertificateRevocationUnknown++;
+                            }
+                            inner = inner.InnerResult;
+                        };
+                        Assert.IsTrue(isPresentCertificateIssuerRevocationUnknown >= 2);
+                        Assert.IsTrue(isPresentCertificateRevocationUnknown >= 1);
                     }
                 }
             }

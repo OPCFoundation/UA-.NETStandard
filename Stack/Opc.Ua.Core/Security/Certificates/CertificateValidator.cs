@@ -622,7 +622,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public async Task<bool> GetIssuersNoExceptions(X509Certificate2Collection certificates,            
+        public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,            
             List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
             bool isTrusted = false;
@@ -638,15 +638,36 @@ namespace Opc.Ua
 
             do
             {
-                (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                if (validationErrors != null)
+                {
+                    (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                 }
+                else
+                {
+                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                }
 
                 if (issuer == null)
                 {
-                    (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                    if (validationErrors != null)
+                    {
+                        (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                    }
 
                     if (issuer == null)
                     {
-                        (issuer, revocationStatus) = await GetIssuerNoException(certificate, collection, null, true).ConfigureAwait(false);
+                        if (validationErrors != null)
+                        {
+                            (issuer, revocationStatus) = await GetIssuerNoException(certificate, collection, null, true).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            issuer = await GetIssuer(certificate, collection, null, true).ConfigureAwait(false);
+                        }
                     }
                 }
                 else
@@ -657,7 +678,10 @@ namespace Opc.Ua
                 if (issuer != null)
                 {
                     issuers.Add(issuer);
-                    validationErrors[certificate] = revocationStatus;
+                    if (validationErrors != null)
+                    {
+                        validationErrors[certificate] = revocationStatus;
+                    }
                     certificate = await issuer.Find(false).ConfigureAwait(false);
 
                     // check for root.
@@ -679,49 +703,9 @@ namespace Opc.Ua
         /// </summary>
         public async Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
         {
-            bool isTrusted = false;
-            CertificateIdentifier issuer = null;
-            X509Certificate2 certificate = certificates[0];
-
-            CertificateIdentifierCollection collection = new CertificateIdentifierCollection();
-            for (int ii = 1; ii < certificates.Count; ii++)
-            {
-                collection.Add(new CertificateIdentifier(certificates[ii]));
-            }
-
-            do
-            {
-                issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
-
-                if (issuer == null)
-                {
-                    issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
-
-                    if (issuer == null)
-                    {
-                        issuer = await GetIssuer(certificate, collection, null, true).ConfigureAwait(false);
-                    }
-                }
-                else
-                {
-                    isTrusted = true;
-                }
-
-                if (issuer != null)
-                {
-                    issuers.Add(issuer);
-                    certificate = await issuer.Find(false).ConfigureAwait(false);
-
-                    // check for root.
-                    if (X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
-                    {
-                        break;
-                    }
-                }
-            }
-            while (issuer != null);
-
-            return isTrusted;
+            return await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers,
+                null // ensures legacy behavior is respected
+                ).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -828,13 +812,18 @@ namespace Opc.Ua
                                             }
 
                                             if (m_rejectUnknownRevocationStatus)
-                                            {
-                                                serviceResult = new ServiceResultException(status);
+                                            {        
+                                                serviceResult = new ServiceResultException(status);                                                
                                             }
                                         }
+
                                         else
                                         {
-                                            serviceResult = new ServiceResultException(status);
+                                            if (status == StatusCodes.BadCertificateRevoked && X509Utils.IsCertificateAuthority(certificate))
+                                            {
+                                                status.Code = StatusCodes.BadCertificateIssuerRevoked;
+                                            }
+                                            serviceResult = new ServiceResultException(status);                                            
                                         }
                                     }
                                 }
@@ -866,113 +855,15 @@ namespace Opc.Ua
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus)
         {
-            // check if self-signed.
-            if (X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
+
+            (CertificateIdentifier result, ServiceResultException srex) =
+                await GetIssuerNoException(certificate, explicitList, certificateStore, checkRecovationStatus
+                ).ConfigureAwait(false);
+            if(srex != null)
             {
-                return null;
+                throw srex;
             }
-
-            string subjectName = certificate.IssuerName.Name;
-            string keyId = null;
-            string serialNumber = null;
-
-            // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<X509AuthorityKeyIdentifierExtension>(certificate);
-
-            if (authority != null)
-            {
-                keyId = authority.KeyIdentifier;
-                serialNumber = authority.SerialNumber;
-            }
-
-            // check in explicit list.
-            if (explicitList != null)
-            {
-                for (int ii = 0; ii < explicitList.Count; ii++)
-                {
-                    X509Certificate2 issuer = await explicitList[ii].Find(false).ConfigureAwait(false);
-
-                    if (issuer != null)
-                    {
-                        if (!X509Utils.IsIssuerAllowed(issuer))
-                        {
-                            continue;
-                        }
-
-                        if (Match(issuer, subjectName, serialNumber, keyId))
-                        {
-                            // can't check revocation.
-                            return new CertificateIdentifier(issuer, CertificateValidationOptions.SuppressRevocationStatusUnknown);
-                        }
-                    }
-                }
-            }
-
-            // check in certificate store.
-            if (certificateStore != null)
-            {
-                ICertificateStore store = certificateStore.OpenStore();
-
-                try
-                {
-                    X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
-
-                    for (int ii = 0; ii < certificates.Count; ii++)
-                    {
-                        X509Certificate2 issuer = certificates[ii];
-
-                        if (issuer != null)
-                        {
-                            if (!X509Utils.IsIssuerAllowed(issuer))
-                            {
-                                continue;
-                            }
-
-                            if (Match(issuer, subjectName, serialNumber, keyId))
-                            {
-                                CertificateValidationOptions options = certificateStore.ValidationOptions;
-
-                                // already checked revocation for file based stores. windows based stores always suppress.
-                                options |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
-
-                                if (checkRecovationStatus)
-                                {
-                                    StatusCode status = store.IsRevoked(issuer, certificate);
-
-                                    if (StatusCode.IsBad(status) && status != StatusCodes.BadNotSupported)
-                                    {
-                                        if (status == StatusCodes.BadCertificateRevocationUnknown)
-                                        {
-                                            if (X509Utils.IsCertificateAuthority(certificate))
-                                            {
-                                                status.Code = StatusCodes.BadCertificateIssuerRevocationUnknown;
-                                            }
-
-                                            if (m_rejectUnknownRevocationStatus)
-                                            {
-                                                throw new ServiceResultException(status);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            throw new ServiceResultException(status);
-                                        }
-                                    }
-                                }
-
-                                return new CertificateIdentifier(certificates[ii], options);
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    store.Close();
-                }
-            }
-
-            // not a trusted issuer.
-            return null;
+            return result;
         }
 
         /// <summary>
@@ -1000,92 +891,11 @@ namespace Opc.Ua
 
             // get the issuers (checks the revocation lists if using directory stores).
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
-            //bool isIssuerTrusted = await GetIssuers(certificates, issuers).ConfigureAwait(false);
+            Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();            
 
-            bool isIssuerTrusted = await GetIssuersNoExceptions(certificates, issuers, validationErrors);
+            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
 
-            ServiceResult sresult = null;
-            Dictionary<X509Certificate2, ServiceResultException> p1List = new Dictionary<X509Certificate2, ServiceResultException>();
-            Dictionary<X509Certificate2, ServiceResultException> p2List = new Dictionary<X509Certificate2, ServiceResultException>();
-            Dictionary<X509Certificate2, ServiceResultException> p3List = new Dictionary<X509Certificate2, ServiceResultException>();
-            Dictionary<X509Certificate2, ServiceResultException> p4List = new Dictionary<X509Certificate2, ServiceResultException>();
-            foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in validationErrors)
-            {
-                if (kvp.Value != null)
-                {
-                    if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevoked)
-                    {
-                        p1List[kvp.Key] = kvp.Value;
-                        //var message = CertificateMessage("Certificate is revoked.", kvp.Key);
-                        //sresult = new ServiceResult(StatusCodes.BadCertificateRevoked,
-                        //    null, null, message, null, sresult);
-                    }
-
-                    else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
-                    {
-                        p2List[kvp.Key] = kvp.Value;
-                        //var message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
-                        //sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevoked,
-                        //    null, null, message, null, sresult);
-                    }
-
-                    else if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
-                    {
-                        p3List[kvp.Key] = kvp.Value;
-                        //var message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
-                        //sresult = new ServiceResult(StatusCodes.BadCertificateRevocationUnknown,
-                        //    null, null, message, null, sresult);
-                    }
-
-                    else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
-                    {
-                        //p4List[kvp.Key] = kvp.Value;
-                        var message = CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
-                        sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown,
-                            null, null, message, null, sresult);
-                    }
-
-                    else
-                    {
-                        if (StatusCode.IsBad(kvp.Value.StatusCode))
-                        {
-                            var message = CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
-                            sresult = new ServiceResult(kvp.Value.StatusCode,
-                                null, null, message, null, sresult);
-                        }
-                    }
-                }
-            }
-
-            if(p3List.Count > 0 )
-            {
-                foreach(KeyValuePair<X509Certificate2, ServiceResultException> kvp in p3List)
-                {
-                    var message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
-                    sresult = new ServiceResult(StatusCodes.BadCertificateRevocationUnknown,
-                        null, null, message, null, sresult);
-                }
-            }
-            if (p2List.Count > 0)
-            {
-                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p2List)
-                {
-                    var message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
-                    sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevoked,
-                        null, null, message, null, sresult);
-                }
-            }
-            if (p1List.Count > 0)
-            {
-                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p1List)
-                {
-                    var message = CertificateMessage("Certificate is revoked.", kvp.Key);
-                    sresult = new ServiceResult(StatusCodes.BadCertificateRevoked,
-                        null, null, message, null, sresult);
-                }
-            }
-
+            ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
 
             // setup policy chain
             X509ChainPolicy policy = new X509ChainPolicy();
@@ -1230,54 +1040,87 @@ namespace Opc.Ua
                     null, null, message, null, sresult);
             }
 
-            //foreach(KeyValuePair<X509Certificate2, ServiceResultException> kvp in validationErrors)
-            //{
-            //    if (kvp.Value != null)
-            //    {
-            //        if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevoked)
-            //        {
-            //            var message = CertificateMessage("Certificate is revoked.", kvp.Key);
-            //            sresult = new ServiceResult(StatusCodes.BadCertificateRevoked,
-            //                null, null, message, null, sresult);
-            //        }
-
-            //        else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
-            //        {
-            //            var message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
-            //            sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevoked,
-            //                null, null, message, null, sresult);
-            //        }
-
-            //        else if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
-            //        {
-            //            var message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
-            //            sresult = new ServiceResult(StatusCodes.BadCertificateRevocationUnknown,
-            //                null, null, message, null, sresult);
-            //        }
-
-            //        else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
-            //        {
-            //            var message = CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
-            //            sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown,
-            //                null, null, message, null, sresult);
-            //        }
-
-            //        else
-            //        {
-            //            if (StatusCode.IsBad(kvp.Value.StatusCode))
-            //            {
-            //                var message = CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
-            //                sresult = new ServiceResult(kvp.Value.StatusCode,
-            //                    null, null, message, null, sresult);
-            //            }
-            //        }
-            //    }
-            //}
-
             if (sresult != null)
             {
                 throw new ServiceResultException(sresult);
             }
+        }
+
+        private ServiceResult PopulateSresultWithValidationErrors(Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+        {
+            Dictionary<X509Certificate2, ServiceResultException> p1List = new Dictionary<X509Certificate2, ServiceResultException>();
+            Dictionary<X509Certificate2, ServiceResultException> p2List = new Dictionary<X509Certificate2, ServiceResultException>();
+            Dictionary<X509Certificate2, ServiceResultException> p3List = new Dictionary<X509Certificate2, ServiceResultException>();
+
+            ServiceResult sresult = null;
+
+            foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in validationErrors)
+            {                
+                if (kvp.Value != null)
+                {
+                    if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevoked)
+                    {
+                        p1List[kvp.Key] = kvp.Value;
+                    }
+
+                    else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
+                    {
+                        p2List[kvp.Key] = kvp.Value;
+                    }
+
+                    else if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
+                    {
+                        p3List[kvp.Key] = kvp.Value;
+                    }
+
+                    else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
+                    {
+                        //p4List[kvp.Key] = kvp.Value;
+                        var message = CertificateMessage("Certificate issuer revocation list not found.", kvp.Key);
+                        sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown,
+                            null, null, message, null, sresult);
+                    }
+                    else
+                    {
+                        if (StatusCode.IsBad(kvp.Value.StatusCode))
+                        {
+                            var message = CertificateMessage("Unknown error while trying to determine the revocation status.", kvp.Key);
+                            sresult = new ServiceResult(kvp.Value.StatusCode,
+                                null, null, message, null, sresult);
+                        }
+                    }
+                }
+            }
+
+            if (p3List.Count > 0)
+            {
+                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p3List)
+                {
+                    var message = CertificateMessage("Certificate revocation list not found.", kvp.Key);
+                    sresult = new ServiceResult(StatusCodes.BadCertificateRevocationUnknown,
+                        null, null, message, null, sresult);
+                }
+            }
+            if (p2List.Count > 0)
+            {
+                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p2List)
+                {
+                    var message = CertificateMessage("Certificate issuer is revoked.", kvp.Key);
+                    sresult = new ServiceResult(StatusCodes.BadCertificateIssuerRevoked,
+                        null, null, message, null, sresult);
+                }
+            }
+            if (p1List.Count > 0)
+            {
+                foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in p1List)
+                {
+                    var message = CertificateMessage("Certificate is revoked.", kvp.Key);
+                    sresult = new ServiceResult(StatusCodes.BadCertificateRevoked,
+                        null, null, message, null, sresult);
+                }
+            }
+
+            return sresult;
         }
 
         /// <summary>
