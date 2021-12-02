@@ -132,17 +132,6 @@ namespace Opc.Ua.Server
         bool SetTriggered();
     }
 
-    /// <summary>
-    /// A monitored item were the base subscription can be transfered
-    /// </summary>
-    public interface ITransferableMonitoredItem
-    {
-        /// <summary>
-        /// The session that owns the monitored item.
-        /// </summary>
-        Session Session { get; set; }
-    }
-
 	/// <summary>
 	/// Manages a monitored item created by a client.
 	/// </summary>

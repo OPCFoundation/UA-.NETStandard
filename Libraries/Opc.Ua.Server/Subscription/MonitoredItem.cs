@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem, ITransferableMonitoredItem
+    public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem
     {
         #region Constructors
         /// <summary>
@@ -51,7 +51,6 @@ namespace Opc.Ua.Server
             object mangerHandle,
             uint subscriptionId,
             uint id,
-            Session session,
             ReadValueId itemToMonitor,
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
@@ -74,7 +73,6 @@ namespace Opc.Ua.Server
             m_managerHandle = mangerHandle;
             m_subscriptionId = subscriptionId;
             m_id = id;
-            m_session = session;
             m_nodeId = itemToMonitor.NodeId;
             m_attributeId = itemToMonitor.AttributeId;
             m_indexRange = itemToMonitor.IndexRange;
@@ -149,7 +147,6 @@ namespace Opc.Ua.Server
             m_managerHandle = null;
             m_subscriptionId = 0;
             m_id = 0;
-            m_session = null;
             m_nodeId = null;
             m_attributeId = 0;
             m_indexRange = null;
@@ -343,14 +340,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    return m_session;
-                }
-            }
-            set
-            {
-                lock(m_lock)
-                {
-                    m_session = value;
+                    return m_subscription.Session;
                 }
             }
         }
@@ -901,7 +891,7 @@ namespace Opc.Ua.Server
 
                     if (text != null)
                     {
-                        value = m_server.ResourceManager.Translate(m_session.PreferredLocales, text);
+                        value = m_server.ResourceManager.Translate(Session.PreferredLocales, text);
                     }
 
                     // add value.
@@ -972,7 +962,7 @@ namespace Opc.Ua.Server
                 }
 
                 // construct the context to use for the event filter.
-                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, m_session.PreferredLocales);
+                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session.PreferredLocales);
 
                 // event filter must be specified.
                 EventFilter filter = m_filterToUse as EventFilter;
@@ -1135,7 +1125,7 @@ namespace Opc.Ua.Server
 
                         // fetch the event fields.
                         overflowEvent = GetEventFields(
-                            new FilterContext(m_server.NamespaceUris, m_server.TypeTree, m_session.PreferredLocales),
+                            new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session.PreferredLocales),
                             m_filterToUse as EventFilter,
                             e);
                     }
@@ -1772,7 +1762,6 @@ namespace Opc.Ua.Server
         private uint m_subscriptionId;
         private uint m_id;
         private int m_typeMask;
-        private Session m_session;
         private NodeId m_nodeId;
         private uint m_attributeId;
         private string m_indexRange;

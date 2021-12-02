@@ -533,12 +533,6 @@ namespace Opc.Ua.Server
 
             foreach(var monitoredItem in m_monitoredItems.Values)
             {
-                var transferableMonitoredItem = (monitoredItem as ITransferableMonitoredItem);
-                if (transferableMonitoredItem != null)
-                {
-                    transferableMonitoredItem.Session = session;
-                }
-
                 if (sendInitialValues)
                 {
                     var triggeredMonitoredItem = (monitoredItem as ITriggeredMonitoredItem);
