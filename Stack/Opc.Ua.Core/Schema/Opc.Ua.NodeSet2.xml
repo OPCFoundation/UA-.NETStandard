@@ -28,9 +28,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2021-11-25T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2021-09-15T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.04.11-RC" PublicationDate="2021-11-25T00:00:00Z" />
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.04.10" PublicationDate="2021-09-15T00:00:00Z" />
   </Models>
   <Aliases>
     <Alias Alias="Boolean">i=1</Alias>
@@ -94,38 +94,33 @@
   </UAObject>
   <UADataType NodeId="i=24" BrowseName="BaseDataType" IsAbstract="true">
     <DisplayName>BaseDataType</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References />
   </UADataType>
   <UADataType NodeId="i=26" BrowseName="Number" IsAbstract="true">
     <DisplayName>Number</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.30</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=27" BrowseName="Integer" IsAbstract="true">
     <DisplayName>Integer</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.24</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=28" BrowseName="UInteger" IsAbstract="true">
     <DisplayName>UInteger</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.33</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=29" BrowseName="Enumeration" IsAbstract="true">
     <DisplayName>Enumeration</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Part22/docs/5.3.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
@@ -133,7 +128,6 @@
   </UADataType>
   <UADataType NodeId="i=1" BrowseName="Boolean">
     <DisplayName>Boolean</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
@@ -141,7 +135,6 @@
   </UADataType>
   <UADataType NodeId="i=2" BrowseName="SByte">
     <DisplayName>SByte</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.17</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
@@ -149,7 +142,6 @@
   </UADataType>
   <UADataType NodeId="i=3" BrowseName="Byte">
     <DisplayName>Byte</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
@@ -157,7 +149,6 @@
   </UADataType>
   <UADataType NodeId="i=4" BrowseName="Int16">
     <DisplayName>Int16</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.25</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
@@ -165,15 +156,13 @@
   </UADataType>
   <UADataType NodeId="i=5" BrowseName="UInt16">
     <DisplayName>UInt16</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.34</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.35</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=6" BrowseName="Int32">
     <DisplayName>Int32</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.26</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
@@ -181,15 +170,13 @@
   </UADataType>
   <UADataType NodeId="i=7" BrowseName="UInt32">
     <DisplayName>UInt32</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.35</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.36</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=8" BrowseName="Int64">
     <DisplayName>Int64</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.27</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=27</Reference>
@@ -197,15 +184,13 @@
   </UADataType>
   <UADataType NodeId="i=9" BrowseName="UInt64">
     <DisplayName>UInt64</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.36</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=28</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=10" BrowseName="Float">
     <DisplayName>Float</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
@@ -213,31 +198,27 @@
   </UADataType>
   <UADataType NodeId="i=11" BrowseName="Double">
     <DisplayName>Double</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12" BrowseName="String">
     <DisplayName>String</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.31</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=13" BrowseName="DateTime">
     <DisplayName>DateTime</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=14" BrowseName="Guid">
     <DisplayName>Guid</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
@@ -245,23 +226,20 @@
   </UADataType>
   <UADataType NodeId="i=15" BrowseName="ByteString">
     <DisplayName>ByteString</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=16" BrowseName="XmlElement">
     <DisplayName>XmlElement</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.38</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.39</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=17" BrowseName="NodeId">
     <DisplayName>NodeId</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
@@ -269,23 +247,20 @@
   </UADataType>
   <UADataType NodeId="i=18" BrowseName="ExpandedNodeId">
     <DisplayName>ExpandedNodeId</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=19" BrowseName="StatusCode">
     <DisplayName>StatusCode</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.34.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=20" BrowseName="QualifiedName">
     <DisplayName>QualifiedName</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
@@ -293,7 +268,6 @@
   </UADataType>
   <UADataType NodeId="i=21" BrowseName="LocalizedText">
     <DisplayName>LocalizedText</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
@@ -301,39 +275,34 @@
   </UADataType>
   <UADataType NodeId="i=22" BrowseName="Structure" IsAbstract="true">
     <DisplayName>Structure</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.32</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Part22/docs/5.3.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=23" BrowseName="DataValue">
     <DisplayName>DataValue</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.7.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=25" BrowseName="DiagnosticInfo">
     <DisplayName>DiagnosticInfo</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=24</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=30" BrowseName="Image" IsAbstract="true">
     <DisplayName>Image</DisplayName>
-    <Category>Base Info Image DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.19</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=50" BrowseName="Decimal">
     <DisplayName>Decimal</DisplayName>
-    <Category>Base Info Decimal DataType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.54</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=26</Reference>
@@ -341,22 +310,19 @@
   </UADataType>
   <UAReferenceType NodeId="i=31" BrowseName="References" IsAbstract="true" Symmetric="true">
     <DisplayName>References</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/4.3.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.1</Documentation>
     <References />
   </UAReferenceType>
   <UAReferenceType NodeId="i=32" BrowseName="NonHierarchicalReferences" IsAbstract="true" Symmetric="true">
     <DisplayName>NonHierarchicalReferences</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=31</Reference>
     </References>
   </UAReferenceType>
   <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
     <DisplayName>HierarchicalReferences</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=31</Reference>
     </References>
@@ -364,8 +330,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=34" BrowseName="HasChild" IsAbstract="true">
     <DisplayName>HasChild</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -373,8 +338,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=35" BrowseName="Organizes">
     <DisplayName>Organizes</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -382,8 +346,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=36" BrowseName="HasEventSource">
     <DisplayName>HasEventSource</DisplayName>
-    <Category>Address Space Source Hierarchy</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.17</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
     </References>
@@ -391,8 +354,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=37" BrowseName="HasModellingRule">
     <DisplayName>HasModellingRule</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -400,8 +362,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=38" BrowseName="HasEncoding">
     <DisplayName>HasEncoding</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -417,8 +378,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=40" BrowseName="HasTypeDefinition">
     <DisplayName>HasTypeDefinition</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -426,8 +386,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=41" BrowseName="GeneratesEvent">
     <DisplayName>GeneratesEvent</DisplayName>
-    <Category>Address Space Events 2</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.15</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -435,8 +394,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=3065" BrowseName="AlwaysGeneratesEvent">
     <DisplayName>AlwaysGeneratesEvent</DisplayName>
-    <Category>Address Space Events 2</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.16</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.17</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=41</Reference>
     </References>
@@ -444,8 +402,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=44" BrowseName="Aggregates" IsAbstract="true">
     <DisplayName>Aggregates</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=34</Reference>
     </References>
@@ -453,8 +410,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=45" BrowseName="HasSubtype">
     <DisplayName>HasSubtype</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=34</Reference>
     </References>
@@ -462,8 +418,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=46" BrowseName="HasProperty">
     <DisplayName>HasProperty</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.8</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -471,8 +426,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=47" BrowseName="HasComponent">
     <DisplayName>HasComponent</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=44</Reference>
     </References>
@@ -480,8 +434,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=48" BrowseName="HasNotifier">
     <DisplayName>HasNotifier</DisplayName>
-    <Category>Address Space Notifier Hierarchy</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.18</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=36</Reference>
     </References>
@@ -489,8 +442,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=49" BrowseName="HasOrderedComponent">
     <DisplayName>HasOrderedComponent</DisplayName>
-    <Category>Base Info HasOrderedComponent</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/11.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -546,13 +498,11 @@
   </UAReferenceType>
   <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
     <DisplayName>BaseObjectType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.2</Documentation>
     <References />
   </UAObjectType>
   <UAObjectType NodeId="i=61" BrowseName="FolderType">
     <DisplayName>FolderType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -560,13 +510,11 @@
   </UAObjectType>
   <UAVariableType NodeId="i=62" BrowseName="BaseVariableType" IsAbstract="true" ValueRank="-2">
     <DisplayName>BaseVariableType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.2</Documentation>
     <References />
   </UAVariableType>
   <UAVariableType NodeId="i=63" BrowseName="BaseDataVariableType" ValueRank="-2">
     <DisplayName>BaseDataVariableType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=62</Reference>
@@ -574,7 +522,6 @@
   </UAVariableType>
   <UAVariableType NodeId="i=68" BrowseName="PropertyType" ValueRank="-2">
     <DisplayName>PropertyType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=62</Reference>
@@ -648,7 +595,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=76" BrowseName="DataTypeEncodingType">
     <DisplayName>DataTypeEncodingType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -734,7 +680,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=77" BrowseName="ModellingRuleType">
     <DisplayName>ModellingRuleType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=111</Reference>
@@ -754,8 +699,7 @@
   </UAVariable>
   <UAObject NodeId="i=78" BrowseName="Mandatory" SymbolicName="ModellingRule_Mandatory">
     <DisplayName>Mandatory</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.3.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=112</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -773,8 +717,7 @@
   </UAVariable>
   <UAObject NodeId="i=80" BrowseName="Optional" SymbolicName="ModellingRule_Optional">
     <DisplayName>Optional</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.3.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=113</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -792,8 +735,7 @@
   </UAVariable>
   <UAObject NodeId="i=83" BrowseName="ExposesItsArray" SymbolicName="ModellingRule_ExposesItsArray">
     <DisplayName>ExposesItsArray</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.3.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=114</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -811,8 +753,7 @@
   </UAVariable>
   <UAObject NodeId="i=11508" BrowseName="OptionalPlaceholder" SymbolicName="ModellingRule_OptionalPlaceholder">
     <DisplayName>OptionalPlaceholder</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.3.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11509</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -830,8 +771,7 @@
   </UAVariable>
   <UAObject NodeId="i=11510" BrowseName="MandatoryPlaceholder" SymbolicName="ModellingRule_MandatoryPlaceholder">
     <DisplayName>MandatoryPlaceholder</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.3.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.4.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11511</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=77</Reference>
@@ -849,7 +789,6 @@
   </UAVariable>
   <UAObject NodeId="i=84" BrowseName="Root" SymbolicName="RootFolder">
     <DisplayName>Root</DisplayName>
-    <Category>Base Info Core Structure 2</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
@@ -857,7 +796,6 @@
   </UAObject>
   <UAObject NodeId="i=85" BrowseName="Objects" SymbolicName="ObjectsFolder">
     <DisplayName>Objects</DisplayName>
-    <Category>Base Info Core Structure 2</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.4</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
@@ -866,7 +804,6 @@
   </UAObject>
   <UAObject NodeId="i=86" BrowseName="Types" SymbolicName="TypesFolder">
     <DisplayName>Types</DisplayName>
-    <Category>Base Info Core Types Folders</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.5</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
@@ -875,7 +812,6 @@
   </UAObject>
   <UAObject NodeId="i=87" BrowseName="Views" SymbolicName="ViewsFolder">
     <DisplayName>Views</DisplayName>
-    <Category>Base Info Core Views Folder</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=84</Reference>
@@ -884,7 +820,6 @@
   </UAObject>
   <UAObject NodeId="i=88" BrowseName="ObjectTypes" SymbolicName="ObjectTypesFolder">
     <DisplayName>ObjectTypes</DisplayName>
-    <Category>Base Info Core Types Folders</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.6</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -894,7 +829,6 @@
   </UAObject>
   <UAObject NodeId="i=89" BrowseName="VariableTypes" SymbolicName="VariableTypesFolder">
     <DisplayName>VariableTypes</DisplayName>
-    <Category>Base Info Core Types Folders</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.7</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -904,7 +838,6 @@
   </UAObject>
   <UAObject NodeId="i=90" BrowseName="DataTypes" SymbolicName="DataTypesFolder">
     <DisplayName>DataTypes</DisplayName>
-    <Category>Base Info Core Types Folders</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.9</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -914,7 +847,6 @@
   </UAObject>
   <UAObject NodeId="i=91" BrowseName="ReferenceTypes" SymbolicName="ReferenceTypesFolder">
     <DisplayName>ReferenceTypes</DisplayName>
-    <Category>Base Info Core Types Folders</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.8</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -940,8 +872,7 @@
   </UAObject>
   <UAReferenceType NodeId="i=129" BrowseName="HasArgumentDescription">
     <DisplayName>HasArgumentDescription</DisplayName>
-    <Category>Address Space Method Meta Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.7.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment3/11.18</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -949,8 +880,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=131" BrowseName="HasOptionalInputArgumentDescription">
     <DisplayName>HasOptionalInputArgumentDescription</DisplayName>
-    <Category>Address Space Method Meta Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.7.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment3/11.19</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=129</Reference>
     </References>
@@ -990,7 +920,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.04.11-RC</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.04.10</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15960" BrowseName="NamespacePublicationDate" ParentNodeId="i=15957" DataType="DateTime">
@@ -1000,7 +930,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">i=15957</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2021-11-25T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2021-09-15T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="i=15961" BrowseName="IsNamespaceSubset" ParentNodeId="i=15957" DataType="Boolean">
@@ -1204,7 +1134,6 @@
   </UAVariable>
   <UADataType NodeId="i=2000" BrowseName="ImageBMP">
     <DisplayName>ImageBMP</DisplayName>
-    <Category>Base Info Image DataTypes</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.20</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
@@ -1212,7 +1141,6 @@
   </UADataType>
   <UADataType NodeId="i=2001" BrowseName="ImageGIF">
     <DisplayName>ImageGIF</DisplayName>
-    <Category>Base Info Image DataTypes</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.21</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
@@ -1220,7 +1148,6 @@
   </UADataType>
   <UADataType NodeId="i=2002" BrowseName="ImageJPG">
     <DisplayName>ImageJPG</DisplayName>
-    <Category>Base Info Image DataTypes</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.22</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
@@ -1228,7 +1155,6 @@
   </UADataType>
   <UADataType NodeId="i=2003" BrowseName="ImagePNG">
     <DisplayName>ImagePNG</DisplayName>
-    <Category>Base Info Image DataTypes</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.23</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=30</Reference>
@@ -1236,7 +1162,6 @@
   </UADataType>
   <UADataType NodeId="i=16307" BrowseName="AudioDataType">
     <DisplayName>AudioDataType</DisplayName>
-    <Category>Base Info Audio Type</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.53</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15</Reference>
@@ -1244,8 +1169,7 @@
   </UADataType>
   <UADataType NodeId="i=12756" BrowseName="Union" IsAbstract="true">
     <DisplayName>Union</DisplayName>
-    <Category>Base Info OptionSet DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.41</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.42</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -1253,7 +1177,6 @@
   </UADataType>
   <UAObjectType NodeId="i=2004" BrowseName="ServerType">
     <DisplayName>ServerType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2005</Reference>
@@ -2032,7 +1955,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2013" BrowseName="ServerCapabilitiesType">
     <DisplayName>ServerCapabilitiesType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2014</Reference>
@@ -2290,7 +2212,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2020" BrowseName="ServerDiagnosticsType">
     <DisplayName>ServerDiagnosticsType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.3</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2021</Reference>
@@ -2469,7 +2390,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2026" BrowseName="SessionsDiagnosticsSummaryType">
     <DisplayName>SessionsDiagnosticsSummaryType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.4</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2027</Reference>
@@ -2999,7 +2919,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2029" BrowseName="SessionDiagnosticsObjectType">
     <DisplayName>SessionDiagnosticsObjectType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.5</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2030</Reference>
@@ -3502,7 +3421,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2033" BrowseName="VendorServerInfoType">
     <DisplayName>VendorServerInfoType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -3510,7 +3428,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2034" BrowseName="ServerRedundancyType">
     <DisplayName>ServerRedundancyType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2035</Reference>
@@ -3527,7 +3444,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2036" BrowseName="TransparentRedundancyType">
     <DisplayName>TransparentRedundancyType</DisplayName>
-    <Category>Redundancy Server Transparent</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2037</Reference>
@@ -3553,7 +3469,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2039" BrowseName="NonTransparentRedundancyType">
     <DisplayName>NonTransparentRedundancyType</DisplayName>
-    <Category>Redundancy Server</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.9</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2040</Reference>
@@ -3570,7 +3485,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=11945" BrowseName="NonTransparentNetworkRedundancyType">
     <DisplayName>NonTransparentNetworkRedundancyType</DisplayName>
-    <Category>Redundancy Server</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.10</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11948</Reference>
@@ -3587,7 +3501,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=11564" BrowseName="OperationLimitsType">
     <DisplayName>OperationLimitsType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11565</Reference>
@@ -4109,7 +4022,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=11595" BrowseName="AddressSpaceFileType">
     <DisplayName>AddressSpaceFileType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.12</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=11615</Reference>
@@ -4125,7 +4037,6 @@
   </UAMethod>
   <UAObjectType NodeId="i=11616" BrowseName="NamespaceMetadataType">
     <DisplayName>NamespaceMetadataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.13</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11617</Reference>
@@ -4613,7 +4524,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=11645" BrowseName="NamespacesType">
     <DisplayName>NamespacesType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.3.14</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=11646</Reference>
@@ -4693,7 +4603,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2041" BrowseName="BaseEventType" IsAbstract="true">
     <DisplayName>BaseEventType</DisplayName>
-    <Category>Address Space Events</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2042</Reference>
@@ -4782,11 +4691,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2052" BrowseName="AuditEventType" IsAbstract="true">
     <DisplayName>AuditEventType</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Category>Auditing NodeManagement</Category>
-    <Category>Auditing History Services</Category>
-    <Category>Auditing Write</Category>
-    <Category>Auditing Method</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2053</Reference>
@@ -4839,7 +4743,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2058" BrowseName="AuditSecurityEventType" IsAbstract="true">
     <DisplayName>AuditSecurityEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17615</Reference>
@@ -4856,7 +4759,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2059" BrowseName="AuditChannelEventType" IsAbstract="true">
     <DisplayName>AuditChannelEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2745</Reference>
@@ -4873,7 +4775,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2060" BrowseName="AuditOpenSecureChannelEventType" IsAbstract="true">
     <DisplayName>AuditOpenSecureChannelEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2061</Reference>
@@ -4935,7 +4836,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2069" BrowseName="AuditSessionEventType" IsAbstract="true">
     <DisplayName>AuditSessionEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.7</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2070</Reference>
@@ -4952,7 +4852,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2071" BrowseName="AuditCreateSessionEventType" IsAbstract="true">
     <DisplayName>AuditCreateSessionEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.8</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2072</Reference>
@@ -4996,7 +4895,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2748" BrowseName="AuditUrlMismatchEventType" IsAbstract="true">
     <DisplayName>AuditUrlMismatchEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.9</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2749</Reference>
@@ -5013,7 +4911,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2075" BrowseName="AuditActivateSessionEventType" IsAbstract="true">
     <DisplayName>AuditActivateSessionEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.10</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2076</Reference>
@@ -5048,7 +4945,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2078" BrowseName="AuditCancelEventType" IsAbstract="true">
     <DisplayName>AuditCancelEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.11</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2079</Reference>
@@ -5065,7 +4961,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2080" BrowseName="AuditCertificateEventType" IsAbstract="true">
     <DisplayName>AuditCertificateEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.12</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2081</Reference>
@@ -5082,7 +4977,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2082" BrowseName="AuditCertificateDataMismatchEventType" IsAbstract="true">
     <DisplayName>AuditCertificateDataMismatchEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.13</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2083</Reference>
@@ -5108,7 +5002,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2085" BrowseName="AuditCertificateExpiredEventType" IsAbstract="true">
     <DisplayName>AuditCertificateExpiredEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2080</Reference>
@@ -5116,7 +5009,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2086" BrowseName="AuditCertificateInvalidEventType" IsAbstract="true">
     <DisplayName>AuditCertificateInvalidEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2080</Reference>
@@ -5124,7 +5016,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2087" BrowseName="AuditCertificateUntrustedEventType" IsAbstract="true">
     <DisplayName>AuditCertificateUntrustedEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2080</Reference>
@@ -5132,7 +5023,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2088" BrowseName="AuditCertificateRevokedEventType" IsAbstract="true">
     <DisplayName>AuditCertificateRevokedEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.17</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2080</Reference>
@@ -5140,7 +5030,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2089" BrowseName="AuditCertificateMismatchEventType" IsAbstract="true">
     <DisplayName>AuditCertificateMismatchEventType</DisplayName>
-    <Category>Auditing Connections</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.18</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2080</Reference>
@@ -5148,7 +5037,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2090" BrowseName="AuditNodeManagementEventType" IsAbstract="true">
     <DisplayName>AuditNodeManagementEventType</DisplayName>
-    <Category>Auditing NodeManagement</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.19</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2052</Reference>
@@ -5156,7 +5044,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2091" BrowseName="AuditAddNodesEventType" IsAbstract="true">
     <DisplayName>AuditAddNodesEventType</DisplayName>
-    <Category>Auditing NodeManagement</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.20</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2092</Reference>
@@ -5173,7 +5060,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2093" BrowseName="AuditDeleteNodesEventType" IsAbstract="true">
     <DisplayName>AuditDeleteNodesEventType</DisplayName>
-    <Category>Auditing NodeManagement</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.21</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2094</Reference>
@@ -5190,7 +5076,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2095" BrowseName="AuditAddReferencesEventType" IsAbstract="true">
     <DisplayName>AuditAddReferencesEventType</DisplayName>
-    <Category>Auditing NodeManagement</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.22</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2096</Reference>
@@ -5207,7 +5092,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2097" BrowseName="AuditDeleteReferencesEventType" IsAbstract="true">
     <DisplayName>AuditDeleteReferencesEventType</DisplayName>
-    <Category>Auditing NodeManagement</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.23</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2098</Reference>
@@ -5224,8 +5108,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2099" BrowseName="AuditUpdateEventType" IsAbstract="true">
     <DisplayName>AuditUpdateEventType</DisplayName>
-    <Category>Auditing History Services</Category>
-    <Category>Auditing Write</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.24</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2052</Reference>
@@ -5233,7 +5115,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2100" BrowseName="AuditWriteUpdateEventType" IsAbstract="true">
     <DisplayName>AuditWriteUpdateEventType</DisplayName>
-    <Category>Auditing Write</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.25</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2750</Reference>
@@ -5277,7 +5158,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2104" BrowseName="AuditHistoryUpdateEventType" IsAbstract="true">
     <DisplayName>AuditHistoryUpdateEventType</DisplayName>
-    <Category>Auditing History Services</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.26</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2751</Reference>
@@ -5294,7 +5174,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2127" BrowseName="AuditUpdateMethodEventType" IsAbstract="true">
     <DisplayName>AuditUpdateMethodEventType</DisplayName>
-    <Category>Auditing Method</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.27</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2128</Reference>
@@ -5320,9 +5199,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2130" BrowseName="SystemEventType" IsAbstract="true">
     <DisplayName>SystemEventType</DisplayName>
-    <Category>Base Info Device Failure</Category>
-    <Category>Base Info System Status Underlying System</Category>
-    <Category>Base Info System Status</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.28</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
@@ -5330,7 +5206,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2131" BrowseName="DeviceFailureEventType" IsAbstract="true">
     <DisplayName>DeviceFailureEventType</DisplayName>
-    <Category>Base Info Device Failure</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.29</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2130</Reference>
@@ -5338,8 +5213,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=11446" BrowseName="SystemStatusChangeEventType" IsAbstract="true">
     <DisplayName>SystemStatusChangeEventType</DisplayName>
-    <Category>Base Info System Status Underlying System</Category>
-    <Category>Base Info System Status</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.30</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11696</Reference>
@@ -5356,7 +5229,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2132" BrowseName="BaseModelChangeEventType" IsAbstract="true">
     <DisplayName>BaseModelChangeEventType</DisplayName>
-    <Category>Base Info Model Change</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.31</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
@@ -5364,7 +5236,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=2133" BrowseName="GeneralModelChangeEventType" IsAbstract="true">
     <DisplayName>GeneralModelChangeEventType</DisplayName>
-    <Category>Base Info Model Change General</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.32</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2134</Reference>
@@ -5381,7 +5252,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2738" BrowseName="SemanticChangeEventType" IsAbstract="true">
     <DisplayName>SemanticChangeEventType</DisplayName>
-    <Category>Base Info SemanticChange</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.33</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2739</Reference>
@@ -5398,7 +5268,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=3035" BrowseName="EventQueueOverflowEventType" IsAbstract="true">
     <DisplayName>EventQueueOverflowEventType</DisplayName>
-    <Category>Base Info EventQueueOverflow EventType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.34</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2041</Reference>
@@ -5406,7 +5275,6 @@
   </UAObjectType>
   <UAObjectType NodeId="i=11436" BrowseName="ProgressEventType" IsAbstract="true">
     <DisplayName>ProgressEventType</DisplayName>
-    <Category>Base Info Progress Events</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.4.35</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=12502</Reference>
@@ -5432,7 +5300,6 @@
   </UAVariable>
   <UAObjectType NodeId="i=2340" BrowseName="AggregateFunctionType">
     <DisplayName>AggregateFunctionType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
@@ -5440,7 +5307,6 @@
   </UAObjectType>
   <UAVariableType NodeId="i=2137" BrowseName="ServerVendorCapabilityType" IsAbstract="true">
     <DisplayName>ServerVendorCapabilityType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
@@ -5448,7 +5314,6 @@
   </UAVariableType>
   <UAVariableType NodeId="i=2138" BrowseName="ServerStatusType" DataType="i=862">
     <DisplayName>ServerStatusType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.6</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2139</Reference>
@@ -5564,7 +5429,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=3051" BrowseName="BuildInfoType" DataType="i=338">
     <DisplayName>BuildInfoType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.7</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=3052</Reference>
@@ -5626,7 +5490,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2150" BrowseName="ServerDiagnosticsSummaryType" DataType="i=859">
     <DisplayName>ServerDiagnosticsSummaryType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.8</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2151</Reference>
@@ -5742,7 +5605,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2164" BrowseName="SamplingIntervalDiagnosticsArrayType" DataType="i=856" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SamplingIntervalDiagnosticsArrayType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.9</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=12779</Reference>
@@ -5795,7 +5657,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2165" BrowseName="SamplingIntervalDiagnosticsType" DataType="i=856">
     <DisplayName>SamplingIntervalDiagnosticsType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.10</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2166</Reference>
@@ -5839,7 +5700,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2171" BrowseName="SubscriptionDiagnosticsArrayType" DataType="i=874" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SubscriptionDiagnosticsArrayType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.11</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=12784</Reference>
@@ -6135,7 +5995,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2172" BrowseName="SubscriptionDiagnosticsType" DataType="i=874">
     <DisplayName>SubscriptionDiagnosticsType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.12</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2173</Reference>
@@ -6422,7 +6281,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2196" BrowseName="SessionDiagnosticsArrayType" DataType="i=865" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SessionDiagnosticsArrayType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.13</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=12816</Reference>
@@ -6826,7 +6684,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2197" BrowseName="SessionDiagnosticsVariableType" DataType="i=865">
     <DisplayName>SessionDiagnosticsVariableType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.14</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2198</Reference>
@@ -7221,7 +7078,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2243" BrowseName="SessionSecurityDiagnosticsArrayType" DataType="i=868" ValueRank="1" ArrayDimensions="0">
     <DisplayName>SessionSecurityDiagnosticsArrayType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.15</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=12860</Reference>
@@ -7319,7 +7175,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=2244" BrowseName="SessionSecurityDiagnosticsType" DataType="i=868">
     <DisplayName>SessionSecurityDiagnosticsType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.16</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=2245</Reference>
@@ -7408,7 +7263,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=11487" BrowseName="OptionSetType">
     <DisplayName>OptionSetType</DisplayName>
-    <Category>Base Info OptionSet</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.17</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11488</Reference>
@@ -7434,7 +7288,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=16309" BrowseName="SelectionListType" ValueRank="-2">
     <DisplayName>SelectionListType</DisplayName>
-    <Category>Base Info Selection List</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.18</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17632</Reference>
@@ -7469,7 +7322,6 @@
   </UAVariable>
   <UAVariableType NodeId="i=17986" BrowseName="AudioVariableType" DataType="i=16307">
     <DisplayName>AudioVariableType</DisplayName>
-    <Category>Base Info Audio Type</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.19</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17988</Reference>
@@ -7504,7 +7356,6 @@
   </UAVariable>
   <UAObject NodeId="i=3048" BrowseName="EventTypes" SymbolicName="EventTypesFolder">
     <DisplayName>EventTypes</DisplayName>
-    <Category>Address Space Events 2</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.10</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -7514,8 +7365,6 @@
   </UAObject>
   <UAObject NodeId="i=2253" BrowseName="Server" EventNotifier="1">
     <DisplayName>Server</DisplayName>
-    <Category>Base Info Core Structure 2</Category>
-    <Category>Address Space Events 2</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.3.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=2254</Reference>
@@ -8198,7 +8047,6 @@
   </UAObject>
   <UAMethod NodeId="i=11492" BrowseName="GetMonitoredItems" ParentNodeId="i=2253" MethodDeclarationId="i=11489">
     <DisplayName>GetMonitoredItems</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/9.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11493</Reference>
@@ -8279,7 +8127,6 @@
   </UAVariable>
   <UAMethod NodeId="i=12873" BrowseName="ResendData" ParentNodeId="i=2253" MethodDeclarationId="i=12871">
     <DisplayName>ResendData</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/9.2</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=12874</Reference>
@@ -8314,7 +8161,6 @@
   </UAVariable>
   <UAMethod NodeId="i=12749" BrowseName="SetSubscriptionDurable" ParentNodeId="i=2253" MethodDeclarationId="i=12746">
     <DisplayName>SetSubscriptionDurable</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/9.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=12750</Reference>
@@ -8391,7 +8237,6 @@
   </UAVariable>
   <UAMethod NodeId="i=12886" BrowseName="RequestServerStateChange" ParentNodeId="i=2253" MethodDeclarationId="i=12883">
     <DisplayName>RequestServerStateChange</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/9.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=12887</Reference>
@@ -8645,7 +8490,6 @@
   </UAVariable>
   <UADataType NodeId="i=11737" BrowseName="BitFieldMaskDataType">
     <DisplayName>BitFieldMaskDataType</DisplayName>
-    <Category>Base Info BitFieldMaskDataType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.18</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=9</Reference>
@@ -8653,7 +8497,6 @@
   </UADataType>
   <UADataType NodeId="i=14533" BrowseName="KeyValuePair">
     <DisplayName>KeyValuePair</DisplayName>
-    <Category>Base Info KeyValuePair</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.21</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -9012,8 +8855,7 @@
   </UAVariableType>
   <UAVariableType NodeId="i=17709" BrowseName="RationalNumberType" DataType="i=18806">
     <DisplayName>RationalNumberType</DisplayName>
-    <Category>Base Info Rational Number</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.20</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.20</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=17712</Reference>
       <Reference ReferenceType="HasComponent">i=17713</Reference>
@@ -9038,8 +8880,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=17714" BrowseName="VectorType" IsAbstract="true" DataType="i=18807">
     <DisplayName>VectorType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.21</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.21</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=17715</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
@@ -9055,8 +8896,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=17716" BrowseName="3DVectorType" SymbolicName="ThreeDVectorType" DataType="i=18808">
     <DisplayName>3DVectorType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.22</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.22</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=18769</Reference>
       <Reference ReferenceType="HasComponent">i=18770</Reference>
@@ -9090,8 +8930,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=18772" BrowseName="CartesianCoordinatesType" IsAbstract="true" DataType="i=18809">
     <DisplayName>CartesianCoordinatesType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.23</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.23</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=18773</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
@@ -9107,8 +8946,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=18774" BrowseName="3DCartesianCoordinatesType" SymbolicName="ThreeDCartesianCoordinatesType" DataType="i=18810">
     <DisplayName>3DCartesianCoordinatesType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.24</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.24</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=18776</Reference>
       <Reference ReferenceType="HasComponent">i=18777</Reference>
@@ -9142,8 +8980,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=18779" BrowseName="OrientationType" IsAbstract="true" DataType="i=18811">
     <DisplayName>OrientationType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.25</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.25</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=18780</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
@@ -9159,8 +8996,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=18781" BrowseName="3DOrientationType" SymbolicName="ThreeDOrientationType" DataType="i=18812">
     <DisplayName>3DOrientationType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.26</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.26</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=18783</Reference>
       <Reference ReferenceType="HasComponent">i=18784</Reference>
@@ -9194,8 +9030,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=18786" BrowseName="FrameType" IsAbstract="true" DataType="i=18813">
     <DisplayName>FrameType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.27</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.27</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=18801</Reference>
       <Reference ReferenceType="HasComponent">i=18787</Reference>
@@ -9247,8 +9082,7 @@
   </UAVariable>
   <UAVariableType NodeId="i=18791" BrowseName="3DFrameType" SymbolicName="ThreeDFrameType" DataType="i=18814">
     <DisplayName>3DFrameType</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/7.28</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/7.28</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">i=18796</Reference>
       <Reference ReferenceType="HasComponent">i=18792</Reference>
@@ -9327,8 +9161,7 @@
   </UAVariable>
   <UADataType NodeId="i=18806" BrowseName="RationalNumber">
     <DisplayName>RationalNumber</DisplayName>
-    <Category>Base Info Rational Number</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.22</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.23</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -9339,8 +9172,7 @@
   </UADataType>
   <UADataType NodeId="i=18807" BrowseName="Vector" IsAbstract="true">
     <DisplayName>Vector</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.23</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.24</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -9348,8 +9180,7 @@
   </UADataType>
   <UADataType NodeId="i=18808" BrowseName="3DVector" SymbolicName="ThreeDVector">
     <DisplayName>3DVector</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.24</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.25</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18807</Reference>
     </References>
@@ -9361,8 +9192,7 @@
   </UADataType>
   <UADataType NodeId="i=18809" BrowseName="CartesianCoordinates" IsAbstract="true">
     <DisplayName>CartesianCoordinates</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.25</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.26</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -9370,8 +9200,7 @@
   </UADataType>
   <UADataType NodeId="i=18810" BrowseName="3DCartesianCoordinates" SymbolicName="ThreeDCartesianCoordinates">
     <DisplayName>3DCartesianCoordinates</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.26</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.27</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18809</Reference>
     </References>
@@ -9383,8 +9212,7 @@
   </UADataType>
   <UADataType NodeId="i=18811" BrowseName="Orientation" IsAbstract="true">
     <DisplayName>Orientation</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.27</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.28</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -9392,8 +9220,7 @@
   </UADataType>
   <UADataType NodeId="i=18812" BrowseName="3DOrientation" SymbolicName="ThreeDOrientation">
     <DisplayName>3DOrientation</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.28</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.29</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18811</Reference>
     </References>
@@ -9405,8 +9232,7 @@
   </UADataType>
   <UADataType NodeId="i=18813" BrowseName="Frame" IsAbstract="true">
     <DisplayName>Frame</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.29</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.30</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -9414,8 +9240,7 @@
   </UADataType>
   <UADataType NodeId="i=18814" BrowseName="3DFrame" SymbolicName="ThreeDFrame">
     <DisplayName>3DFrame</DisplayName>
-    <Category>Base Info Spatial Data</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.30</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment11/12.31</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18813</Reference>
     </References>
@@ -14157,16 +13982,14 @@
   </UAObjectType>
   <UAObjectType NodeId="i=17602" BrowseName="BaseInterfaceType" IsAbstract="true">
     <DisplayName>BaseInterfaceType</DisplayName>
-    <Category>Address Space Interfaces</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment7/6.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
     </References>
   </UAObjectType>
   <UAObject NodeId="i=17708" BrowseName="InterfaceTypes">
     <DisplayName>InterfaceTypes</DisplayName>
-    <Category>Address Space Interfaces</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/8.2.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment7/8.2.11</Documentation>
     <References>
       <Reference ReferenceType="Organizes">i=17602</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">i=86</Reference>
@@ -14175,8 +13998,7 @@
   </UAObject>
   <UAReferenceType NodeId="i=17603" BrowseName="HasInterface">
     <DisplayName>HasInterface</DisplayName>
-    <Category>Address Space Interfaces</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.19</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment7/11.20</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
@@ -14184,8 +14006,7 @@
   </UAReferenceType>
   <UAReferenceType NodeId="i=17604" BrowseName="HasAddIn">
     <DisplayName>HasAddIn</DisplayName>
-    <Category>Address Space AddIn Reference</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/7.20</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment7/11.21</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
@@ -14193,8 +14014,7 @@
   </UAReferenceType>
   <UADataType NodeId="i=23498" BrowseName="CurrencyUnitType">
     <DisplayName>CurrencyUnitType</DisplayName>
-    <Category>Base Info Currency</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.61</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment10/8.61</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -14213,8 +14033,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=23513" BrowseName="IOrderedObjectType" IsAbstract="true">
     <DisplayName>IOrderedObjectType</DisplayName>
-    <Category>Base Info OrderedList</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment13/6.10</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=23517</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
@@ -14230,8 +14049,7 @@
   </UAVariable>
   <UAObjectType NodeId="i=23518" BrowseName="OrderedListType">
     <DisplayName>OrderedListType</DisplayName>
-    <Category>Base Info OrderedList</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/6.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Amendment13/6.10</Documentation>
     <References>
       <Reference ReferenceType="i=49">i=23519</Reference>
       <Reference ReferenceType="HasProperty">i=23525</Reference>
@@ -17739,8 +17557,9 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
   </UAObjectType>
-  <UAObjectType NodeId="i=17221" BrowseName="TestingConditionClassType" IsAbstract="true">
-    <DisplayName>TestingConditionClassType</DisplayName>
+  <UAObjectType NodeId="i=17221" BrowseName="TestingConditionSubClassType" IsAbstract="true">
+    <DisplayName>TestingConditionSubClassType</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part9/5.9.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11163</Reference>
     </References>
@@ -27172,8 +26991,7 @@
   </UAObject>
   <UADataType NodeId="i=15534" BrowseName="DataTypeSchemaHeader" IsAbstract="true">
     <DisplayName>DataTypeSchemaHeader</DisplayName>
-    <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.31</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part14/A.1.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -27186,8 +27004,7 @@
   </UADataType>
   <UADataType NodeId="i=14525" BrowseName="DataTypeDescription" IsAbstract="true">
     <DisplayName>DataTypeDescription</DisplayName>
-    <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.32</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part14/A.1.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -27198,8 +27015,7 @@
   </UADataType>
   <UADataType NodeId="i=15487" BrowseName="StructureDescription">
     <DisplayName>StructureDescription</DisplayName>
-    <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.33</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part14/A.1.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=14525</Reference>
     </References>
@@ -27209,8 +27025,7 @@
   </UADataType>
   <UADataType NodeId="i=15488" BrowseName="EnumDescription">
     <DisplayName>EnumDescription</DisplayName>
-    <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.34</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part14/A.1.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=14525</Reference>
     </References>
@@ -27221,8 +27036,7 @@
   </UADataType>
   <UADataType NodeId="i=15005" BrowseName="SimpleTypeDescription">
     <DisplayName>SimpleTypeDescription</DisplayName>
-    <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.35</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part14/A.1.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=14525</Reference>
     </References>
@@ -27233,8 +27047,7 @@
   </UADataType>
   <UADataType NodeId="i=15006" BrowseName="UABinaryFileDataType">
     <DisplayName>UABinaryFileDataType</DisplayName>
-    <Category>Base Info UaBinary File</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.36</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part14/A.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=15534</Reference>
     </References>
@@ -41181,8 +40994,7 @@
   </UAVariable>
   <UADataType NodeId="i=24107" BrowseName="UnsignedRationalNumber">
     <DisplayName>UnsignedRationalNumber</DisplayName>
-    <Category>Base Info Rational Number</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.40</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Part22/docs/5.3.2/#5.3.2.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41249,7 +41061,6 @@
   </UAObject>
   <UADataType NodeId="i=256" BrowseName="IdType">
     <DisplayName>IdType</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.2.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7591</Reference>
@@ -41287,7 +41098,6 @@
   </UAVariable>
   <UADataType NodeId="i=257" BrowseName="NodeClass">
     <DisplayName>NodeClass</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.3</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=11878</Reference>
@@ -41677,8 +41487,6 @@
   </UAVariable>
   <UADataType NodeId="i=95" BrowseName="AccessRestrictionType">
     <DisplayName>AccessRestrictionType</DisplayName>
-    <Category>Security Role Server Base</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.56</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=15035</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=5</Reference>
@@ -41715,7 +41523,6 @@
   </UAVariable>
   <UADataType NodeId="i=96" BrowseName="RolePermissionType">
     <DisplayName>RolePermissionType</DisplayName>
-    <Category>Security Role Server Base</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/5.2.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -41727,8 +41534,7 @@
   </UADataType>
   <UADataType NodeId="i=97" BrowseName="DataTypeDefinition" IsAbstract="true">
     <DisplayName>DataTypeDefinition</DisplayName>
-    <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.47</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41736,7 +41542,6 @@
   </UADataType>
   <UADataType NodeId="i=98" BrowseName="StructureType">
     <DisplayName>StructureType</DisplayName>
-    <Category>Address Space DataTypeDefinition Attribute</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.49</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=14528</Reference>
@@ -41778,7 +41583,6 @@
   </UAVariable>
   <UADataType NodeId="i=101" BrowseName="StructureField">
     <DisplayName>StructureField</DisplayName>
-    <Category>Address Space DataTypeDefinition Attribute</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.51</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -41795,8 +41599,7 @@
   </UADataType>
   <UADataType NodeId="i=99" BrowseName="StructureDefinition">
     <DisplayName>StructureDefinition</DisplayName>
-    <Category>Address Space DataTypeDefinition Attribute</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.48</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.49</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=97</Reference>
     </References>
@@ -41809,7 +41612,6 @@
   </UADataType>
   <UADataType NodeId="i=100" BrowseName="EnumDefinition">
     <DisplayName>EnumDefinition</DisplayName>
-    <Category>Address Space DataTypeDefinition Attribute</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.50</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=97</Reference>
@@ -41820,7 +41622,6 @@
   </UADataType>
   <UADataType NodeId="i=296" BrowseName="Argument">
     <DisplayName>Argument</DisplayName>
-    <Category>Base Info Method Argument DataType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -41835,8 +41636,7 @@
   </UADataType>
   <UADataType NodeId="i=7594" BrowseName="EnumValueType">
     <DisplayName>EnumValueType</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.39</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41848,7 +41648,6 @@
   </UADataType>
   <UADataType NodeId="i=102" BrowseName="EnumField">
     <DisplayName>EnumField</DisplayName>
-    <Category>Address Space DataTypeDefinition Attribute</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.52</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7594</Reference>
@@ -41859,8 +41658,7 @@
   </UADataType>
   <UADataType NodeId="i=12755" BrowseName="OptionSet" IsAbstract="true">
     <DisplayName>OptionSet</DisplayName>
-    <Category>Base Info OptionSet DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.40</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.41</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -41871,47 +41669,41 @@
   </UADataType>
   <UADataType NodeId="i=12877" BrowseName="NormalizedString">
     <DisplayName>NormalizedString</DisplayName>
-    <Category>Base Info NormalizedString DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.45</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.46</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12878" BrowseName="DecimalString">
     <DisplayName>DecimalString</DisplayName>
-    <Category>Base Info DecimalString DataType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.43</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.44</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12879" BrowseName="DurationString">
     <DisplayName>DurationString</DisplayName>
-    <Category>Base Info Date DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.44</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.45</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12880" BrowseName="TimeString">
     <DisplayName>TimeString</DisplayName>
-    <Category>Base Info Date DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.46</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.47</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=12881" BrowseName="DateString">
     <DisplayName>DateString</DisplayName>
-    <Category>Base Info Date DataTypes</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.42</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.43</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=290" BrowseName="Duration">
     <DisplayName>Duration</DisplayName>
-    <Category>Base Info Base Types</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=11</Reference>
@@ -41919,8 +41711,7 @@
   </UADataType>
   <UADataType NodeId="i=294" BrowseName="UtcTime">
     <DisplayName>UtcTime</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.37</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.38</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=13</Reference>
     </References>
@@ -41939,15 +41730,13 @@
   </UADataType>
   <UADataType NodeId="i=295" BrowseName="LocaleId">
     <DisplayName>LocaleId</DisplayName>
-    <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part9/A.1.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
   </UADataType>
   <UADataType NodeId="i=8912" BrowseName="TimeZoneDataType">
     <DisplayName>TimeZoneDataType</DisplayName>
-    <Category>Base Info LocalTime</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part3/8.28</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -42010,8 +41799,7 @@
   </UAVariable>
   <UADataType NodeId="i=308" BrowseName="ApplicationDescription">
     <DisplayName>ApplicationDescription</DisplayName>
-    <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42027,8 +41815,7 @@
   </UADataType>
   <UADataType NodeId="i=20998" BrowseName="VersionTime">
     <DisplayName>VersionTime</DisplayName>
-    <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.16</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.38</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
     </References>
@@ -42055,8 +41842,7 @@
   </UADataType>
   <UADataType NodeId="i=302" BrowseName="MessageSecurityMode">
     <DisplayName>MessageSecurityMode</DisplayName>
-    <Category>Base Info ServerType</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.15</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7595</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -42197,8 +41983,6 @@
   </UADataType>
   <UADataType NodeId="i=315" BrowseName="SecurityTokenRequestType">
     <DisplayName>SecurityTokenRequestType</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.12</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7598</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
@@ -42227,8 +42011,7 @@
   </UAVariable>
   <UADataType NodeId="i=344" BrowseName="SignedSoftwareCertificate">
     <DisplayName>SignedSoftwareCertificate</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.33</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42246,8 +42029,7 @@
   </UADataType>
   <UADataType NodeId="i=316" BrowseName="UserIdentityToken" IsAbstract="true">
     <DisplayName>UserIdentityToken</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.15</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.36.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42257,8 +42039,7 @@
   </UADataType>
   <UADataType NodeId="i=319" BrowseName="AnonymousIdentityToken">
     <DisplayName>AnonymousIdentityToken</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.15/#12.3.15.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.36.3</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -42266,8 +42047,7 @@
   </UADataType>
   <UADataType NodeId="i=322" BrowseName="UserNameIdentityToken">
     <DisplayName>UserNameIdentityToken</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.15/#12.3.15.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.36.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -42279,8 +42059,7 @@
   </UADataType>
   <UADataType NodeId="i=325" BrowseName="X509IdentityToken">
     <DisplayName>X509IdentityToken</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.15/#12.3.15.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.36.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -42290,8 +42069,7 @@
   </UADataType>
   <UADataType NodeId="i=938" BrowseName="IssuedIdentityToken">
     <DisplayName>IssuedIdentityToken</DisplayName>
-    <Category>Auditing Connections</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.15/#12.3.15.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.36.6</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=316</Reference>
     </References>
@@ -42812,8 +42590,7 @@
   </UAVariable>
   <UADataType NodeId="i=376" BrowseName="AddNodesItem">
     <DisplayName>AddNodesItem</DisplayName>
-    <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/5.7.2/#5.7.2.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42829,8 +42606,7 @@
   </UADataType>
   <UADataType NodeId="i=379" BrowseName="AddReferencesItem">
     <DisplayName>AddReferencesItem</DisplayName>
-    <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/5.7.3/#5.7.3.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42845,8 +42621,7 @@
   </UADataType>
   <UADataType NodeId="i=382" BrowseName="DeleteNodesItem">
     <DisplayName>DeleteNodesItem</DisplayName>
-    <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.6</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/5.7.4/#5.7.4.2</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -42857,8 +42632,7 @@
   </UADataType>
   <UADataType NodeId="i=385" BrowseName="DeleteReferencesItem">
     <DisplayName>DeleteReferencesItem</DisplayName>
-    <Category>Auditing NodeManagement</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.7</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/5.7.5/#5.7.5.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -43034,8 +42808,7 @@
   </UADataType>
   <UADataType NodeId="i=291" BrowseName="NumericRange">
     <DisplayName>NumericRange</DisplayName>
-    <Category>Base Info Base Types</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.22</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=12</Reference>
     </References>
@@ -43163,8 +42936,7 @@
   </UADataType>
   <UADataType NodeId="i=586" BrowseName="ContentFilter">
     <DisplayName>ContentFilter</DisplayName>
-    <Category>Base Info ContentFilter</Category>
-    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.3.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part4/7.4.1</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -43435,7 +43207,6 @@
   </UADataType>
   <UADataType NodeId="i=338" BrowseName="BuildInfo">
     <DisplayName>BuildInfo</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.4</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43451,7 +43222,6 @@
   </UADataType>
   <UADataType NodeId="i=851" BrowseName="RedundancySupport">
     <DisplayName>RedundancySupport</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.5</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7611</Reference>
@@ -43497,7 +43267,6 @@
   </UAVariable>
   <UADataType NodeId="i=852" BrowseName="ServerState">
     <DisplayName>ServerState</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.6</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">i=7612</Reference>
@@ -43551,7 +43320,6 @@
   </UAVariable>
   <UADataType NodeId="i=853" BrowseName="RedundantServerDataType">
     <DisplayName>RedundantServerDataType</DisplayName>
-    <Category>Redundancy Server Transparent</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.7</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43564,7 +43332,6 @@
   </UADataType>
   <UADataType NodeId="i=11943" BrowseName="EndpointUrlListDataType">
     <DisplayName>EndpointUrlListDataType</DisplayName>
-    <Category>Redundancy Server</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.20</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43575,7 +43342,6 @@
   </UADataType>
   <UADataType NodeId="i=11944" BrowseName="NetworkGroupDataType">
     <DisplayName>NetworkGroupDataType</DisplayName>
-    <Category>Redundancy Server</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.19</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43587,7 +43353,6 @@
   </UADataType>
   <UADataType NodeId="i=856" BrowseName="SamplingIntervalDiagnosticsDataType">
     <DisplayName>SamplingIntervalDiagnosticsDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.8</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43601,7 +43366,6 @@
   </UADataType>
   <UADataType NodeId="i=859" BrowseName="ServerDiagnosticsSummaryDataType">
     <DisplayName>ServerDiagnosticsSummaryDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43623,7 +43387,6 @@
   </UADataType>
   <UADataType NodeId="i=862" BrowseName="ServerStatusDataType">
     <DisplayName>ServerStatusDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43639,7 +43402,6 @@
   </UADataType>
   <UADataType NodeId="i=865" BrowseName="SessionDiagnosticsDataType">
     <DisplayName>SessionDiagnosticsDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43692,7 +43454,6 @@
   </UADataType>
   <UADataType NodeId="i=868" BrowseName="SessionSecurityDiagnosticsDataType">
     <DisplayName>SessionSecurityDiagnosticsDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43711,7 +43472,6 @@
   </UADataType>
   <UADataType NodeId="i=871" BrowseName="ServiceCounterDataType">
     <DisplayName>ServiceCounterDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.13</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43723,7 +43483,6 @@
   </UADataType>
   <UADataType NodeId="i=299" BrowseName="StatusResult">
     <DisplayName>StatusResult</DisplayName>
-    <Category>Base Info StatusResult DataType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43735,7 +43494,6 @@
   </UADataType>
   <UADataType NodeId="i=874" BrowseName="SubscriptionDiagnosticsDataType">
     <DisplayName>SubscriptionDiagnosticsDataType</DisplayName>
-    <Category>Base Info ServerType</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.15</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43776,7 +43534,6 @@
   </UADataType>
   <UADataType NodeId="i=877" BrowseName="ModelChangeStructureDataType">
     <DisplayName>ModelChangeStructureDataType</DisplayName>
-    <Category>Base Info Model Change General</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.16</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
@@ -43789,7 +43546,6 @@
   </UADataType>
   <UADataType NodeId="i=897" BrowseName="SemanticChangeStructureDataType">
     <DisplayName>SemanticChangeStructureDataType</DisplayName>
-    <Category>Base Info SemanticChange</Category>
     <Documentation>https://reference.opcfoundation.org/v104/Core/docs/Part5/12.17</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
