@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Tests
             var server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
             fixture.SetTraceOutput(TestContext.Out);
             Assert.NotNull(server);
-            await Task.Delay(1000);
+            await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
         }
         #endregion

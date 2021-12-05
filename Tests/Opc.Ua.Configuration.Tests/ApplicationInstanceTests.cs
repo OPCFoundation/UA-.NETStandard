@@ -126,6 +126,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AsServer(new string[] { EndpointUrl })
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // discoveryserver can not be combined with client/server
             applicationInstance = new ApplicationInstance() {
@@ -137,12 +138,14 @@ namespace Opc.Ua.Configuration.Tests
                    .AsClient()
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
                    .AsServer(new string[] { EndpointUrl })
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // server overrides client settings
             applicationInstance = new ApplicationInstance() {
@@ -153,7 +156,8 @@ namespace Opc.Ua.Configuration.Tests
             var config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsServer(new string[] { EndpointUrl })
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .Create();
+                .Create()
+                .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
 
             // client overrides server setting
@@ -165,7 +169,8 @@ namespace Opc.Ua.Configuration.Tests
             await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .Create();
+                .Create()
+                .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
 
             // invalid sec policy testing
@@ -179,6 +184,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // invalid mix sign / none
             Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -187,6 +193,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
                    .AddSecurityConfiguration(SubjectName)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // invalid policy
             Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -195,6 +202,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddPolicy(MessageSecurityMode.Sign, "123")
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
             // invalid user token policy
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -203,6 +211,7 @@ namespace Opc.Ua.Configuration.Tests
                    .AddUserTokenPolicy(null)
                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                    .Create()
+                   .ConfigureAwait(false)
             );
         }
 
@@ -319,7 +328,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 var rawData = applicationCertificate.Certificate.RawData;
-                await store.Add(new X509Certificate2(rawData));
+                await store.Add(new X509Certificate2(rawData)).ConfigureAwait(false);
             }
 
             if (deleteAfterUse)
@@ -327,12 +336,12 @@ namespace Opc.Ua.Configuration.Tests
                 var thumbprint = applicationCertificate.Certificate.Thumbprint;
                 using (ICertificateStore store = applicationCertificate.OpenStore())
                 {
-                    bool success = await store.Delete(thumbprint);
+                    bool success = await store.Delete(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
                 }
                 using (ICertificateStore store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                 {
-                    bool success = await store.Delete(thumbprint);
+                    bool success = await store.Delete(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
                 }
             }

@@ -1,4 +1,7 @@
 <Project>
+  <PropertyGroup>
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
   <Choose>
     <!-- Visual Studio 2022 -->
     <When  Condition="'$(VisualStudioVersion)' == '17.0'">
