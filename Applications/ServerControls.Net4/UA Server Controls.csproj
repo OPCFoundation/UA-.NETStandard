@@ -96,12 +96,6 @@
     <Compile Include="ServerDiagnosticsCtrl.Designer.cs">
       <DependentUpon>ServerDiagnosticsCtrl.cs</DependentUpon>
     </Compile>
-    <Compile Include="ServerForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ServerForm.Designer.cs">
-      <DependentUpon>ServerForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="HeaderBranding.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -121,10 +115,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ServerDiagnosticsCtrl.resx">
       <DependentUpon>ServerDiagnosticsCtrl.cs</DependentUpon>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ServerForm.resx">
-      <DependentUpon>ServerForm.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="HeaderBranding.resx">

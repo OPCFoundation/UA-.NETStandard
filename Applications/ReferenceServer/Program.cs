@@ -33,6 +33,8 @@ using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.Controls;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Quickstarts.ReferenceServer.Forms;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -52,10 +54,9 @@ namespace Quickstarts.ReferenceServer
             ApplicationInstance application = new ApplicationInstance();
             application.ApplicationType   = ApplicationType.Server;
             application.ConfigSectionName = "Quickstarts.ReferenceServer";
-
             try
             {
-
+                ReferenceServer refServer = new ReferenceServer();
                 // load the application configuration.
                 application.LoadApplicationConfiguration(false).Wait();
 
@@ -67,10 +68,15 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // start the server.
-                application.Start(new ReferenceServer()).Wait();
+                application.Start(refServer).Wait();
+
+                //IServerInternal IRefServer = refServer.CurrentInstance;
+                ApplicationConfiguration IConfig = application.ApplicationConfiguration;
+                
 
                 // run the application interactively.
-                Application.Run(new ServerForm(application));
+                Application.Run(new ServerForm(refServer, application));
+
             }
             catch (Exception e)
             {

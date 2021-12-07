@@ -64,6 +64,12 @@
     <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Opc.Ua.Client">
+      <HintPath>..\..\Libraries\Opc.Ua.Client\bin\Debug\net462\Opc.Ua.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="Opc.Ua.Client.ComplexTypes">
+      <HintPath>..\..\Libraries\Opc.Ua.Client.ComplexTypes\bin\Debug\net462\Opc.Ua.Client.ComplexTypes.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
@@ -74,6 +80,24 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Forms\ConfigureForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ConfigureForm.Designer.cs">
+      <DependentUpon>ConfigureForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\ServerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ServerForm.Designer.cs">
+      <DependentUpon>ServerForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\ViewForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ViewForm.Designer.cs">
+      <DependentUpon>ViewForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="MonitoredItemEventLogDlg.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -88,6 +112,16 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReferenceServerUtils.cs" />
     <Content Include="Resources\OPCFoundation.jpg" />
+    <EmbeddedResource Include="Forms\ConfigureForm.resx">
+      <DependentUpon>ConfigureForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\ServerForm.resx">
+      <DependentUpon>ServerForm.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\ViewForm.resx">
+      <DependentUpon>ViewForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MonitoredItemEventLogDlg.resx">
       <DependentUpon>MonitoredItemEventLogDlg.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -140,6 +174,10 @@
       <Project>{4569aaa2-710b-4e8b-a4c6-f917777814da}</Project>
       <Name>Opc.Ua.Core</Name>
     </ProjectReference>
+    <ProjectReference Include="..\ClientControls.Net4\UA Client Controls.csproj">
+      <Project>{A247D2EE-14FC-463D-A9BA-6CFF1EF22B7A}</Project>
+      <Name>UA Client Controls</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj">
       <Project>{80056988-44e7-4ef4-9f59-50bcf215cb03}</Project>
       <Name>UA Server Controls</Name>
@@ -167,7 +205,7 @@
     <GenerateManifests>true</GenerateManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <SignManifests>true</SignManifests>
+    <SignManifests>false</SignManifests>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

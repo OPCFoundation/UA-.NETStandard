@@ -38,8 +38,9 @@ using System.Runtime.InteropServices;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using System.IO;
+using Opc.Ua.Server;
 
-namespace Opc.Ua.Server.Controls
+namespace Quickstarts.ReferenceServer.Forms
 {
     /// <summary>
     /// The primary form displayed by the application.
@@ -58,16 +59,18 @@ namespace Opc.Ua.Server.Controls
         /// <summary>
         /// Creates a form which displays the status for a UA server.
         /// </summary>
-        public ServerForm(StandardServer server, ApplicationConfiguration configuration)
+        public ServerForm(StandardServer server, ApplicationInstance application)
         {
             InitializeComponent();
 
-            m_server = server;
-            m_configuration = configuration;
+            m_application = application;
+            m_server = application.Server as StandardServer;
+            m_configuration = application.ApplicationConfiguration;
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
+            
 
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
+            //this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
 
 
@@ -82,10 +85,10 @@ namespace Opc.Ua.Server.Controls
             m_server = application.Server as StandardServer;
             m_configuration = application.ApplicationConfiguration;
             this.ServerDiagnosticsCTRL.Initialize(m_server, m_configuration);
-
             TrayIcon.Text = this.Text = m_configuration.ApplicationName;
-            this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
+            //this.Icon = TrayIcon.Icon = ServerUtils.GetAppIcon();
         }
+
         #endregion
 
         #region Private Fields
@@ -162,6 +165,21 @@ namespace Opc.Ua.Server.Controls
                 MessageBox.Show("Unable to launch help documentation. Error: " + ex.Message);
             }
 
+        }
+
+        private void configureToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //this.Hide();
+            IServerInternal IRefServer = m_server.CurrentInstance;
+            ConfigureForm cf = new ConfigureForm(IRefServer, m_application);
+            cf.ShowDialog();
+        }
+
+        private void viewToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            IServerInternal IRefServer = m_server.CurrentInstance;
+            ViewForm cf = new ViewForm(IRefServer);
+            cf.ShowDialog();
         }
     }
 }

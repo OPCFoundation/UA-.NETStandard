@@ -29,13 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.Threading;
+using System.Diagnostics;
 using System.Numerics;
+using System.Windows.Forms;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
+
+//using Opc.Ua.Server.Controls;
 using Range = Opc.Ua.Range;
-using System.Diagnostics;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -44,10 +46,15 @@ namespace Quickstarts.ReferenceServer
     /// </summary>
     public class ReferenceNodeManager : CustomNodeManager2
     {
+
+        //ConfigureForm cf;
+
         #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
+        /// 
+
         public ReferenceNodeManager(IServerInternal server, ApplicationConfiguration configuration)
             : base(server, configuration, Namespaces.ReferenceApplications)
         {
@@ -172,6 +179,7 @@ namespace Quickstarts.ReferenceServer
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
         /// should have a reference to the root folder node(s) exposed by this node manager.  
         /// </remarks>
+        /// 
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             lock (Lock)
@@ -544,7 +552,7 @@ namespace Quickstarts.ReferenceServer
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "LocalizedText", "LocalizedText", BuiltInType.LocalizedText, ValueRanks.OneDimension, new LocalizedText[] { new LocalizedText("en", "Hello World1"), new LocalizedText("en", "Hello World2"), new LocalizedText("en", "Hello World3"), new LocalizedText("en", "Hello World4"), new LocalizedText("en", "Hello World5"), new LocalizedText("en", "Hello World6"), new LocalizedText("en", "Hello World7"), new LocalizedText("en", "Hello World8"), new LocalizedText("en", "Hello World9"), new LocalizedText("en", "Hello World10") });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "NodeId", "NodeId", BuiltInType.NodeId, ValueRanks.OneDimension, new NodeId[] { new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()), new NodeId(Guid.NewGuid()) });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Number", "Number", BuiltInType.Number, ValueRanks.OneDimension, new Int16[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
-                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "QualifiedName", "QualifiedName", BuiltInType.QualifiedName, ValueRanks.OneDimension, new QualifiedName[] { "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9"});
+                    CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "QualifiedName", "QualifiedName", BuiltInType.QualifiedName, ValueRanks.OneDimension, new QualifiedName[] { "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9" });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "SByte", "SByte", BuiltInType.SByte, ValueRanks.OneDimension, new SByte[] { 10, 20, 30, 40, 50, 60, 70, 80, 90 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "String", "String", BuiltInType.String, ValueRanks.OneDimension, new String[] { "a00", "b10", "c20", "d30", "e40", "f50", "g60", "h70", "i80", "j90" });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Time", "Time", DataTypeIds.Time, ValueRanks.OneDimension, new String[] { DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString(), DateTime.MinValue.ToString(), DateTime.MaxValue.ToString() }, null);
@@ -1399,6 +1407,8 @@ namespace Quickstarts.ReferenceServer
                     myCompanyEmployeeCount.Value = 5;
                     myCompanyEmployeeCount.OnSimpleWriteValue = new NodeValueSimpleEventHandler(OnWriteMyCompanyEmployeeCount);
 
+                    m_prod_nodes_list = new List<List<BaseDataVariableState>>();
+
                     CreateProductionLine(myCompanyFolder, variables, "AAL_001");
                     CreateProductionLine(myCompanyFolder, variables, "AAL_002");
                     CreateProductionLine(myCompanyFolder, variables, "LEN-001");
@@ -1411,6 +1421,8 @@ namespace Quickstarts.ReferenceServer
                     CreateProductionLine(myCompanyFolder, variables, "LEN-008");
                     CreateProductionLine(myCompanyFolder, variables, "LEN-009");
 
+                    //cf = new ConfigureForm(GetLineName());
+                    //Application.Run(cf);
                     #endregion
                 }
                 catch (Exception e)
@@ -1420,7 +1432,7 @@ namespace Quickstarts.ReferenceServer
 
                 AddPredefinedNode(SystemContext, root);
                 // m_simulationTimer = new Timer(DoSimulation, null, 1000, 1000);
-                m_timer = new Timer(UpdateCountersForProductionLine, null, 1000, 1000);
+                m_timer = new System.Threading.Timer(UpdateCountersForProductionLine, null, 1000, 1000);
             }
         }
 
@@ -1446,12 +1458,25 @@ namespace Quickstarts.ReferenceServer
             BaseDataVariableState enabled = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_Enabled", "Enabled", BuiltInType.UInt32, ValueRanks.Scalar);
             enabled.Value = 1;
 
+            BaseDataVariableState lowerSpeedLimit = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_LowerSpeedLimit", "LowerSpeedLimit", BuiltInType.UInt32, ValueRanks.Scalar);
+            lowerSpeedLimit.Value = 10;
+
+            BaseDataVariableState upperSpeedLimit = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_UpperSpeedLimit", "UpperSpeedLimit", BuiltInType.UInt32, ValueRanks.Scalar);
+            upperSpeedLimit.Value = 1000;
+
+            //UInt of Boolean?
+            BaseDataVariableState doesSpeedChange = CreateVariable(myCompanyMachineFolder, myCompanyMachine + "_DoesSpeedChange", "DoesSpeedChange", BuiltInType.UInt32, ValueRanks.Scalar);
+            doesSpeedChange.Value = 0;
+
             var nodes = new List<BaseDataVariableState> {
                 speed,
                 badpieces,
                 goodpieces,
                 downtimes,
-                enabled
+                enabled,
+                lowerSpeedLimit,
+                upperSpeedLimit,
+                doesSpeedChange
             };
 
             variables.Add(speed);
@@ -1459,12 +1484,21 @@ namespace Quickstarts.ReferenceServer
             variables.Add(badpieces);
             variables.Add(downtimes);
             variables.Add(enabled);
-
+            variables.Add(lowerSpeedLimit);
+            variables.Add(upperSpeedLimit);
+            variables.Add(doesSpeedChange);
             m_prod_nodes_list.Add(nodes);
         }
 
-        Timer m_timer;
-        List<List<BaseDataVariableState>> m_prod_nodes_list = new List<List<BaseDataVariableState>>();
+        System.Threading.Timer m_timer;
+        //public List<List<BaseDataVariableState>> m_prod_nodes_list = new List<List<BaseDataVariableState>>();
+
+        public List<List<BaseDataVariableState>> m_prod_nodes_list
+        {
+            get;set;
+        }
+
+
         private void UpdateCountersForProductionLine(object state)
         {
             try
@@ -1474,11 +1508,12 @@ namespace Quickstarts.ReferenceServer
                     Debug.WriteLine(String.Format("Started timer for {0} production lines", m_prod_nodes_list.Count));
                     foreach (var nodes in m_prod_nodes_list)
                     {
-                        Debug.WriteLine(String.Format("Line: {0} - Speed is {1}, Good Pieces are {2}, Bad Pieces are {3}",
+                        Debug.WriteLine(String.Format("Line: {0} - Speed is {1}, Good Pieces are {2}, Bad Pieces are {3}, lowerspeed {4}",
                             nodes[0].BrowseName.ToString(),
                             nodes[0].Value.ToString(),
                             nodes[2].Value.ToString(),
-                            nodes[1].Value.ToString()
+                            nodes[1].Value.ToString(),
+                            nodes[5].Value.ToString()
                             ));
                         foreach (var item in nodes)
                         {
@@ -1506,7 +1541,7 @@ namespace Quickstarts.ReferenceServer
 
         private Random m_random = new Random();
         private double previousspeed;
-        private double _badPieceRate;
+        public double _badPieceRate;
         private Dictionary<string, bool> prevDisabled = new Dictionary<string, bool>();
 
         private uint GetNewCounterValue(List<BaseDataVariableState> list, BaseDataVariableState item)
@@ -1518,16 +1553,23 @@ namespace Quickstarts.ReferenceServer
                 var good = UInt32.Parse(list[2].Value.ToString());
                 var downtimes = UInt32.Parse(list[3].Value.ToString());
                 var enabled = UInt32.Parse(list[4].Value.ToString());
-
+                var lowerSpeedLimit = UInt32.Parse(list[5].Value.ToString());
+                var upperSpeedLimit = UInt32.Parse(list[6].Value.ToString());
+                var doesSpeedChange = UInt32.Parse(list[7].Value.ToString());
 
                 switch (item.DisplayName.Text)
                 {
                     case "MachineSpeed":
+                        //misschien veranderen naar lowerSpeed
                         previousspeed = speed;
                         if (enabled < 1)
                         {
                             prevDisabled[item.NodeId.ToString()] = true;
                             return 0;
+                        }
+                        if (doesSpeedChange < 1)
+                        {
+                            return upperSpeedLimit;
                         }
                         if (downtimes > 0)
                         {
@@ -1537,14 +1579,16 @@ namespace Quickstarts.ReferenceServer
                                 {
                                     return 0;
                                 };
-                            } else
+                            }
+                            else
                             {
                                 try
                                 {
                                     if (prevDisabled[item.NodeId.ToString()])
                                     {
                                         prevDisabled[item.NodeId.ToString()] = false;
-                                        return (uint)m_random.Next(600, 700);
+                                        //return (uint)m_random.Next(600, 700);
+                                        return (uint)m_random.Next((int)lowerSpeedLimit, (int)upperSpeedLimit);
                                     }
                                 }
                                 catch (KeyNotFoundException)
@@ -1557,7 +1601,8 @@ namespace Quickstarts.ReferenceServer
                                 }
                             }
                         }
-                        return (uint)m_random.Next(600, 700);
+                        //return (uint)m_random.Next(600, 700);
+                        return (uint)m_random.Next((int)lowerSpeedLimit, (int)upperSpeedLimit);
                     case "BadPieces":
                         _badPieceRate = (uint)m_random.Next(0, 10);
                         if (bad >= 100000)
@@ -2886,7 +2931,7 @@ namespace Quickstarts.ReferenceServer
         #region Private Fields
         private ReferenceServerConfiguration m_configuration;
         private Opc.Ua.Test.DataGenerator m_generator;
-        private Timer m_simulationTimer;
+        private System.Threading.Timer m_simulationTimer;
         private UInt16 m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private List<BaseDataVariableState> m_dynamicNodes;

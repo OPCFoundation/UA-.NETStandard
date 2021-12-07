@@ -6,7 +6,9 @@
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleReferenceServer</PackageId>
     <Company>OPC Foundation</Company>
+    <UseWindowsForms>true</UseWindowsForms>
     <Product>OPC UA SDK</Product>
+    <UseWindowsForms>true</UseWindowsForms>
     <Description>.NET Core Reference Server</Description>
     <Copyright>Copyright © 2004-2020 OPC Foundation, Inc</Copyright>
   </PropertyGroup>
@@ -19,10 +21,13 @@
     <Compile Include="..\ReferenceServer\ReferenceNodeManager.cs;..\ReferenceServer\ReferenceServer.cs;..\ReferenceServer\ReferenceServerConfiguration.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
 
+
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\ReferenceServer\Reference Server.csproj" />
+    <ProjectReference Include="..\ServerControls.Net4\UA Server Controls.csproj" />
   </ItemGroup>
   
   <ItemGroup>
