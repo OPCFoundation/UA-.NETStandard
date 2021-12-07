@@ -1314,9 +1314,9 @@ namespace Opc.Ua.Server
         /// Invokes the TransferSubscriptions service.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
-        /// <param name="subscriptionIds">The list of Subscriptions to delete.</param>
+        /// <param name="subscriptionIds">The list of Subscriptions to transfer.</param>
         /// <param name="sendInitialValues">If the initial values should be sent.</param>
-        /// <param name="results">The list of result StatusCodes for the Subscriptions to delete.</param>
+        /// <param name="results">The list of result StatusCodes for the Subscriptions to transfer.</param>
         /// <param name="diagnosticInfos">The diagnostic information for the results.</param>
         public override ResponseHeader TransferSubscriptions(
             RequestHeader                requestHeader,
