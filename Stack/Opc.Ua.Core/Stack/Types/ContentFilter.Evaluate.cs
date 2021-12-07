@@ -144,6 +144,16 @@ namespace Opc.Ua
                 {
                     return RelatedTo(context, target, element);
                 }
+
+                case FilterOperator.BitwiseAnd:
+                {
+                    return BitwiseAnd(context, target, element);
+                }
+
+                case FilterOperator.BitwiseOr:
+                {
+                    return BitwiseOr(context, target, element);
+                }
             }
 
             throw new ServiceResultException(StatusCodes.BadUnexpectedError, "FilterOperator is not recognized.");
@@ -181,6 +191,31 @@ namespace Opc.Ua
             }
 
             return operands;
+        }
+
+        /// <summary>
+        /// Returns the operands necessary for the BitwiseAnd and BitwiseOr operations
+        /// </summary>
+        private Tuple<object, object> GetBitwiseOperands(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        {
+            FilterOperand[] operands = GetOperands(element, 2);
+
+            object lhs = GetValue(context, operands[0], target);
+            object rhs = GetValue(context, operands[1], target);
+
+            if (lhs == null || rhs == null)
+            {
+                return Tuple.Create<object, object>(null, null);
+            }
+
+            if (!isIntegerType(GetBuiltInType(lhs)) || !isIntegerType(GetBuiltInType(rhs)))
+            {
+                return Tuple.Create<object, object>(null, null);
+            }
+
+            DoImplicitConversion(ref lhs, ref rhs);
+
+            return Tuple.Create(lhs, rhs);
         }
 
         /// <summary>
@@ -421,6 +456,23 @@ namespace Opc.Ua
             expression = Regex.Replace(expression, "(?<!\\\\)(\\[!)", "[^", RegexOptions.Compiled);
 
             return Regex.IsMatch(target, expression);
+        }
+
+        /// <summary>
+        /// Returns true if the type is Integer, otherwise returns false
+        /// </summary>
+        /// <param name="aType">The type to check against</param>
+        /// <returns>true if the type is Integer, otherwise returns false</returns>
+        private static bool isIntegerType(BuiltInType aType)
+        {
+            if (aType != BuiltInType.Byte || aType != BuiltInType.SByte ||
+            aType != BuiltInType.Int16 || aType != BuiltInType.UInt16 ||
+            aType != BuiltInType.Int32 || aType != BuiltInType.UInt32 ||
+            aType != BuiltInType.Int64 || aType != BuiltInType.UInt64)
+            {
+                return false;
+            }
+            return true;
         }
         #endregion
 
@@ -1509,6 +1561,8 @@ namespace Opc.Ua
             // conversion not supported.
             return null;
         }
+
+
         #endregion
 
         #region FilterOperator Implementations
@@ -2109,6 +2163,102 @@ namespace Opc.Ua
                 return false;
             }
         }
+
+        /// <summary>
+        /// BitwiseAnd FilterOperator
+        /// </summary>
+        private object BitwiseAnd(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        {
+            (object lhs, object rhs) = GetBitwiseOperands(context, target, element);
+            if (lhs == null || rhs == null)
+            {
+                return null;
+            }
+
+            Type systemType = lhs.GetType();
+            if (systemType == typeof(byte))
+            {
+                return (byte)lhs & (byte)rhs;
+            }
+            if (systemType == typeof(sbyte))
+            {
+                return (sbyte)lhs & (sbyte)rhs;
+            }
+            if (systemType == typeof(short))
+            {
+                return (short)lhs & (short)rhs;
+            }
+            if (systemType == typeof(ushort))
+            {
+                return (ushort)lhs & (ushort)rhs;
+            }
+            if (systemType == typeof(int))
+            {
+                return (int)lhs & (int)rhs;
+            }
+            if (systemType == typeof(uint))
+            {
+                return (uint)lhs & (uint)rhs;
+            }
+            if (systemType == typeof(long))
+            {
+                return (long)lhs & (long)rhs;
+            }
+            if (systemType == typeof(ulong))
+            {
+                return (ulong)lhs & (ulong)rhs;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// BitwiseOr FilterOperator
+        /// </summary>
+        private object BitwiseOr(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        {
+            (object lhs, object rhs) = GetBitwiseOperands(context, target, element);
+            if (lhs == null || rhs == null)
+            {
+                return null;
+            }
+
+            Type systemType = lhs.GetType();
+            if (systemType == typeof(byte))
+            {
+                return (byte)lhs | (byte)rhs;
+            }
+            if (systemType == typeof(sbyte))
+            {
+                return (sbyte)lhs | (sbyte)rhs;
+            }
+            if (systemType == typeof(short))
+            {
+                return (short)lhs | (short)rhs;
+            }
+            if (systemType == typeof(ushort))
+            {
+                return (ushort)lhs | (ushort)rhs;
+            }
+            if (systemType == typeof(int))
+            {
+                return (int)lhs | (int)rhs;
+            }
+            if (systemType == typeof(uint))
+            {
+                return (uint)lhs | (uint)rhs;
+            }
+            if (systemType == typeof(long))
+            {
+                return (long)lhs | (long)rhs;
+            }
+            if (systemType == typeof(ulong))
+            {
+                return (ulong)lhs | (ulong)rhs;
+            }
+            return null;
+        }
+
+
         #endregion
     }
 }
