@@ -538,7 +538,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The unique identifier assigned by the server.
         /// </summary>
-        public uint Id => m_id;
+        [DataMember(Name = "Id", Order = 14)]
+        public uint Id { get => m_id; set => m_id = value; }
 
         /// <summary>
         /// Whether the subscription has been created on the server.
@@ -2339,7 +2340,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private SubscriptionChangeMask m_changeMask;
+        private readonly SubscriptionChangeMask m_changeMask;
         #endregion
     }
 

@@ -65,7 +65,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The identifier assigned by the server.
         /// </summary>
-        public uint Id => m_id;
+        public uint Id { get => m_id; set => m_id = value; }
 
         /// <summary>
         /// Whether the item has been created on the server.
