@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -24,13 +24,13 @@ namespace Opc.Ua
         /// <summary>
         /// Set the log level
         /// </summary>
-        public LogLevel LogLevel { get; set; }
+        public LogLevel LogLevel { get; set; } = LogLevel.Information;
 
         /// <inheritdoc/>
         public IDisposable BeginScope<TState>(TState state) => default;
 
         /// <inheritdoc/>
-        public bool IsEnabled(LogLevel logLevel) => true;
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel;
 
         /// <inheritdoc/>
         public void Log<TState>(
@@ -48,7 +48,7 @@ namespace Opc.Ua
             if (Tracing.IsEnabled())
             {
                 var message = formatter(state, exception);
-                Utils.Trace(exception, eventId.Id & 0x1ff, message, false, null);
+                Utils.Trace(exception, eventId.Id & Utils.TraceMasks.All, message, false, null);
             }
         }
     }

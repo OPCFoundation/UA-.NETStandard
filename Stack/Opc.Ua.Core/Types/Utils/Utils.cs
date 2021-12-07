@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -254,6 +254,7 @@ namespace Opc.Ua
             /// </summary>
             public const int Client = 0x20000;
 
+#if TODO // zones to be defined
             /// <summary>
             /// A message related to monitored items.
             /// </summary>
@@ -273,6 +274,7 @@ namespace Opc.Ua
             /// A message related to network transport.
             /// </summary>
             public const int MessageSocket = 0x200000;
+#endif
         }
 
         /// <summary>

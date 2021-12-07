@@ -19,37 +19,38 @@ using static Opc.Ua.Utils;
 namespace Opc.Ua
 {
     /// <summary>
-    /// TODO is this interface needed?
+    /// A generic interface class for event source logging 
     /// </summary>
     public interface IOpcUaEventSource
     {
         /// <summary>
-        /// 
+        /// Write a critical message to the event log.
         /// </summary>
-        /// <param name="message"></param>
         void Critical(string message);
 
         /// <summary>
-        /// 
+        /// Write a error message to the event log.
         /// </summary>
-        /// <param name="message"></param>
         void Error(string message);
 
         /// <summary>
-        /// 
+        /// Write a warning message to the event log.
         /// </summary>
-        /// <param name="message"></param>
         void Warning(string message);
 
         /// <summary>
-        /// 
+        /// Write a informational message to the event log.
+        /// </summary>
+        void Info(string message);
+
+        /// <summary>
+        /// Write a trace message to the event log.
         /// </summary>
         void Trace(string message);
 
         /// <summary>
-        /// 
+        /// Write a debug message to the event log.
         /// </summary>
-        /// <param name="message"></param>
         void Debug(string message);
     }
 
@@ -82,10 +83,11 @@ namespace Opc.Ua
         private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
         private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
+        // TODO: move to server
         private const string ServerCallMessage = "Server Call={0}";
 
         /// <summary>
-        /// The ILogger event Ids used for event messages.
+        /// The ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
         private readonly EventId ServiceCallEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCall));
         private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompleted));
@@ -94,7 +96,7 @@ namespace Opc.Ua
         private readonly EventId ServerCallEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServerCall));
 
         /// <summary>
-        /// 
+        /// The keywords used for this event source.
         /// </summary>
         public static class Keywords
         {
@@ -120,19 +122,7 @@ namespace Opc.Ua
             public const EventKeywords Security = (EventKeywords)16;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public static class Tasks
-        {
-            //public const EventTask Page = (EventTask)1;
-            //public const EventTask DBQuery = (EventTask)2;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
+        /// <inheritdoc/>
         [Event(CriticalId, Message = null, Level = EventLevel.Critical, Keywords = Keywords.Trace)]
         public void Critical(string message)
         {
@@ -146,10 +136,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
+        /// <inheritdoc/>
         [Event(ErrorId, Message = null, Level = EventLevel.Error, Keywords = Keywords.Trace)]
         public void Error(string message)
         {
@@ -163,10 +150,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
+        /// <inheritdoc/>
         [Event(WarningId, Message = null, Level = EventLevel.Warning, Keywords = Keywords.Trace)]
         public void Warning(string message)
         {
@@ -180,9 +164,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Generic Trace output.
-        /// </summary>
+        /// <inheritdoc/>
         [Event(TraceId, Message = null, Level = EventLevel.Informational, Keywords = Keywords.Trace)]
         public void Trace(string message)
         {
@@ -196,9 +178,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Generic Trace output.
-        /// </summary>
+        /// <inheritdoc/>
         [Event(InfoId, Message = null, Level = EventLevel.Informational, Keywords = Keywords.Trace)]
         public void Info(string message)
         {
@@ -212,10 +192,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="message"></param>
+        /// <inheritdoc/>
         [Event(DebugId, Message = null, Level = EventLevel.Informational, Keywords = Keywords.Trace)]
         public void Debug(string message)
         {
@@ -516,6 +493,7 @@ namespace Opc.Ua
             }
         }
 
+#if TODO
         /// <summary>
         /// 
         /// </summary>
@@ -541,5 +519,6 @@ namespace Opc.Ua
                 Utils.LogInfo(TraceMasks.Security, format, false, args);
             }
         }
+#endif
     }
 }
