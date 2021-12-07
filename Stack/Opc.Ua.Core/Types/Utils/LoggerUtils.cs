@@ -67,6 +67,20 @@ namespace Opc.Ua
         public static ILogger Logger { get; private set; } = new TraceEventLogger();
 
         /// <summary>
+        /// Sets the LogLevel for the TraceEventLogger.
+        /// </summary>
+        /// <remarks>
+        /// The setting is ignored if ILogger is replaced. 
+        /// </remarks>
+        public static void SetLogLevel(LogLevel logLevel)
+        {
+            if (Logger is TraceEventLogger tlogger)
+            {
+                tlogger.LogLevel = logLevel;
+            }
+        }
+
+        /// <summary>
         /// Sets the ILogger.
         /// </summary>
         public static void SetLogger(ILogger logger)
@@ -218,7 +232,11 @@ namespace Opc.Ua
             }
             else
             {
-                Log(LogLevel.Trace, eventId, exception, message, args);
+                // cut off the trace messages as early as possible
+                if (Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Log(LogLevel.Trace, eventId, exception, message, args);
+                }
             }
         }
 
@@ -237,7 +255,11 @@ namespace Opc.Ua
             }
             else
             {
-                Log(LogLevel.Trace, eventId, message, args);
+                // cut off the trace messages as early as possible
+                if (Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Log(LogLevel.Trace, eventId, message, args);
+                }
             }
         }
 
@@ -256,7 +278,11 @@ namespace Opc.Ua
             }
             else
             {
-                Log(LogLevel.Trace, exception, message, args);
+                // cut off the trace messages as early as possible
+                if (Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Log(LogLevel.Trace, exception, message, args);
+                }
             }
         }
 
@@ -274,7 +300,11 @@ namespace Opc.Ua
             }
             else
             {
-                Log(LogLevel.Trace, message, args);
+                // cut off the trace messages as early as possible
+                if (Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Log(LogLevel.Trace, message, args);
+                }
             }
         }
         #endregion
@@ -506,8 +536,11 @@ namespace Opc.Ua
             }
             else if (UseTraceEvent)
             {
-                // call the legacy logging handler (TraceEvent)
-                Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
+                if (Logger.IsEnabled(logLevel))
+                {
+                    // call the legacy logging handler (TraceEvent)
+                    Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
+                }
             }
             else
             {
@@ -543,8 +576,11 @@ namespace Opc.Ua
             }
             else if (UseTraceEvent)
             {
-                // call the legacy logging handler (TraceEvent)
-                Utils.Trace(exception, GetTraceMask(eventId, logLevel), message, false, args);
+                if (Logger.IsEnabled(logLevel))
+                {
+                    // call the legacy logging handler (TraceEvent)
+                    Utils.Trace(exception, GetTraceMask(eventId, logLevel), message, false, args);
+                }
             }
             else
             {

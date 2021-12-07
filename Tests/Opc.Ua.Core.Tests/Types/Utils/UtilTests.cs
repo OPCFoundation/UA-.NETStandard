@@ -241,7 +241,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 BrowseNames.ImageJPG, BrowseNames.ImagePNG };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.Name == name).First().GetValue(null);
+                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
                 Assert.AreEqual(BuiltInType.ByteString, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             bnList = new List<string> { BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.Name == name).First().GetValue(null);
+                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
                 Assert.AreEqual(BuiltInType.UInt32, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
@@ -263,7 +263,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 BrowseNames.TimeString };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.Name == name).First().GetValue(null);
+                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
                 Assert.AreEqual(BuiltInType.String, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
         }

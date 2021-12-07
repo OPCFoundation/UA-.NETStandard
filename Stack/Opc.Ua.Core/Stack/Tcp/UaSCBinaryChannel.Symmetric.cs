@@ -48,7 +48,8 @@ namespace Opc.Ua.Bindings
             token.CreatedAt = DateTime.UtcNow;
             token.Lifetime = (int)Quotas.SecurityTokenLifetime;
 
-            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}",
+                Id, token.TokenId, token.CreatedAt, token.Lifetime);
 
             return token;
         }

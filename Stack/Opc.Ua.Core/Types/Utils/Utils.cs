@@ -254,12 +254,12 @@ namespace Opc.Ua
             /// </summary>
             public const int Client = 0x20000;
 
-#if TODO // zones to be defined
             /// <summary>
             /// A message related to monitored items.
             /// </summary>
             public const int MonitoredItem = 0x40000;
 
+#if TODO // zones to be defined
             /// <summary>
             /// A message related to subscriptions.
             /// </summary>
