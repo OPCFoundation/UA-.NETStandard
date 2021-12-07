@@ -216,21 +216,21 @@ namespace Opc.Ua.Server
                 // check if not ready to publish.
                 if (!m_readyToPublish)
                 {
-                    Utils.LogTrace(m_eventIdDetailed, "IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (m_monitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    Utils.LogTrace(m_eventIdDetailed, "IsReadyToPublish[{0}] TRIGGERED", m_id);
+                    Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] TRIGGERED", m_id);
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (m_monitoringMode != MonitoringMode.Reporting)
                 {
-                    Utils.LogTrace(m_eventIdDetailed, "IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
                     return false;
                 }
 
@@ -241,12 +241,12 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        Utils.LogTrace(m_eventIdDetailed, "IsReadyToPublish[{0}] FALSE {1}ms", m_id, m_nextSamplingTime - now);
+                        Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE {1}ms", m_id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
 
-                Utils.LogTrace(m_eventIdDetailed, "IsReadyToPublish[{0}] NORMAL", m_id);
+                Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] NORMAL", m_id);
                 return true;
             }
         }
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server
                 {
                     if (!m_calculator.QueueRawValue(value))
                     {
-                        Utils.LogWarning(m_eventId, "Value received out of order: {1}, ServerHandle={0}",
+                        Utils.LogWarning("Value received out of order: {1}, ServerHandle={0}",
                             m_id, value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff"));
                     }
 
@@ -858,7 +858,7 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
 
-            Utils.LogTrace(m_eventId, "QUEUE VALUE[{0}]: Value={1} CODE={2}<{2:X8}> OVERFLOW={3}",
+            Utils.EventLog.Trace("QUEUE VALUE[{0}]: Value={1} CODE={2}<{2:X8}> OVERFLOW={3}",
                 m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
         }
 
@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Server
                 // publish events.
                 if (m_events != null)
                 {
-                    Utils.LogTrace(m_eventId, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
+                    Utils.LogTrace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
 
                     EventFieldList overflowEvent = null;
 
@@ -1169,7 +1169,7 @@ namespace Opc.Ua.Server
                         notifications.Enqueue(overflowEvent);
                     }
 
-                    Utils.LogTrace(m_eventId, "MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
+                    Utils.LogTrace("MONITORED ITEM: Publish(QueueSize={0})", notifications.Count);
                 }
 
                 // reset state variables.
@@ -1243,7 +1243,7 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing.
                 else
                 {
-                    Utils.LogTrace(m_eventId, "DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}",
+                    Utils.LogTrace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}",
                         m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
@@ -1801,10 +1801,6 @@ namespace Opc.Ua.Server
         private ServiceResult m_samplingError;
         private IAggregateCalculator m_calculator;
         private bool m_triggered;
-        // logging 
-        private static readonly EventId m_eventId = new EventId(kEventIdBase | TraceMasks.Operation, nameof(MonitoredItem));
-        private static readonly EventId m_eventIdDetailed = new EventId(kEventIdBase | TraceMasks.OperationDetail, nameof(MonitoredItem));
-        private const int kEventIdBase = TraceMasks.Server | TraceMasks.MonitoredItem;
         #endregion
     }
 }

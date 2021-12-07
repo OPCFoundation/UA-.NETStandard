@@ -70,30 +70,43 @@ namespace Opc.Ua
         private const int SecurityId = ExceptionId + 1;
         private const int ServiceResultExceptionId = SecurityId + 1;
 
+        // client event ids
         private const int ServiceCallId = ServiceResultExceptionId + 1;
         private const int ServiceCompletedId = ServiceCallId + 1;
         private const int ServiceCompletedBadId = ServiceCompletedId + 1;
+
+        // server event ids
         private const int ServiceFaultId = ServiceCompletedBadId + 1;
         private const int ServerCallId = ServiceFaultId + 1;
+        private const int SessionStateId= ServerCallId + 1;
 
         /// <summary>
-        /// The messages used in event messages.
+        /// The client messages used in event messages.
         /// </summary>
         private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
-        private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
-        // TODO: move to server
-        private const string ServerCallMessage = "Server Call={0}";
 
         /// <summary>
-        /// The ILogger event Ids used for event messages, when calling back to ILogger.
+        /// The server messages used in event messages.
         /// </summary>
-        private readonly EventId ServiceCallEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCall));
-        private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompleted));
-        private readonly EventId ServiceCompletedBadEventId = new EventId(TraceMasks.Client | TraceMasks.Service, nameof(ServiceCompletedBad));
-        private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServiceFault));
-        private readonly EventId ServerCallEventId = new EventId(TraceMasks.Server | TraceMasks.Service, nameof(ServerCall));
+        private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
+        private const string ServerCallMessage = "Server Call={0}";
+        private const string SessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
+
+        /// <summary>
+        /// The Client ILogger event Ids used for event messages, when calling back to ILogger.
+        /// </summary>
+        private readonly EventId ServiceCallEventId = new EventId(TraceMasks.Service, nameof(ServiceCall));
+        private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Service, nameof(ServiceCompleted));
+        private readonly EventId ServiceCompletedBadEventId = new EventId(TraceMasks.Service, nameof(ServiceCompletedBad));
+
+        /// <summary>
+        /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
+        /// </summary>
+        private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Service, nameof(ServiceFault));
+        private readonly EventId ServerCallEventId = new EventId(TraceMasks.Service, nameof(ServerCall));
+        private readonly EventId SessionStateMessageId = new EventId(TraceMasks.Service, nameof(SessionState));
 
         /// <summary>
         /// The keywords used for this event source.
@@ -120,6 +133,10 @@ namespace Opc.Ua
             /// Service
             /// </summary>
             public const EventKeywords Security = (EventKeywords)16;
+            /// <summary>
+            /// Service
+            /// </summary>
+            public const EventKeywords Session = (EventKeywords)32;
         }
 
         /// <inheritdoc/>
@@ -209,7 +226,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log a critical message.
         /// </summary>
         [NonEvent]
         public void Critical(string format, params object[] args)
@@ -225,7 +242,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log an error message.
         /// </summary>
         [NonEvent]
         public void Error(string format, params object[] args)
@@ -241,7 +258,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log a warning message.
         /// </summary>
         [NonEvent]
         public void Warning(string format, params object[] args)
@@ -257,7 +274,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log a Trace message.
         /// </summary>
         [NonEvent]
         public void Trace(string format, params object[] args)
@@ -273,7 +290,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log a trace message.
         /// </summary>
         [NonEvent]
         public void Trace(int mask, string format, params object[] args)
@@ -289,7 +306,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log a debug messug.
         /// </summary>
         [NonEvent]
         [Conditional("DEBUG")]
@@ -306,7 +323,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log anexception with just a message.
         /// </summary>
         /// <param name="message"></param>
         [Event(ExceptionId, Message = null, Level = EventLevel.Error, Keywords = Keywords.Exception)]
@@ -316,7 +333,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Log an exception.
         /// </summary>
         [NonEvent]
         public void Exception(Exception ex, string format, params object[] args)
@@ -341,13 +358,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// A service result exception message.
         /// </summary>
-        /// <param name="logLevel"></param>
-        /// <param name="eventId"></param>
-        /// <param name="exception"></param>
-        /// <param name="message"></param>
-        /// <param name="args"></param>
+        [Event(ServiceResultExceptionId, Message = "ServiceResultException: {0} {1}", Level = EventLevel.Error, Keywords = Keywords.Trace)]
+        public void ServiceResultException(int statusCode, string message)
+        {
+            WriteEvent(ServiceResultExceptionId, statusCode, message);
+        }
+
+        /// <summary>
+        /// Log a ILogger log message with exception on EventSource.
+        /// </summary>
         [NonEvent]
         public void LogLog(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
         {
@@ -356,25 +377,12 @@ namespace Opc.Ua
                 Exception(exception, message, args);
                 return;
             }
-
-            switch (logLevel)
-            {
-                case LogLevel.Trace: Trace(message, args); break;
-                case LogLevel.Debug: Debug(message, args); break;
-                case LogLevel.Information: Info(string.Format(message, args)); break;
-                case LogLevel.Warning: Warning(message, args); break;
-                case LogLevel.Error: Error(message, args); break;
-                case LogLevel.Critical: Critical(message, args); break;
-            }
+            LogLog(logLevel, eventId, message, args);
         }
 
         /// <summary>
-        /// 
+        /// Log a ILogger log message with EventSource.
         /// </summary>
-        /// <param name="logLevel"></param>
-        /// <param name="eventId"></param>
-        /// <param name="message"></param>
-        /// <param name="args"></param>
         [NonEvent]
         public void LogLog(LogLevel logLevel, EventId eventId, string message, params object[] args)
         {
@@ -389,23 +397,11 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        [Event(ServiceResultExceptionId, Message = "ServiceResultException: {0} {1}", Level = EventLevel.Error, Keywords = Keywords.Trace)]
-        public void ServiceResultException(int statusCode, string message)
-        {
-            WriteEvent(ServiceResultExceptionId, statusCode, message);
-        }
-
         //************************************************************************************************************
 
         /// <summary>
-        /// 
+        /// A server service call message.
         /// </summary>
-        /// <param name="serviceName"></param>
-        /// <param name="requestHandle"></param>
-        /// <param name="pendingRequestCount"></param>
         [Event(ServiceCallId, Message = ServiceCallMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
         public void ServiceCall(string serviceName, uint requestHandle, int pendingRequestCount)
         {
@@ -413,18 +409,15 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallId, serviceName, requestHandle, pendingRequestCount);
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.LogTrace(ServiceCallEventId, ServiceCallMessage, serviceName, requestHandle, pendingRequestCount);
             }
         }
 
         /// <summary>
-        /// 
+        /// The server service completed message.
         /// </summary>
-        /// <param name="serviceName"></param>
-        /// <param name="requestHandle"></param>
-        /// <param name="pendingRequestCount"></param>
         [Event(ServiceCompletedId, Message = ServiceCompletedMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
         public void ServiceCompleted(string serviceName, uint requestHandle, int pendingRequestCount)
         {
@@ -432,19 +425,15 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCompletedId, serviceName, requestHandle, pendingRequestCount);
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.LogTrace(ServiceCompletedEventId, ServiceCompletedMessage, serviceName, requestHandle, pendingRequestCount);
             }
         }
 
         /// <summary>
-        /// 
+        /// A service message completed with a bad status code.
         /// </summary>
-        /// <param name="serviceName"></param>
-        /// <param name="requestHandle"></param>
-        /// <param name="statusCode"></param>
-        /// <param name="pendingRequestCount"></param>
         [Event(ServiceCompletedBadId, Message = ServiceCompletedBadMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
         public void ServiceCompletedBad(string serviceName, uint requestHandle, uint statusCode, int pendingRequestCount)
         {
@@ -452,16 +441,15 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCompletedBadId, serviceName, requestHandle, statusCode, pendingRequestCount);
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.LogTrace(ServiceCompletedBadEventId, ServiceCompletedBadMessage, serviceName, requestHandle, statusCode, pendingRequestCount);
             }
         }
 
         /// <summary>
-        /// 
+        /// A service fault message.
         /// </summary>
-        /// <param name="statusCode"></param>
         [Event(ServiceFaultId, Message = ServiceFaultMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
         public void ServiceFault(uint statusCode)
         {
@@ -476,10 +464,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// A server call message.
         /// </summary>
-        /// <param name="requestType"></param>
-        /// <param name="requestId"></param>
         [Event(ServerCallId, Message = ServerCallMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
         public void ServerCall(string requestType, uint requestId)
         {
@@ -487,38 +473,26 @@ namespace Opc.Ua
             {
                 WriteEvent(ServerCallId, requestType, requestId);
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.LogTrace(ServerCallEventId, ServerCallMessage, false, requestType, requestId);
             }
         }
 
-#if TODO
         /// <summary>
-        /// 
+        ///
         /// </summary>
-        /// <param name="message"></param>
-        [Event(SecurityId, Message = null, Level = EventLevel.LogAlways, Keywords = Keywords.Security)]
-        public void Security(string message)
-        {
-            WriteEvent(SecurityId, message);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        [NonEvent]
-        public void Security(string format, params object[] args)
+        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Verbose, Keywords = Keywords.Session)]
+        public void SessionState(string context, NodeId sessionId, string sessionName, string secureChannelId, string identity)
         {
             if (IsEnabled())
             {
-                Security(String.Format(format, args));
+                WriteEvent(SessionStateId, context, sessionId, sessionName, secureChannelId, identity);
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogInfo(TraceMasks.Security, format, false, args);
+                Utils.LogTrace(SessionStateMessageId, SessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
             }
         }
-#endif
     }
 }

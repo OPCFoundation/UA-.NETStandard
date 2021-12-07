@@ -240,41 +240,6 @@ namespace Opc.Ua
             /// Output all messages.
             /// </summary>
             public const int All = 0x3FF;
-
-            // The following Tracemasks are used to define
-            // zones for event ids
-
-            /// <summary>
-            /// A message from the server zone.
-            /// </summary>
-            public const int Server = 0x10000;
-
-            /// <summary>
-            /// A message from the client zone.
-            /// </summary>
-            public const int Client = 0x20000;
-
-            /// <summary>
-            /// A message related to monitored items.
-            /// </summary>
-            public const int MonitoredItem = 0x40000;
-
-#if TODO // zones to be defined
-            /// <summary>
-            /// A message related to subscriptions.
-            /// </summary>
-            public const int Subscription = 0x80000;
-
-            /// <summary>
-            /// A message related to PublishRequest.
-            /// </summary>
-            public const int PublishRequest = 0x100000;
-
-            /// <summary>
-            /// A message related to network transport.
-            /// </summary>
-            public const int MessageSocket = 0x200000;
-#endif
         }
 
         /// <summary>

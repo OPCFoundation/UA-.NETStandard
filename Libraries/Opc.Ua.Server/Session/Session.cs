@@ -192,6 +192,7 @@ namespace Opc.Ua.Server
         }
         #endregion
 
+        #region Audit Events
         /// <summary>
         /// Initializes a session audit event.
         /// </summary>
@@ -278,6 +279,7 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Error while reporting AuditActivateSessionEvent event for SessionId {0}.", m_sessionId);
             }
         }
+        #endregion
 
         #region IDisposable Members
         /// <summary>
@@ -870,13 +872,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
-            // TODO: check level?
-            //if (!Utils.Logger.IsEnabled(LogLevel.Trace))
-            //{
-            //    return;
-            //}
-
-            OpcUaServerEventSource.EventLog.SessionState(context, m_sessionId, m_sessionName, m_secureChannelId, m_identity?.DisplayName ?? "(none)");
+            Utils.EventLog.SessionState(context, m_sessionId, m_sessionName, m_secureChannelId, m_identity?.DisplayName ?? "(none)");
         }
 
         /// <summary>

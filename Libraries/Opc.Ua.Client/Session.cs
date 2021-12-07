@@ -145,6 +145,8 @@ namespace Opc.Ua.Client
 
             ValidateClientConfiguration(configuration);
 
+            m_loggerScope = Utils.BeginScope("ClientSession: {0}", endpoint.EndpointUrl);
+
             // save configuration information.
             m_configuration = configuration;
             m_endpoint = endpoint;
@@ -365,8 +367,11 @@ namespace Opc.Ua.Client
                 {
                     Utils.SilentDispose(subscription);
                 }
-
                 m_subscriptions.Clear();
+
+                Utils.SilentDispose(m_loggerScope);
+                m_loggerScope = null;
+
             }
 
             base.Dispose(disposing);
@@ -4602,6 +4607,7 @@ namespace Opc.Ua.Client
         private X509Certificate2Collection m_instanceCertificateChain;
         private bool m_checkDomain;
         private List<IUserIdentity> m_identityHistory;
+        private IDisposable m_loggerScope;
 
         private string m_sessionName;
         private object m_handle;
