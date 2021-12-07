@@ -216,21 +216,21 @@ namespace Opc.Ua.Server
                 // check if not ready to publish.
                 if (!m_readyToPublish)
                 {
-                    Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (m_monitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] TRIGGERED", m_id);
+                    Utils.EventLog.MonitoredItemReady(m_id, "TRIGGERED");
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (m_monitoringMode != MonitoringMode.Reporting)
                 {
-                    Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE", m_id);
+                    Utils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
                 }
 
@@ -241,12 +241,12 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] FALSE {1}ms", m_id, m_nextSamplingTime - now);
+                        Utils.EventLog.Trace(TraceMasks.OperationDetail,
+                            "IsReadyToPublish[{0}] FALSE {1}ms", m_id, m_nextSamplingTime - now);
                         return false;
                     }
                 }
-
-                Utils.EventLog.Trace(TraceMasks.OperationDetail, "IsReadyToPublish[{0}] NORMAL", m_id);
+                Utils.EventLog.MonitoredItemReady(m_id, "NORMAL");
                 return true;
             }
         }

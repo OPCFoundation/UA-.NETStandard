@@ -2432,11 +2432,7 @@ namespace Opc.Ua.Server
 
             OperationContext context = ServerInternal.SessionManager.ValidateRequest(requestHeader, requestType);
 
-            Utils.EventLog.ServerCall(
-                //(int)Utils.TraceMasks.Service,
-                //"{0} Validated. ID={1}",
-                context.RequestType.ToString(),
-                context.RequestId);
+            Utils.EventLog.ServerCall(context.RequestType.ToString(), context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);

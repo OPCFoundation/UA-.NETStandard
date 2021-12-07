@@ -872,7 +872,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context)
         {
-            Utils.EventLog.SessionState(context, m_sessionId, m_sessionName, m_secureChannelId, m_identity?.DisplayName ?? "(none)");
+            Utils.EventLog.SessionState(context, m_sessionId.ToString(), m_sessionName, m_secureChannelId, m_identity?.DisplayName ?? "(none)");
         }
 
         /// <summary>

@@ -1526,29 +1526,8 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void TraceState(string context)
         {
-            // TODO: create eventlog message
-            if (!Utils.EventLog.IsEnabled())
-            {
-                return;
-            }
-
-            StringBuilder buffer = new StringBuilder();
-
-            buffer.AppendFormat("Subscription {0}", context);
-            buffer.AppendFormat(", Id={0}", m_id);
-            buffer.AppendFormat(", LastNotificationTime={0:HH:mm:ss}", m_lastNotificationTime);
-
-            if (m_session != null)
-            {
-                buffer.AppendFormat(", GoodPublishRequestCount={0}", m_session.GoodPublishRequestCount);
-            }
-
-            buffer.AppendFormat(", PublishingInterval={0}", m_currentPublishingInterval);
-            buffer.AppendFormat(", KeepAliveCount={0}", m_currentKeepAliveCount);
-            buffer.AppendFormat(", PublishingEnabled={0}", m_currentPublishingEnabled);
-            buffer.AppendFormat(", MonitoredItemCount={0}", MonitoredItemCount);
-
-            Utils.EventLog.Trace("{0}", buffer.ToString());
+            Utils.EventLog.SubscriptionState(context, m_id, m_lastNotificationTime, m_session?.GoodPublishRequestCount ?? 0,
+                m_currentPublishingInterval, m_currentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
         }
 
         /// <summary>
@@ -2204,9 +2183,9 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private string m_displayName;
         private int m_publishingInterval;
         private uint m_keepAliveCount;
@@ -2262,10 +2241,10 @@ namespace Opc.Ua.Client
         private LinkedList<IncomingMessage> m_incomingMessages;
 
         private static long s_globalSubscriptionCounter;
-        #endregion
+#endregion
     }
 
-    #region SubscriptionChangeMask Enumeration
+#region SubscriptionChangeMask Enumeration
     /// <summary>
     /// Flags indicating what has changed in a subscription.
     /// </summary>
@@ -2317,7 +2296,7 @@ namespace Opc.Ua.Client
         /// </summary>
         ItemsModified = 0x80
     }
-    #endregion
+#endregion
 
     /// <summary>
     /// The delegate used to receive data change notifications via a direct function call instead of a .NET Event.
@@ -2329,13 +2308,13 @@ namespace Opc.Ua.Client
     /// </summary>
     public delegate void FastEventNotificationEventHandler(Subscription subscription, EventNotificationList notification, IList<string> stringTable);
 
-    #region SubscriptionStateChangedEventArgs Class
+#region SubscriptionStateChangedEventArgs Class
     /// <summary>
     /// The event arguments provided when the state of a subscription changes.
     /// </summary>
     public class SubscriptionStateChangedEventArgs : EventArgs
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -2343,25 +2322,25 @@ namespace Opc.Ua.Client
         {
             m_changeMask = changeMask;
         }
-        #endregion
+#endregion
 
-        #region Public Properties
+#region Public Properties
         /// <summary>
         /// The changes that have affected the subscription.
         /// </summary>
         public SubscriptionChangeMask Status => m_changeMask;
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private SubscriptionChangeMask m_changeMask;
-        #endregion
+#endregion
     }
 
     /// <summary>
     /// The delegate used to receive subscription state change notifications.
     /// </summary>
     public delegate void SubscriptionStateChangedEventHandler(Subscription subscription, SubscriptionStateChangedEventArgs e);
-    #endregion
+#endregion
 
     /// <summary>
     /// A collection of subscriptions.
@@ -2369,7 +2348,7 @@ namespace Opc.Ua.Client
     [CollectionDataContract(Name = "ListOfSubscription", Namespace = Namespaces.OpcUaXsd, ItemName = "Subscription")]
     public partial class SubscriptionCollection : List<Subscription>
     {
-        #region Constructors
+#region Constructors
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
@@ -2386,6 +2365,6 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="capacity">The max. capacity of the collection</param>
         public SubscriptionCollection(int capacity) : base(capacity) { }
-        #endregion
+#endregion
     }
 }
