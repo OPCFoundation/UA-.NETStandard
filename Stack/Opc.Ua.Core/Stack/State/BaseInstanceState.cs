@@ -523,7 +523,7 @@ namespace Opc.Ua
                 node.ReferenceTable.Add(referenceTypeId, true, this.Parent.NodeId);
             }
 
-            if (!NodeId.IsNull(m_typeDefinitionId) && m_typeDefinitionId != this.NodeId)
+            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
                 node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, this.TypeDefinitionId);
             }
@@ -550,7 +550,7 @@ namespace Opc.Ua
                 encoder.WriteNodeId("ReferenceTypeId", m_referenceTypeId);
             }
 
-            if (!NodeId.IsNull(m_typeDefinitionId) && m_typeDefinitionId != this.NodeId)
+            if (!NodeId.IsNull(m_typeDefinitionId))
             {
                 encoder.WriteNodeId("TypeDefinitionId", m_typeDefinitionId);
             }
@@ -582,7 +582,7 @@ namespace Opc.Ua
                 attributesToSave |= AttributesToSave.ReferenceTypeId;
             }
 
-            if (!NodeId.IsNull(m_typeDefinitionId) && m_typeDefinitionId != this.NodeId)
+            if (!NodeId.IsNull(m_typeDefinitionId))
             {
                 attributesToSave |= AttributesToSave.TypeDefinitionId;
             }
@@ -705,7 +705,7 @@ namespace Opc.Ua
         {
             base.PopulateBrowser(context, browser);
 
-            if (!NodeId.IsNull(m_typeDefinitionId))
+            if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
                 if (browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
                 {
@@ -733,7 +733,9 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
+        private bool IsObjectOrVariable => ((this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0);
+
         #region Private Fields
         private NodeState m_parent;
         private NodeId m_referenceTypeId;
