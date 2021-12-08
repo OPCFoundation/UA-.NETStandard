@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -74,11 +74,13 @@ namespace Opc.Ua
         private const int ServiceCallId = ServiceResultExceptionId + 1;
         private const int ServiceCompletedId = ServiceCallId + 1;
         private const int ServiceCompletedBadId = ServiceCompletedId + 1;
+        private const int SubscriptionStateId = ServiceCompletedBadId + 1;
 
         // server event ids
-        private const int ServiceFaultId = ServiceCompletedBadId + 1;
+        private const int ServiceFaultId = SubscriptionStateId + 1;
         private const int ServerCallId = ServiceFaultId + 1;
-        private const int SessionStateId= ServerCallId + 1;
+        private const int SessionStateId = ServerCallId + 1;
+        private const int MonitoredItemReadyId = SessionStateId + 1;
 
         /// <summary>
         /// The client messages used in event messages.
@@ -86,6 +88,7 @@ namespace Opc.Ua
         private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
+        private const string SubscriptionStateMessage = "Subscription {0}, Id={0}, LastNotificationTime={0:HH:mm:ss}, GoodPublishRequestCount={0}, PublishingInterval={0}, KeepAliveCount={0}, PublishingEnabled={0}, MonitoredItemCount={0}";
 
         /// <summary>
         /// The server messages used in event messages.
@@ -93,6 +96,7 @@ namespace Opc.Ua
         private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
         private const string ServerCallMessage = "Server Call={0}";
         private const string SessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
+        private const string MonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
 
         /// <summary>
         /// The Client ILogger event Ids used for event messages, when calling back to ILogger.
@@ -100,13 +104,15 @@ namespace Opc.Ua
         private readonly EventId ServiceCallEventId = new EventId(TraceMasks.Service, nameof(ServiceCall));
         private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Service, nameof(ServiceCompleted));
         private readonly EventId ServiceCompletedBadEventId = new EventId(TraceMasks.Service, nameof(ServiceCompletedBad));
+        private readonly EventId SubscriptionStateMessageEventId = new EventId(TraceMasks.OperationDetail, nameof(SubscriptionState));
 
         /// <summary>
         /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
         private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Service, nameof(ServiceFault));
         private readonly EventId ServerCallEventId = new EventId(TraceMasks.Service, nameof(ServerCall));
-        private readonly EventId SessionStateMessageId = new EventId(TraceMasks.Service, nameof(SessionState));
+        private readonly EventId SessionStateMessageEventId = new EventId(TraceMasks.Service, nameof(SessionState));
+        private readonly EventId MonitoredItemReadyEventId = new EventId(TraceMasks.Service, nameof(MonitoredItemReady));
 
         /// <summary>
         /// The keywords used for this event source.
@@ -283,7 +289,7 @@ namespace Opc.Ua
             {
                 Trace(string.Format(format, args));
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.LogTrace(format, args);
             }
@@ -299,7 +305,7 @@ namespace Opc.Ua
             {
                 Trace(string.Format(format, args));
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.LogTrace(mask, format, args);
             }
@@ -316,7 +322,7 @@ namespace Opc.Ua
             {
                 Debug(String.Format(format, args));
             }
-            else
+            else if (Utils.Logger.IsEnabled(LogLevel.Debug))
             {
                 Utils.LogDebug(format, args);
             }
@@ -479,19 +485,55 @@ namespace Opc.Ua
             }
         }
 
+
         /// <summary>
-        ///
+        /// The state of the session.
         /// </summary>
-        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Verbose, Keywords = Keywords.Session)]
-        public void SessionState(string context, NodeId sessionId, string sessionName, string secureChannelId, string identity)
+        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Informational, Keywords = Keywords.Session)]
+        public void SessionState(string context, string sessionId, string sessionName, string secureChannelId, string identity)
         {
             if (IsEnabled())
             {
                 WriteEvent(SessionStateId, context, sessionId, sessionName, secureChannelId, identity);
             }
+            else if (Utils.Logger.IsEnabled(LogLevel.Information))
+            {
+                Utils.LogInfo(SessionStateMessageEventId, SessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
+            }
+        }
+
+        /// <summary>
+        /// The state of the server session.
+        /// </summary>
+        [Event(MonitoredItemReadyId, Message = MonitoredItemReadyMessage, Level = EventLevel.Verbose, Keywords = Keywords.Session)]
+        public void MonitoredItemReady(uint id, string state)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(MonitoredItemReadyId, id, state);
+            }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(SessionStateMessageId, SessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
+                Utils.LogTrace(MonitoredItemReadyEventId, MonitoredItemReadyMessage, id, state);
+            }
+        }
+
+        /// <summary>
+        /// The state of the client subscription.
+        /// </summary>
+        [Event(SubscriptionStateId, Message = SubscriptionStateMessage, Level = EventLevel.Verbose, Keywords = Keywords.Session)]
+        public void SubscriptionState(string context, uint id, DateTime lastNotificationTime, int goodPublishRequestCount,
+            double currentPublishingInterval, uint currentKeepAliveCount, bool currentPublishingEnabled, uint monitoredItemCount)
+        {
+            if (IsEnabled())
+            {
+                WriteEvent(SubscriptionStateId, context, id, lastNotificationTime, goodPublishRequestCount,
+                    (int)currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
+            }
+            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            {
+                Utils.LogTrace(SubscriptionStateMessageEventId, SubscriptionStateMessage, context, id, lastNotificationTime, goodPublishRequestCount,
+                    currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
             }
         }
     }

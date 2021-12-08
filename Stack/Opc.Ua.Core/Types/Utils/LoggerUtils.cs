@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// <summary>
         /// The high performance EventSource log interface.
         /// </summary>
-        public static OpcUaCoreEventSource EventLog = new OpcUaCoreEventSource();
+        public static OpcUaCoreEventSource EventLog { get; } = new OpcUaCoreEventSource();
 
         /// <summary>
         /// ILogger abstraction used by all Utils.LogXXX methods.
@@ -149,8 +149,19 @@ namespace Opc.Ua
                 if (certificate != null)
                 {
                     int argsLength = args.Length;
-                    builder.AppendFormat(" [{{0}}] [{{1}}]", argsLength, argsLength + 1);
-                    Log(logLevel, eventId, builder.ToString(), args, certificate.Subject, certificate.Thumbprint);
+                    builder.Append(" [{");
+                    builder.Append(argsLength);
+                    builder.Append("}] [{");
+                    builder.Append(argsLength + 1);
+                    builder.Append("}]");
+                    object[] allArgs = new object[argsLength + 2];
+                    for (int i = 0; i < argsLength; i++)
+                    {
+                        allArgs[i] = args[i];
+                    }
+                    allArgs[argsLength] = certificate.Subject;
+                    allArgs[argsLength + 1] = certificate.Thumbprint;
+                    Log(logLevel, eventId, builder.ToString(), allArgs);
                 }
                 else
                 {

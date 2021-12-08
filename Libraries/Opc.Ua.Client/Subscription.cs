@@ -760,6 +760,8 @@ namespace Opc.Ua.Client
             CreateItems();
 
             ChangesCompleted();
+
+            TraceState("CREATED");
         }
 
         /// <summary>
@@ -780,6 +782,8 @@ namespace Opc.Ua.Client
 
             try
             {
+                TraceState("DELETE");
+
                 // stop the publish timer.
                 if (m_publishTimer != null)
                 {
@@ -860,6 +864,8 @@ namespace Opc.Ua.Client
                 revisedLifetimeCounter);
 
             ChangesCompleted();
+
+            TraceState("MODIFIED");
         }
 
         /// <summary>
@@ -896,6 +902,8 @@ namespace Opc.Ua.Client
 
             m_changeMask |= SubscriptionChangeMask.Modified;
             ChangesCompleted();
+
+            TraceState(enabled ? "PUBLISHING ENABLED" : "PUBLISHING DISABLED");
         }
 
         /// <summary>
@@ -1692,7 +1700,7 @@ namespace Opc.Ua.Client
         private async Task OnMessageReceived()
         {
             //Avoid semaphore being replaced for this instance while running, retain reference locally.
-            SemaphoreSlim semaphore; 
+            SemaphoreSlim semaphore;
             lock (m_cache)
             {
                 // Semaphore is maintained under m_cache lock, avoid semaphore swap issues when possible.
@@ -1701,7 +1709,7 @@ namespace Opc.Ua.Client
             }
 
             //Later used to know if releasing the semaphore is needed. Assumed entered if needed.
-            var needSemaphore = semaphore != null; 
+            var needSemaphore = semaphore != null;
             if (needSemaphore)
             {
                 try
@@ -1739,7 +1747,7 @@ namespace Opc.Ua.Client
                         // update monitored items with unprocessed messages.
                         if (ii.Value.Message != null && !ii.Value.Processed &&
                             //If sequential publishing is enabled, only release messages in perfect sequence. 
-                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1)) 
+                            (!m_sequentialPublishing || ii.Value.SequenceNumber <= m_lastSequenceNumberProcessed + 1))
                         {
                             if (messagesToProcess == null)
                             {
@@ -2183,9 +2191,9 @@ namespace Opc.Ua.Client
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private string m_displayName;
         private int m_publishingInterval;
         private uint m_keepAliveCount;
@@ -2241,10 +2249,10 @@ namespace Opc.Ua.Client
         private LinkedList<IncomingMessage> m_incomingMessages;
 
         private static long s_globalSubscriptionCounter;
-#endregion
+        #endregion
     }
 
-#region SubscriptionChangeMask Enumeration
+    #region SubscriptionChangeMask Enumeration
     /// <summary>
     /// Flags indicating what has changed in a subscription.
     /// </summary>
@@ -2296,7 +2304,7 @@ namespace Opc.Ua.Client
         /// </summary>
         ItemsModified = 0x80
     }
-#endregion
+    #endregion
 
     /// <summary>
     /// The delegate used to receive data change notifications via a direct function call instead of a .NET Event.
@@ -2308,13 +2316,13 @@ namespace Opc.Ua.Client
     /// </summary>
     public delegate void FastEventNotificationEventHandler(Subscription subscription, EventNotificationList notification, IList<string> stringTable);
 
-#region SubscriptionStateChangedEventArgs Class
+    #region SubscriptionStateChangedEventArgs Class
     /// <summary>
     /// The event arguments provided when the state of a subscription changes.
     /// </summary>
     public class SubscriptionStateChangedEventArgs : EventArgs
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -2322,25 +2330,25 @@ namespace Opc.Ua.Client
         {
             m_changeMask = changeMask;
         }
-#endregion
+        #endregion
 
-#region Public Properties
+        #region Public Properties
         /// <summary>
         /// The changes that have affected the subscription.
         /// </summary>
         public SubscriptionChangeMask Status => m_changeMask;
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private SubscriptionChangeMask m_changeMask;
-#endregion
+        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive subscription state change notifications.
     /// </summary>
     public delegate void SubscriptionStateChangedEventHandler(Subscription subscription, SubscriptionStateChangedEventArgs e);
-#endregion
+    #endregion
 
     /// <summary>
     /// A collection of subscriptions.
@@ -2348,7 +2356,7 @@ namespace Opc.Ua.Client
     [CollectionDataContract(Name = "ListOfSubscription", Namespace = Namespaces.OpcUaXsd, ItemName = "Subscription")]
     public partial class SubscriptionCollection : List<Subscription>
     {
-#region Constructors
+        #region Constructors
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
@@ -2365,6 +2373,6 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="capacity">The max. capacity of the collection</param>
         public SubscriptionCollection(int capacity) : base(capacity) { }
-#endregion
+        #endregion
     }
 }

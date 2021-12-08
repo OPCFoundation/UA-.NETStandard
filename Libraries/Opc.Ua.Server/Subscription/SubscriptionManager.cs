@@ -384,7 +384,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Server - DoConditionRefresh started.", Thread.CurrentThread);
+                Utils.LogInfo("Server - DoConditionRefresh started. ThreadId={0}.", Thread.CurrentThread.ManagedThreadId);
 
                 Subscription subscription = state as Subscription;
 
@@ -406,7 +406,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Server - DoConditionRefresh2 started.", Thread.CurrentThread);
+                Utils.LogInfo("Server - DoConditionRefresh2 started. ThreadId={0}", Thread.CurrentThread.ManagedThreadId);
 
                 Subscription subscription = state as Subscription;
 

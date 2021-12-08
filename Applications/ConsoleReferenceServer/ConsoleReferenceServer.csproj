@@ -6,16 +6,13 @@
     <OutputType>Exe</OutputType>
     <PackageId>ConsoleReferenceServer</PackageId>
     <Company>OPC Foundation</Company>
-    <Description>.NET Core Reference Server</Description>
+    <Description>.NET Console Reference Server</Description>
     <Copyright>Copyright © 2004-2021 OPC Foundation, Inc</Copyright>
+    <RootNamespace>Quickstarts</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Quickstarts.MonoReferenceServer.Config.xml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="..\ReferenceServer\SerilogTraceLogger.cs" Exclude="bin\**;obj\**;**\*.xproj;packages\**" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(NoHttps)' != 'true' ">

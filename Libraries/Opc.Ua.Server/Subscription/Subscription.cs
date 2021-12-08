@@ -2220,7 +2220,6 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 buffer.AppendFormat("Subscription {0}", context);
-
                 buffer.AppendFormat(", Id={0}", m_id);
                 buffer.AppendFormat(", Publishing={0}", m_publishingInterval);
                 buffer.AppendFormat(", KeepAlive={0}", m_maxKeepAliveCount);

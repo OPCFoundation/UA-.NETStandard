@@ -400,6 +400,15 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
+        /// Delete the application certificate.
+        /// </summary>
+        public async Task DeleteApplicationInstanceCertificate()
+        {
+            if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
+            await DeleteApplicationInstanceCertificate(m_applicationConfiguration).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Checks for a valid application instance certificate.
         /// </summary>
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
@@ -411,6 +420,7 @@ namespace Opc.Ua.Configuration
             ushort lifeTimeInMonths)
         {
             Utils.LogInfo("Checking application instance certificate.");
+
             if (m_applicationConfiguration == null)
             {
                 await LoadApplicationConfiguration(silent).ConfigureAwait(false);
@@ -851,6 +861,9 @@ namespace Opc.Ua.Configuration
                     await store.Delete(certificate.Thumbprint).ConfigureAwait(false);
                 }
             }
+
+            // erase the memory copy of the deleted certificate
+            id.Certificate = null;
 
             Utils.LogInfo("Application private key deleted.");
         }

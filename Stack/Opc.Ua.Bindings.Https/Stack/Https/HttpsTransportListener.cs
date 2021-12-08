@@ -268,7 +268,6 @@ namespace Opc.Ua.Bindings
                 });
             }
 
-
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
             m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));

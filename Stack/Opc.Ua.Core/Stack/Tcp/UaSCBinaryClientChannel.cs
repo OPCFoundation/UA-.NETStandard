@@ -709,35 +709,35 @@ namespace Opc.Ua.Bindings
                 // process a response.
                 if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                 {
-                    Utils.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
+                    //Utils.LogTrace("ChannelId {0}: ProcessResponseMessage", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
                 // check for acknowledge.
                 else if (messageType == TcpMessageType.Acknowledge)
                 {
-                    Utils.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage", ChannelId);
+                    //Utils.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage", ChannelId);
                     return ProcessAcknowledgeMessage(messageChunk);
                 }
 
                 // check for error.
                 else if (messageType == TcpMessageType.Error)
                 {
-                    Utils.LogTrace("ChannelId {0}: ProcessErrorMessage", ChannelId);
+                    //Utils.LogTrace("ChannelId {0}: ProcessErrorMessage", ChannelId);
                     return ProcessErrorMessage(messageType, messageChunk);
                 }
 
                 // process open secure channel repsonse.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                 {
-                    Utils.LogTrace("ChannelId {0}: ProcessOpenSecureChannelResponse", ChannelId);
+                    //Utils.LogTrace("ChannelId {0}: ProcessOpenSecureChannelResponse", ChannelId);
                     return ProcessOpenSecureChannelResponse(messageType, messageChunk);
                 }
 
                 // process a response to a close request.
                 else if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                 {
-                    Utils.LogTrace("ChannelId {0}: ProcessResponseMessage (close)", ChannelId);
+                    //Utils.LogTrace("ChannelId {0}: ProcessResponseMessage (close)", ChannelId);
                     return ProcessResponseMessage(messageType, messageChunk);
                 }
 
