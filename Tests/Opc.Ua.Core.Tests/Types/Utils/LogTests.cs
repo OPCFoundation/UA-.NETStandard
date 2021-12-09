@@ -27,12 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 
@@ -49,8 +46,9 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
         /// <summary>
         /// A trace event callback for tests.
         /// </summary>
-        public class StringArrayTraceLogger
+        public class StringArrayTraceLogger : IDisposable
         {
+            private bool m_disposed;
             private TextWriter m_writer;
             private int m_traceMasks;
             private List<string> m_traceList;
@@ -87,7 +85,19 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             /// </summary>
             ~StringArrayTraceLogger()
             {
-                Utils.Tracing.TraceEventHandler -= this.TraceEventHandler;
+                Dispose();
+            }
+
+            /// <summary>
+            /// IDisposable to clean up event handler.
+            /// </summary>
+            public void Dispose()
+            {
+                if (!m_disposed)
+                {
+                    Utils.Tracing.TraceEventHandler -= this.TraceEventHandler;
+                    m_disposed = true;
+                }
             }
 
             /// <summary>
@@ -125,155 +135,169 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
         {
             Utils.SetLogLevel(logLevel);
 
-            var logger = StringArrayTraceLogger.Create(TestContext.Out, Utils.TraceMasks.All);
-            Assert.NotNull(logger);
-
-            logger.LastTraceEventArgs = null;
-
-            // test the legacy log mapping to TraceEventArgs
-            Utils.Trace(Utils.TraceMasks.None, "This is a None message: {0}", Utils.TraceMasks.None);
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            using (var logger = StringArrayTraceLogger.Create(TestContext.Out, Utils.TraceMasks.All))
             {
-                Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
+                Assert.NotNull(logger);
+
                 logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
 
-            Utils.Trace(Utils.TraceMasks.Error, "This is an Error message: {0}", Utils.TraceMasks.Error);
-            if (Utils.Logger.IsEnabled(LogLevel.Error))
-            {
-                Assert.AreEqual(Utils.TraceMasks.Error, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                // test the legacy log mapping to TraceEventArgs
+                Utils.Trace(Utils.TraceMasks.None, "This is a None message: {0}", Utils.TraceMasks.None);
+                if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.Information, "This is a Information message: {0}", Utils.TraceMasks.Information);
-            if (Utils.Logger.IsEnabled(LogLevel.Information))
-            {
-                Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.Error, "This is an Error message: {0}", Utils.TraceMasks.Error);
+                if (Utils.Logger.IsEnabled(LogLevel.Error))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.Error, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.StackTrace, "This is a StackTrace message: {0}", Utils.TraceMasks.StackTrace);
-            if (Utils.Logger.IsEnabled(LogLevel.Error))
-            {
-                Assert.AreEqual(Utils.TraceMasks.StackTrace, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.Information, "This is a Information message: {0}", Utils.TraceMasks.Information);
+                if (Utils.Logger.IsEnabled(LogLevel.Information))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.Service, "This is a Service message: {0}", Utils.TraceMasks.Service);
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Assert.AreEqual(Utils.TraceMasks.Service, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.StackTrace, "This is a StackTrace message: {0}", Utils.TraceMasks.StackTrace);
+                if (Utils.Logger.IsEnabled(LogLevel.Error))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.StackTrace, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.ServiceDetail, "This is a ServiceDetail message: {0}", Utils.TraceMasks.ServiceDetail);
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Assert.AreEqual(Utils.TraceMasks.ServiceDetail, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.Service, "This is a Service message: {0}", Utils.TraceMasks.Service);
+                if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.Service, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.Operation, "This is a Operation message: {0}", Utils.TraceMasks.Operation);
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Assert.AreEqual(Utils.TraceMasks.Operation, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.ServiceDetail, "This is a ServiceDetail message: {0}", Utils.TraceMasks.ServiceDetail);
+                if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.ServiceDetail, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.OperationDetail, "This is a OperationDetail message: {0}", Utils.TraceMasks.OperationDetail);
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Assert.AreEqual(Utils.TraceMasks.OperationDetail, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.Operation, "This is a Operation message: {0}", Utils.TraceMasks.Operation);
+                if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.Operation, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.StartStop, "This is a StartStop message: {0}", Utils.TraceMasks.StartStop);
-            if (Utils.Logger.IsEnabled(LogLevel.Information))
-            {
-                Assert.AreEqual(Utils.TraceMasks.StartStop, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.OperationDetail, "This is a OperationDetail message: {0}", Utils.TraceMasks.OperationDetail);
+                if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.OperationDetail, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.ExternalSystem, "This is a ExternalSystem message: {0}", Utils.TraceMasks.ExternalSystem);
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Assert.AreEqual(Utils.TraceMasks.ExternalSystem, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.StartStop, "This is a StartStop message: {0}", Utils.TraceMasks.StartStop);
+                if (Utils.Logger.IsEnabled(LogLevel.Information))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.StartStop, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            Utils.Trace(Utils.TraceMasks.Security, "This is a Security message: {0}", Utils.TraceMasks.Security);
-            if (Utils.Logger.IsEnabled(LogLevel.Information))
-            {
-                Assert.AreEqual(Utils.TraceMasks.Security, logger.LastTraceEventArgs.TraceMask);
-                logger.LastTraceEventArgs = null;
-            }
-            else
-            {
-                Assert.IsNull(logger.LastTraceEventArgs);
-            }
+                Utils.Trace(Utils.TraceMasks.ExternalSystem, "This is a ExternalSystem message: {0}", Utils.TraceMasks.ExternalSystem);
+                if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.ExternalSystem, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            var sre = new ServiceResultException(StatusCodes.BadServiceUnsupported, "service unsupported");
-            Utils.Trace(sre, "This is a ServiceResultException");
+                Utils.Trace(Utils.TraceMasks.Security, "This is a Security message: {0}", Utils.TraceMasks.Security);
+                if (Utils.Logger.IsEnabled(LogLevel.Information))
+                {
+                    Assert.AreEqual(Utils.TraceMasks.Security, logger.LastTraceEventArgs.TraceMask);
+                    logger.LastTraceEventArgs = null;
+                }
+                else
+                {
+                    Assert.IsNull(logger.LastTraceEventArgs);
+                }
 
-            TestContext.Out.WriteLine("Logged {0} messages.", logger.TraceList.Count);
+                var sre = new ServiceResultException(StatusCodes.BadServiceUnsupported, "service unsupported");
+                Utils.Trace(sre, "This is a ServiceResultException");
 
-            Utils.LogTrace("This is a Trace message: {0}", LogLevel.Trace);
-            Utils.LogDebug("This is a Debug message: {0}", LogLevel.Debug);
-            Utils.LogInfo("This is a Info message: {0}", LogLevel.Information);
-            Utils.LogWarning("This is a Warning message: {0}", LogLevel.Warning);
-            Utils.LogError("This is a Error message: {0}", LogLevel.Error);
-            Utils.LogCritical("This is a Critical message: {0}", LogLevel.Critical);
+                TestContext.Out.WriteLine("Logged {0} messages.", logger.TraceList.Count);
 
-            TestContext.Out.WriteLine("Logged {0} messages.", logger.TraceList.Count);
+                Utils.LogTrace("This is a Trace message: {0}", LogLevel.Trace);
+                Utils.LogDebug("This is a Debug message: {0}", LogLevel.Debug);
+                Utils.LogInfo("This is a Info message: {0}", LogLevel.Information);
+                Utils.LogWarning("This is a Warning message: {0}", LogLevel.Warning);
+                Utils.LogError("This is a Error message: {0}", LogLevel.Error);
+                Utils.LogCritical("This is a Critical message: {0}", LogLevel.Critical);
 
-            switch (logLevel)
-            {
-                case LogLevel.Trace: Assert.AreEqual(20, logger.TraceList.Count); break;
-                case LogLevel.Debug: Assert.AreEqual(13, logger.TraceList.Count); break;
-                case LogLevel.Information: Assert.AreEqual(12, logger.TraceList.Count); break;
-                case LogLevel.Warning: Assert.AreEqual(8, logger.TraceList.Count); break;
-                case LogLevel.Error: Assert.AreEqual(7, logger.TraceList.Count); break;
-                case LogLevel.Critical: Assert.AreEqual(1, logger.TraceList.Count); break;
+                TestContext.Out.WriteLine("Logged {0} messages.", logger.TraceList.Count);
+
+#if DEBUG
+                switch (logLevel)
+                {
+                    case LogLevel.Trace: Assert.AreEqual(20, logger.TraceList.Count); break;
+                    case LogLevel.Debug: Assert.AreEqual(13, logger.TraceList.Count); break;
+                    case LogLevel.Information: Assert.AreEqual(12, logger.TraceList.Count); break;
+                    case LogLevel.Warning: Assert.AreEqual(8, logger.TraceList.Count); break;
+                    case LogLevel.Error: Assert.AreEqual(7, logger.TraceList.Count); break;
+                    case LogLevel.Critical: Assert.AreEqual(1, logger.TraceList.Count); break;
+                }
+#else
+                switch (logLevel)
+                {
+                    case LogLevel.Trace: Assert.AreEqual(18, logger.TraceList.Count); break;
+                    case LogLevel.Debug: Assert.AreEqual(11, logger.TraceList.Count); break;
+                    case LogLevel.Information: Assert.AreEqual(11, logger.TraceList.Count); break;
+                    case LogLevel.Warning: Assert.AreEqual(7, logger.TraceList.Count); break;
+                    case LogLevel.Error: Assert.AreEqual(6, logger.TraceList.Count); break;
+                    case LogLevel.Critical: Assert.AreEqual(1, logger.TraceList.Count); break;
+                }
+#endif
             }
         }
     }
