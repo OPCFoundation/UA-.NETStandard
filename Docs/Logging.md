@@ -1,37 +1,38 @@
 
 
-# Updated Logging #
+# Improvements for Tracing and Logging #
 
 ## The existing Tracing model in the UA .NET Standard stack  ##
 
-The historic codebase up until version 1.4.367 uses the following primitives for logging:
+The existing codebase up until version 1.4.367 uses the following primitives for logging:
 
 * `Utils.Trace` functions to log messages in the codebase with message format strings and arguments as format parameters, along with optional `TraceMasks` and `Exceptions`. 
-* Configuration using the `ApplicationConfiguration` section for  `TraceConfiguration` to specify the `OutputFilePath` and `TraceMasks`.
-* The built in file logging is really slowing the whole system down, so logging and investigating of events with frequent output (10s of messages per second) is not possible.
-* The current model allows to set a `TraceEvent` callback event, which allows an application to capture all messages and filter on its behalf. With some wrapper code it is possible to map the TraceEvent messages to existing loggers like Serilog and others. Again, the TraceEvent callback is not suitable for high performance logging, but so far the best solution using the .NET UA stack.
+* Logging configuration uses the `ApplicationConfiguration` section for  `TraceConfiguration` to specify the `OutputFilePath` and `TraceMasks`.
+* The built in file logging is really slowing the whole system down, so logging and investigating of events with frequent output (10s of messages per second) is not possible without changing system behavior and performance.
+* The current model allows to set a `TraceEvent` callback event, which allows an application to capture all messages and filter on its behalf. With some wrapper code it is possible to map the `TraceEvent` messages to existing loggers like Serilog and others. Again, the TraceEvent callback is not suitable for high performance logging, but so far the best solution using the .NET UA stack.
+* A sample how to map `TraceEvent` to Serilog is provided in the .NET Framework Reference Server sample application.
 
 ## The wishlist for the future logging model
 
 - At least for a transition period backward compatibility for existing applications. Support for `TraceEvents`.
-- Reduced flow of messages at the `Information` level to allow to let the log level always turned on for production applications.
-- High performance logging using  `EventSource` for development, which is available for Etw on Windows and in a different flavor on Linux with a `dotnet trace` command.
-- Support for a modern pluggable `ILogger` interface as replacement for the `Utils.Trace` functions to log leveled messages in the codebase with message format strings and arguments as format parameters, as with the existing approach.
-- Do not force users to use a specific logging framework. But simplify the use of third party logging frameworks like Serilog, N4Log, OpenTelemetry etc.
-- Support for `System.Diagnostics.Activity` to support correlation IDs with OpenTelemetry.
-- Support for scopes, activities and structured logging.
+- Reasonable flow of messages at the `Information` level to allow production applications to run with logging always enabled.
+- High performance logging using  `EventSource` for development, which is available for Etw on Windows and in a different flavor on Linux with a `dotnet-trace` command.
+- Support for a modern pluggable `ILogger` interface as replacement for the `Utils.Trace` functions to log leveled messages in the codebase with message format strings and arguments as format parameters, similar to the existing approach.
+- Do not force users to use a specific logging framework. But simplify the use of third party logging frameworks like Serilog, Log4Net, OpenTelemetry etc.
+- Support for structured logging including activities (`System.Diagnostics.Activity`) and scopes (`BeginScope`).
+- Support for correlation IDs with OpenTelemetry, Zipkin etc.
 
 ## The proposed solution
 
-- The proposed solution uses the `ILogger` interface which is defined in `Microsoft.Extensions.Logging.Abstractions` as core abstraction for logging functions. This dependency leads to include a Nuget package with abstractions only to the core library.
-- This `ILogger` interface is the proposed logging interface for .NET with OpenTelemetry. It  is also supported with prebuilt libraries by all popular logging frameworks, so including the UA stack logger in existing applications becomes a lot easier.
+- The proposed solution uses the `ILogger` interface which is defined in `Microsoft.Extensions.Logging.Abstractions` as core abstraction for logging functions. This dependency leads to include a new Nuget package with abstractions, but only to the core library.
+- This `ILogger` interface is the proposed logging interface for .NET with OpenTelemetry. It  is also supported with prebuilt libraries by all popular logging frameworks. Including the UA stack logger in existing applications becomes a lot easier.
 - As a design decision, to avoid change of API signatures in the codebase, the logger in `Opc.Ua.Core` remains a singleton which is used by all depending libraries. Also due to some naming convention limitations the singleton for `ILogger` remains in the `Opc.Ua.Utils` class.
 - By default, a backward compatibility `TraceEventLogger` is initialized to support the existing `TraceEvent` callback.
 - In order to efficiently support the existing logging all the `LoggerExtensions` functions are integrated in `Opc.Ua.Utils` as static functions instead of the Logging extension functions. 
-- The existing `Utils.Trace` logging functions are mapped as a best effort to the new `ILogger` interface. Existing application should still work and log information as previously, even after updating to the latest Nuget package.
-- The new `ILogger`interface is available directly as a singleton `Opc.Ua.Utils.Logger` interface.
+- The existing `Utils.Trace` logging functions are mapped as a best effort to the new `ILogger` interface. Existing application should still work and log information as previously, even after updating to the latest `Opc.Ua.Core` library with the new logging support.
+- The new `ILogger`interface is available directly as a singleton `Opc.Ua.Utils.Logger` interface. But using this interface is quite cumbersome, the `Utils.LogXXX` functions should rather be used. 
 - In order to support `EventSource` logging there is another singleton with the high performance logging interface exposed as  `Opc.Ua.Utils.EventLog` .
-- An application can override the `ILogger` with its own implementation by calling the `Opc.Ua.Utils.SetLogger` function. Then the existing logging with `TraceEvents` is disabled.
+- An application can override the `ILogger` with its own implementation by calling the `Opc.Ua.Utils.SetLogger` function. Then the existing logging with `TraceEvents` is disabled. However tracing with `EventSource` is still possible, even after the `ILogger` is replaced.
 - To update existing applications to use the new logging functions, the following changes have to be made:
   - `Utils.Trace` is replaced by `Utils.LogXXX`,  where `XXX` corresponds to the log level. 
     The supported log levels are: `Critical`, `Error`, `Warning`, `Information`, `Debug` and `Trace`.
@@ -40,10 +41,11 @@ The historic codebase up until version 1.4.367 uses the following primitives for
 
 ## Caveats and open issues
 
-- At this time there is no support for structured logging. Structured logging requires to replace the format parameters like `{0}` by a name, e.g. `{ChannelId}`. Currently the `EventSource` logger and the existing `TraceEvent` do not support the structured logging format strings.
-- There is no attempt made to support `Activities` or `Scopes` from within the stack code. How to achieve the goal to support correlation ids is still under investigation.  
+- At this time there is no support for structured logging. Structured logging requires to replace the format parameters like `{0}` by a name, e.g. `{ChannelId}`. Currently the `EventSource` logger and the existing `TraceEvent` do not support the structured logging format strings. A solution is under investigation.
+- There is no attempt made to support `Activities` or `Scopes` from within the UA stack code. How to achieve the goal to support correlation ids is still under investigation.  
 - The best use of the `EventId` parameter is still under investigation. Currently it is only used to support the tracemask used by existing logging calls. The tracemask is passed to `TraceEvent` for filtering and for backward compatibility. 
 - Not all log functions with frequent log output have been ported yet to support the `EventSource`.
+- There is no sample yet for OpenTelemetry.
 
 ## Sample code
 
