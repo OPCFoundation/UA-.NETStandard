@@ -162,7 +162,7 @@ namespace Quickstarts
                 options.WriteOptionDescriptions(Console.Out);
                 throw new ErrorExitException("Invalid Commandline or help requested.", ExitCode.ErrorInvalidCommandLine);
             }
-            return extraArgs?.FirstOrDefault();
+            return extraArgs.FirstOrDefault();
         }
 
         public static void ConfigureLogging(ApplicationConfiguration configuration, string context, bool logConsole, LogLevel logLevel)

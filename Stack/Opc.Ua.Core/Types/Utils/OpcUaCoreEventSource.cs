@@ -153,10 +153,6 @@ namespace Opc.Ua
             {
                 WriteEvent(CriticalId, message);
             }
-            else
-            {
-                Utils.LogCritical(message, false);
-            }
         }
 
         /// <inheritdoc/>
@@ -166,10 +162,6 @@ namespace Opc.Ua
             if (IsEnabled())
             {
                 WriteEvent(ErrorId, message);
-            }
-            else
-            {
-                Utils.LogError(message, false);
             }
         }
 
@@ -181,10 +173,6 @@ namespace Opc.Ua
             {
                 WriteEvent(WarningId, message);
             }
-            else
-            {
-                Utils.LogWarning(message, false);
-            }
         }
 
         /// <inheritdoc/>
@@ -194,10 +182,6 @@ namespace Opc.Ua
             if (IsEnabled())
             {
                 WriteEvent(TraceId, message);
-            }
-            else
-            {
-                Utils.LogTrace(message, false);
             }
         }
 
@@ -209,10 +193,6 @@ namespace Opc.Ua
             {
                 WriteEvent(InfoId, message);
             }
-            else
-            {
-                Utils.LogInfo(message, false);
-            }
         }
 
         /// <inheritdoc/>
@@ -223,10 +203,6 @@ namespace Opc.Ua
             if (IsEnabled())
             {
                 WriteEvent(DebugId, message);
-            }
-            else
-            {
-                Utils.LogDebug(message, false);
             }
 #endif
         }
@@ -260,6 +236,22 @@ namespace Opc.Ua
             else
             {
                 Utils.LogError(format, args);
+            }
+        }
+
+        /// <summary>
+        /// Log information message.
+        /// </summary>
+        [NonEvent]
+        public void Info(string format, params object[] args)
+        {
+            if (IsEnabled())
+            {
+                Info(string.Format(format, args));
+            }
+            else
+            {
+                Utils.LogInfo(format, args);
             }
         }
 
@@ -392,11 +384,23 @@ namespace Opc.Ua
         [NonEvent]
         public void LogLog(LogLevel logLevel, EventId eventId, string message, params object[] args)
         {
+            if (args.Length == 0)
+            {
+                switch (logLevel)
+                {
+                    case LogLevel.Trace: Trace(message); break;
+                    case LogLevel.Debug: Debug(message); break;
+                    case LogLevel.Information: Info(message); break;
+                    case LogLevel.Warning: Warning(message); break;
+                    case LogLevel.Error: Error(message); break;
+                    case LogLevel.Critical: Critical(message); break;
+                }
+            }
             switch (logLevel)
             {
                 case LogLevel.Trace: Trace(message, args); break;
                 case LogLevel.Debug: Debug(message, args); break;
-                case LogLevel.Information: Info(string.Format(message, args)); break;
+                case LogLevel.Information: Info(message, args); break;
                 case LogLevel.Warning: Warning(message, args); break;
                 case LogLevel.Error: Error(message, args); break;
                 case LogLevel.Critical: Critical(message, args); break;

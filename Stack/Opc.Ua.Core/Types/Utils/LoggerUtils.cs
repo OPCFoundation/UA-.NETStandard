@@ -265,7 +265,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(LogLevel.Trace, eventId, null, message, args);
+                EventLog.LogLog(LogLevel.Trace, eventId, message, args);
             }
             else
             {
@@ -295,7 +295,7 @@ namespace Opc.Ua
                 // cut off the trace messages as early as possible
                 if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    Log(LogLevel.Trace, exception, message, args);
+                    Log(LogLevel.Trace, 0, exception, message, args);
                 }
             }
         }
@@ -317,7 +317,7 @@ namespace Opc.Ua
                 // cut off the trace messages as early as possible
                 if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    Log(LogLevel.Trace, message, args);
+                    Log(LogLevel.Trace, 0, message, args);
                 }
             }
         }

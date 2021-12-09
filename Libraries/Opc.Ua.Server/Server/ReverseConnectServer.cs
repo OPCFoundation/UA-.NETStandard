@@ -336,7 +336,8 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    Utils.LogWarning("Warning: Status changed for unknown reverse connection: [{e.ChannelStatus}][{e.EndpointUrl}]");
+                    Utils.LogWarning("Warning: Status changed for unknown reverse connection: [{0}][{1}]",
+                        e.ChannelStatus, e.EndpointUrl);
                 }
             }
 

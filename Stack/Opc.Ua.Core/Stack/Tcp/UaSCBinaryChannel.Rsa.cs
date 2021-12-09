@@ -70,7 +70,6 @@ namespace Opc.Ua.Bindings
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string actualSignature = Utils.ToHexString(signature);
-                    var message = new StringBuilder();
                     Utils.LogError("Could not validate signature.");
                     Utils.LogCertificate(LogLevel.Error, "Certificate: ", signingCertificate);
                     Utils.LogError("MessageType ={0}, Length ={1}, ActualSignature={2}",

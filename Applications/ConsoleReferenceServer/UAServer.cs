@@ -68,7 +68,7 @@ namespace Quickstarts
                 };
 
                 // load the application configuration.
-                var config = await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+                await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 
             }
             catch (Exception ex)
