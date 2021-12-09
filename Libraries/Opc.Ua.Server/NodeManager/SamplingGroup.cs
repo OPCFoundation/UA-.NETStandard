@@ -108,10 +108,9 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Reset();
 
-                Task.Run(() =>
-                {
+                Task.Factory.StartNew(() => {
                     SampleMonitoredItems(m_samplingInterval);
-                });
+                }, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 

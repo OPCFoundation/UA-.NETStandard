@@ -36,6 +36,9 @@
 // https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Logging.Abstractions/src/LoggerExtensions.cs
 //
 
+// Disable: 'Use the LoggerMessage delegates'
+#pragma warning disable CA1848 
+
 using System;
 using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
@@ -570,6 +573,7 @@ namespace Opc.Ua
         {
             Log(logLevel, 0, exception, message, args);
         }
+
 
         /// <summary>
         /// Formats and writes a log message at the specified log level.
