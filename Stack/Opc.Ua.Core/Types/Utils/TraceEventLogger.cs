@@ -24,7 +24,7 @@ namespace Opc.Ua
         /// <summary>
         /// Set the log level
         /// </summary>
-        public LogLevel LogLevel { get; set; } = LogLevel.Information;
+        public LogLevel LogLevel { get; set; } = LogLevel.Trace;
 
         /// <inheritdoc/>
         public IDisposable BeginScope<TState>(TState state) => default;
