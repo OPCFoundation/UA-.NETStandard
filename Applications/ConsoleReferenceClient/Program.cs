@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -59,7 +60,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool logConsole = false;
             bool renewCertificate = false;
             string password = null;
-            int timeout = -1;
+            int timeout = Timeout.Infinite;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 { "h|help", "show this message and exit", h => showHelp = h != null },
@@ -118,16 +119,20 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
-                DateTime start = DateTime.UtcNow;
 
                 // connect to a server until application stopped
                 bool quit = false;
+                DateTime start = DateTime.UtcNow;
+                int waitTime = int.MaxValue;
                 do
                 {
-                    int waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
-                    if (waitTime <= 0)
+                    if (timeout > 0)
                     {
-                        break;
+                        waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
+                        if (waitTime <= 0)
+                        {
+                            break;
+                        }
                     }
 
                     // create the UA Client object and connect to configured server.
