@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -46,8 +47,8 @@ namespace Quickstarts.ConsoleReferenceClient
         /// </summary>
         public static async Task Main(string[] args)
         {
-            Console.WriteLine("OPC UA Console Reference Client");
-            IOutput log = new ConsoleOutput();
+            TextWriter output = Console.Out;
+            output.WriteLine("OPC UA Console Reference Client");
 
             // The application name and config file names
             var applicationName = "ConsoleReferenceClient";
@@ -63,6 +64,7 @@ namespace Quickstarts.ConsoleReferenceClient
             int timeout = Timeout.Infinite;
 
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "c|console", "log trace to console", c => logConsole = c != null },
@@ -74,7 +76,7 @@ namespace Quickstarts.ConsoleReferenceClient
             try
             {
                 // parse command line and set options
-                var extraArg = ConsoleUtils.ProcessCommandLine(args, options, ref showHelp, usage, false);
+                var extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, false);
 
                 // connect Url?
                 Uri serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
@@ -86,11 +88,11 @@ namespace Quickstarts.ConsoleReferenceClient
                 // use ILogger as output
                 if (logConsole)
                 {
-                    log = new LogOutput();
+                    output = new LogWriter();
                 }
 
                 // Define the UA Client application
-                ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+                ApplicationInstance.MessageDlg = new ApplicationMessageDlg(output);
                 CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(password);
                 ApplicationInstance application = new ApplicationInstance {
                     ApplicationName = applicationName,
@@ -136,7 +138,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // create the UA Client object and connect to configured server.
-                    UAClient uaClient = new UAClient(application.ApplicationConfiguration, log, ClientBase.ValidateResponse) {
+                    UAClient uaClient = new UAClient(application.ApplicationConfiguration, output, ClientBase.ValidateResponse) {
                         AutoAccept = autoAccept
                     };
 
@@ -158,17 +160,17 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
                     else
                     {
-                        log.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
+                        output.WriteLine("Could not connect to server! Retry in 10 seconds or Ctrl-C to quit.");
                         quit = quitEvent.WaitOne(Math.Min(10_000, waitTime));
                     }
 
                 } while (!quit);
 
-                log.WriteLine("\nClient stopped.");
+                output.WriteLine("\nClient stopped.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                output.WriteLine(ex.Message);
             }
         }
     }

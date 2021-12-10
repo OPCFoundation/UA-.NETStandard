@@ -239,7 +239,7 @@ namespace Opc.Ua.Bindings
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason.ToLongString());
+                    reason);
 
                 CompleteReverseHello(new ServiceResultException(reason));
 
@@ -412,7 +412,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0} Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault()", ChannelId, requestId);
 
             BufferCollection buffers = null;
 
@@ -487,7 +487,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0} Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault()", ChannelId, requestId);
 
             BufferCollection chunksToSend = null;
 

@@ -14,7 +14,6 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
@@ -243,7 +242,7 @@ namespace Opc.Ua
         /// </summary>
         public bool AutoAcceptUntrustedCertificates
         {
-            get { return m_autoAcceptUntrustedCertificates; }
+            get => m_autoAcceptUntrustedCertificates;
             set
             {
                 lock (m_lock)
@@ -263,7 +262,7 @@ namespace Opc.Ua
         /// </summary>
         public bool RejectSHA1SignedCertificates
         {
-            get { return m_rejectSHA1SignedCertificates; }
+            get => m_rejectSHA1SignedCertificates;
             set
             {
                 lock (m_lock)
@@ -283,7 +282,7 @@ namespace Opc.Ua
         /// </summary>
         public bool RejectUnknownRevocationStatus
         {
-            get { return m_rejectUnknownRevocationStatus; }
+            get => m_rejectUnknownRevocationStatus;
             set
             {
                 lock (m_lock)
@@ -303,7 +302,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort MinimumCertificateKeySize
         {
-            get { return m_minimumCertificateKeySize; }
+            get => m_minimumCertificateKeySize;
             set
             {
                 lock (m_lock)
@@ -375,14 +374,16 @@ namespace Opc.Ua
                 if (ContainsUnsuppressibleSC(se.Result))
                 {
                     SaveCertificate(certificate);
-                    Utils.LogCertificate("Certificate rejected. Reason={1}", certificate, se.Result.ToString());
-                    LogInnerServiceResults(se.Result);
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
+                        certificate, se.Result.StatusCode);
+                    LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
                 else
                 {
-                    Utils.LogCertificate("Certificate Validation failed. Reason={0}", certificate, se.ToLongString());
-                    LogInnerServiceResults(se.Result);
+                    Utils.LogCertificate(LogLevel.Warning, "Certificate Validation failed. Reason={0}.",
+                        certificate, se.Result.StatusCode);
+                    LogInnerServiceResults(LogLevel.Warning, se.Result.InnerResult);
                 }
 
                 // invoke callback.
@@ -393,6 +394,7 @@ namespace Opc.Ua
                 {
                     do
                     {
+                        accept = false;
                         if (m_CertificateValidation != null)
                         {
                             CertificateValidationEventArgs args = new CertificateValidationEventArgs(serviceResult, certificate);
@@ -428,8 +430,8 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
-                        certificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
+                        certificate, serviceResult != null ? serviceResult.StatusCode.ToString() : "Unknown Error");
 
                     SaveCertificate(certificate);
 
@@ -439,7 +441,7 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
-                    Utils.LogCertificate("Validation error suppressed: ", certificate);
+                    Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
@@ -470,11 +472,11 @@ namespace Opc.Ua
         /// <summary>
         /// List all reasons for failing cert validation.
         /// </summary>
-        private static void LogInnerServiceResults(ServiceResult result)
+        private static void LogInnerServiceResults(LogLevel logLevel, ServiceResult result)
         {
             while (result != null)
             {
-                Utils.LogInfo(Utils.TraceMasks.Security, " -- {0}", result.ToString());
+                Utils.Log(logLevel, Utils.TraceMasks.Security, " -- {0}", result.ToString());
                 result = result.InnerResult;
             }
         }
@@ -912,7 +914,7 @@ namespace Opc.Ua
             // check if certificate issuer is trusted.
             if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
-                var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
+                var message = "Certificate Issuer is not trusted.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
             }
@@ -922,7 +924,7 @@ namespace Opc.Ua
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
-                    var message = CertificateMessage("Certificate is not trusted.", certificate);
+                    var message = "Certificate is not trusted.";
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
                 }
@@ -958,12 +960,14 @@ namespace Opc.Ua
             if (keySize < m_minimumCertificateKeySize)
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                    null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                    null, null,
+                    $"Certificate doesn't meet minimum key length requirement. ({keySize}<{m_minimumCertificateKeySize})",
+                    null, sresult);
             }
 
             if (issuedByCA && chainIncomplete)
             {
-                var message = CertificateMessage("Certificate chain validation incomplete.", certificate);
+                var message = "Certificate chain validation incomplete.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateChainIncomplete,
                     null, null, message, null, sresult);
             }
@@ -1162,20 +1166,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a certificate information message.
-        /// </summary>
-        private string CertificateMessage(string error, X509Certificate2 certificate)
-        {
-            var message = new StringBuilder();
-            message.AppendLine(error)
-                .AppendFormat("SubjectName: {0}", certificate.SubjectName.Name)
-                .AppendLine()
-                .AppendFormat("IssuerName: {0}", certificate.IssuerName.Name)
-                .AppendLine();
-            return message.ToString();
-        }
-
-        /// <summary>
         /// Returns if a self signed certificate is properly signed.
         /// </summary>
         private static bool IsSignatureValid(X509Certificate2 cert)
@@ -1331,8 +1321,8 @@ namespace Opc.Ua
         /// </summary>
         public bool Accept
         {
-            get { return m_accept; }
-            set { m_accept = value; }
+            get => m_accept;
+            set => m_accept = value;
         }
 
         /// <summary>
@@ -1341,8 +1331,8 @@ namespace Opc.Ua
         /// </summary>
         public bool AcceptAll
         {
-            get { return m_acceptAll; }
-            set { m_acceptAll = value; }
+            get => m_acceptAll;
+            set => m_acceptAll = value;
         }
         #endregion
 

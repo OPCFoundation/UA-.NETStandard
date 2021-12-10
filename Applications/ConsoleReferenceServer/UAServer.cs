@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,11 +44,19 @@ namespace Quickstarts
         public ApplicationInstance Application => m_application;
         public ApplicationConfiguration Configuration => m_application.ApplicationConfiguration;
 
-        public bool LogConsole { get; set; } = false;
         public bool AutoAccept { get; set; } = false;
         public string Password { get; set; } = null;
 
         public ExitCode ExitCode { get; private set; }
+
+        /// <summary>
+        /// Ctor of the server.
+        /// </summary>
+        /// <param name="writer">The text output.</param>
+        public UAServer(TextWriter writer)
+        {
+            m_output = writer;
+        }
 
         /// <summary>
         /// Load the application configuration.
@@ -58,7 +67,7 @@ namespace Quickstarts
             {
                 ExitCode = ExitCode.ErrorNotStarted;
 
-                ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
+                ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_output);
                 CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
                 m_application = new ApplicationInstance {
                     ApplicationName = applicationName,
@@ -121,13 +130,14 @@ namespace Quickstarts
                 // start the server
                 await m_application.Start(m_server).ConfigureAwait(false);
 
+                // save state
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
                 var endpoints = m_application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
                 foreach (var endpoint in endpoints)
                 {
-                    Console.WriteLine(endpoint);
+                    m_output.WriteLine(endpoint);
                 }
 
                 // start the status thread
@@ -172,36 +182,36 @@ namespace Quickstarts
             }
         }
 
+        /// <summary>
+        /// The certificate validator is used
+        /// if auto accept is not selected in the configuration.
+        /// </summary>
         private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
                 if (AutoAccept)
                 {
-                    if (!LogConsole)
-                    {
-                        Console.WriteLine("Accepted Certificate: {0}", e.Certificate.Subject);
-                    }
-                    Utils.LogCertificate("Accepted Certificate:", e.Certificate);
+                    m_output.WriteLine("Accepted Certificate: [{0}] [{1}]", e.Certificate.Subject, e.Certificate.Thumbprint);
                     e.Accept = true;
                     return;
                 }
             }
-
-            if (!LogConsole)
-            {
-                Console.WriteLine("Rejected Certificate: {0} {1}", e.Error, e.Certificate.Subject);
-            }
-
-            Utils.LogCertificate(Utils.TraceMasks.Security, "Rejected Certificate: {0}", e.Certificate, e.Error);
+            m_output.WriteLine("Rejected Certificate: {0} [{1}] [{2}]", e.Error, e.Certificate.Subject,  e.Certificate.Thumbprint);
         }
 
+        /// <summary>
+        /// Update the session status.
+        /// </summary>
         private void EventStatus(Session session, SessionEventReason reason)
         {
             m_lastEventTime = DateTime.UtcNow;
             PrintSessionStatus(session, reason.ToString());
         }
 
+        /// <summary>
+        /// Output the status of a connected session.
+        /// </summary>
         private void PrintSessionStatus(Session session, string reason, bool lastContact = false)
         {
             lock (session.DiagnosticsLock)
@@ -220,15 +230,18 @@ namespace Quickstarts
                     }
                     item.AppendFormat(":{0}", session.Id);
                 }
-                Utils.LogInfo(item.ToString());
+                m_output.WriteLine(item.ToString());
             }
         }
 
+        /// <summary>
+        /// Status thread, prints connection status every 10 seconds.
+        /// </summary>
         private async void StatusThreadAsync()
         {
             while (m_server != null)
             {
-                if (DateTime.UtcNow - m_lastEventTime > TimeSpan.FromMilliseconds(6000))
+                if (DateTime.UtcNow - m_lastEventTime > TimeSpan.FromMilliseconds(10000))
                 {
                     IList<Session> sessions = m_server.CurrentInstance.SessionManager.GetSessions();
                     for (int ii = 0; ii < sessions.Count; ii++)
@@ -243,6 +256,7 @@ namespace Quickstarts
         }
 
         #region Private Members
+        private TextWriter m_output;
         private ApplicationInstance m_application;
         private T m_server;
         private Task m_status;

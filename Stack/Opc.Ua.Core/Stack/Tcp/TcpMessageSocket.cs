@@ -564,8 +564,6 @@ namespace Opc.Ua.Bindings
                 BufferManager.UnlockBuffer(m_receiveBuffer);
             }
 
-            Utils.EventLog.Debug("Bytes read: {0}", bytesRead);
-
             if (bytesRead == 0)
             {
                 // Remote end has closed the connection

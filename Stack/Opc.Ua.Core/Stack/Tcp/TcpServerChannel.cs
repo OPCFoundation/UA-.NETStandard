@@ -877,7 +877,7 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
                 {
-                    Utils.LogError(" ChannelId={0} Server Revoked TokenId={1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
+                    Utils.LogWarning("ChannelId={0}: Server Revoked TokenId={1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
                     PreviousToken.Lifetime = 0;
                 }
             }

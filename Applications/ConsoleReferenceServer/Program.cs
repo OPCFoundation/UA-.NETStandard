@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -41,12 +42,12 @@ namespace Quickstarts.ReferenceServer
     {
         public static async Task<int> Main(string[] args)
         {
-            Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
+            TextWriter output = Console.Out;
+            output.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
 
             // The application name and config file names
             var applicationName = Utils.IsRunningOnMono() ? "MonoReferenceServer" : "ConsoleReferenceServer";
             var configSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
-            var usage = Utils.IsRunningOnMono() ? $"Usage: mono {applicationName}.exe [OPTIONS]" : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
 
             // command line options
             bool showHelp = false;
@@ -56,7 +57,9 @@ namespace Quickstarts.ReferenceServer
             string password = null;
             int timeout = -1;
 
+            var usage = Utils.IsRunningOnMono() ? $"Usage: mono {applicationName}.exe [OPTIONS]" : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
+                usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "c|console", "log trace to console", c => logConsole = c != null },
@@ -68,45 +71,49 @@ namespace Quickstarts.ReferenceServer
             try
             {
                 // parse command line and set options
-                ConsoleUtils.ProcessCommandLine(args, options, ref showHelp, usage);
+                ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp);
+
+                if (logConsole)
+                {
+                    output = new LogWriter();
+                }
 
                 // create the UA server
-                var server = new UAServer<ReferenceServer>() {
+                var server = new UAServer<ReferenceServer>(output) {
                     AutoAccept = autoAccept,
-                    LogConsole = logConsole,
                     Password = password
                 };
 
                 // load the server configuration, validate certificates
-                Console.WriteLine("Loading configuration from {0}.", configSectionName);
+                output.WriteLine("Loading configuration from {0}.", configSectionName);
                 await server.LoadAsync(applicationName, configSectionName).ConfigureAwait(false);
 
                 // setup the logging
                 ConsoleUtils.ConfigureLogging(server.Configuration, applicationName, logConsole, LogLevel.Information);
 
                 // check or renew the certificate
-                Console.WriteLine("Start the server.");
+                output.WriteLine("Check the certificate.");
                 await server.CheckCertificateAsync(renewCertificate).ConfigureAwait(false);
 
                 // start the server
-                Console.WriteLine("Start the server.");
+                output.WriteLine("Start the server.");
                 await server.StartAsync().ConfigureAwait(false);
 
-                Console.WriteLine("Server started. Press Ctrl-C to exit...");
+                output.WriteLine("Server started. Press Ctrl-C to exit...");
 
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
                 quitEvent.WaitOne(timeout);
 
                 // stop server. May have to wait for clients to disconnect.
-                Console.WriteLine("Server stopped. Waiting for exit...");
+                output.WriteLine("Server stopped. Waiting for exit...");
                 await server.StopAsync();
 
                 return (int)ExitCode.Ok;
             }
             catch (ErrorExitException eee)
             {
-                Console.WriteLine("The application exits with error: {0}", eee.Message);
+                output.WriteLine("The application exits with error: {0}", eee.Message);
                 return (int)eee.ExitCode;
             }
         }

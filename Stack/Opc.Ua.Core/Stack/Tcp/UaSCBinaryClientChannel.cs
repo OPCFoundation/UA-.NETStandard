@@ -1105,7 +1105,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Faulted;
 
                 // schedule a reconnect.
-                Utils.LogInfo("ChannelId {0}: Attempting Reconnect in {1} ms. {2}", ChannelId, m_waitBetweenReconnects, reason.ToLongString());
+                Utils.LogInfo("ChannelId {0}: Attempting Reconnect in {1} ms. Reason: {2}", ChannelId, m_waitBetweenReconnects, reason.ToLongString());
                 m_handshakeTimer = new Timer(m_StartHandshake, null, m_waitBetweenReconnects, Timeout.Infinite);
 
                 // set next reconnect period.
@@ -1453,7 +1453,7 @@ namespace Opc.Ua.Bindings
         private TimerCallback m_StartHandshake;
         private AsyncCallback m_HandshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
-        private readonly string g_ImplementationString = ".NET Standard ClientChannelId {0} " + Utils.GetAssemblyBuildNumber();
+        private readonly string g_ImplementationString = ".NET Standard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
         #endregion
     }
 }

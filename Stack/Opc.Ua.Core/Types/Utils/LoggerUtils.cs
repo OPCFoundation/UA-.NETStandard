@@ -523,14 +523,14 @@ namespace Opc.Ua
         }
         #endregion
 
-        #region Private Log Methods
+        #region Log Methods
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
         /// <param name="logLevel">Entry will be written on this level.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        private static void Log(LogLevel logLevel, string message, params object[] args)
+        public static void Log(LogLevel logLevel, string message, params object[] args)
         {
             Log(logLevel, 0, null, message, args);
         }
@@ -542,7 +542,7 @@ namespace Opc.Ua
         /// <param name="eventId">The event id associated with the log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        private static void Log(LogLevel logLevel, EventId eventId, string message, params object[] args)
+        public static void Log(LogLevel logLevel, EventId eventId, string message, params object[] args)
         {
             if (EventLog.IsEnabled())
             {
@@ -569,7 +569,7 @@ namespace Opc.Ua
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        private static void Log(LogLevel logLevel, Exception exception, string message, params object[] args)
+        public static void Log(LogLevel logLevel, Exception exception, string message, params object[] args)
         {
             Log(logLevel, 0, exception, message, args);
         }
@@ -583,7 +583,7 @@ namespace Opc.Ua
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        private static void Log(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
+        public static void Log(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
         {
             if (EventLog.IsEnabled())
             {

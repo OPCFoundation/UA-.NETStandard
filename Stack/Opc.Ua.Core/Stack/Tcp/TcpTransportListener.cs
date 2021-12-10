@@ -188,7 +188,7 @@ namespace Opc.Ua.Bindings
 
             channel.Reconnect(socket, requestId, sequenceNumber, clientCertificate, token, request);
 
-            Utils.LogInfo("ChannelId {0} reconnected", channelId);
+            Utils.LogInfo("ChannelId {0}: reconnected", channelId);
             return true;
         }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.LogInfo("ChannelId {0} closed", channelId);
+            Utils.LogInfo("ChannelId {0}: closed", channelId);
         }
 
         /// <summary>

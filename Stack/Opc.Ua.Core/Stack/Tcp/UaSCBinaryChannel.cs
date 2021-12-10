@@ -297,8 +297,6 @@ namespace Opc.Ua.Bindings
                 {
                     uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
 
-                    Utils.EventLog.Debug("{1} Message Received: {0} bytes", message.Count, messageType);
-
                     if (!HandleIncomingMessage(messageType, message))
                     {
                         BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
@@ -376,8 +374,6 @@ namespace Opc.Ua.Bindings
                 ServiceResult error = ServiceResult.Good;
                 try
                 {
-                    Utils.EventLog.Debug("Bytes written: {0}", e.BytesTransferred);
-
                     if (e.BytesTransferred == 0)
                     {
                         error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
@@ -696,7 +692,7 @@ namespace Opc.Ua.Bindings
             {
                 if (m_state != value)
                 {
-                    Utils.LogInfo("ChannelId {0} in {1} state.", ChannelId, value);
+                    Utils.LogInfo("ChannelId {0}: in {1} state.", ChannelId, value);
                 }
 
                 m_state = value;

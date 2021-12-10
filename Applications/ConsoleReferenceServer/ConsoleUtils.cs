@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -42,7 +44,71 @@ using Serilog.Events;
 namespace Quickstarts
 {
     /// <summary>
-    /// The error code why the application exited.
+    /// The log output implementation of a TextWriter.
+    /// </summary>
+    public class LogWriter : TextWriter
+    {
+        private StringBuilder m_builder = new StringBuilder();
+
+        public override void Write(char value)
+        {
+            m_builder.Append(value);
+        }
+
+        public override void WriteLine(char value)
+        {
+            m_builder.Append(value);
+            Utils.LogInfo(m_builder.ToString());
+            m_builder.Clear();
+        }
+
+        public override void WriteLine()
+        {
+            Utils.LogInfo(m_builder.ToString());
+            m_builder.Clear();
+        }
+
+        public override void WriteLine(string format, object arg0)
+        {
+            m_builder.Append(format);
+            Utils.LogInfo(m_builder.ToString(), arg0);
+            m_builder.Clear();
+        }
+
+        public override void WriteLine(string format, object arg0, object arg1)
+        {
+            m_builder.Append(format);
+            Utils.LogInfo(m_builder.ToString(), arg0, arg1);
+            m_builder.Clear();
+        }
+
+        public override void WriteLine(string format, params object[] arg)
+        {
+            m_builder.Append(format);
+            Utils.LogInfo(m_builder.ToString(), arg);
+            m_builder.Clear();
+        }
+
+        public override void Write(string value)
+        {
+            m_builder.Append(value);
+        }
+
+        public override void WriteLine(string value)
+        {
+            m_builder.Append(value);
+            Utils.LogInfo(m_builder.ToString());
+            m_builder.Clear();
+        }
+
+        public override Encoding Encoding
+        {
+            get { return Encoding.Default; }
+        }
+    }
+
+    /// <summary>
+    /// The error code why the application exit.
     /// </summary>
     public enum ExitCode : int
     {
@@ -54,6 +120,9 @@ namespace Quickstarts
         ErrorInvalidCommandLine = 0x100
     };
 
+    /// <summary>
+    /// An exception that occured and caused an exit of the application.
+    /// </summary>
     public class ErrorExitException : Exception
     {
         public ExitCode ExitCode { get; }
@@ -94,8 +163,14 @@ namespace Quickstarts
     /// </summary>
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
+        private TextWriter m_output;
         private string m_message = string.Empty;
         private bool m_ask = false;
+
+        public ApplicationMessageDlg(TextWriter output)
+        {
+            m_output = output;
+        }
 
         public override void Message(string text, bool ask)
         {
@@ -108,18 +183,18 @@ namespace Quickstarts
             if (m_ask)
             {
                 m_message += " (y/n, default y): ";
-                Console.Write(m_message);
+                m_output.Write(m_message);
             }
             else
             {
-                Console.WriteLine(m_message);
+                m_output.WriteLine(m_message);
             }
             if (m_ask)
             {
                 try
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
-                    Console.WriteLine();
+                    m_output.WriteLine();
                     return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
                 }
                 catch
@@ -131,9 +206,20 @@ namespace Quickstarts
         }
     }
 
+    /// <summary>
+    /// Helper functions shared in various console applications.
+    /// </summary>
     public static class ConsoleUtils
     {
-        public static string ProcessCommandLine(string[] args, Mono.Options.OptionSet options, ref bool showHelp, string usage, bool noExtraArgs = true)
+        /// <summary>
+        /// Process a command line of the console sample application.
+        /// </summary>
+        public static string ProcessCommandLine(
+            TextWriter output,
+            string[] args,
+            Mono.Options.OptionSet options,
+            ref bool showHelp,
+            bool noExtraArgs = true)
         {
             IList<string> extraArgs = null;
             try
@@ -143,29 +229,47 @@ namespace Quickstarts
                 {
                     foreach (string extraArg in extraArgs)
                     {
-                        Console.WriteLine("Error: Unknown option: {0}", extraArg);
+                        output.WriteLine("Error: Unknown option: {0}", extraArg);
                         showHelp = true;
                     }
                 }
             }
             catch (OptionException e)
             {
-                Console.WriteLine(e.Message);
+                output.WriteLine(e.Message);
                 showHelp = true;
             }
 
             if (showHelp)
             {
-                Console.WriteLine(usage);
-                Console.WriteLine();
-                Console.WriteLine("Options:");
-                options.WriteOptionDescriptions(Console.Out);
+                options.WriteOptionDescriptions(output);
                 throw new ErrorExitException("Invalid Commandline or help requested.", ExitCode.ErrorInvalidCommandLine);
             }
+
             return extraArgs.FirstOrDefault();
         }
 
-        public static void ConfigureLogging(ApplicationConfiguration configuration, string context, bool logConsole, LogLevel logLevel)
+        /// <summary>
+        /// Configure the logging providers.
+        /// </summary>
+        /// <remarks>
+        /// Replaces the Opc.Ua.Core default ILogger with a
+        /// Microsoft.Extension.Logger with a Serilog file, debug and console logger.
+        /// The debug logger is only enabled for debug builds.
+        /// The console logger is enabled by the logConsole flag at the consoleLogLevel.
+        /// The file logger uses the setting in the ApplicationConfiguration.
+        /// The Trace logLevel is chosen if required by the Tracemasks.
+        /// </remarks>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="context">The context name for the logger. </param>
+        /// <param name="logConsole">Enable logging to the console.</param>
+        /// <param name="consoleLogLevel">The LogLevel to use for the console/debug.<
+        /// /param>
+        public static void ConfigureLogging(
+            ApplicationConfiguration configuration,
+            string context,
+            bool logConsole,
+            LogLevel consoleLogLevel)
         {
             var loggerConfiguration = new LoggerConfiguration()
                 .Enrich.FromLogContext();
@@ -173,14 +277,14 @@ namespace Quickstarts
             if (logConsole)
             {
                 loggerConfiguration.WriteTo.Console(
-                    restrictedToMinimumLevel: (LogEventLevel)logLevel
+                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel
                     );
             }
 #if DEBUG
             else
             {
                 loggerConfiguration
-                    .WriteTo.Debug(restrictedToMinimumLevel: (LogEventLevel)logLevel);
+                    .WriteTo.Debug(restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel);
             }
 #endif
             LogLevel fileLevel = LogLevel.Information;
@@ -204,7 +308,7 @@ namespace Quickstarts
             }
 
             // adjust minimum level
-            if (fileLevel < LogLevel.Information || logLevel < LogLevel.Information)
+            if (fileLevel < LogLevel.Information || consoleLogLevel < LogLevel.Information)
             {
                 loggerConfiguration.MinimumLevel.Verbose();
             }
@@ -222,9 +326,13 @@ namespace Quickstarts
             Utils.SetLogger(logger);
         }
 
+        /// <summary>
+        /// Output log messages.
+        /// </summary>
         public static void LogTest()
         {
-            // print legacy logging output
+            // print legacy logging output, for testing
+#pragma warning disable CS0618 // Type or member is obsolete
             Utils.Trace(Utils.TraceMasks.Error, "This is an Error message: {0}", Utils.TraceMasks.Error);
             Utils.Trace(Utils.TraceMasks.Information, "This is a Information message: {0}", Utils.TraceMasks.Information);
             Utils.Trace(Utils.TraceMasks.StackTrace, "This is a StackTrace message: {0}", Utils.TraceMasks.StackTrace);
@@ -235,6 +343,7 @@ namespace Quickstarts
             Utils.Trace(Utils.TraceMasks.StartStop, "This is a StartStop message: {0}", Utils.TraceMasks.StartStop);
             Utils.Trace(Utils.TraceMasks.ExternalSystem, "This is a ExternalSystem message: {0}", Utils.TraceMasks.ExternalSystem);
             Utils.Trace(Utils.TraceMasks.Security, "This is a Security message: {0}", Utils.TraceMasks.Security);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // print ILogger logging output
             Utils.LogTrace("This is a Trace message: {0}", LogLevel.Trace);
@@ -245,6 +354,10 @@ namespace Quickstarts
             Utils.LogCritical("This is a Critical message: {0}", LogLevel.Critical);
         }
 
+        /// <summary>
+        /// Create an event which is set if a user
+        /// enters the Ctrl-C key combination.
+        /// </summary>
         public static ManualResetEvent CtrlCHandler()
         {
             var quitEvent = new ManualResetEvent(false);

@@ -48,7 +48,7 @@ namespace Opc.Ua.Bindings
             token.CreatedAt = DateTime.UtcNow;
             token.Lifetime = (int)Quotas.SecurityTokenLifetime;
 
-            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}",
+            Utils.LogInfo("ChannelId {0}: Token #{1} created. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.",
                 Id, token.TokenId, token.CreatedAt, token.Lifetime);
 
             return token;
@@ -66,7 +66,7 @@ namespace Opc.Ua.Bindings
             m_currentToken = token;
             m_renewedToken = null;
 
-            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}. Lifetime={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace Opc.Ua.Bindings
         protected void SetRenewedToken(ChannelToken token)
         {
             m_renewedToken = token;
-            Utils.LogInfo("ChannelId {0}: RenewedToken #{1} set. CreatedAt = {2:HH:mm:ss.fff} . Lifetime = {3}", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: RenewedToken #{1} set. CreatedAt={2:HH:mm:ss.fff}. Lifetime ={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
         /// <summary>

@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -45,10 +46,10 @@ namespace Quickstarts
         /// <summary>
         /// Initializes a new instance of the UAClient class.
         /// </summary>
-        public UAClient(ApplicationConfiguration configuration, IOutput output, Action<IList, IList> validateResponse)
+        public UAClient(ApplicationConfiguration configuration, TextWriter writer, Action<IList, IList> validateResponse)
         {
             m_validateResponse = validateResponse;
-            m_output = output;
+            m_output = writer;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
         }
@@ -493,7 +494,7 @@ namespace Quickstarts
         #region Private Fields
         private ApplicationConfiguration m_configuration;
         private Session m_session;
-        private readonly IOutput m_output;
+        private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
         #endregion
     }
