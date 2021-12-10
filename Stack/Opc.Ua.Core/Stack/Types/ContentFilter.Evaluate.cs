@@ -465,14 +465,14 @@ namespace Opc.Ua
         /// <returns>true if the type is Integer, otherwise returns false</returns>
         private static bool isIntegerType(BuiltInType aType)
         {
-            if (aType != BuiltInType.Byte || aType != BuiltInType.SByte ||
-            aType != BuiltInType.Int16 || aType != BuiltInType.UInt16 ||
-            aType != BuiltInType.Int32 || aType != BuiltInType.UInt32 ||
-            aType != BuiltInType.Int64 || aType != BuiltInType.UInt64)
+            if (aType == BuiltInType.Byte || aType == BuiltInType.SByte ||
+            aType == BuiltInType.Int16 || aType == BuiltInType.UInt16 ||
+            aType == BuiltInType.Int32 || aType == BuiltInType.UInt32 ||
+            aType == BuiltInType.Int64 || aType == BuiltInType.UInt64)
             {
-                return false;
+                return true;
             }
-            return true;
+            return false;
         }
         #endregion
 
@@ -1928,7 +1928,7 @@ namespace Opc.Ua
             BuiltInType targetType = GetBuiltInType(datatype);
 
             // cast the value.
-            return Cast(value, targetType);
+            return Cast(value, targetType) != null;
         }
 
         /// <summary>
@@ -2178,35 +2178,35 @@ namespace Opc.Ua
             Type systemType = lhs.GetType();
             if (systemType == typeof(byte))
             {
-                return (byte)lhs & (byte)rhs;
+                return ((byte)lhs & (byte)rhs) != 0;
             }
             if (systemType == typeof(sbyte))
             {
-                return (sbyte)lhs & (sbyte)rhs;
+                return ((sbyte)lhs & (sbyte)rhs) != 0;
             }
             if (systemType == typeof(short))
             {
-                return (short)lhs & (short)rhs;
+                return ((short)lhs & (short)rhs) != 0;
             }
             if (systemType == typeof(ushort))
             {
-                return (ushort)lhs & (ushort)rhs;
+                return ((ushort)lhs & (ushort)rhs) != 0;
             }
             if (systemType == typeof(int))
             {
-                return (int)lhs & (int)rhs;
+                return ((int)lhs & (int)rhs) != 0;
             }
             if (systemType == typeof(uint))
             {
-                return (uint)lhs & (uint)rhs;
+                return ((uint)lhs & (uint)rhs) != 0;
             }
             if (systemType == typeof(long))
             {
-                return (long)lhs & (long)rhs;
+                return ((long)lhs & (long)rhs) != 0;
             }
             if (systemType == typeof(ulong))
             {
-                return (ulong)lhs & (ulong)rhs;
+                return ((ulong)lhs & (ulong)rhs) != 0;
             }
             return null;
         }
@@ -2225,35 +2225,35 @@ namespace Opc.Ua
             Type systemType = lhs.GetType();
             if (systemType == typeof(byte))
             {
-                return (byte)lhs | (byte)rhs;
+                return ((byte)lhs | (byte)rhs) != 0;
             }
             if (systemType == typeof(sbyte))
             {
-                return (sbyte)lhs | (sbyte)rhs;
+                return ((sbyte)lhs | (sbyte)rhs) != 0;
             }
             if (systemType == typeof(short))
             {
-                return (short)lhs | (short)rhs;
+                return ((short)lhs | (short)rhs) != 0;
             }
             if (systemType == typeof(ushort))
             {
-                return (ushort)lhs | (ushort)rhs;
+                return ((ushort)lhs | (ushort)rhs) != 0;
             }
             if (systemType == typeof(int))
             {
-                return (int)lhs | (int)rhs;
+                return ((int)lhs | (int)rhs) != 0;
             }
             if (systemType == typeof(uint))
             {
-                return (uint)lhs | (uint)rhs;
+                return ((uint)lhs | (uint)rhs) != 0;
             }
             if (systemType == typeof(long))
             {
-                return (long)lhs | (long)rhs;
+                return ((long)lhs | (long)rhs) != 0;
             }
             if (systemType == typeof(ulong))
             {
-                return (ulong)lhs | (ulong)rhs;
+                return ((ulong)lhs | (ulong)rhs) != 0;
             }
             return null;
         }
