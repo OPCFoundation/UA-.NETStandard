@@ -36,7 +36,7 @@ using Opc.Ua.Test;
 namespace Opc.Ua.Core.Tests.Types.ContentFillter
 {
 
-    internal class TestFilterTarget : IFilterTarget
+    public class TestFilterTarget : IFilterTarget
     {
         public object GetAttributeValue(FilterContext context, NodeId typeDefinitionId, IList<QualifiedName> relativePath, uint attributeId, Ua.NumericRange indexRange)
         {
@@ -60,6 +60,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
         #region Shared Properties
         public EventFilter Filter { get;}
         public FilterContext FilterContext { get;}
+        public TestFilterTarget TestFilterTarget { get; }
+        
         #endregion
 
         #region Constructor
@@ -73,6 +75,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
             // event filter must be specified.
             Filter = new EventFilter();
             Filter.WhereClause = new ContentFilter();
+
+            TestFilterTarget = new TestFilterTarget();
         }
         #endregion
 
@@ -101,182 +105,18 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
         #region Test Methods
 
         [Test]
+        [TestCase(5, 3, 7, true)]
+        [TestCase(3, 5, 7, false)]
         [Category("ContentFillter")]
-        public void And()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(true);
-            loperand2.Value = new Variant(false);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.And;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(false, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void Or()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(true);
-            loperand2.Value = new Variant(false);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.Or;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void Not()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-
-            loperand1.Value = new Variant(true);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.Not;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(false, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void Equals()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(5);
-            loperand2.Value = new Variant(5);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.Equals;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void GreaterThan()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(7);
-            loperand2.Value = new Variant(5);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.GreaterThan;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void GreaterThanOrEqual()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(7);
-            loperand2.Value = new Variant(5);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.GreaterThanOrEqual;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void LessThan()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(3);
-            loperand2.Value = new Variant(5);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.LessThan;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void LessThanOrEqual()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
-
-            loperand1.Value = new Variant(3);
-            loperand2.Value = new Variant(5);
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.LessThanOrEqual;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void Between()
+        public void Between(object operandFirst1, object operandFirst2, object operandFirst3, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
             LiteralOperand loperand3 = new LiteralOperand();
 
-            loperand1.Value = new Variant(5);
-            loperand2.Value = new Variant(3);
-            loperand3.Value = new Variant(7);
+            loperand1.Value = new Variant(operandFirst1);
+            loperand2.Value = new Variant(operandFirst2);
+            loperand3.Value = new Variant(operandFirst3);
 
             ContentFilterElement filterElement = new ContentFilterElement();
             filterElement.FilterOperator = FilterOperator.Between;
@@ -286,22 +126,24 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
             TestFilterTarget filterTarget = new TestFilterTarget();
             // apply filter.
             object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
+            Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
+        [TestCase(3, 3, 5, 7, true)]
+        [TestCase(3, 1, 5, 7, false)]
         [Category("ContentFillter")]
-        public void InList()
+        public void InList(object operandFirst1, object operandFirst2, object operandFirst3,  object operandFirst4, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
             LiteralOperand loperand3 = new LiteralOperand();
             LiteralOperand loperand4 = new LiteralOperand();
 
-            loperand1.Value = new Variant(3);
-            loperand2.Value = new Variant(5);
-            loperand3.Value = new Variant(7);
-            loperand4.Value = new Variant(3);
+            loperand1.Value = new Variant(operandFirst1);
+            loperand2.Value = new Variant(operandFirst2);
+            loperand3.Value = new Variant(operandFirst3);
+            loperand4.Value = new Variant(operandFirst4);
 
             ContentFilterElement filterElement = new ContentFilterElement();
             filterElement.FilterOperator = FilterOperator.InList;
@@ -311,112 +153,148 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
             TestFilterTarget filterTarget = new TestFilterTarget();
             // apply filter.
             object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
+            Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
         [Category("ContentFillter")]
-        public void Like()
-        {
-            LiteralOperand loperand1 = new LiteralOperand();
-            LiteralOperand loperand2 = new LiteralOperand();
+        [TestCase(1, FilterOperator.IsNull, false)]
+        [TestCase(false, FilterOperator.Not, true)]
+        [TestCase(true, FilterOperator.Not, false)]
 
-            loperand1.Value = new Variant("mainstation");
-            loperand2.Value = new Variant("main%");
-
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.Like;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
-
-            TestFilterTarget filterTarget = new TestFilterTarget();
-            // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
-        }
-
-        [Test]
-        [Category("ContentFillter")]
-        public void IsNull()
+        public void UnaryFilterOperators(object operandFirst1, FilterOperator filterOp, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
 
-            loperand1.Value = new Variant(1);
+            loperand1.Value = new Variant(operandFirst1);
 
             ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.IsNull;
+            filterElement.FilterOperator = filterOp;
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
-            TestFilterTarget filterTarget = new TestFilterTarget();
             // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(false, result);
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
+            Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
-        [Category("ContentFillter")]
-        public void Cast()
+        [TestCase((ushort)5, (uint)BuiltInType.String, FilterOperator.Cast, true)]
+        [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, false)]
+        [TestCase("mainstation", "main%", FilterOperator.Like, true)]
+        [TestCase("mainstation", "name%", FilterOperator.Like, false)]
+        [TestCase(3, 5, FilterOperator.LessThanOrEqual, true)]
+        [TestCase(3, 3, FilterOperator.LessThanOrEqual, true)]
+        [TestCase(5, 3, FilterOperator.LessThanOrEqual, false)]
+        [TestCase(3, 5, FilterOperator.LessThan, true)]
+        [TestCase(5, 3, FilterOperator.LessThan, false)]
+        [TestCase(7, 5, FilterOperator.GreaterThan, true)]
+        [TestCase(5, 7, FilterOperator.GreaterThan, false)]
+        [TestCase(7, 5, FilterOperator.GreaterThanOrEqual, true)]
+        [TestCase(5, 5, FilterOperator.GreaterThanOrEqual, true)]
+        [TestCase(5, 7, FilterOperator.GreaterThanOrEqual, false)]
+        [TestCase(5, 5, FilterOperator.Equals, true)]
+        [TestCase(5, 7, FilterOperator.Equals, false)]
+        [TestCase(true, false, FilterOperator.Or, true)]
+        [TestCase(false, false, FilterOperator.Or, false)]
+        [TestCase(true, true, FilterOperator.And, true)]
+        [TestCase(true, false, FilterOperator.And, false)]
+
+        public void BinaryFilterOperators(object operandFirst1, object operandFirst2, FilterOperator filterOp, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
 
-            loperand1.Value = new Variant((ushort)5);
-            NodeId uintNoid = new NodeId((uint)BuiltInType.String, 0);
-            loperand2.Value = new Variant(uintNoid);
+            loperand1.Value = new Variant(operandFirst1);
+            if (filterOp == FilterOperator.Cast)
+            {
+                NodeId uintNoid = new NodeId(operandFirst2, 0);
+                loperand2.Value = new Variant(uintNoid);
+            }
+            else
+            {
+                loperand2.Value = new Variant(operandFirst2);
+            }
+            
 
             ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.Cast;
+            filterElement.FilterOperator = filterOp;
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
-            TestFilterTarget filterTarget = new TestFilterTarget();
             // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
+            Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
-        [Category("ContentFillter")]
-        public void BitwiseAnd()
+        [TestCase("invalid", (byte)3, FilterOperator.BitwiseAnd, FilterOperator.IsNull, true)]
+        [TestCase((byte)2, (byte)3, FilterOperator.BitwiseAnd, FilterOperator.IsNull, false)]
+        public void BitwiseOrAndWithUnary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, FilterOperator filterOp2, object expectedResult)
         {
+            // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
+            loperand1.Value = new Variant(operandFirst1);
+            loperand2.Value = new Variant(operandFirst2);
 
-            loperand1.Value = new Variant((byte)2);
-            loperand2.Value = new Variant((byte)3);
+            ContentFilterElement filterElement1 = new ContentFilterElement();
+            filterElement1.FilterOperator = filterOp1;
+            filterElement1.SetOperands(new List<FilterOperand>() { loperand1, loperand2 });
 
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.BitwiseAnd;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
+            // Setup the Second ContentfilterElement
+            ElementOperand elementOperand = new ElementOperand();
+            elementOperand.Index = 1; // link to filterElement1
 
-            TestFilterTarget filterTarget = new TestFilterTarget();
+            ContentFilterElement filterElement2 = new ContentFilterElement();
+            filterElement2.FilterOperator = filterOp2;
+            filterElement2.SetOperands(new List<FilterOperand>() { elementOperand });
+
+            Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
+
             // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
+            Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
+        [TestCase((byte)2, (byte)3, FilterOperator.BitwiseOr, (byte)3, FilterOperator.Equals, true)]
+        [TestCase((byte)2, (byte)3, FilterOperator.BitwiseOr, (byte)2, FilterOperator.Equals, false)]
+        [TestCase((byte)2, (byte)3, FilterOperator.BitwiseAnd, (byte)2, FilterOperator.Equals, true)]
+        [TestCase((byte)2, (byte)3, FilterOperator.BitwiseAnd, (byte)3, FilterOperator.Equals, false)]
+        [TestCase("invalid", (byte)3, FilterOperator.BitwiseOr, null, FilterOperator.Equals, true)]
+        [TestCase("invalid", (byte)3, FilterOperator.BitwiseAnd, null, FilterOperator.Equals, true)]
         [Category("ContentFillter")]
-        public void BitwiseOr()
+        public void BitwiseOrAndWithBinary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, object operandSecondFilter, FilterOperator filterOp2, object expectedResult)
         {
+            // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
+            loperand1.Value = new Variant(operandFirst1);
+            loperand2.Value = new Variant(operandFirst2);
 
-            loperand1.Value = new Variant((byte)2);
-            loperand2.Value = new Variant((byte)3);
+            ContentFilterElement filterElement1 = new ContentFilterElement();
+            filterElement1.FilterOperator = filterOp1;
+            filterElement1.SetOperands(new List<FilterOperand>() { loperand1, loperand2 });
 
-            ContentFilterElement filterElement = new ContentFilterElement();
-            filterElement.FilterOperator = FilterOperator.BitwiseOr;
-            filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
-            Filter.WhereClause.Elements = new[] { filterElement };
+            // Setup the Second ContentfilterElement
+            LiteralOperand lFirstOperand = new LiteralOperand();
+            lFirstOperand.Value = new Variant(operandSecondFilter);
+            ElementOperand elementOperand = new ElementOperand();
+            elementOperand.Index = 1; // link to filterElement1
 
-            TestFilterTarget filterTarget = new TestFilterTarget();
+            ContentFilterElement filterElement2 = new ContentFilterElement();
+            filterElement2.FilterOperator = filterOp2;
+            filterElement2.SetOperands(new List<FilterOperand>() { lFirstOperand, elementOperand });
+
+            Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
+            
             // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
-            Assert.AreEqual(true, result);
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
+            Assert.AreEqual(expectedResult, result);
         }
+
+
         #endregion
     }
 }

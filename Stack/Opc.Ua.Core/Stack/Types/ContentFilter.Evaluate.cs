@@ -2178,35 +2178,35 @@ namespace Opc.Ua
             Type systemType = lhs.GetType();
             if (systemType == typeof(byte))
             {
-                return ((byte)lhs & (byte)rhs) != 0;
+                return ((byte)lhs & (byte)rhs);
             }
             if (systemType == typeof(sbyte))
             {
-                return ((sbyte)lhs & (sbyte)rhs) != 0;
+                return ((sbyte)lhs & (sbyte)rhs);
             }
             if (systemType == typeof(short))
             {
-                return ((short)lhs & (short)rhs) != 0;
+                return ((short)lhs & (short)rhs);
             }
             if (systemType == typeof(ushort))
             {
-                return ((ushort)lhs & (ushort)rhs) != 0;
+                return ((ushort)lhs & (ushort)rhs);
             }
             if (systemType == typeof(int))
             {
-                return ((int)lhs & (int)rhs) != 0;
+                return ((int)lhs & (int)rhs);
             }
             if (systemType == typeof(uint))
             {
-                return ((uint)lhs & (uint)rhs) != 0;
+                return ((uint)lhs & (uint)rhs);
             }
             if (systemType == typeof(long))
             {
-                return ((long)lhs & (long)rhs) != 0;
+                return ((long)lhs & (long)rhs);
             }
             if (systemType == typeof(ulong))
             {
-                return ((ulong)lhs & (ulong)rhs) != 0;
+                return ((ulong)lhs & (ulong)rhs);
             }
             return null;
         }
@@ -2225,35 +2225,35 @@ namespace Opc.Ua
             Type systemType = lhs.GetType();
             if (systemType == typeof(byte))
             {
-                return ((byte)lhs | (byte)rhs) != 0;
+                return ((byte)lhs | (byte)rhs);
             }
             if (systemType == typeof(sbyte))
             {
-                return ((sbyte)lhs | (sbyte)rhs) != 0;
+                return ((sbyte)lhs | (sbyte)rhs);
             }
             if (systemType == typeof(short))
             {
-                return ((short)lhs | (short)rhs) != 0;
+                return ((short)lhs | (short)rhs);
             }
             if (systemType == typeof(ushort))
             {
-                return ((ushort)lhs | (ushort)rhs) != 0;
+                return ((ushort)lhs | (ushort)rhs);
             }
             if (systemType == typeof(int))
             {
-                return ((int)lhs | (int)rhs) != 0;
+                return ((int)lhs | (int)rhs);
             }
             if (systemType == typeof(uint))
             {
-                return ((uint)lhs | (uint)rhs) != 0;
+                return ((uint)lhs | (uint)rhs);
             }
             if (systemType == typeof(long))
             {
-                return ((long)lhs | (long)rhs) != 0;
+                return ((long)lhs | (long)rhs);
             }
             if (systemType == typeof(ulong))
             {
-                return ((ulong)lhs | (ulong)rhs) != 0;
+                return ((ulong)lhs | (ulong)rhs);
             }
             return null;
         }
