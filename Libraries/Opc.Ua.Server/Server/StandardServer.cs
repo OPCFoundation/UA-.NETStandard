@@ -2380,6 +2380,8 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
+                LogInfo(TraceMasks.StartStop, "Server - Enter {0} state.", state.ToString());
+
                 m_serverInternal.CurrentState = state;
             }
         }
@@ -2751,6 +2753,8 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - Start application {0}.", configuration.ApplicationName);
+
                     // create the datastore for the instance.
                     m_serverInternal = new ServerInternalData(
                         ServerProperties,
@@ -2760,15 +2764,15 @@ namespace Opc.Ua.Server
                         InstanceCertificate);
 
                     // create the manager responsible for providing localized string resources.                    
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);
 
                     // create the manager responsible for incoming requests.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateRequestManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateRequestManager.");
                     RequestManager requestManager = CreateRequestManager(m_serverInternal, configuration);
 
                     // create the master node manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
                     MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
 
                     // add the node manager to the datastore. 
@@ -2778,7 +2782,7 @@ namespace Opc.Ua.Server
                     masterNodeManager.Startup();
 
                     // create the manager responsible for handling events.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateEventManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                     // creates the server object. 
@@ -2791,16 +2795,16 @@ namespace Opc.Ua.Server
                     OnNodeManagerStarted(m_serverInternal);
 
                     // create the manager responsible for aggregates.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager.");
                     m_serverInternal.AggregateManager = CreateAggregateManager(m_serverInternal, configuration);
 
                     // start the session manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
 
                     // start the subscription manager.
-                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager");
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
 
@@ -2817,7 +2821,6 @@ namespace Opc.Ua.Server
                         ApplicationDescription serverDescription = ServerDescription;
 
                         m_registrationInfo = new RegisteredServer();
-
                         m_registrationInfo.ServerUri = serverDescription.ApplicationUri;
                         m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
                         m_registrationInfo.ProductUri = serverDescription.ProductUri;
@@ -2870,6 +2873,7 @@ namespace Opc.Ua.Server
 
                         if (m_maxRegistrationInterval > 0)
                         {
+                            Utils.LogInfo(TraceMasks.StartStop, "Server - Registration Timer started.");
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_minRegistrationInterval, Timeout.Infinite);
                         }
                     }
@@ -2878,11 +2882,13 @@ namespace Opc.Ua.Server
                     SetServerState(ServerState.Running);
 
                     // all initialization is complete.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - Started.");
                     OnServerStarted(m_serverInternal);
 
                     // monitor the configuration file.
                     if (!String.IsNullOrEmpty(configuration.SourceFilePath))
                     {
+                        Utils.LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
                         m_configurationWatcher.Changed += this.OnConfigurationChanged;
                     }

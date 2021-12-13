@@ -877,13 +877,12 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
                 {
-                    Utils.LogWarning("ChannelId={0}: Server Revoked TokenId={1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
+                    Utils.LogWarning("ChannelId={0} Server Revoked TokenId={1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
                     PreviousToken.Lifetime = 0;
                 }
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not verify security on incoming request.");
                 ForceChannelFault(e, StatusCodes.BadSecurityChecksFailed, "Could not verify security on incoming request.");
                 return false;
             }

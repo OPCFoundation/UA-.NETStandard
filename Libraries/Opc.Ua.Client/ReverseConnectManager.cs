@@ -650,7 +650,7 @@ namespace Opc.Ua.Client
 
             Utils.LogInfo("{0} reverse connection: {1} {2} after {3}ms",
                 e.Accepted ? "Accepted" : "Rejected",
-                e.ServerUri, e.EndpointUrl, (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                e.ServerUri, e.EndpointUrl, (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds);
         }
 
         /// <summary>

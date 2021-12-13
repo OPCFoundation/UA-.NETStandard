@@ -1111,7 +1111,7 @@ namespace Opc.Ua.Client
 
                 if (identityPolicy == null)
                 {
-                    Utils.LogError("Endpoint does not support the user identity type provided.");
+                    Utils.LogError("Reconnect: Endpoint does not support the user identity type provided.");
 
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,

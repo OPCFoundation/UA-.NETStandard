@@ -83,18 +83,22 @@ namespace Opc.Ua
         private const int MonitoredItemReadyId = SessionStateId + 1;
 
         /// <summary>
-        /// The client messages used in event messages.
+        /// The core messages.
         /// </summary>
         private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
+
+        /// <summary>
+        /// The client messages used in event messages.
+        /// </summary>
         private const string SubscriptionStateMessage = "Subscription {0}, Id={0}, LastNotificationTime={0:HH:mm:ss}, GoodPublishRequestCount={0}, PublishingInterval={0}, KeepAliveCount={0}, PublishingEnabled={0}, MonitoredItemCount={0}";
 
         /// <summary>
         /// The server messages used in event messages.
         /// </summary>
         private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
-        private const string ServerCallMessage = "Server Call={0}";
+        private const string ServerCallMessage = "Server Call={0}, Id={1}";
         private const string SessionStateMessage = "Session {0}, Id={1}, Name={2}, ChannelId={3}, User={4}";
         private const string MonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
 
@@ -143,6 +147,10 @@ namespace Opc.Ua
             /// Service
             /// </summary>
             public const EventKeywords Session = (EventKeywords)32;
+            /// <summary>
+            /// Service
+            /// </summary>
+            public const EventKeywords Subscription = (EventKeywords)64;
         }
 
         /// <inheritdoc/>
@@ -321,7 +329,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Log anexception with just a message.
+        /// Log an exception with just a message.
         /// </summary>
         /// <param name="message"></param>
         [Event(ExceptionId, Message = null, Level = EventLevel.Error, Keywords = Keywords.Exception)]
@@ -461,6 +469,7 @@ namespace Opc.Ua
         /// A service fault message.
         /// </summary>
         [Event(ServiceFaultId, Message = ServiceFaultMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
+        // TODO: not used
         public void ServiceFault(uint statusCode)
         {
             if (IsEnabled())
@@ -485,10 +494,9 @@ namespace Opc.Ua
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServerCallEventId, ServerCallMessage, false, requestType, requestId);
+                Utils.LogTrace(ServerCallEventId, ServerCallMessage, requestType, requestId);
             }
         }
-
 
         /// <summary>
         /// The state of the session.

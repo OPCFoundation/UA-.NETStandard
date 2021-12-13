@@ -321,7 +321,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        Utils.LogWarning("Continuation point exists, but the browse results are null/empty.");
+                        Utils.LogWarning("Browser: Continuation point exists, but the browse results are null/empty.");
                         break;
                     }
                 }

@@ -673,7 +673,7 @@ namespace MemoryBuffer
 
             if (delta1 > 100)
             {
-                Utils.LogInfo("****** PUBLISH DELAY ({0}ms) ******", delta1);
+                Utils.LogInfo("{0} ****** PUBLISH DELAY ({1}ms) ******", nameof(MemoryBufferState), delta1);
             }
         }
         #endregion

@@ -808,7 +808,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context, params object[] args)
         {
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            if (!Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }

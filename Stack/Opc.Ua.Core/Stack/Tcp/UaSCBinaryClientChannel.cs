@@ -240,7 +240,7 @@ namespace Opc.Ua.Bindings
 
                         default:
                         {
-                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel.", ChannelId);
+                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={0}", ChannelId, e.Result.StatusCode);
                             break;
                         }
                     }

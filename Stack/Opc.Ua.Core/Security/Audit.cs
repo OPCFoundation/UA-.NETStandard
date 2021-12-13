@@ -64,7 +64,7 @@ namespace Opc.Ua.Security
 
                 Utils.LogInfo("SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2} [{3}/{4}/{5}]",
                     implementationInfo, secureChannelId, endpointUrl,
-                    endpoint.SecurityMode, SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri), encoding);
+                    endpoint.SecurityMode.ToString(), SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri), encoding);
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
