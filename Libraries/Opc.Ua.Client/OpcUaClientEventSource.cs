@@ -31,7 +31,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Event source for high performance logging.
     /// </summary>
-    [EventSource(Name = "OPC-UA-Client")]
+    [EventSource(Name = "OPC-UA-Client", Guid="8CFA469E-18C6-480F-9B74-B005DACDE3D3")]
     public class OpcUaClientEventSource : EventSource
     {
         private const int SubscriptionStateId = 1;
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client
             if (IsEnabled())
             {
                 WriteEvent(SubscriptionStateId, context, id, lastNotificationTime, goodPublishRequestCount,
-                    (int)currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
+                    currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Information))
             {

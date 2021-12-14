@@ -59,6 +59,7 @@ namespace Quickstarts.ConsoleReferenceClient
             bool showHelp = false;
             bool autoAccept = false;
             bool logConsole = false;
+            bool appLog = false;
             bool renewCertificate = false;
             string password = null;
             int timeout = Timeout.Infinite;
@@ -67,7 +68,8 @@ namespace Quickstarts.ConsoleReferenceClient
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "c|console", "log trace to console", c => logConsole = c != null },
+                { "c|console", "log to console", c => logConsole = c != null },
+                { "l|log", "log app output", c => appLog = c != null },
                 { "p|password=", "optional password for private key", (string p) => password = p },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
@@ -85,8 +87,8 @@ namespace Quickstarts.ConsoleReferenceClient
                     serverUrl = new Uri(extraArg);
                 }
 
-                // use ILogger as output
-                if (logConsole)
+                // log console output to logger
+                if (logConsole && appLog)
                 {
                     output = new LogWriter();
                 }

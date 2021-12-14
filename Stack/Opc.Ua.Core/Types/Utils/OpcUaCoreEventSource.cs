@@ -57,8 +57,8 @@ namespace Opc.Ua
     /// <summary>
     /// Event source for high performance logging.
     /// </summary>
-    [EventSource(Name = "OPC-UA-Core")]
-    internal class OpcUaCoreEventSource : EventSource, IOpcUaEventSource
+    [EventSource(Name = "OPC-UA-Core", Guid = "AC8BB021-ADD5-4D14-BB94-1E55D98AA080")]
+    public sealed class OpcUaCoreEventSource : EventSource, IOpcUaEventSource
     {
         private const int TraceId = 1;
         private const int DebugId = TraceId + 1;
@@ -67,8 +67,7 @@ namespace Opc.Ua
         private const int ErrorId = WarningId + 1;
         private const int CriticalId = ErrorId + 1;
         private const int ExceptionId = CriticalId + 1;
-        private const int SecurityId = ExceptionId + 1;
-        private const int ServiceResultExceptionId = SecurityId + 1;
+        private const int ServiceResultExceptionId = ExceptionId + 1;
 
         /// <summary>
         /// The core event ids.
@@ -83,6 +82,8 @@ namespace Opc.Ua
         /// <summary>
         /// The core messages.
         /// </summary>
+        private const string ExceptionMessage = "Exception: {0}";
+        private const string ServiceResultExceptionMessage = "ServiceResultException: {0} {1}";
         private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
@@ -99,42 +100,18 @@ namespace Opc.Ua
         private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Service, nameof(ServiceFault));
 
         /// <summary>
-        /// The keywords used for this event source.
+        /// 
         /// </summary>
-        public static class Keywords
+        public static class Tasks
         {
             /// <summary>
-            /// Trace
+            /// 
             /// </summary>
-            public const EventKeywords Trace = (EventKeywords)1;
-            /// <summary>
-            /// Diagnostic
-            /// </summary>
-            public const EventKeywords Diagnostic = (EventKeywords)2;
-            /// <summary>
-            /// Error
-            /// </summary>
-            public const EventKeywords Exception = (EventKeywords)4;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Service = (EventKeywords)8;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Security = (EventKeywords)16;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Session = (EventKeywords)32;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Subscription = (EventKeywords)64;
+            public const EventTask ServiceCallTask = (EventTask)1;
         }
 
         /// <inheritdoc/>
-        [Event(CriticalId, Message = null, Level = EventLevel.Critical, Keywords = Keywords.Trace)]
+        [Event(CriticalId, Message = null, Level = EventLevel.Critical)]
         public void Critical(string message)
         {
             if (IsEnabled())
@@ -144,7 +121,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(ErrorId, Message = null, Level = EventLevel.Error, Keywords = Keywords.Trace)]
+        [Event(ErrorId, Message = null, Level = EventLevel.Error)]
         public void Error(string message)
         {
             if (IsEnabled())
@@ -154,7 +131,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(WarningId, Message = null, Level = EventLevel.Warning, Keywords = Keywords.Trace)]
+        [Event(WarningId, Message = null, Level = EventLevel.Warning)]
         public void Warning(string message)
         {
             if (IsEnabled())
@@ -164,7 +141,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(TraceId, Message = null, Level = EventLevel.Verbose, Keywords = Keywords.Trace)]
+        [Event(TraceId, Message = null, Level = EventLevel.Verbose)]
         public void Trace(string message)
         {
             if (IsEnabled())
@@ -174,7 +151,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(InfoId, Message = null, Level = EventLevel.Informational, Keywords = Keywords.Trace)]
+        [Event(InfoId, Message = null, Level = EventLevel.Informational)]
         public void Info(string message)
         {
             if (IsEnabled())
@@ -184,7 +161,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(DebugId, Message = null, Level = EventLevel.Verbose, Keywords = Keywords.Trace)]
+        [Event(DebugId, Message = null, Level = EventLevel.Verbose)]
         public void Debug(string message)
         {
 #if DEBUG
@@ -312,10 +289,19 @@ namespace Opc.Ua
         /// Log an exception with just a message.
         /// </summary>
         /// <param name="message">The exception message.</param>
-        [Event(ExceptionId, Message = "Exception: {0}", Level = EventLevel.Error, Keywords = Keywords.Exception)]
+        [Event(ExceptionId, Message = ExceptionMessage, Level = EventLevel.Error)]
         public void Exception(string message)
         {
             WriteEvent(ExceptionId, message);
+        }
+
+        /// <summary>
+        /// A service result exception message.
+        /// </summary>
+        [Event(ServiceResultExceptionId, Message = ServiceResultExceptionMessage, Level = EventLevel.Error)]
+        public void ServiceResultException(int statusCode, string message)
+        {
+            WriteEvent(ServiceResultExceptionId, statusCode, message);
         }
 
         /// <summary>
@@ -340,15 +326,6 @@ namespace Opc.Ua
             {
                 Utils.LogError(ex, format, args);
             }
-        }
-
-        /// <summary>
-        /// A service result exception message.
-        /// </summary>
-        [Event(ServiceResultExceptionId, Message = "ServiceResultException: {0} {1}", Level = EventLevel.Error, Keywords = Keywords.Trace)]
-        public void ServiceResultException(int statusCode, string message)
-        {
-            WriteEvent(ServiceResultExceptionId, statusCode, message);
         }
 
         /// <summary>
@@ -383,14 +360,17 @@ namespace Opc.Ua
                     case LogLevel.Critical: Critical(message); break;
                 }
             }
-            switch (logLevel)
+            else
             {
-                case LogLevel.Trace: Trace(message, args); break;
-                case LogLevel.Debug: Debug(message, args); break;
-                case LogLevel.Information: Info(message, args); break;
-                case LogLevel.Warning: Warning(message, args); break;
-                case LogLevel.Error: Error(message, args); break;
-                case LogLevel.Critical: Critical(message, args); break;
+                switch (logLevel)
+                {
+                    case LogLevel.Trace: Trace(message, args); break;
+                    case LogLevel.Debug: Debug(message, args); break;
+                    case LogLevel.Information: Info(message, args); break;
+                    case LogLevel.Warning: Warning(message, args); break;
+                    case LogLevel.Error: Error(message, args); break;
+                    case LogLevel.Critical: Critical(message, args); break;
+                }
             }
         }
 
@@ -399,7 +379,7 @@ namespace Opc.Ua
         /// <summary>
         /// A server service call message.
         /// </summary>
-        [Event(ServiceCallId, Message = ServiceCallMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
+        [Event(ServiceCallId, Message = ServiceCallMessage, Level = EventLevel.Informational, Task = Tasks.ServiceCallTask)]
         public void ServiceCall(string serviceName, uint requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -415,7 +395,7 @@ namespace Opc.Ua
         /// <summary>
         /// The server service completed message.
         /// </summary>
-        [Event(ServiceCompletedId, Message = ServiceCompletedMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
+        [Event(ServiceCompletedId, Message = ServiceCompletedMessage, Level = EventLevel.Informational, Task = Tasks.ServiceCallTask)]
         public void ServiceCompleted(string serviceName, uint requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -431,7 +411,7 @@ namespace Opc.Ua
         /// <summary>
         /// A service message completed with a bad status code.
         /// </summary>
-        [Event(ServiceCompletedBadId, Message = ServiceCompletedBadMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
+        [Event(ServiceCompletedBadId, Message = ServiceCompletedBadMessage, Level = EventLevel.Error, Task = Tasks.ServiceCallTask)]
         public void ServiceCompletedBad(string serviceName, uint requestHandle, uint statusCode, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -447,7 +427,7 @@ namespace Opc.Ua
         /// <summary>
         /// A service fault message.
         /// </summary>
-        [Event(ServiceFaultId, Message = ServiceFaultMessage, Level = EventLevel.Error, Keywords = Keywords.Service)]
+        [Event(ServiceFaultId, Message = ServiceFaultMessage, Level = EventLevel.Error)]
         public void ServiceFault(uint statusCode)
         {
             if (IsEnabled())
@@ -463,7 +443,7 @@ namespace Opc.Ua
         /// <summary>
         /// The send response.
         /// </summary>
-        [Event(SendResponseId, Message = SendResponseMessage, Level = EventLevel.Verbose, Keywords = Keywords.Service)]
+        [Event(SendResponseId, Message = SendResponseMessage, Level = EventLevel.Verbose)]
         public void SendResponse(uint channelId, uint requestId)
         {
             if (IsEnabled())
@@ -475,6 +455,5 @@ namespace Opc.Ua
                 Utils.LogTrace(SendResponseEventId, SendResponseMessage, channelId, requestId);
             }
         }
-
     }
 }

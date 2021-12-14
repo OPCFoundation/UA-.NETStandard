@@ -53,6 +53,7 @@ namespace Quickstarts.ReferenceServer
             bool showHelp = false;
             bool autoAccept = false;
             bool logConsole = false;
+            bool appLog = false;
             bool renewCertificate = false;
             string password = null;
             int timeout = -1;
@@ -62,7 +63,8 @@ namespace Quickstarts.ReferenceServer
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
-                { "c|console", "log trace to console", c => logConsole = c != null },
+                { "c|console", "log to console", c => logConsole = c != null },
+                { "l|log", "log app output", c => appLog = c != null },
                 { "p|password=", "optional password for private key", (string p) => password = p },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
@@ -73,7 +75,7 @@ namespace Quickstarts.ReferenceServer
                 // parse command line and set options
                 ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp);
 
-                if (logConsole)
+                if (logConsole && appLog)
                 {
                     output = new LogWriter();
                 }
@@ -103,7 +105,7 @@ namespace Quickstarts.ReferenceServer
 
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();
-                quitEvent.WaitOne(timeout);
+                bool ctrlc = quitEvent.WaitOne(timeout);
 
                 // stop server. May have to wait for clients to disconnect.
                 output.WriteLine("Server stopped. Waiting for exit...");

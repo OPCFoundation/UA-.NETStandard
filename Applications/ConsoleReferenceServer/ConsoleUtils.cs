@@ -60,13 +60,13 @@ namespace Quickstarts
         public override void WriteLine(char value)
         {
             m_builder.Append(value);
-            LogInfo(m_builder.ToString());
+            LogInfo("{0}", m_builder.ToString());
             m_builder.Clear();
         }
 
         public override void WriteLine()
         {
-            LogInfo(m_builder.ToString());
+            LogInfo("{0}", m_builder.ToString());
             m_builder.Clear();
         }
 
@@ -99,7 +99,7 @@ namespace Quickstarts
         public override void WriteLine(string value)
         {
             m_builder.Append(value);
-            LogInfo(m_builder.ToString());
+            LogInfo("{0}", m_builder.ToString());
             m_builder.Clear();
         }
 

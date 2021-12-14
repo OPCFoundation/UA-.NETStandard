@@ -2234,7 +2234,7 @@ namespace Opc.Ua.Server
                 switch (id)
                 {
                     case TraceStateId.Deleted:
-                        buffer.AppendFormat(", SessionId={0}", m_session.Id)
+                        buffer.AppendFormat(", SessionId={0}", m_session?.Id)
                             .AppendFormat(", Id={0}", m_id)
                             .AppendFormat(", SeqNo={0}", m_sequenceNumber)
                             .AppendFormat(", MessageCount={0}", m_sentMessages.Count);

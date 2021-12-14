@@ -30,8 +30,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Event source for high performance logging.
     /// </summary>
-    [EventSource(Name = "OPC-UA-Server")]
-    internal class OpcUaServerEventSource : EventSource
+    [EventSource(Name = "OPC-UA-Server", Guid = "86FF2AAB-8FF6-46CB-8CE3-E0211950B30C")]
+    public sealed class OpcUaServerEventSource : EventSource
     {
         // client event ids
         private const int SendResponseId = 1;
@@ -55,45 +55,11 @@ namespace Opc.Ua.Server
         private readonly EventId SessionStateMessageEventId = new EventId(TraceMasks.Information, nameof(SessionState));
         private readonly EventId MonitoredItemReadyEventId = new EventId(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
 
-        /// <summary>
-        /// The keywords used for this event source.
-        /// </summary>
-        public static class Keywords
-        {
-            /// <summary>
-            /// Trace
-            /// </summary>
-            public const EventKeywords Trace = (EventKeywords)1;
-            /// <summary>
-            /// Diagnostic
-            /// </summary>
-            public const EventKeywords Diagnostic = (EventKeywords)2;
-            /// <summary>
-            /// Error
-            /// </summary>
-            public const EventKeywords Exception = (EventKeywords)4;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Service = (EventKeywords)8;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Security = (EventKeywords)16;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Session = (EventKeywords)32;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Subscription = (EventKeywords)64;
-        }
 
         /// <summary>
         /// The send response.
         /// </summary>
-        [Event(SendResponseId, Message = SendResponseMessage, Level = EventLevel.Verbose, Keywords = Keywords.Service)]
+        [Event(SendResponseId, Message = SendResponseMessage, Level = EventLevel.Verbose)]
         public void SendResponse(uint channelId, uint requestId)
         {
             if (IsEnabled())
@@ -110,7 +76,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A server call message.
         /// </summary>
-        [Event(ServerCallId, Message = ServerCallMessage, Level = EventLevel.Informational, Keywords = Keywords.Service)]
+        [Event(ServerCallId, Message = ServerCallMessage, Level = EventLevel.Informational)]
         public void ServerCall(string requestType, uint requestId)
         {
             if (IsEnabled())
@@ -127,7 +93,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The state of the session.
         /// </summary>
-        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Informational, Keywords = Keywords.Session)]
+        [Event(SessionStateId, Message = SessionStateMessage, Level = EventLevel.Informational)]
         public void SessionState(string context, string sessionId, string sessionName, string secureChannelId, string identity)
         {
             if (IsEnabled())
@@ -143,7 +109,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The state of the server session.
         /// </summary>
-        [Event(MonitoredItemReadyId, Message = MonitoredItemReadyMessage, Level = EventLevel.Verbose, Keywords = Keywords.Session)]
+        [Event(MonitoredItemReadyId, Message = MonitoredItemReadyMessage, Level = EventLevel.Verbose)]
         public void MonitoredItemReady(uint id, string state)
         {
             if ((TraceMask & TraceMasks.OperationDetail) != 0)
