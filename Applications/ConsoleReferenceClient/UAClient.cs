@@ -397,7 +397,7 @@ namespace Quickstarts
                 subscription.Create();
                 m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
-                // Create MonitoredItems for data changes
+                // Create MonitoredItems for data changes (Reference Server)
 
                 MonitoredItem intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
@@ -481,12 +481,12 @@ namespace Quickstarts
 
             if (certificateAccepted)
             {
-                m_output.WriteLine("Untrusted Certificate accepted. SubjectName = {0}", e.Certificate.SubjectName.Name);
+                m_output.WriteLine("Untrusted Certificate accepted. Subject = {0}", e.Certificate.Subject);
                 e.Accept = true;
             }
             else
             {
-                m_output.WriteLine("Untrusted Certificate rejected. SubjectName = {0}", e.Certificate.SubjectName.Name);
+                m_output.WriteLine("Untrusted Certificate rejected. Subject = {0}", e.Certificate.Subject);
             }
         }
         #endregion

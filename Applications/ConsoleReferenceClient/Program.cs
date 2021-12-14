@@ -104,6 +104,10 @@ namespace Quickstarts.ConsoleReferenceClient
                 // load the application configuration.
                 var config = await application.LoadApplicationConfiguration(silent: false);
 
+                // setup the logging
+                ConsoleUtils.ConfigureLogging(config, applicationName, logConsole, LogLevel.Information);
+
+                // delete old certificate
                 if (renewCertificate)
                 {
                     await application.DeleteApplicationInstanceCertificate().ConfigureAwait(false);
@@ -115,9 +119,6 @@ namespace Quickstarts.ConsoleReferenceClient
                 {
                     throw new Exception("Application instance certificate invalid!");
                 }
-
-                // setup the logging
-                ConsoleUtils.ConfigureLogging(config, applicationName, logConsole, LogLevel.Information);
 
                 // wait for timeout or Ctrl-C
                 var quitEvent = ConsoleUtils.CtrlCHandler();

@@ -549,7 +549,7 @@ namespace Opc.Ua
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
+            message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)

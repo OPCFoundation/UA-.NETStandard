@@ -33,7 +33,8 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
+                // TODO: remove
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
             }
         }
 
@@ -46,7 +47,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1}", m_status, message);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1}", m_status, message);
             }
         }
 
@@ -59,7 +60,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, e.Message);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, e.Message);
             }
         }
 
@@ -72,7 +73,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, message);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, message);
             }
         }
 
@@ -85,7 +86,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
             }
         }
 
@@ -98,7 +99,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
             }
         }
 
@@ -111,7 +112,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, e.Message);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} was: {1} {2}", m_status, e.GetType().Name, e.Message);
             }
         }
 
@@ -124,7 +125,7 @@ namespace Opc.Ua
 
             if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, message);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} was: {1} {2}", m_status, e.GetType().Name, e.Message);
             }
         }
 
@@ -146,7 +147,7 @@ namespace Opc.Ua
             if (((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0) &&
                 (status == null || (status.Code != StatusCodes.BadSecureChannelClosed)))
             {
-                Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
+                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
             }
         }
         #endregion

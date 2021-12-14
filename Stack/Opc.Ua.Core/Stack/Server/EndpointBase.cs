@@ -388,9 +388,7 @@ namespace Opc.Ua
             if (sre != null)
             {
                 result = new ServiceResult(sre);
-                //TODO one error only
-                //Utils.EventLog.ServiceFault(result.Code);
-                Utils.LogError("Service Fault Occured. Reason={0}", result.StatusCode);
+                Utils.LogWarning("SERVER - Service Fault Occured. Reason={0}", result.StatusCode);
             }
             else
             {

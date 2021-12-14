@@ -75,7 +75,7 @@ namespace Opc.Ua.Bindings
         protected void SetRenewedToken(ChannelToken token)
         {
             m_renewedToken = token;
-            Utils.LogInfo("ChannelId {0}: RenewedToken #{1} set. CreatedAt={2:HH:mm:ss.fff}. Lifetime ={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
+            Utils.LogInfo("ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}. Lifetime ={3}.", Id, token.TokenId, token.CreatedAt, token.Lifetime);
         }
 
         /// <summary>

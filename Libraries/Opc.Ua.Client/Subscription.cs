@@ -1534,7 +1534,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void TraceState(string context)
         {
-            Utils.EventLog.SubscriptionState(context, m_id, m_lastNotificationTime, m_session?.GoodPublishRequestCount ?? 0,
+            CoreClientUtils.EventLog.SubscriptionState(context, m_id, m_lastNotificationTime, m_session?.GoodPublishRequestCount ?? 0,
                 m_currentPublishingInterval, m_currentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
         }
 
@@ -1596,17 +1596,20 @@ namespace Opc.Ua.Client
 
             if (m_keepAliveCount != revisedKeepAliveCount)
             {
-                Utils.LogInfo("For subscription {0}, Keep alive count was revised from {1} to {2}", Id, m_keepAliveCount, revisedKeepAliveCount);
+                Utils.LogInfo("For subscription {0}, Keep alive count was revised from {1} to {2}",
+                    Id, m_keepAliveCount, revisedKeepAliveCount);
             }
 
             if (m_lifetimeCount != revisedLifetimeCounter)
             {
-                Utils.LogInfo("For subscription {0}, Lifetime count was revised from {1} to {2}", Id, m_lifetimeCount, revisedLifetimeCounter);
+                Utils.LogInfo("For subscription {0}, Lifetime count was revised from {1} to {2}",
+                    Id, m_lifetimeCount, revisedLifetimeCounter);
             }
 
             if (m_publishingInterval != revisedPublishingInterval)
             {
-                Utils.LogInfo("For subscription {0}, Publishing interval was revised from {1} to {2}", Id, m_publishingInterval, revisedPublishingInterval);
+                Utils.LogInfo("For subscription {0}, Publishing interval was revised from {1} to {2}",
+                    Id, m_publishingInterval, revisedPublishingInterval);
             }
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
@@ -1656,7 +1659,8 @@ namespace Opc.Ua.Client
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                Utils.LogInfo("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}. ", keepAliveCount, kDefaultKeepAlive, Id);
+                Utils.LogInfo("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}.",
+                    keepAliveCount, kDefaultKeepAlive, Id);
                 keepAliveCount = kDefaultKeepAlive;
             }
 
@@ -1674,14 +1678,16 @@ namespace Opc.Ua.Client
                         lifetimeCount++;
                     }
 
-                    Utils.LogInfo("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
+                    Utils.LogInfo("Adjusted LifetimeCount to value={0}, for subscription {1}. ",
+                        lifetimeCount, Id);
                 }
             }
             else if (lifetimeCount == 0)
             {
                 // don't know what the sampling interval will be - use something large enough
                 // to ensure the user does not experience unexpected drop outs.
-                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, kDefaultLifeTime, Id);
+                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
+                    lifetimeCount, kDefaultLifeTime, Id);
                 lifetimeCount = kDefaultLifeTime;
             }
 
@@ -1689,7 +1695,8 @@ namespace Opc.Ua.Client
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ", lifetimeCount, minLifeTimeCount, Id);
+                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
+                    lifetimeCount, minLifeTimeCount, Id);
                 lifetimeCount = minLifeTimeCount;
             }
         }

@@ -29,14 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading;
-using System.Security.Principal;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
-{    
+{
     /// <summary>
     /// An object which periodically reads the items and updates the cache.
     /// </summary>
@@ -47,38 +45,38 @@ namespace Opc.Ua.Server
         /// Creates a new instance of a sampling group.
         /// </summary>
         public SamplingGroup(
-            IServerInternal         server,
-            INodeManager            nodeManager,
+            IServerInternal server,
+            INodeManager nodeManager,
             List<SamplingRateGroup> samplingRates,
-            OperationContext        context,
-            double                  samplingInterval)
+            OperationContext context,
+            double samplingInterval)
         {
-            if (server == null)        throw new ArgumentNullException(nameof(server));
-            if (nodeManager == null)   throw new ArgumentNullException(nameof(nodeManager));
+            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
             if (samplingRates == null) throw new ArgumentNullException(nameof(samplingRates));
 
-            m_server           = server;
-            m_nodeManager      = nodeManager;
-            m_samplingRates    = samplingRates;
-            m_session          = context.Session;
-            m_diagnosticsMask  = (DiagnosticsMasks)context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
+            m_server = server;
+            m_nodeManager = nodeManager;
+            m_samplingRates = samplingRates;
+            m_session = context.Session;
+            m_diagnosticsMask = (DiagnosticsMasks)context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);
 
-            m_itemsToAdd    = new List<ISampledDataChangeMonitoredItem>();
+            m_itemsToAdd = new List<ISampledDataChangeMonitoredItem>();
             m_itemsToRemove = new List<ISampledDataChangeMonitoredItem>();
-            m_items         = new Dictionary<uint, ISampledDataChangeMonitoredItem>();
+            m_items = new Dictionary<uint, ISampledDataChangeMonitoredItem>();
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
         }
         #endregion
-        
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -86,7 +84,7 @@ namespace Opc.Ua.Server
         /// An overrideable version of the Dispose.
         /// </summary>
         protected virtual void Dispose(bool disposing)
-        {  
+        {
             if (disposing)
             {
                 lock (m_lock)
@@ -149,7 +147,7 @@ namespace Opc.Ua.Server
                 return false;
             }
         }
-        
+
         /// <summary>
         /// Checks if the monitored item can still be handled by the group.
         /// </summary>
@@ -170,7 +168,7 @@ namespace Opc.Ua.Server
                         monitoredItem.SetSamplingInterval(m_samplingInterval);
                         return true;
                     }
-                        
+
                     m_itemsToRemove.Add(monitoredItem);
                 }
 
@@ -193,7 +191,7 @@ namespace Opc.Ua.Server
                     m_itemsToRemove.Add(monitoredItem);
                     return true;
                 }
-                    
+
                 return false;
             }
         }
@@ -218,7 +216,7 @@ namespace Opc.Ua.Server
                     if (!m_items.ContainsKey(monitoredItem.Id))
                     {
                         m_items.Add(monitoredItem.Id, monitoredItem);
-                        
+
                         if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                         {
                             itemsToSample.Add(monitoredItem);
@@ -231,12 +229,11 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    Task.Run(() =>
-                    {
+                    Task.Run(() => {
                         DoSample(itemsToSample);
                     });
                 }
-                                
+
                 // remove items.
                 for (int ii = 0; ii < m_itemsToRemove.Count; ii++)
                 {
@@ -250,19 +247,19 @@ namespace Opc.Ua.Server
                 {
                     Startup();
                 }
-                    
+
                 // stop the group if it is running.
                 else if (m_items.Count == 0)
                 {
                     Shutdown();
                 }
-                
+
                 // can be shutdown if no items left.
                 return m_items.Count == 0;
-            }   
+            }
         }
         #endregion
-            
+
         #region Private Methods
         /// <summary>
         /// Checks if the item meets the group's criteria.
@@ -285,8 +282,8 @@ namespace Opc.Ua.Server
             if (AdjustSamplingInterval(monitoredItem.SamplingInterval) != m_samplingInterval)
             {
                 return false;
-            }         
-            
+            }
+
             // compare session.
             if (context.SessionId != m_session.Id)
             {
@@ -306,7 +303,7 @@ namespace Opc.Ua.Server
         /// Ensures the requested sampling interval lines up with one of the supported sampling rates.
         /// </summary>
         private double AdjustSamplingInterval(double samplingInterval)
-        {            
+        {
             foreach (SamplingRateGroup samplingRate in m_samplingRates)
             {
                 // groups are ordered by start rate.
@@ -314,20 +311,20 @@ namespace Opc.Ua.Server
                 {
                     return samplingRate.Start;
                 }
-                
+
                 // check if within range specfied by the group.
                 double maxSamplingRate = samplingRate.Start;
-                
+
                 if (samplingRate.Increment > 0)
                 {
-                    maxSamplingRate += samplingRate.Increment*samplingRate.Count;
+                    maxSamplingRate += samplingRate.Increment * samplingRate.Count;
                 }
-                
+
                 if (samplingInterval > maxSamplingRate)
                 {
                     continue;
                 }
-                
+
                 // find sampling rate within rate group.
                 if (samplingInterval == maxSamplingRate)
                 {
@@ -374,12 +371,12 @@ namespace Opc.Ua.Server
                     lock (m_lock)
                     {
                         uint disabledItemCount = 0;
-                        Dictionary<uint,ISampledDataChangeMonitoredItem>.Enumerator enumerator = m_items.GetEnumerator();
+                        Dictionary<uint, ISampledDataChangeMonitoredItem>.Enumerator enumerator = m_items.GetEnumerator();
 
                         while (enumerator.MoveNext())
                         {
                             ISampledDataChangeMonitoredItem monitoredItem = enumerator.Current.Value;
-                            
+
                             if (monitoredItem.MonitoringMode == MonitoringMode.Disabled)
                             {
                                 disabledItemCount++;
@@ -392,7 +389,7 @@ namespace Opc.Ua.Server
                             //    continue;
                             //}
 
-                            items.Add(monitoredItem);   
+                            items.Add(monitoredItem);
                         }
                     }
 
@@ -404,7 +401,7 @@ namespace Opc.Ua.Server
 
                     if (delay > sleepCycle)
                     {
-                        timeToWait = 2*sleepCycle - delay;
+                        timeToWait = 2 * sleepCycle - delay;
 
                         if (timeToWait < 0)
                         {
@@ -413,7 +410,7 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                
+
                 Utils.LogTrace("Server: {0} Thread Exited Normally.", Thread.CurrentThread.Name);
             }
             catch (Exception e)

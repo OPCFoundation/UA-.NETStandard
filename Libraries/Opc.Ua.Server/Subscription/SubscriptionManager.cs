@@ -316,7 +316,7 @@ namespace Opc.Ua.Server
                             }
 
                             m_abandonedSubscriptions.Add(subscription);
-                            Utils.LogWarning("Server - Subscription '{0}' Abandoned.", subscription.Id);
+                            Utils.LogWarning("Subscription {0}, Id={1}.", "ABANDONED", subscription.Id);
                         }
                     }
                 }
@@ -386,17 +386,17 @@ namespace Opc.Ua.Server
 
                 if (subscription != null)
                 {
-                    Utils.LogInfo("Server - DoConditionRefresh started. SubscriptionId={0}.", subscription.Id);
+                    Utils.LogInfo("Subscription {0} started, Id={1}.", "ConditionRefresh", subscription.Id);
                     subscription.ConditionRefresh();
                 }
                 else
                 {
-                    Utils.LogWarning("Server - DoConditionRefresh called with invalid Subscription.");
+                    Utils.LogWarning("Subscription - DoConditionRefresh called with invalid Subscription.");
                 }
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server - DoConditionRefresh Exited Unexpectedly");
+                Utils.LogError(e, "Subscription - DoConditionRefresh Exited Unexpectedly");
             }
         }
 
@@ -410,17 +410,18 @@ namespace Opc.Ua.Server
                 Subscription subscription = state as Subscription;
                 if (subscription != null)
                 {
-                    Utils.LogInfo("Server - DoConditionRefresh2 started. SubscriptionId={0}, MonitoredItemId={1}.", subscription.Id, monitoredItemId);
+                    Utils.LogInfo("Subscription {0} started, Id={1}, MonitoredItemId={2}.",
+                        "ConditionRefresh2", subscription.Id, monitoredItemId);
                     subscription.ConditionRefresh2(monitoredItemId);
                 }
                 else
                 {
-                    Utils.LogWarning("Server - DoConditionRefresh2 called with invalid Subscription. MonitoredItemId={0}.", monitoredItemId);
+                    Utils.LogWarning("Subscription - DoConditionRefresh2 called with invalid Subscription. MonitoredItemId={0}.", monitoredItemId);
                 }
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server - DoConditionRefresh2 Exited Unexpectedly");
+                Utils.LogError(e, "Subscription - DoConditionRefresh2 Exited Unexpectedly");
             }
         }
 
@@ -465,7 +466,7 @@ namespace Opc.Ua.Server
                         if (m_abandonedSubscriptions[ii].Id == subscriptionId)
                         {
                             m_abandonedSubscriptions.RemoveAt(ii);
-                            Utils.LogError("Server - Abandoned Subscription '{0}' Deleted.", subscriptionId);
+                            Utils.LogWarning("Subscription {0}, Id={1}.", "DELETED(ABANDONED)", subscriptionId);
                             break;
                         }
                     }
@@ -1553,7 +1554,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                Utils.LogInfo("Server - Publish Subscriptions Thread {0:X8} Started.", Environment.CurrentManagedThreadId);
+                Utils.LogInfo("Subscription - Publish Thread {0:X8} Started.", Environment.CurrentManagedThreadId);
 
                 int sleepCycle = Convert.ToInt32(data, CultureInfo.InvariantCulture);
                 int timeToWait = sleepCycle;
@@ -1610,7 +1611,7 @@ namespace Opc.Ua.Server
 
                             subscriptionsToDelete.Add(subscription);
                             SubscriptionExpired(subscription);
-                            Utils.LogTrace("Server - Abandoned Subscription '{0}' Delete Scheduled.", subscription.Id);
+                            Utils.LogInfo("Subscription - Abandoned Subscription Id={0} Delete Scheduled.", subscription.Id);
                         }
 
                         // schedule cleanup on a background thread.
@@ -1630,7 +1631,7 @@ namespace Opc.Ua.Server
 
                     if (m_shutdownEvent.WaitOne(timeToWait))
                     {
-                        Utils.LogInfo("Server - Publish Subscriptions Thread {0:X8} Exited Normally.", Environment.CurrentManagedThreadId);
+                        Utils.LogInfo("Subscription - Publish Thread {0:X8} Exited Normally.", Environment.CurrentManagedThreadId);
                         break;
                     }
 
@@ -1641,7 +1642,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Server - Publish Subscriptions Thread {0:X8} Exited Unexpectedly", Environment.CurrentManagedThreadId);
+                Utils.LogError(e, "Subscription - Publish Thread {0:X8} Exited Unexpectedly.", Environment.CurrentManagedThreadId);
             }
         }
 

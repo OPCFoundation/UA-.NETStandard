@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// <summary>
         /// The high performance EventSource log interface.
         /// </summary>
-        public static OpcUaCoreEventSource EventLog { get; } = new OpcUaCoreEventSource();
+        internal static OpcUaCoreEventSource EventLog { get; } = new OpcUaCoreEventSource();
 
         /// <summary>
         /// ILogger abstraction used by all Utils.LogXXX methods.
@@ -244,13 +244,9 @@ namespace Opc.Ua
             {
                 EventLog.LogLog(LogLevel.Trace, eventId, exception, message, args);
             }
-            else
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                // cut off the trace messages as early as possible
-                if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    Log(LogLevel.Trace, eventId, exception, message, args);
-                }
+                Log(LogLevel.Trace, eventId, exception, message, args);
             }
         }
 
@@ -267,13 +263,9 @@ namespace Opc.Ua
             {
                 EventLog.LogLog(LogLevel.Trace, eventId, message, args);
             }
-            else
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                // cut off the trace messages as early as possible
-                if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    Log(LogLevel.Trace, eventId, message, args);
-                }
+                Log(LogLevel.Trace, eventId, message, args);
             }
         }
 
@@ -290,13 +282,9 @@ namespace Opc.Ua
             {
                 EventLog.LogLog(LogLevel.Trace, 0, exception, message, args);
             }
-            else
+            else if (Logger.IsEnabled((Microsoft.Extensions.Logging.LogLevel)LogLevel.Trace))
             {
-                // cut off the trace messages as early as possible
-                if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    Log(LogLevel.Trace, 0, exception, message, args);
-                }
+                Log(LogLevel.Trace, 0, exception, message, args);
             }
         }
 
@@ -312,13 +300,9 @@ namespace Opc.Ua
             {
                 EventLog.LogLog(LogLevel.Trace, 0, message, args);
             }
-            else
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                // cut off the trace messages as early as possible
-                if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    Log(LogLevel.Trace, 0, message, args);
-                }
+                Log(LogLevel.Trace, 0, message, args);
             }
         }
         #endregion
@@ -550,7 +534,7 @@ namespace Opc.Ua
             }
             else if (UseTraceEvent)
             {
-                if (Logger.IsEnabled(logLevel))
+                if (Logger.IsEnabled((Microsoft.Extensions.Logging.LogLevel)logLevel))
                 {
                     // call the legacy logging handler (TraceEvent)
                     Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
@@ -558,7 +542,7 @@ namespace Opc.Ua
             }
             else
             {
-                Logger.Log(logLevel, eventId, null, message, args);
+                Logger.Log((Microsoft.Extensions.Logging.LogLevel)logLevel, eventId, null, message, args);
             }
         }
 

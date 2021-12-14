@@ -117,7 +117,9 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
+
                 Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+
                 Socket.ReadNextMessage();
 
                 // automatically clean up the channel if no hello received.
@@ -141,7 +143,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                Utils.LogTrace("ChannelId {0}: SendResponse {1}", ChannelId, requestId);
+                Utils.EventLog.SendResponse(ChannelId, requestId);
 
                 BufferCollection buffers = null;
 
@@ -318,7 +320,7 @@ namespace Opc.Ua.Bindings
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason.ToLongString());
+                    reason.ToString());
 
                 // close channel.
                 ChannelClosed();
@@ -379,7 +381,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendErrorMessage(ServiceResult error)
         {
-            Utils.LogTrace("ChannelId {0}: SendErrorMessage()", ChannelId);
+            Utils.LogTrace("ChannelId {0}: SendErrorMessage={1}", ChannelId, error.StatusCode);
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
@@ -412,7 +414,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
 
             BufferCollection buffers = null;
 
@@ -487,7 +489,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
 
             BufferCollection chunksToSend = null;
 

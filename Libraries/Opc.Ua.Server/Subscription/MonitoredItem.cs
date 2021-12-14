@@ -216,21 +216,21 @@ namespace Opc.Ua.Server
                 // check if not ready to publish.
                 if (!m_readyToPublish)
                 {
-                    Utils.EventLog.MonitoredItemReady(m_id, "FALSE");
+                    ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
                 }
 
                 // check if it has been triggered.
                 if (m_monitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    Utils.EventLog.MonitoredItemReady(m_id, "TRIGGERED");
+                    ServerUtils.EventLog.MonitoredItemReady(m_id, "TRIGGERED");
                     return true;
                 }
 
                 // check if monitoring was turned off.
                 if (m_monitoringMode != MonitoringMode.Reporting)
                 {
-                    Utils.EventLog.MonitoredItemReady(m_id, "FALSE");
+                    ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
                     return false;
                 }
 
@@ -241,12 +241,11 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        Utils.EventLog.Trace(TraceMasks.OperationDetail,
-                            "IsReadyToPublish[{0}] FALSE {1}ms", m_id, m_nextSamplingTime - now);
+                        ServerUtils.EventLog.MonitoredItemReady(m_id, Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
                     }
                 }
-                Utils.EventLog.MonitoredItemReady(m_id, "NORMAL");
+                ServerUtils.EventLog.MonitoredItemReady(m_id, "NORMAL");
                 return true;
             }
         }
@@ -858,8 +857,7 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
 
-            Utils.EventLog.Trace("QUEUE VALUE[{0}]: Value={1} CODE={2}<{2:X8}> OVERFLOW={3}",
-                m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
+            ServerUtils.EventLog.QueueValue(m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
         }
 
         /// <summary>

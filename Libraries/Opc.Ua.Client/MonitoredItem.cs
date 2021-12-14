@@ -1152,10 +1152,7 @@ namespace Opc.Ua.Client
             m_values.Enqueue(notification.Value);
             m_lastValue = notification.Value;
 
-            Utils.EventLog.Trace(
-                "NotificationReceived: ClientHandle={0}, Value={1}",
-                notification.ClientHandle,
-                m_lastValue.Value);
+            CoreClientUtils.EventLog.Notification(notification.ClientHandle, m_lastValue.WrappedValue);
 
             while (m_values.Count > m_queueSize)
             {

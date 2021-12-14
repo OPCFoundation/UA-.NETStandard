@@ -258,7 +258,7 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        //Utils.LogTrace("ChannelId {0}: ProcessRequestMessage", ChannelId);
+                        Utils.LogTrace("ChannelId {0}: ProcessRequestMessage", ChannelId);
                         return ProcessRequestMessage(messageType, messageChunk);
                     }
 
@@ -877,7 +877,7 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
                 {
-                    Utils.LogWarning("ChannelId={0} Server Revoked TokenId={1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
+                    Utils.LogWarning("ChannelId {0}: Server Revoked Token #{1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
                     PreviousToken.Lifetime = 0;
                 }
             }
@@ -894,7 +894,7 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    Utils.LogWarning("RequestId {0} was aborted.", requestId);
+                    Utils.LogWarning("ChannelId {0}: ProcessRequestMessage RequestId {0} was aborted.", requestId);
                     chunksToProcess = GetSavedChunks(requestId, messageBody);
                     return true;
                 }
@@ -906,7 +906,7 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
+                // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody);

@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
                 m_diagnostics,
                 OnUpdateDiagnostics);
 
-            // TraceState("CREATED");
+            TraceState(LogLevel.Information, "CREATED");
         }
         #endregion
 
@@ -346,7 +346,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    // TraceState("DELETED");
+                    TraceState(LogLevel.Information, "DELETED");
 
                     // the context may be null if the server is cleaning up expired subscriptions.
                     // in this case we create a context with a dummy request and use the current session.
@@ -414,7 +414,7 @@ namespace Opc.Ua.Server
 
                     if (m_lifetimeCounter >= m_maxLifetimeCount)
                     {
-                        TraceState("EXPIRED");
+                        TraceState(LogLevel.Information, "EXPIRED");
                         return PublishingState.Expired;
                     }
                 }
@@ -831,7 +831,7 @@ namespace Opc.Ua.Server
 
                 if (delta1 > 200)
                 {
-                    TraceState(Utils.Format("PUBLISHING DELAY ({0}ms)", delta1));
+                    TraceState(LogLevel.Trace, Utils.Format("PUBLISHING DELAY ({0}ms)", delta1));
                 }
             }
 
@@ -1411,7 +1411,7 @@ namespace Opc.Ua.Server
                     diagnosticInfos.Clear();
                 }
 
-                // TraceState("ITEMS CREATED");
+                TraceState(LogLevel.Information, "ITEMS CREATED");
             }
         }
 
@@ -1634,7 +1634,7 @@ namespace Opc.Ua.Server
                     diagnosticInfos.Clear();
                 }
 
-                // TraceState("ITEMS MODIFIED");
+                TraceState(LogLevel.Information, "ITEMS MODIFIED");
             }
         }
 
@@ -1802,7 +1802,7 @@ namespace Opc.Ua.Server
                     diagnosticInfos.Clear();
                 }
 
-                // TraceState("ITEMS DELETED");
+                TraceState(LogLevel.Information, "ITEMS DELETED");
             }
         }
 
@@ -1930,15 +1930,15 @@ namespace Opc.Ua.Server
 
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
-                    // TraceState("ITEMS DISABLED");
+                    TraceState(LogLevel.Information, "ITEMS DISABLED");
                 }
                 else if (monitoringMode == MonitoringMode.Reporting)
                 {
-                    // TraceState("ITEMS REPORTING ENABLED");
+                    TraceState(LogLevel.Information, "ITEMS REPORTING ENABLED");
                 }
                 else
                 {
-                    // TraceState("ITEMS SAMPLING ENABLED");
+                    TraceState(LogLevel.Information, "ITEMS SAMPLING ENABLED");
                 }
             }
         }
@@ -2208,9 +2208,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
-        internal void TraceState(string context)
+        internal void TraceState(LogLevel logLevel, string context)
         {
-            if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            if (!Utils.Logger.IsEnabled(logLevel))
             {
                 return;
             }
@@ -2219,23 +2219,23 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                buffer.AppendFormat("Subscription {0}", context);
-                buffer.AppendFormat(", Id={0}", m_id);
-                buffer.AppendFormat(", Publishing={0}", m_publishingInterval);
-                buffer.AppendFormat(", KeepAlive={0}", m_maxKeepAliveCount);
-                buffer.AppendFormat(", LifeTime={0}", m_maxLifetimeCount);
-                buffer.AppendFormat(", Enabled={0}", m_publishingEnabled);
-                buffer.AppendFormat(", KeepAliveCount={0}", m_keepAliveCounter);
-                buffer.AppendFormat(", LifeTimeCount={0}", m_lifetimeCounter);
-                buffer.AppendFormat(", WaitingForPublish={0}", m_waitingForPublish);
-                buffer.AppendFormat(", SeqNo={0}", m_sequenceNumber);
-                buffer.AppendFormat(", ItemCount={0}", m_monitoredItems.Count);
-                buffer.AppendFormat(", ItemsToCheck={0}", m_itemsToCheck.Count);
-                buffer.AppendFormat(", ItemsToPublish={0}", m_itemsToPublish.Count);
-                buffer.AppendFormat(", MessageCount={0}", m_sentMessages.Count);
+                buffer.AppendFormat("Subscription {0}", context)
+                    .AppendFormat(", Id={0}", m_id)
+                    .AppendFormat(", Publishing={0}", m_publishingInterval)
+                    .AppendFormat(", KeepAlive={0}", m_maxKeepAliveCount)
+                    .AppendFormat(", LifeTime={0}", m_maxLifetimeCount)
+                    .AppendFormat(", Enabled={0}", m_publishingEnabled)
+                    .AppendFormat(", KeepAliveCount={0}", m_keepAliveCounter)
+                    .AppendFormat(", LifeTimeCount={0}", m_lifetimeCounter)
+                    .AppendFormat(", WaitingForPublish={0}", m_waitingForPublish)
+                    .AppendFormat(", SeqNo={0}", m_sequenceNumber)
+                    .AppendFormat(", ItemCount={0}", m_monitoredItems.Count)
+                    .AppendFormat(", ItemsToCheck={0}", m_itemsToCheck.Count)
+                    .AppendFormat(", ItemsToPublish={0}", m_itemsToPublish.Count)
+                    .AppendFormat(", MessageCount={0}", m_sentMessages.Count);
             }
 
-            Utils.EventLog.Trace("{0}", buffer.ToString());
+            Utils.Log(logLevel, buffer.ToString());
         }
         #endregion
 
