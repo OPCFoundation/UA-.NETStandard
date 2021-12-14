@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Xml;
-using Microsoft.Extensions.Logging;
-using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -440,8 +438,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public bool AlwaysReportUpdates
         {
-            get { return m_alwaysReportUpdates; }
-            set { m_alwaysReportUpdates = value; }
+            get => m_alwaysReportUpdates;
+            set => m_alwaysReportUpdates = value;
         }
 
         /// <summary>
@@ -1241,8 +1239,7 @@ namespace Opc.Ua.Server
                 // publish last value if no queuing.
                 else
                 {
-                    Utils.LogTrace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}",
-                        m_lastValue.WrappedValue, m_lastValue.StatusCode.Code, m_lastValue.StatusCode.Overflow);
+                    ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 

@@ -17,6 +17,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Bindings
 {
@@ -258,28 +259,28 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        Utils.LogTrace("ChannelId {0}: ProcessRequestMessage", ChannelId);
+                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage", ChannelId);
                         return ProcessRequestMessage(messageType, messageChunk);
                     }
 
                     // check for hello.
                     if (messageType == TcpMessageType.Hello)
                     {
-                        Utils.LogTrace("ChannelId {0}: ProcessHelloMessage", ChannelId);
+                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessHelloMessage", ChannelId);
                         return ProcessHelloMessage(messageChunk);
                     }
 
                     // process open secure channel repsonse.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Open))
                     {
-                        Utils.LogTrace("ChannelId {0}: ProcessOpenSecureChannelRequest", ChannelId);
+                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessOpenSecureChannelRequest", ChannelId);
                         return ProcessOpenSecureChannelRequest(messageType, messageChunk);
                     }
 
                     // process close secure channel response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                     {
-                        Utils.LogTrace("ChannelId {0}: ProcessCloseSecureChannelRequest", ChannelId);
+                        Utils.LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessCloseSecureChannelRequest", ChannelId);
                         return ProcessCloseSecureChannelRequest(messageType, messageChunk);
                     }
 
@@ -877,7 +878,8 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
                 {
-                    Utils.LogWarning("ChannelId {0}: Server Revoked Token #{1}.", PreviousToken.ChannelId, PreviousToken.TokenId);
+                    Utils.LogInfo("ChannelId {0}: Server Current Token #{1}, Revoked Token #{2}.",
+                        PreviousToken.ChannelId, CurrentToken.TokenId, PreviousToken.TokenId);
                     PreviousToken.Lifetime = 0;
                 }
             }
@@ -894,7 +896,7 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    Utils.LogWarning("ChannelId {0}: ProcessRequestMessage RequestId {0} was aborted.", requestId);
+                    Utils.LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {0} was aborted.", requestId);
                     chunksToProcess = GetSavedChunks(requestId, messageBody);
                     return true;
                 }

@@ -10,8 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
@@ -19,7 +17,7 @@ using static Opc.Ua.Utils;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// 
+    /// The local EventSource for the server library.
     /// </summary>
     public static partial class ServerUtils
     {
@@ -33,7 +31,7 @@ namespace Opc.Ua.Server
     /// Event source for high performance logging.
     /// </summary>
     [EventSource(Name = "OPC-UA-Server")]
-    public class OpcUaServerEventSource : EventSource
+    internal class OpcUaServerEventSource : EventSource
     {
         // client event ids
         private const int SendResponseId = 1;

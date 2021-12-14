@@ -282,7 +282,7 @@ namespace Opc.Ua
             {
                 EventLog.LogLog(LogLevel.Trace, 0, exception, message, args);
             }
-            else if (Logger.IsEnabled((Microsoft.Extensions.Logging.LogLevel)LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Log(LogLevel.Trace, 0, exception, message, args);
             }
@@ -534,7 +534,7 @@ namespace Opc.Ua
             }
             else if (UseTraceEvent)
             {
-                if (Logger.IsEnabled((Microsoft.Extensions.Logging.LogLevel)logLevel))
+                if (Logger.IsEnabled(logLevel))
                 {
                     // call the legacy logging handler (TraceEvent)
                     Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
@@ -542,7 +542,7 @@ namespace Opc.Ua
             }
             else
             {
-                Logger.Log((Microsoft.Extensions.Logging.LogLevel)logLevel, eventId, null, message, args);
+                Logger.Log(logLevel, eventId, null, message, args);
             }
         }
 

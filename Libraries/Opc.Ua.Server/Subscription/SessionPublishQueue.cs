@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -808,7 +807,8 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TraceState(string context, params object[] args)
         {
-            if (!Utils.Logger.IsEnabled(LogLevel.Trace))
+            // TODO: implement as EventSource
+            if (!Utils.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Trace))
             {
                 return;
             }

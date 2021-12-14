@@ -30,12 +30,6 @@ namespace Opc.Ua
         public ServiceResultException() : base(Strings.DefaultMessage)
         {
             m_status = StatusCodes.Bad;
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                // TODO: remove
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
-            }
         }
 
         /// <summary>
@@ -44,11 +38,6 @@ namespace Opc.Ua
         public ServiceResultException(string message) : base(message)
         {
             m_status = StatusCodes.Bad;
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1}", m_status, message);
-            }
         }
 
         /// <summary>
@@ -57,11 +46,6 @@ namespace Opc.Ua
         public ServiceResultException(Exception e, uint defaultCode) : base(e.Message, e)
         {
             m_status = ServiceResult.Create(e, defaultCode, String.Empty);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, e.Message);
-            }
         }
 
         /// <summary>
@@ -70,11 +54,6 @@ namespace Opc.Ua
         public ServiceResultException(string message, Exception e) : base(message, e)
         {
             m_status = StatusCodes.Bad;
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} {1} {2}", m_status, e.GetType().Name, message);
-            }
         }
 
         /// <summary>
@@ -83,11 +62,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode) : base(GetMessage(statusCode))
         {
             m_status = new ServiceResult(statusCode);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
-            }
         }
 
         /// <summary>
@@ -96,11 +70,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode, string message) : base(message)
         {
             m_status = new ServiceResult(statusCode, message);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
-            }
         }
 
         /// <summary>
@@ -109,11 +78,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode, Exception e) : base(GetMessage(statusCode), e)
         {
             m_status = new ServiceResult(statusCode, e);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} was: {1} {2}", m_status, e.GetType().Name, e.Message);
-            }
         }
 
         /// <summary>
@@ -122,11 +86,6 @@ namespace Opc.Ua
         public ServiceResultException(uint statusCode, string message, Exception e) : base(message, e)
         {
             m_status = new ServiceResult(statusCode, message, e);
-
-            if ((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0)
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0} was: {1} {2}", m_status, e.GetType().Name, e.Message);
-            }
         }
 
         /// <summary>
@@ -141,13 +100,6 @@ namespace Opc.Ua
             else
             {
                 m_status = new ServiceResult(StatusCodes.Bad);
-            }
-
-            // avoid false warnings in the log file when closing the channel.
-            if (((Utils.TraceMask & Utils.TraceMasks.StackTrace) != 0) &&
-                (status == null || (status.Code != StatusCodes.BadSecureChannelClosed)))
-            {
-                //Utils.LogWarning(Utils.TraceMasks.StackTrace, "ServiceResultException: {0}", m_status);
             }
         }
         #endregion

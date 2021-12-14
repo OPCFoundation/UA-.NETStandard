@@ -389,6 +389,10 @@ namespace Opc.Ua
             {
                 result = new ServiceResult(sre);
                 Utils.LogWarning("SERVER - Service Fault Occured. Reason={0}", result.StatusCode);
+                if (sre.StatusCode == StatusCodes.BadUnexpectedError)
+                {
+                    Utils.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
+                }
             }
             else
             {

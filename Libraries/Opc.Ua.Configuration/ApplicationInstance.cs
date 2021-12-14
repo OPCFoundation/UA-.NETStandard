@@ -641,12 +641,13 @@ namespace Opc.Ua.Configuration
                     return false;
                 }
             }
-            else
+            else if (!configuration.ApplicationUri.Equals(applicationUri, StringComparison.InvariantCulture))
             {
+                Utils.LogInfo("Updated the ApplicationUri: {0} --> {1}", configuration.ApplicationUri, applicationUri);
                 configuration.ApplicationUri = applicationUri;
             }
 
-            Utils.LogInfo("Updated the ApplicationUri: {0}", applicationUri);
+            Utils.LogInfo("Using the ApplicationUri: {0}", applicationUri);
 
             // update configuration.
             configuration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate;
