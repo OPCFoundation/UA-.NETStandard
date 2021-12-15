@@ -9,8 +9,6 @@ jobs:
       IS_NOT_PR: ${{ !github.head_ref && true }}
     steps:
     - uses: actions/checkout@v2
-      with:
-        path: Applications/ConsoleReferenceServer
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
@@ -28,7 +26,9 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
          
     - name: Build the Docker image
-      run: ./dockerbuild.sh
+      run: | 
+        cd Applications/ConsoleReferenceServer
+        ./dockerbuild.sh
 
     - name: Build Docker 
       uses: "docker/build-push-action@v2"
