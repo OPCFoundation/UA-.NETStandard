@@ -143,7 +143,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                Utils.EventLog.SendResponse(ChannelId, requestId);
+                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
 
                 BufferCollection buffers = null;
 

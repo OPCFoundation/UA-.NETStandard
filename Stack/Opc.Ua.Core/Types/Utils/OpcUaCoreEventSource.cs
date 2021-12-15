@@ -58,7 +58,7 @@ namespace Opc.Ua
     /// Event source for high performance logging.
     /// </summary>
     [EventSource(Name = "OPC-UA-Core", Guid = "AC8BB021-ADD5-4D14-BB94-1E55D98AA080")]
-    public sealed class OpcUaCoreEventSource : EventSource, IOpcUaEventSource
+    internal sealed class OpcUaCoreEventSource : EventSource, IOpcUaEventSource
     {
         private const int TraceId = 1;
         private const int DebugId = TraceId + 1;
@@ -72,10 +72,10 @@ namespace Opc.Ua
         /// <summary>
         /// The core event ids.
         /// </summary>
-        private const int ServiceCallId = ServiceResultExceptionId + 1;
-        private const int ServiceCompletedId = ServiceCallId + 1;
-        private const int ServiceCompletedBadId = ServiceCompletedId + 1;
-        private const int SubscriptionStateId = ServiceCompletedBadId + 1;
+        private const int ServiceCallStartId = ServiceResultExceptionId + 1;
+        private const int ServiceCallStopId = ServiceCallStartId + 1;
+        private const int ServiceCallBadStopId = ServiceCallStopId + 1;
+        private const int SubscriptionStateId = ServiceCallBadStopId + 1;
         private const int SendResponseId = SubscriptionStateId + 1;
         private const int ServiceFaultId = SendResponseId + 1;
 
@@ -84,19 +84,19 @@ namespace Opc.Ua
         /// </summary>
         private const string ExceptionMessage = "Exception: {0}";
         private const string ServiceResultExceptionMessage = "ServiceResultException: {0} {1}";
-        private const string ServiceCallMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
-        private const string ServiceCompletedMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
-        private const string ServiceCompletedBadMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
+        private const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
+        private const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
+        private const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
         private const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
         private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
 
         /// <summary>
         /// The Core ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
-        private readonly EventId ServiceCallEventId = new EventId(TraceMasks.Service, nameof(ServiceCall));
-        private readonly EventId ServiceCompletedEventId = new EventId(TraceMasks.Service, nameof(ServiceCompleted));
-        private readonly EventId ServiceCompletedBadEventId = new EventId(TraceMasks.Service, nameof(ServiceCompletedBad));
-        private readonly EventId SendResponseEventId = new EventId(TraceMasks.ServiceDetail, nameof(SendResponse));
+        private readonly EventId ServiceCallStartEventId = new EventId(TraceMasks.Service, nameof(ServiceCallStart));
+        private readonly EventId ServiceCallStopEventId = new EventId(TraceMasks.Service, nameof(ServiceCallStop));
+        private readonly EventId ServiceCallBadStopEventId = new EventId(TraceMasks.Service, nameof(ServiceCallBadStop));
+        private readonly EventId SendResponseEventId = new EventId(TraceMasks.Service, nameof(SendResponse));
         private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Service, nameof(ServiceFault));
 
         /// <summary>
@@ -105,13 +105,13 @@ namespace Opc.Ua
         public static class Tasks
         {
             /// <summary>
-            /// 
+            /// Service Call Activity.
             /// </summary>
             public const EventTask ServiceCallTask = (EventTask)1;
         }
 
         /// <inheritdoc/>
-        [Event(CriticalId, Message = null, Level = EventLevel.Critical)]
+        [Event(CriticalId, Level = EventLevel.Critical)]
         public void Critical(string message)
         {
             if (IsEnabled())
@@ -121,7 +121,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(ErrorId, Message = null, Level = EventLevel.Error)]
+        [Event(ErrorId, Level = EventLevel.Error)]
         public void Error(string message)
         {
             if (IsEnabled())
@@ -131,7 +131,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(WarningId, Message = null, Level = EventLevel.Warning)]
+        [Event(WarningId, Level = EventLevel.Warning)]
         public void Warning(string message)
         {
             if (IsEnabled())
@@ -141,7 +141,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(TraceId, Message = null, Level = EventLevel.Verbose)]
+        [Event(TraceId, Level = EventLevel.Verbose)]
         public void Trace(string message)
         {
             if (IsEnabled())
@@ -151,7 +151,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(InfoId, Message = null, Level = EventLevel.Informational)]
+        [Event(InfoId, Level = EventLevel.Informational)]
         public void Info(string message)
         {
             if (IsEnabled())
@@ -161,7 +161,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Event(DebugId, Message = null, Level = EventLevel.Verbose)]
+        [Event(DebugId, Level = EventLevel.Verbose)]
         public void Debug(string message)
         {
 #if DEBUG
@@ -379,48 +379,48 @@ namespace Opc.Ua
         /// <summary>
         /// A server service call message.
         /// </summary>
-        [Event(ServiceCallId, Message = ServiceCallMessage, Level = EventLevel.Informational, Task = Tasks.ServiceCallTask)]
-        public void ServiceCall(string serviceName, uint requestHandle, int pendingRequestCount)
+        [Event(ServiceCallStartId, Message = ServiceCallStartMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
+        public void ServiceCallStart(string serviceName, int requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
             {
-                WriteEvent(ServiceCallId, serviceName, requestHandle, pendingRequestCount);
+                WriteEvent(ServiceCallStartId, serviceName, requestHandle, pendingRequestCount);
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServiceCallEventId, ServiceCallMessage, serviceName, requestHandle, pendingRequestCount);
+                Utils.LogTrace(ServiceCallStartEventId, ServiceCallStartMessage, serviceName, requestHandle, pendingRequestCount);
             }
         }
 
         /// <summary>
         /// The server service completed message.
         /// </summary>
-        [Event(ServiceCompletedId, Message = ServiceCompletedMessage, Level = EventLevel.Informational, Task = Tasks.ServiceCallTask)]
-        public void ServiceCompleted(string serviceName, uint requestHandle, int pendingRequestCount)
+        [Event(ServiceCallStopId, Message = ServiceCallStopMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
+        public void ServiceCallStop(string serviceName, int requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
             {
-                WriteEvent(ServiceCompletedId, serviceName, requestHandle, pendingRequestCount);
+                WriteEvent(ServiceCallStopId, serviceName, requestHandle, pendingRequestCount);
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServiceCompletedEventId, ServiceCompletedMessage, serviceName, requestHandle, pendingRequestCount);
+                Utils.LogTrace(ServiceCallStopEventId, ServiceCallStopMessage, serviceName, requestHandle, pendingRequestCount);
             }
         }
 
         /// <summary>
         /// A service message completed with a bad status code.
         /// </summary>
-        [Event(ServiceCompletedBadId, Message = ServiceCompletedBadMessage, Level = EventLevel.Error, Task = Tasks.ServiceCallTask)]
-        public void ServiceCompletedBad(string serviceName, uint requestHandle, uint statusCode, int pendingRequestCount)
+        [Event(ServiceCallBadStopId, Message = ServiceCallBadStopMessage, Level = EventLevel.Warning, Task = Tasks.ServiceCallTask)]
+        public void ServiceCallBadStop(string serviceName, int requestHandle, int statusCode, int pendingRequestCount)
         {
             if (IsEnabled())
             {
-                WriteEvent(ServiceCompletedBadId, serviceName, requestHandle, statusCode, pendingRequestCount);
+                WriteEvent(ServiceCallBadStopId, serviceName, requestHandle, statusCode, pendingRequestCount);
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServiceCompletedBadEventId, ServiceCompletedBadMessage, serviceName, requestHandle, statusCode, pendingRequestCount);
+                Utils.LogTrace(ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, statusCode, pendingRequestCount);
             }
         }
 
@@ -428,7 +428,7 @@ namespace Opc.Ua
         /// A service fault message.
         /// </summary>
         [Event(ServiceFaultId, Message = ServiceFaultMessage, Level = EventLevel.Error)]
-        public void ServiceFault(uint statusCode)
+        public void ServiceFault(int statusCode)
         {
             if (IsEnabled())
             {
@@ -441,10 +441,10 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The send response.
+        /// The send response of a server channel.
         /// </summary>
         [Event(SendResponseId, Message = SendResponseMessage, Level = EventLevel.Verbose)]
-        public void SendResponse(uint channelId, uint requestId)
+        public void SendResponse(int channelId, int requestId)
         {
             if (IsEnabled())
             {

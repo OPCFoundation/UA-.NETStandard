@@ -13,7 +13,6 @@
 using System;
 using System.Collections;
 using System.Threading;
-using System.Reflection;
 
 namespace Opc.Ua
 {
@@ -403,7 +402,7 @@ namespace Opc.Ua
         {
             UpdateRequestHeader(request, useDefaults);
             int incrementedCount = Interlocked.Increment(ref m_pendingRequestCount);
-            Utils.EventLog.ServiceCall(serviceName, request.RequestHeader.RequestHandle, incrementedCount);
+            Utils.EventLog.ServiceCallStart(serviceName, (int)request.RequestHeader.RequestHandle, incrementedCount);
         }
 
         /// <summary>
@@ -436,11 +435,11 @@ namespace Opc.Ua
 
             if (statusCode != StatusCodes.Good)
             {
-                Utils.EventLog.ServiceCompletedBad(serviceName, requestHandle, statusCode.Code, pendingRequestCount);
+                Utils.EventLog.ServiceCallBadStop(serviceName, (int)requestHandle, (int)statusCode.Code, pendingRequestCount);
             }
             else
             {
-                Utils.EventLog.ServiceCompleted(serviceName, requestHandle, pendingRequestCount);
+                Utils.EventLog.ServiceCallStop(serviceName, (int)requestHandle, pendingRequestCount);
             }
         }
 
