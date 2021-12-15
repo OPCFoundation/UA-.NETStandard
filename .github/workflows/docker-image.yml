@@ -1,0 +1,41 @@
+name: Docker Image CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      IS_NOT_PR: ${{ !github.head_ref && true }}
+    steps:
+    - uses: actions/checkout@v2
+        with:
+          path: Applications/ConsoleReferenceServer
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: PrepareReg Names
+      run: |
+        echo IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
+        echo IMAGE_TAG=$(echo ${{ github.ref }} | tr '[:upper:]' '[:lower:]' |  awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-")}1') >> $GITHUB_ENV
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v1
+      if: env.IS_NOT_PR == 'true'
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+         
+    - name: Build the Docker image
+      run: ./dockerbuild.sh
+
+    - name: Build Docker 
+      uses: "docker/build-push-action@v2"
+      with:
+        file: "./Dockerfile"
+        platforms: linux/amd64
+        push: ${{env.IS_NOT_PR == 'true'}}
+        tags: |
+          ghcr.io/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }}
+
