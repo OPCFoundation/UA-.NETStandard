@@ -2,9 +2,14 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ * ]
   pull_request:
     branches: [ master ]
+
+defaults:
+  run:
+    shell: bash
+    working-directory: Applications/ConsoleReferenceServer
 
 jobs:
 
@@ -15,4 +20,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag refserver:$(date +%s)
+      run: docker build . --file Dockerfile --tag referenceserver:$(date +%s)
