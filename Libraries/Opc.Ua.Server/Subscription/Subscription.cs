@@ -2222,73 +2222,54 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TraceState(LogLevel logLevel, TraceStateId id, string context)
         {
+            const string DeletedMessage = "Subscription {0}, SessionId={1}, Id={2}, SeqNo={3}, MessageCount={4}";
+            const string ConfigMessage = "Subscription {0}, SessionId={1}, Id={2}, Priority={3}, Publishing={4}, KeepAlive={5}, LifeTime={6}, MaxNotifications={7}, Enabled={8}";
+            const string MonitorMessage = "Subscription {0}, Id={1}, KeepAliveCount={2}, LifeTimeCount={3}, WaitingForPublish={4}, SeqNo={5}, ItemCount={6}, ItemsToCheck={7}, ItemsToPublish={8}, MessageCount={9}";
+            const string ItemsMessage = "Subscription {0}, Id={1}, ItemCount={2}, ItemsToCheck={3}, ItemsToPublish={4}";
+
             if (!Utils.Logger.IsEnabled(logLevel))
             {
                 return;
             }
-            StringBuilder buffer = new StringBuilder();
 
-            lock (m_lock)
+            // save counters
+            Monitor.Enter(m_lock);
+
+            long sequenceNumber = m_sequenceNumber;
+            int itemsToCheck = m_itemsToCheck.Count;
+            int monitoredItems = m_monitoredItems.Count;
+            int itemsToPublish = m_itemsToPublish.Count;
+            int sentMessages = m_sentMessages.Count;
+            bool publishingEnabled = m_publishingEnabled;
+            bool waitingForPublish = m_waitingForPublish;
+
+            Monitor.Exit(m_lock);
+
+            switch (id)
             {
-                buffer.AppendFormat("Subscription {0}", context);
-                switch (id)
-                {
-                    case TraceStateId.Deleted:
-                        buffer.AppendFormat(", SessionId={0}", m_session?.Id)
-                            .AppendFormat(", Id={0}", m_id)
-                            .AppendFormat(", SeqNo={0}", m_sequenceNumber)
-                            .AppendFormat(", MessageCount={0}", m_sentMessages.Count);
-                        break;
+                case TraceStateId.Deleted:
+                    Utils.Log(logLevel, DeletedMessage, context, m_session?.Id, m_id,
+                        sequenceNumber, sentMessages);
+                    break;
 
-                    case TraceStateId.Config:
-                        buffer.AppendFormat(", SessionId={0}", m_session.Id)
-                            .AppendFormat(", Id={0}", m_id)
-                            .AppendFormat(", Priority={0}", m_priority)
-                            .AppendFormat(", Publishing={0}", m_publishingInterval)
-                            .AppendFormat(", KeepAlive={0}", m_maxKeepAliveCount)
-                            .AppendFormat(", LifeTime={0}", m_maxLifetimeCount)
-                            .AppendFormat(", MaxNotifications={0}", m_maxNotificationsPerPublish)
-                            .AppendFormat(", Enabled={0}", m_publishingEnabled);
-                        break;
+                case TraceStateId.Config:
+                    Utils.Log(logLevel, ConfigMessage, context, m_session?.Id, m_id,
+                        m_priority, m_publishingInterval, m_maxKeepAliveCount,
+                        m_maxLifetimeCount, m_maxNotificationsPerPublish, publishingEnabled);
+                    break;
 
-                    case TraceStateId.Items:
-                        buffer.AppendFormat(", Id={0}", m_id)
-                            .AppendFormat(", ItemCount={0}", m_monitoredItems.Count)
-                            .AppendFormat(", ItemsToCheck={0}", m_itemsToCheck.Count)
-                            .AppendFormat(", ItemsToPublish={0}", m_itemsToPublish.Count);
-                        break;
+                case TraceStateId.Items:
+                    Utils.Log(logLevel, ItemsMessage, context, m_id,
+                        monitoredItems, itemsToCheck, itemsToPublish);
+                    break;
 
-                    case TraceStateId.Publish:
-                    case TraceStateId.Monitor:
-                        buffer.AppendFormat(", Id={0}", m_id)
-                            .AppendFormat(", KeepAliveCount={0}", m_keepAliveCounter)
-                            .AppendFormat(", LifeTimeCount={0}", m_lifetimeCounter)
-                            .AppendFormat(", WaitingForPublish={0}", m_waitingForPublish)
-                            .AppendFormat(", SeqNo={0}", m_sequenceNumber)
-                            .AppendFormat(", ItemCount={0}", m_monitoredItems.Count)
-                            .AppendFormat(", ItemsToCheck={0}", m_itemsToCheck.Count)
-                            .AppendFormat(", ItemsToPublish={0}", m_itemsToPublish.Count)
-                            .AppendFormat(", MessageCount={0}", m_sentMessages.Count);
-                        break;
-
-                    default:
-                        buffer.AppendFormat(", Id={0}", m_id)
-                            .AppendFormat(", Publishing={0}", m_publishingInterval)
-                            .AppendFormat(", KeepAlive={0}", m_maxKeepAliveCount)
-                            .AppendFormat(", LifeTime={0}", m_maxLifetimeCount)
-                            .AppendFormat(", Enabled={0}", m_publishingEnabled)
-                            .AppendFormat(", KeepAliveCount={0}", m_keepAliveCounter)
-                            .AppendFormat(", LifeTimeCount={0}", m_lifetimeCounter)
-                            .AppendFormat(", WaitingForPublish={0}", m_waitingForPublish)
-                            .AppendFormat(", SeqNo={0}", m_sequenceNumber)
-                            .AppendFormat(", ItemCount={0}", m_monitoredItems.Count)
-                            .AppendFormat(", ItemsToCheck={0}", m_itemsToCheck.Count)
-                            .AppendFormat(", ItemsToPublish={0}", m_itemsToPublish.Count)
-                            .AppendFormat(", MessageCount={0}", m_sentMessages.Count);
-                        break;
-                }
+                case TraceStateId.Publish:
+                case TraceStateId.Monitor:
+                    Utils.Log(logLevel, MonitorMessage, context, m_id, m_keepAliveCounter, m_lifetimeCounter,
+                        waitingForPublish, sequenceNumber, monitoredItems, itemsToCheck,
+                        itemsToPublish, sentMessages);
+                    break;
             }
-            Utils.Log(logLevel, buffer.ToString());
         }
         #endregion
 
