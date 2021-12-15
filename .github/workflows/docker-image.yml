@@ -9,6 +9,8 @@ jobs:
       IS_NOT_PR: ${{ !github.head_ref && true }}
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 199
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
