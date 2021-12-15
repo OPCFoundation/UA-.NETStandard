@@ -29,11 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.Test;
 
-namespace Opc.Ua.Core.Tests.Types.ContentFillter
+namespace Opc.Ua.Core.Tests.Types.ContentFilter
 {
 
     public class TestFilterTarget : IFilterTarget
@@ -52,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
     /// <summary>
     /// Tests for the BuiltIn Types.
     /// </summary>
-    [TestFixture, Category("ContentFillter")]
+    [TestFixture, Category("ContentFilter")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
     public class ContentFilterTests
@@ -74,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
 
             // event filter must be specified.
             Filter = new EventFilter();
-            Filter.WhereClause = new ContentFilter();
+            Filter.WhereClause = new Ua.ContentFilter();
 
             TestFilterTarget = new TestFilterTarget();
         }
@@ -107,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
         [Test]
         [TestCase(5, 3, 7, true)]
         [TestCase(3, 5, 7, false)]
-        [Category("ContentFillter")]
+        [Category("ContentFilter")]
         public void Between(object operandFirst1, object operandFirst2, object operandFirst3, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
@@ -123,16 +121,15 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2, loperand3 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
-            TestFilterTarget filterTarget = new TestFilterTarget();
             // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
             Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
         [TestCase(3, 3, 5, 7, true)]
         [TestCase(3, 1, 5, 7, false)]
-        [Category("ContentFillter")]
+        [Category("ContentFilter")]
         public void InList(object operandFirst1, object operandFirst2, object operandFirst3,  object operandFirst4, object expectedResult)
         {
             LiteralOperand loperand1 = new LiteralOperand();
@@ -150,14 +147,13 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2, loperand3, loperand4 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
-            TestFilterTarget filterTarget = new TestFilterTarget();
             // apply filter.
-            object result = Filter.WhereClause.Evaluate(FilterContext, filterTarget);
+            object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
             Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
-        [Category("ContentFillter")]
+        [Category("ContentFilter")]
         [TestCase(1, FilterOperator.IsNull, false)]
         [TestCase(false, FilterOperator.Not, true)]
         [TestCase(true, FilterOperator.Not, false)]
@@ -179,8 +175,6 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
         }
 
         [Test]
-        [TestCase((ushort)5, (uint)BuiltInType.String, FilterOperator.Cast, true)]
-        [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, false)]
         [TestCase("mainstation", "main%", FilterOperator.Like, true)]
         [TestCase("mainstation", "name%", FilterOperator.Like, false)]
         [TestCase(3, 5, FilterOperator.LessThanOrEqual, true)]
@@ -230,13 +224,24 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
         [Test]
         [TestCase("invalid", (byte)3, FilterOperator.BitwiseAnd, FilterOperator.IsNull, true)]
         [TestCase((byte)2, (byte)3, FilterOperator.BitwiseAnd, FilterOperator.IsNull, false)]
-        public void BitwiseOrAndWithUnary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, FilterOperator filterOp2, object expectedResult)
+        [TestCase((ushort)5, (uint)BuiltInType.String, FilterOperator.Cast, FilterOperator.IsNull, false)]
+        [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, FilterOperator.IsNull, true)]
+        public void NonBoolWithUnary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, FilterOperator filterOp2, object expectedResult)
         {
             // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
             loperand1.Value = new Variant(operandFirst1);
-            loperand2.Value = new Variant(operandFirst2);
+            if (filterOp1 == FilterOperator.Cast)
+            {
+                NodeId uintNoid = new NodeId(operandFirst2, 0);
+                loperand2.Value = new Variant(uintNoid);
+            }
+            else
+            {
+                loperand2.Value = new Variant(operandFirst2);
+            }
+            
 
             ContentFilterElement filterElement1 = new ContentFilterElement();
             filterElement1.FilterOperator = filterOp1;
@@ -264,14 +269,26 @@ namespace Opc.Ua.Core.Tests.Types.ContentFillter
         [TestCase((byte)2, (byte)3, FilterOperator.BitwiseAnd, (byte)3, FilterOperator.Equals, false)]
         [TestCase("invalid", (byte)3, FilterOperator.BitwiseOr, null, FilterOperator.Equals, true)]
         [TestCase("invalid", (byte)3, FilterOperator.BitwiseAnd, null, FilterOperator.Equals, true)]
-        [Category("ContentFillter")]
-        public void BitwiseOrAndWithBinary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, object operandSecondFilter, FilterOperator filterOp2, object expectedResult)
+        [TestCase((ushort)5, (uint)BuiltInType.String, FilterOperator.Cast, "5", FilterOperator.Equals, true)]
+        [TestCase((ushort)5, (uint)BuiltInType.String, FilterOperator.Cast, null, FilterOperator.Equals, false)]
+        [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, null, FilterOperator.Equals, true)]
+        [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, "5", FilterOperator.Equals, false)]
+        [Category("ContentFilter")]
+        public void NonBoolWithBinary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, object operandSecondFilter, FilterOperator filterOp2, object expectedResult)
         {
             // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             LiteralOperand loperand1 = new LiteralOperand();
             LiteralOperand loperand2 = new LiteralOperand();
             loperand1.Value = new Variant(operandFirst1);
-            loperand2.Value = new Variant(operandFirst2);
+            if (filterOp1 == FilterOperator.Cast)
+            {
+                NodeId uintNoid = new NodeId(operandFirst2, 0);
+                loperand2.Value = new Variant(uintNoid);
+            }
+            else
+            {
+                loperand2.Value = new Variant(operandFirst2);
+            }
 
             ContentFilterElement filterElement1 = new ContentFilterElement();
             filterElement1.FilterOperator = filterOp1;
