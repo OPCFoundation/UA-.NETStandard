@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IS_NOT_PR: ${{ !github.head_ref && true }}
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
     steps:
     - uses: actions/checkout@v2
       with:
