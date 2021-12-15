@@ -44,8 +44,8 @@ namespace Quickstarts
         public ApplicationInstance Application => m_application;
         public ApplicationConfiguration Configuration => m_application.ApplicationConfiguration;
 
-        public bool AutoAccept { get; set; } = false;
-        public string Password { get; set; } = null;
+        public bool AutoAccept { get; set; }
+        public string Password { get; set; }
 
         public ExitCode ExitCode { get; private set; }
 
@@ -141,7 +141,7 @@ namespace Quickstarts
                 }
 
                 // start the status thread
-                m_status = Task.Run(new Action(StatusThreadAsync));
+                m_status = Task.Run(StatusThreadAsync);
 
                 // print notification on session events
                 m_server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
@@ -167,7 +167,7 @@ namespace Quickstarts
                     {
                         // Stop status thread
                         m_server = null;
-                        await m_status;
+                        await m_status.ConfigureAwait(false);
 
                         // Stop server and dispose
                         server.Stop();
@@ -237,7 +237,7 @@ namespace Quickstarts
         /// <summary>
         /// Status thread, prints connection status every 10 seconds.
         /// </summary>
-        private async void StatusThreadAsync()
+        private async Task StatusThreadAsync()
         {
             while (m_server != null)
             {
@@ -256,7 +256,7 @@ namespace Quickstarts
         }
 
         #region Private Members
-        private TextWriter m_output;
+        private readonly TextWriter m_output;
         private ApplicationInstance m_application;
         private T m_server;
         private Task m_status;

@@ -109,7 +109,7 @@ namespace Quickstarts.ReferenceServer
 
                 // stop server. May have to wait for clients to disconnect.
                 output.WriteLine("Server stopped. Waiting for exit...");
-                await server.StopAsync();
+                await server.StopAsync().ConfigureAwait(false);
 
                 return (int)ExitCode.Ok;
             }

@@ -119,6 +119,7 @@ namespace Quickstarts
         ErrorRunning = 0x81,
         ErrorException = 0x82,
         ErrorStopping = 0x83,
+        ErrorCertificate = 0x84,
         ErrorInvalidCommandLine = 0x100
     };
 
@@ -129,12 +130,12 @@ namespace Quickstarts
     {
         public ExitCode ExitCode { get; }
 
-        public ErrorExitException(ExitCode exitCode) : base()
+        public ErrorExitException(ExitCode exitCode)
         {
             ExitCode = exitCode;
         }
 
-        public ErrorExitException() : base()
+        public ErrorExitException()
         {
             ExitCode = ExitCode.Ok;
         }
@@ -167,7 +168,7 @@ namespace Quickstarts
     {
         private TextWriter m_output;
         private string m_message = string.Empty;
-        private bool m_ask = false;
+        private bool m_ask;
 
         public ApplicationMessageDlg(TextWriter output)
         {
@@ -184,26 +185,27 @@ namespace Quickstarts
         {
             if (m_ask)
             {
-                m_message += " (y/n, default y): ";
-                m_output.Write(m_message);
-            }
-            else
-            {
-                m_output.WriteLine(m_message);
-            }
-            if (m_ask)
-            {
+                var message = new StringBuilder(m_message);
+                message.Append(" (y/n, default y): ");
+                m_output.Write(message.ToString());
+
                 try
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     m_output.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
+                    return await Task.FromResult((result.KeyChar == 'y') ||
+                        (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
                 }
                 catch
                 {
                     // intentionally fall through
                 }
             }
+            else
+            {
+                m_output.WriteLine(m_message);
+            }
+
             return await Task.FromResult(true).ConfigureAwait(false);
         }
     }
@@ -364,13 +366,14 @@ namespace Quickstarts
             var quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.CancelKeyPress += (sender, eArgs) => {
+                Console.CancelKeyPress += (_, eArgs) => {
                     quitEvent.Set();
                     eArgs.Cancel = true;
                 };
             }
             catch
             {
+                // intentionally left blank
             }
             return quitEvent;
         }
