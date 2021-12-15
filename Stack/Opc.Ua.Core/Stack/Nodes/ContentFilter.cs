@@ -535,6 +535,8 @@ namespace Opc.Ua
                 case FilterOperator.LessThanOrEqual:
                 case FilterOperator.Like:
                 case FilterOperator.Cast:
+                case FilterOperator.BitwiseAnd:
+                case FilterOperator.BitwiseOr:
                 {
                     operandCount = 2;
                     break;
@@ -740,6 +742,8 @@ namespace Opc.Ua
                 case FilterOperator.LessThanOrEqual:
                 case FilterOperator.Like:
                 case FilterOperator.Or:
+                case FilterOperator.BitwiseAnd:
+                case FilterOperator.BitwiseOr:
                 {
                     buffer.AppendFormat("'{1}' {0} '{2}'", FilterOperator, operand1, operand2);
                     break;
