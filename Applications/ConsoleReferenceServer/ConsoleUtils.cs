@@ -307,7 +307,6 @@ namespace Quickstarts
                     new ExpressionTemplate("{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
                     ReplaceSpecialFolderNames(outputFilePath),
                     restrictedToMinimumLevel: (LogEventLevel)fileLevel,
-                    //outputTemplate: "{Timestamp:u} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                     rollOnFileSizeLimit: true);
             }
 
