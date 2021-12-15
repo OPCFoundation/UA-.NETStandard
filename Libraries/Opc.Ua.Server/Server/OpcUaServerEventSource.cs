@@ -31,7 +31,7 @@ namespace Opc.Ua.Server
     /// Event source for high performance logging.
     /// </summary>
     [EventSource(Name = "OPC-UA-Server", Guid = "86FF2AAB-8FF6-46CB-8CE3-E0211950B30C")]
-    public sealed class OpcUaServerEventSource : EventSource
+    internal sealed class OpcUaServerEventSource : EventSource
     {
         // client event ids
         private const int SendResponseId = 1;

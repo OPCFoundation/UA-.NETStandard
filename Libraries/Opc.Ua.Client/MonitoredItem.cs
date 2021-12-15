@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Client
             m_values.Enqueue(notification.Value);
             m_lastValue = notification.Value;
 
-            CoreClientUtils.EventLog.Notification(notification.ClientHandle, m_lastValue.WrappedValue);
+            CoreClientUtils.EventLog.NotificationValue(notification.ClientHandle, m_lastValue.WrappedValue);
 
             while (m_values.Count > m_queueSize)
             {

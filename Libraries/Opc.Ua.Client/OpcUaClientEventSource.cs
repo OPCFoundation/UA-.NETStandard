@@ -25,67 +25,34 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The EventSource log interface.
         /// </summary>
-        public static OpcUaClientEventSource EventLog { get; } = new OpcUaClientEventSource();
+        internal static OpcUaClientEventSource EventLog { get; } = new OpcUaClientEventSource();
     }
 
     /// <summary>
     /// Event source for high performance logging.
     /// </summary>
-    [EventSource(Name = "OPC-UA-Client", Guid="8CFA469E-18C6-480F-9B74-B005DACDE3D3")]
-    public class OpcUaClientEventSource : EventSource
+    [EventSource(Name = "OPC-UA-Client", Guid = "8CFA469E-18C6-480F-9B74-B005DACDE3D3")]
+    internal class OpcUaClientEventSource : EventSource
     {
         private const int SubscriptionStateId = 1;
+        private const int NotificationId = SubscriptionStateId + 1;
 
         /// <summary>
         /// The client messages.
         /// </summary>
         private const string SubscriptionStateMessage = "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
-        private const string MonitoredItemReadyMessage = "IsReadyToPublish[{0}] {1}";
+        private const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
 
         /// <summary>
         /// The Client Event Ids used for event messages, when calling ILogger.
         /// </summary>
         private readonly EventId SubscriptionStateMessageEventId = new EventId(TraceMasks.Operation, nameof(SubscriptionState));
-
-        /// <summary>
-        /// The keywords used for this event source.
-        /// </summary>
-        public static class Keywords
-        {
-            /// <summary>
-            /// Trace
-            /// </summary>
-            public const EventKeywords Trace = (EventKeywords)1;
-            /// <summary>
-            /// Diagnostic
-            /// </summary>
-            public const EventKeywords Diagnostic = (EventKeywords)2;
-            /// <summary>
-            /// Error
-            /// </summary>
-            public const EventKeywords Exception = (EventKeywords)4;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Service = (EventKeywords)8;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Security = (EventKeywords)16;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Session = (EventKeywords)32;
-            /// <summary>
-            /// Service
-            /// </summary>
-            public const EventKeywords Subscription = (EventKeywords)64;
-        }
+        private readonly EventId NotificationEventId = new EventId(TraceMasks.Operation, nameof(Notification));
 
         /// <summary>
         /// The state of the client subscription.
         /// </summary>
-        [Event(SubscriptionStateId, Message = SubscriptionStateMessage, Level = EventLevel.Informational, Keywords = Keywords.Subscription)]
+        [Event(SubscriptionStateId, Message = SubscriptionStateMessage, Level = EventLevel.Verbose)]
         public void SubscriptionState(string context, uint id, DateTime lastNotificationTime, int goodPublishRequestCount,
             double currentPublishingInterval, uint currentKeepAliveCount, bool currentPublishingEnabled, uint monitoredItemCount)
         {
@@ -103,21 +70,30 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// The state of the client subscription.
+        /// </summary>
+        [Event(NotificationId, Message = NotificationMessage, Level = EventLevel.Verbose)]
+        public void Notification(int clientHandle, string value)
+        {
+            WriteEvent(NotificationId, value, clientHandle);
+        }
+
+        /// <summary>
         /// Log a Notification.
         /// </summary>
         [NonEvent]
-        public void Notification(uint clientHandle, Variant wrappedValue)
+        public void NotificationValue(uint clientHandle, Variant wrappedValue)
         {
+            // expensive operation, only enable if tracemask set
             if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
-                    //TODO
-                    //WriteEvent();
+                    Notification((int)clientHandle, wrappedValue.ToString());
                 }
                 else if (Utils.Logger.IsEnabled(LogLevel.Trace))
                 {
-                    Utils.LogTrace("Notification: ClientHandle={0}, Value={1}",
+                    Utils.LogTrace(NotificationEventId, NotificationMessage,
                         clientHandle, wrappedValue);
                 }
             }

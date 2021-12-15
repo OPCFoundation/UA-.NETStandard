@@ -280,11 +280,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
 #if DEBUG
                 switch (logLevel)
                 {
-                    case LogLevel.Trace: Assert.AreEqual(20, logger.TraceList.Count); break;
-                    case LogLevel.Debug: Assert.AreEqual(13, logger.TraceList.Count); break;
-                    case LogLevel.Information: Assert.AreEqual(12, logger.TraceList.Count); break;
-                    case LogLevel.Warning: Assert.AreEqual(8, logger.TraceList.Count); break;
-                    case LogLevel.Error: Assert.AreEqual(7, logger.TraceList.Count); break;
+                    case LogLevel.Trace: Assert.AreEqual(19, logger.TraceList.Count); break;
+                    case LogLevel.Debug: Assert.AreEqual(12, logger.TraceList.Count); break;
+                    case LogLevel.Information: Assert.AreEqual(11, logger.TraceList.Count); break;
+                    case LogLevel.Warning: Assert.AreEqual(7, logger.TraceList.Count); break;
+                    case LogLevel.Error: Assert.AreEqual(6, logger.TraceList.Count); break;
                     case LogLevel.Critical: Assert.AreEqual(1, logger.TraceList.Count); break;
                 }
 #else
