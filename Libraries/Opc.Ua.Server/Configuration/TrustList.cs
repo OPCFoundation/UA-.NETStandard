@@ -517,7 +517,7 @@ namespace Opc.Ua.Server
                         if (!store.DeleteCRL(crl))
                         {
                             // intentionally ignore errors, try best effort
-                            Utils.Trace("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
+                            Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
                         }
                     }
                 }

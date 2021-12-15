@@ -6,7 +6,7 @@
     <!-- Visual Studio 2022 -->
     <When  Condition="'$(VisualStudioVersion)' == '17.0'">
       <PropertyGroup>
-        <AppTargetFrameworks>net462;netcoreapp3.1;net6.0</AppTargetFrameworks>
+        <AppTargetFrameworks>net6.0;netcoreapp3.1;net462</AppTargetFrameworks>
         <AppTargetFramework>net6.0</AppTargetFramework>
         <TestsTargetFrameworks>net462;netcoreapp2.1;netcoreapp3.1;net6.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net462;netstandard2.0;netstandard2.1;net6.0</LibTargetFrameworks>
@@ -16,20 +16,21 @@
     <!-- Visual Studio 2019 -->
     <When  Condition="'$(VisualStudioVersion)' == '16.0'">
       <PropertyGroup>
-        <AppTargetFrameworks>net462;netcoreapp3.1</AppTargetFrameworks>
+        <AppTargetFrameworks>netcoreapp3.1;net462</AppTargetFrameworks>
         <AppTargetFramework>netcoreapp3.1</AppTargetFramework>
         <TestsTargetFrameworks>net462;netcoreapp2.1;netcoreapp3.1</TestsTargetFrameworks>
         <LibTargetFrameworks>net462;netstandard2.0;netstandard2.1</LibTargetFrameworks>
         <LibxTargetFrameworks>net462;netcoreapp2.1;netstandard2.1</LibxTargetFrameworks>
       </PropertyGroup>
     </When>
+    <!-- Visual Studio 2017 and earlier, support only .NET framework 4.6.2 because .NET Core 2.x is end of life.-->
     <Otherwise>
       <PropertyGroup>
-        <AppTargetFrameworks>net462;netcoreapp2.1</AppTargetFrameworks>
-        <AppTargetFramework>netcoreapp2.1</AppTargetFramework>
-        <TestsTargetFrameworks>netcoreapp2.1</TestsTargetFrameworks>
-        <LibTargetFrameworks>net462;netstandard2.0</LibTargetFrameworks>
-        <LibxTargetFrameworks>net462;netcoreapp2.1</LibxTargetFrameworks>
+        <AppTargetFrameworks>net462</AppTargetFrameworks>
+        <AppTargetFramework>net462</AppTargetFramework>
+        <TestsTargetFrameworks>net462</TestsTargetFrameworks>
+        <LibTargetFrameworks>net462</LibTargetFrameworks>
+        <LibxTargetFrameworks>net462</LibxTargetFrameworks>
       </PropertyGroup>
     </Otherwise>
   </Choose>

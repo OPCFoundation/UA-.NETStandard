@@ -333,7 +333,7 @@ namespace Opc.Ua.Client.Controls
             catch (Exception e)
             {
                 UpdateStatus(true, DateTime.Now, "Connected, failed to load complex type system.");
-                Utils.Trace(e, "Failed to load complex type system.");
+                Utils.LogWarning(e, "Failed to load complex type system.");
             }
 
             // return the new session.
@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.Controls
             catch (Exception e)
             {
                 UpdateStatus(true, DateTime.Now, "Connected, failed to load complex type system.");
-                Utils.Trace(e, "Failed to load complex type system.");
+                Utils.LogError(e, "Failed to load complex type system.");
             }
 
             // return the new session.

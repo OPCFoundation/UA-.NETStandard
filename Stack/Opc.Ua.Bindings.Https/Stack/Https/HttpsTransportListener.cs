@@ -268,7 +268,6 @@ namespace Opc.Ua.Bindings
                 });
             }
 
-
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
             m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
@@ -373,7 +372,7 @@ namespace Opc.Ua.Bindings
                     input.TypeId != DataTypeIds.GetEndpointsRequest)
                 {
                     var message = "Connection refused, invalid security policy.";
-                    Utils.Trace(Utils.TraceMasks.Error, message);
+                    Utils.LogError(message);
                     context.Response.ContentLength = message.Length;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
@@ -401,7 +400,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "HTTPSLISTENER - Unexpected error processing request.");
+                Utils.LogError(e, "HTTPSLISTENER - Unexpected error processing request.");
                 context.Response.ContentLength = e.Message.Length;
                 context.Response.ContentType = "text/plain";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
