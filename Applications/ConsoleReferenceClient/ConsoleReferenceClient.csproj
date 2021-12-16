@@ -13,7 +13,7 @@
 
   <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.21" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(NoHttps)' == 'true' ">

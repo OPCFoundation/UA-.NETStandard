@@ -18,7 +18,7 @@
   <ItemGroup Condition=" '$(NoHttps)' != 'true' ">
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <!-- Due to a compatibilty issue of the kestrel server the .NET Core 3.1 package must be used -->
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.21" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(NoHttps)' == 'true' ">
