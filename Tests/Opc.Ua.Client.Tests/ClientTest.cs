@@ -255,6 +255,34 @@ namespace Opc.Ua.Client.Tests
             session.Dispose();
         }
 
+        [Test, Order(240)]
+        public async Task ConnectMultipleSessionsAsync()
+        {
+            var endpoint = await m_clientFixture.GetEndpointAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints);
+            Assert.NotNull(endpoint);
+
+            var channel = await m_clientFixture.CreateChannelAsync(endpoint).ConfigureAwait(false);
+            Assert.NotNull(channel);
+
+            var session1 = m_clientFixture.CreateSession(channel, endpoint);
+            session1.Open("Session1", null);
+
+            var session2 = m_clientFixture.CreateSession(channel, endpoint);
+            session2.Open("Session2", null);
+
+            session1.Close(closeChannel: false);
+            session1.DetachChannel();
+            session1.Dispose();
+
+            _ = session2.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
+
+            session2.Close(closeChannel: false);
+            session2.DetachChannel();
+            session2.Dispose();
+
+            channel.Dispose();
+        }
+
         [Test, Order(300)]
         public void OperationLimits()
         {

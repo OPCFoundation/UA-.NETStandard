@@ -769,6 +769,28 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Creates a new session with a server using the specified channel by invoking the CreateSession service
+        /// </summary>
+        /// <param name="configuration">The configuration for the client application.</param>
+        /// <param name="channel">The channel for the server.</param>
+        /// <param name="endpoint">The endpoint for the server.</param>
+        /// <param name="clientCertificate">The certificate to use for the client.</param>
+        /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
+        /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
+        /// <returns></returns>
+        public static Session Create(
+           ApplicationConfiguration configuration,
+           ITransportChannel channel,
+           ConfiguredEndpoint endpoint,
+           X509Certificate2 clientCertificate,
+           EndpointDescriptionCollection availableEndpoints = null,
+           StringCollection discoveryProfileUris = null)
+        {
+            var session = new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return session;
+        }
+
+        /// <summary>
         /// Creates a new communication session with a server using a reverse connection.
         /// </summary>
         /// <param name="configuration">The configuration for the client application.</param>
@@ -792,71 +814,8 @@ namespace Opc.Ua.Client
             IUserIdentity identity,
             IList<string> preferredLocales)
         {
-            endpoint.UpdateBeforeConnect = updateBeforeConnect;
-
-            EndpointDescription endpointDescription = endpoint.Description;
-
-            // create the endpoint configuration (use the application configuration to provide default values).
-            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
-
-            if (endpointConfiguration == null)
-            {
-                endpoint.Configuration = endpointConfiguration = EndpointConfiguration.Create(configuration);
-            }
-
-            // create message context.
-            IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
-
-            // update endpoint description using the discovery endpoint.
-            if (endpoint.UpdateBeforeConnect && connection == null)
-            {
-                endpoint.UpdateFromServer();
-                endpointDescription = endpoint.Description;
-                endpointConfiguration = endpoint.Configuration;
-            }
-
-            // checks the domains in the certificate.
-            if (checkDomain &&
-                endpoint.Description.ServerCertificate != null &&
-                endpoint.Description.ServerCertificate.Length > 0)
-            {
-                configuration.CertificateValidator?.ValidateDomains(
-                    new X509Certificate2(endpoint.Description.ServerCertificate),
-                    endpoint);
-                checkDomain = false;
-            }
-
-            X509Certificate2 clientCertificate = null;
-            X509Certificate2Collection clientCertificateChain = null;
-            if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
-            {
-                clientCertificate = await LoadCertificate(configuration).ConfigureAwait(false);
-                clientCertificateChain = await LoadCertificateChain(configuration, clientCertificate).ConfigureAwait(false);
-            }
-
             // initialize the channel which will be created with the server.
-            ITransportChannel channel;
-            if (connection != null)
-            {
-                channel = SessionChannel.CreateUaBinaryChannel(
-                    configuration,
-                    connection,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    clientCertificateChain,
-                    messageContext);
-            }
-            else
-            {
-                channel = SessionChannel.Create(
-                     configuration,
-                     endpointDescription,
-                     endpointConfiguration,
-                     clientCertificate,
-                     clientCertificateChain,
-                     messageContext);
-            }
+            ITransportChannel channel = await SessionChannel.CreateAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain);
 
             // create the session object.
             Session session = new Session(channel, configuration, endpoint, null);
@@ -1036,6 +995,45 @@ namespace Opc.Ua.Client
 
             return session;
         }
+
+        /// <summary>
+        /// Recreates a session based on a specified template using the provided channel.
+        /// </summary>
+        /// <param name="template">The Session object to use as template</param>
+        /// <param name="transportChannel">The waiting reverse connection.</param>
+        /// <returns>The new session object.</returns>
+        public static Session Recreate(Session template, ITransportChannel transportChannel)
+        {
+            var messageContext = template.m_configuration.CreateMessageContext();
+            messageContext.Factory = template.Factory;
+
+            // create the session object.
+            Session session = new Session(transportChannel, template, true);
+
+            try
+            {
+                // open the session.
+                session.Open(
+                    template.m_sessionName,
+                    (uint)template.m_sessionTimeout,
+                    template.m_identity,
+                    template.m_preferredLocales,
+                    template.m_checkDomain);
+
+                // create the subscriptions.
+                foreach (Subscription subscription in session.Subscriptions)
+                {
+                    subscription.Create();
+                }
+            }
+            catch (Exception e)
+            {
+                session.Dispose();
+                throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session. {0}", template.m_sessionName);
+            }
+
+            return session;
+        }
         #endregion
 
         #region Delegates and Events
@@ -1062,13 +1060,13 @@ namespace Opc.Ua.Client
         /// </summary>
         public void Reconnect()
         {
-            Reconnect(null);
+            Reconnect(null, null);
         }
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
         /// </summary>
-        public void Reconnect(ITransportWaitingConnection connection)
+        public void Reconnect(ITransportWaitingConnection connection, ITransportChannel transportChannel = null)
         {
             try
             {
@@ -1169,6 +1167,10 @@ namespace Opc.Ua.Client
                         // disposes the existing channel.
                         TransportChannel = channel;
                     }
+                }
+                else if (transportChannel != null)
+                {
+                    TransportChannel = transportChannel;
                 }
                 else
                 {
@@ -3174,13 +3176,23 @@ namespace Opc.Ua.Client
         /// </summary>
         public override StatusCode Close()
         {
-            return Close(m_keepAliveInterval);
+            return Close(m_keepAliveInterval, true);
+        }
+
+        /// <summary>
+        /// Close the session with the server and optionally closes the channel.
+        /// </summary>
+        /// <param name="closeChannel"></param>
+        /// <returns></returns>
+        public StatusCode Close(bool closeChannel)
+        {
+            return Close(m_keepAliveInterval, closeChannel);
         }
 
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
-        public virtual StatusCode Close(int timeout)
+        public virtual StatusCode Close(int timeout, bool closeChannel = true)
         {
             // check if already called.
             if (Disposed)
@@ -3228,7 +3240,8 @@ namespace Opc.Ua.Client
                     CloseSession(null, true);
                     this.OperationTimeout = existingTimeout;
 
-                    CloseChannel();
+                    if (closeChannel)
+                        CloseChannel();
 
                     // raised notification indicating the session is closed.
                     SessionCreated(null, null);
@@ -3251,7 +3264,9 @@ namespace Opc.Ua.Client
             }
 
             // clean up.
-            Dispose();
+            if (closeChannel)
+                Dispose();
+
             return result;
         }
         #endregion
