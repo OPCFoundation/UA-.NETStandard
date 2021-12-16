@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Controls
             // check if running as a service.
             if (!Environment.UserInteractive)
             {
-                Utils.Trace(e, "Unexpected error in '{0}'.", caption);
+                Utils.LogError(e, "Unexpected error in '{0}'.", caption);
                 return;
             }
             

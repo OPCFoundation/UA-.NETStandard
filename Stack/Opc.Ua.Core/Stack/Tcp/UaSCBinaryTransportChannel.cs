@@ -196,7 +196,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void Reconnect(ITransportWaitingConnection connection)
         {
-            Utils.Trace("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            Utils.LogInfo("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
 
             lock (m_lock)
             {
@@ -227,7 +227,7 @@ namespace Opc.Ua.Bindings
                         catch (Exception e)
                         {
                             // do nothing.
-                            Utils.Trace(e, "Ignoring exception while closing transport channel during Reconnect.");
+                            Utils.LogTrace(e, "Ignoring exception while closing transport channel during Reconnect.");
                         }
                         finally
                         {

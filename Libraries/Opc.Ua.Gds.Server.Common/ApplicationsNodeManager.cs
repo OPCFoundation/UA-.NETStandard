@@ -102,29 +102,29 @@ namespace Opc.Ua.Gds.Server
             {
                 DateTime lastResetTime;
                 var results = m_database.QueryServers(0, 5, null, null, null, null, out lastResetTime);
-                Utils.Trace("QueryServers Returned: {0} records", results.Length);
+                Utils.LogInfo("QueryServers Returned: {0} records", results.Length);
 
                 foreach (var result in results)
                 {
-                    Utils.Trace("Server Found at {0}", result.DiscoveryUrl);
+                    Utils.LogInfo("Server Found at {0}", result.DiscoveryUrl);
                 }
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not connect to the Database!");
+                Utils.LogError(e, "Could not connect to the Database!");
 
                 var ie = e.InnerException;
 
                 while (ie != null)
                 {
-                    Utils.Trace(ie, "");
+                    Utils.LogInfo(ie, "");
                     ie = ie.InnerException;
                 }
 
-                Utils.Trace("Initialize Database tables!");
+                Utils.LogInfo("Initialize Database tables!");
                 m_database.Initialize();
 
-                Utils.Trace("Database Initialized!");
+                Utils.LogInfo("Database Initialized!");
             }
 
             Server.MessageContext.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).GetTypeInfo().Assembly);
@@ -285,7 +285,7 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
+                        Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", new X509Certificate2(certificate).Subject, certificateGroup.Id);
                     }
                 }
             }
@@ -342,7 +342,7 @@ namespace Opc.Ua.Gds.Server
                         var message = new StringBuilder();
                         message.AppendLine("Unexpected error initializing certificateGroup: {0}");
                         message.AppendLine("{1}");
-                        Utils.Trace(e, message.ToString(),
+                        Utils.LogError(e, message.ToString(),
                             certificateGroupConfiguration.Id,
                             ServiceResult.BuildExceptionTrace(e));
                         // make sure gds server doesn't start without cert groups!
@@ -462,7 +462,7 @@ namespace Opc.Ua.Gds.Server
             ref ServerOnNetwork[] servers)
         {
 
-            Utils.Trace(Utils.TraceMasks.Information, "QueryServers: {0} {1}", applicationUri, applicationName);
+            Utils.LogInfo("QueryServers: {0} {1}", applicationUri, applicationName);
 
             servers = m_database.QueryServers(
                 startingRecordId,
@@ -492,7 +492,7 @@ namespace Opc.Ua.Gds.Server
             ref ApplicationDescription[] applications
             )
         {
-            Utils.Trace(Utils.TraceMasks.Information, "QueryApplications: {0} {1}", applicationUri, applicationName);
+            Utils.LogInfo("QueryApplications: {0} {1}", applicationUri, applicationName);
 
             applications = m_database.QueryApplications(
                 startingRecordId,
@@ -517,7 +517,7 @@ namespace Opc.Ua.Gds.Server
         {
             HasApplicationAdminAccess(context);
 
-            Utils.Trace(Utils.TraceMasks.Information, "OnRegisterApplication: {0}", application.ApplicationUri);
+            Utils.LogInfo("OnRegisterApplication: {0}", application.ApplicationUri);
 
             applicationId = m_database.RegisterApplication(application);
 
@@ -532,7 +532,7 @@ namespace Opc.Ua.Gds.Server
         {
             HasApplicationAdminAccess(context);
 
-            Utils.Trace(Utils.TraceMasks.Information, "OnUpdateApplication: {0}", application.ApplicationUri);
+            Utils.LogInfo("OnUpdateApplication: {0}", application.ApplicationUri);
 
             var record = m_database.GetApplication(application.ApplicationId);
 
@@ -554,7 +554,7 @@ namespace Opc.Ua.Gds.Server
         {
             HasApplicationAdminAccess(context);
 
-            Utils.Trace(Utils.TraceMasks.Information, "OnUnregisterApplication: {0}", applicationId.ToString());
+            Utils.LogInfo("OnUnregisterApplication: {0}", applicationId.ToString());
 
             foreach (var certType in m_certTypeMap)
             {
@@ -588,7 +588,7 @@ namespace Opc.Ua.Gds.Server
             ref ApplicationRecordDataType[] applications)
         {
             HasApplicationUserAccess(context);
-            Utils.Trace(Utils.TraceMasks.Information, "OnFindApplications: {0}", applicationUri);
+            Utils.LogInfo("OnFindApplications: {0}", applicationUri);
             applications = m_database.FindApplications(applicationUri);
             return ServiceResult.Good;
         }
@@ -601,7 +601,7 @@ namespace Opc.Ua.Gds.Server
             ref ApplicationRecordDataType application)
         {
             HasApplicationUserAccess(context);
-            Utils.Trace(Utils.TraceMasks.Information, "OnGetApplication: {0}", applicationId);
+            Utils.LogInfo("OnGetApplication: {0}", applicationId);
             application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
         }
@@ -1063,7 +1063,7 @@ namespace Opc.Ua.Gds.Server
                         error.AppendLine("ApplicationUri={2}");
                         error.AppendLine("ApplicationName={3}");
                         return ServiceResult.Create(StatusCodes.BadConfigurationError, error.ToString(),
-                            e.Message , applicationId.ToString(), application.ApplicationUri,
+                            e.Message, applicationId.ToString(), application.ApplicationUri,
                             application.ApplicationNames[0].Text
                             );
                     }

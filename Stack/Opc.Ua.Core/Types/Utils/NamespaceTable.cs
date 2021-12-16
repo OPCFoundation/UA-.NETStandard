@@ -100,7 +100,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < m_strings.Count; ii++)
                     {
-                        Utils.Trace("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], m_instanceId);
+                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], m_instanceId);
                     }
                 }
 #endif
@@ -120,7 +120,7 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.Trace("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
+                Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
             }
 #endif
 
@@ -182,7 +182,7 @@ namespace Opc.Ua
 #if DEBUG
                     if (m_shared)
                     {
-                        Utils.Trace("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
+                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
                     }
 #endif
 

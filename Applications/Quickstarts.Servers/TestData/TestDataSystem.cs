@@ -767,7 +767,7 @@ namespace TestData
 
         void DoSample(object state)
         {
-            Utils.Trace("DoSample HiRes={0:ss.ffff} Now={1:ss.ffff}", HiResClock.UtcNow, DateTime.UtcNow);
+            Utils.LogTrace("DoSample HiRes={0:ss.ffff} Now={1:ss.ffff}", HiResClock.UtcNow, DateTime.UtcNow);
 
             Queue<Sample> samples = new Queue<Sample>();
 

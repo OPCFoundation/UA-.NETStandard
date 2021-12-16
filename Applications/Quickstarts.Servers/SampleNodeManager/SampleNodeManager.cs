@@ -2631,7 +2631,7 @@ namespace Opc.Ua.Sample
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error during diagnostics scan.");
+                Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
 
