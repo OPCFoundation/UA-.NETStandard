@@ -815,7 +815,7 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales)
         {
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = await SessionChannel.CreateAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain);
+            ITransportChannel channel = await SessionChannel.CreateAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain).ConfigureAwait(false);
 
             // create the session object.
             Session session = new Session(channel, configuration, endpoint, null);
