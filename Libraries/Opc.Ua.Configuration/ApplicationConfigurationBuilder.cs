@@ -182,7 +182,7 @@ namespace Opc.Ua.Configuration
 
             ApplicationConfiguration.TraceConfiguration?.ApplySettings();
 
-            await ApplicationConfiguration.Validate(ApplicationInstance.ApplicationType);
+            await ApplicationConfiguration.Validate(ApplicationInstance.ApplicationType).ConfigureAwait(false);
 
             await ApplicationConfiguration.CertificateValidator.
                 Update(ApplicationConfiguration.SecurityConfiguration).ConfigureAwait(false);
