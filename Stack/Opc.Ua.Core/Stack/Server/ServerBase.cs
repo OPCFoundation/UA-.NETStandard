@@ -875,13 +875,25 @@ namespace Opc.Ua
             }
 
             // check for aliases.
-            System.Net.IPHostEntry entry = System.Net.Dns.GetHostEntry(computerName);
+            IPHostEntry entry = null;
 
-            for (int ii = 0; ii < entry.Aliases.Length; ii++)
+            try
             {
-                if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                entry = Dns.GetHostEntry(computerName);
+            }
+            catch (System.Net.Sockets.SocketException e)
+            {
+                Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+            }
+
+            if (entry != null)
+            {
+                for (int ii = 0; ii < entry.Aliases.Length; ii++)
                 {
-                    return computerName.ToUpper();
+                    if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                    {
+                        return computerName.ToUpper();
+                    }
                 }
             }
 
