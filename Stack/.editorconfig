@@ -1,8 +1,8 @@
-# Editorconfig for libraries
+# Editorconfig for Core Stack
 
 root = false
 
-# Diagnostic settings specific to libraries
+# Diagnostic settings specific to core
 [*.cs]
 
 # RCS1090: Add call to 'ConfigureAwait' (or vice versa)
