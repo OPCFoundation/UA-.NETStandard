@@ -1142,7 +1142,7 @@ namespace Opc.Ua.Bindings
                 timeToRenewal = 0;
             }
 
-            Utils.LogInfo("ChannelId {0}: Token Expiry {1}, renewal scheduled in {2} ms. {2}", ChannelId, expiryTime, (int)timeToRenewal);
+            Utils.LogInfo("ChannelId {0}: Token Expiry {1}, renewal scheduled in {2} ms.", ChannelId, expiryTime, (int)timeToRenewal);
 
             m_handshakeTimer = new Timer(m_StartHandshake, token, (int)timeToRenewal, Timeout.Infinite);
         }

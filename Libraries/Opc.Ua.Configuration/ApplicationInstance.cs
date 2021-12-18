@@ -401,12 +401,15 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Delete the application certificate.
+        /// Deletes all application certificates.
         /// </summary>
         public async Task DeleteApplicationInstanceCertificate()
         {
             if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
-            await DeleteApplicationInstanceCertificate(m_applicationConfiguration).ConfigureAwait(false);
+            foreach (var id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
+            {
+                await DeleteApplicationInstanceCertificate(m_applicationConfiguration, id).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -481,7 +484,7 @@ namespace Opc.Ua.Configuration
             if (certificate != null)
             {
                 Utils.LogCertificate("Check certificate:", certificate);
-                bool certificateValid = await CheckApplicationInstanceCertificate(configuration, id, silent, minimumKeySize).ConfigureAwait(false);
+                bool certificateValid = await CheckApplicationInstanceCertificate(configuration, id, certificate, silent, minimumKeySize).ConfigureAwait(false);
 
                 if (!certificateValid)
                 {
@@ -874,7 +877,7 @@ namespace Opc.Ua.Configuration
                     .SetECCurve(curve)
                     .CreateForECDsa();
 
-                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {0}. Thumbprint={1}", curve.ToString(), id.Certificate.Thumbprint);
+                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {0}. Thumbprint={1}", curve.Oid.FriendlyName, id.Certificate.Thumbprint);
 #endif
             }
 
@@ -896,7 +899,7 @@ namespace Opc.Ua.Configuration
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
-            Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
+            Utils.LogCertificate("Certificate created for {0}.", id.Certificate, configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
 
@@ -911,9 +914,6 @@ namespace Opc.Ua.Configuration
         private static async Task DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration, CertificateIdentifier id)
         {
             Utils.Trace(Utils.TraceMasks.Information, "Deleting application instance certificate.");
-
-            // create a default certificate id none specified.
-            CertificateIdentifier id = configuration.SecurityConfiguration.ApplicationCertificate;
 
             if (id == null)
             {

@@ -448,7 +448,8 @@ namespace Opc.Ua.Server
                     if (m_serverStatus.Value.State == ServerState.Running)
                         return true;
 
-                    if (m_serverStatus.Value.State == ServerState.Shutdown && m_serverStatus.Value.SecondsTillShutdown > 0)
+                    if (m_serverStatus.Value.State == ServerState.Shutdown &&
+                        m_serverStatus.Value.SecondsTillShutdown > 0)
                         return true;
 
                     return false;
