@@ -1049,7 +1049,7 @@ namespace Opc.Ua
         /// <param name="certificate">The application certificate.</param>
         public async Task<byte[]> LoadCertificateChainRawAsync(X509Certificate2 certificate)
         {
-            var instanceCertificateChain = await LoadCertificateChainAsync(certificate);
+            var instanceCertificateChain = await LoadCertificateChainAsync(certificate).ConfigureAwait(false);
             if (instanceCertificateChain != null)
             {
                 List<byte> serverCertificateChain = new List<byte>();
@@ -1076,7 +1076,7 @@ namespace Opc.Ua
             // load certificate chain.
             var certificateChain = new X509Certificate2Collection(certificate);
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            if (await m_certificateValidator.GetIssuers(certificate, issuers, false))
+            if (await m_certificateValidator.GetIssuers(certificate, issuers, false).ConfigureAwait(false))
             {
                 for (int i = 0; i < issuers.Count; i++)
                 {

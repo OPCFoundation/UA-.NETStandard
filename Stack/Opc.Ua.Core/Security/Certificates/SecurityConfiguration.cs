@@ -306,7 +306,7 @@ namespace Opc.Ua
                                 }
                                 else
                                 {
-                                    Utils.Trace("Ignoring certificateType {0} because the platform doesn't support it.",
+                                    Utils.LogWarning("Ignoring certificateType {0} because the platform doesn't support it.",
                                         profile.Value);
                                 }
                                 break;

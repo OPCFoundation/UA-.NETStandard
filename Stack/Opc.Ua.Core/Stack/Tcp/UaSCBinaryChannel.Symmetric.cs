@@ -305,11 +305,11 @@ namespace Opc.Ua.Bindings
                     var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
                     var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
-                    Utils.Trace($"Length={Utils.ToHexString(length)}");
-                    Utils.Trace($"ClientSecret={Utils.ToHexString(clientSecret)}");
-                    Utils.Trace($"ServerSecret={Utils.ToHexString(clientSecret)}");
-                    Utils.Trace($"ServerSalt={Utils.ToHexString(serverSalt)}");
-                    Utils.Trace($"ClientSalt={Utils.ToHexString(clientSalt)}");
+                    Utils.LogTrace("Length={0}", Utils.ToHexString(length));
+                    Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
+                    Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
+                    Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
+                    Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
@@ -324,11 +324,11 @@ namespace Opc.Ua.Bindings
                     var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
                     var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
-                    Utils.Trace($"Length={Utils.ToHexString(length)}");
-                    Utils.Trace($"ClientSecret={Utils.ToHexString(clientSecret)}");
-                    Utils.Trace($"ServerSecret={Utils.ToHexString(clientSecret)}");
-                    Utils.Trace($"ServerSalt={Utils.ToHexString(serverSalt)}");
-                    Utils.Trace($"ClientSalt={Utils.ToHexString(clientSalt)}");
+                    Utils.LogTrace("Length={0}", Utils.ToHexString(length));
+                    Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
+                    Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
+                    Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
+                    Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
@@ -343,11 +343,11 @@ namespace Opc.Ua.Bindings
                     var serverSalt = Utils.Append(length, s_HkdfServerLabel, serverSecret, clientSecret);
                     var clientSalt = Utils.Append(length, s_HkdfClientLabel, clientSecret, serverSecret);
 
-                    Utils.Trace($"Length={Utils.ToHexString(length)}");
-                    Utils.Trace($"ClientSecret={Utils.ToHexString(clientSecret)}");
-                    Utils.Trace($"ServerSecret={Utils.ToHexString(clientSecret)}");
-                    Utils.Trace($"ServerSalt={Utils.ToHexString(serverSalt)}");
-                    Utils.Trace($"ClientSalt={Utils.ToHexString(clientSalt)}");
+                    Utils.LogTrace("Length={0}", Utils.ToHexString(length));
+                    Utils.LogTrace("ClientSecret={0}", Utils.ToHexString(clientSecret));
+                    Utils.LogTrace("ServerSecret={0}", Utils.ToHexString(clientSecret));
+                    Utils.LogTrace("ServerSalt={0}", Utils.ToHexString(serverSalt));
+                    Utils.LogTrace("ClientSalt={0}", Utils.ToHexString(clientSalt));
 
                     DeriveKeysWithHKDF(algorithmName, serverSalt, token, true);
                     DeriveKeysWithHKDF(algorithmName, clientSalt, token, false);
@@ -1457,9 +1457,9 @@ namespace Opc.Ua.Bindings
             }
         }
 #endif
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ChannelToken m_currentToken;
         private ChannelToken m_previousToken;
         private ChannelToken m_renewedToken;
@@ -1467,6 +1467,6 @@ namespace Opc.Ua.Bindings
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private int m_encryptionBlockSize;
-#endregion
+        #endregion
     }
 }

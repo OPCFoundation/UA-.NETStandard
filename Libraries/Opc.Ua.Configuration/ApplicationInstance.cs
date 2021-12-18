@@ -833,7 +833,7 @@ namespace Opc.Ua.Configuration
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
 
-                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for RSA. Thumbprint={0}", id.Certificate.Thumbprint);
+                Utils.LogInfo("Certificate created for RSA. Thumbprint={0}", id.Certificate.Thumbprint);
             }
             else
             {
@@ -877,7 +877,7 @@ namespace Opc.Ua.Configuration
                     .SetECCurve(curve)
                     .CreateForECDsa();
 
-                Utils.Trace(Utils.TraceMasks.Information, "Certificate created for {0}. Thumbprint={1}", curve.Oid.FriendlyName, id.Certificate.Thumbprint);
+                Utils.LogInfo("Certificate created for {0}. Thumbprint={1}", curve.Oid.FriendlyName, id.Certificate.Thumbprint);
 #endif
             }
 
@@ -913,8 +913,6 @@ namespace Opc.Ua.Configuration
         /// <param name="id">The certificate identifier.</param>
         private static async Task DeleteApplicationInstanceCertificate(ApplicationConfiguration configuration, CertificateIdentifier id)
         {
-            Utils.Trace(Utils.TraceMasks.Information, "Deleting application instance certificate.");
-
             if (id == null)
             {
                 return;
