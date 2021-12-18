@@ -33,7 +33,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 serverCertificate,
             EndpointDescriptionCollection endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri):
+            string securityPolicyUri) :
             this(contextId, bufferManager, quotas, null, serverCertificate, endpoints, securityMode, securityPolicyUri)
         {
         }
@@ -182,9 +182,9 @@ namespace Opc.Ua.Bindings
 #endif
             }
         }
-#endregion
+        #endregion
 
-#region Public Methods
+        #region Public Methods
         /// <summary>
         /// The identifier assigned to the channel by the server.
         /// </summary>
@@ -223,9 +223,9 @@ namespace Opc.Ua.Bindings
                 m_StateChanged = callback;
             }
         }
-#endregion
+        #endregion
 
-#region Channel State Functions
+        #region Channel State Functions
         /// <summary>
         /// Reports that the channel state has changed (in another thread).
         /// </summary>
@@ -233,7 +233,8 @@ namespace Opc.Ua.Bindings
         {
             if (m_StateChanged != null)
             {
-                Task.Run(() => {
+                Task.Run(() =>
+                {
                     m_StateChanged?.Invoke(this, state, reason);
                 });
             }
@@ -244,6 +245,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
+            // TODO transaction safe
             m_localSequenceNumber = (uint)m_sequenceNumber;
             return Utils.IncrementIdentifier(ref m_sequenceNumber);
         }
@@ -321,9 +323,9 @@ namespace Opc.Ua.Bindings
             m_partialMessageChunks = null;
             return savedChunks;
         }
-#endregion
+        #endregion
 
-#region IMessageSink Members
+        #region IMessageSink Members
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
@@ -348,7 +350,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-#region Incoming Message Support Functions
+        #region Incoming Message Support Functions
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
@@ -380,7 +382,7 @@ namespace Opc.Ua.Bindings
         protected virtual void HandleMessageProcessingError(ServiceResult result)
         {
         }
-#endregion
+        #endregion
 
         /// <summary>
         /// Handles a receive error.
@@ -399,9 +401,9 @@ namespace Opc.Ua.Bindings
         protected virtual void HandleSocketError(ServiceResult result)
         {
         }
-#endregion
+        #endregion
 
-#region Outgoing Message Support Functions
+        #region Outgoing Message Support Functions
         /// <summary>
         /// Handles a write complete event.
         /// </summary>
@@ -633,9 +635,9 @@ namespace Opc.Ua.Bindings
             buffer[offset++] = (byte)((messageSize & 0x00FF0000) >> 16);
             buffer[offset] = (byte)((messageSize & 0xFF000000) >> 24);
         }
-#endregion
+        #endregion
 
-#region Protected Properties
+        #region Protected Properties
         /// <summary>
         /// The synchronization object for the channel.
         /// </summary>
@@ -753,9 +755,9 @@ namespace Opc.Ua.Bindings
                 m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
             }
         }
-#endregion
+        #endregion
 
-#region WriteOperation Class
+        #region WriteOperation Class
         /// <summary>
         /// A class that stores the state for a write operation.
         /// </summary>
@@ -788,14 +790,14 @@ namespace Opc.Ua.Bindings
                 set { m_messageBody = value; }
             }
 
-#region Private Fields
+            #region Private Fields
             private uint m_requestId;
             private IEncodeable m_messageBody;
-#endregion
+            #endregion
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private object m_lock = new object();
         private IMessageSocket m_socket;
         private BufferManager m_bufferManager;
@@ -819,7 +821,7 @@ namespace Opc.Ua.Bindings
         private BufferCollection m_partialMessageChunks;
 
         private TcpChannelStateEventHandler m_StateChanged;
-#endregion
+        #endregion
     }
 
     /// <summary>

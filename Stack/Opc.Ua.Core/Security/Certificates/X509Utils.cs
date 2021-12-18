@@ -444,12 +444,21 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// 
+        /// Return if a certificate has a ECDsa signature.
         /// </summary>
-        /// <param name="cert"></param>
+        /// <param name="cert">The certificate to test.</param>
         public static bool IsECDsaSignature(X509Certificate2 cert)
         {
             return X509PfxUtils.IsECDsaSignature(cert);
+        }
+
+        /// <summary>
+        /// Return a qualifier string if a ECDsa signature algorithm used.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        {
+            return EccUtils.GetECDsaQualifier(certificate);
         }
 
         /// <summary>
