@@ -844,9 +844,9 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Add specified groups of security policies and security modes.
         /// </summary>
-        /// <param name="includeSign"></param>
-        /// <param name="deprecated"></param>
-        /// <param name="policyNone"></param>
+        /// <param name="includeSign">Include the Sign only policies.</param>
+        /// <param name="deprecated">Include the deprecated policies.</param>
+        /// <param name="policyNone">Include policy 'None'. (no security!)</param>
         private void AddSecurityPolicies(bool includeSign = false, bool deprecated = false, bool policyNone = false)
         {
             // create list of supported policies

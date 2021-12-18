@@ -240,7 +240,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not load updated configuration file from: {0}", args);
+                Utils.LogError(e, "Could not load updated configuration file from: {0}", args);
             }
         }
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Failed to Open {0}.", host.Key);
+                        Utils.LogError(e, "Failed to Open {0}.", host.Key);
                         value.State = ReverseConnectHostState.Errored;
                     }
                 }
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Failed to Close {0}.", host.Key);
+                        Utils.LogError(e, "Failed to Close {0}.", host.Key);
                         value.State = ReverseConnectHostState.Errored;
                     }
                 }
@@ -405,7 +405,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error starting reverse connect manager.");
+                    Utils.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
                     ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
                     throw new ServiceResultException(error);
@@ -432,7 +432,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error starting reverse connect manager.");
+                    Utils.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
                     ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting reverse connect manager");
                     throw new ServiceResultException(error);
@@ -606,7 +606,7 @@ namespace Opc.Ua.Client
             }
             catch (ArgumentException ae)
             {
-                Utils.Trace(ae, "No listener was found for endpoint {0}.", endpointUrl);
+                Utils.LogError(ae, "No listener was found for endpoint {0}.", endpointUrl);
                 info.State = ReverseConnectHostState.Errored;
             }
         }
@@ -622,7 +622,7 @@ namespace Opc.Ua.Client
             bool matched = MatchRegistration(sender, e);
             while (!matched)
             {
-                Utils.Trace("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                Utils.LogInfo("Holding reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
                 CancellationToken ct;
                 lock (m_registrationsLock)
                 {
@@ -637,7 +637,7 @@ namespace Opc.Ua.Client
                             matched = MatchRegistration(sender, e);
                             if (matched)
                             {
-                                Utils.Trace("Matched reverse connection {0} {1} after {2}ms",
+                                Utils.LogInfo("Matched reverse connection {0} {1} after {2}ms",
                                      e.ServerUri, e.EndpointUrl,
                                     (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
                             }
@@ -648,9 +648,9 @@ namespace Opc.Ua.Client
                 break;
             }
 
-            Utils.Trace("{0} reverse connection: {1} {2} after {3}ms",
+            Utils.LogInfo("{0} reverse connection: {1} {2} after {3}ms",
                 e.Accepted ? "Accepted" : "Rejected",
-                e.ServerUri, e.EndpointUrl, (int)(DateTime.UtcNow - startTime).TotalMilliseconds);
+                e.ServerUri, e.EndpointUrl, (int)DateTime.UtcNow.Subtract(startTime).TotalMilliseconds);
         }
 
         /// <summary>
@@ -674,7 +674,7 @@ namespace Opc.Ua.Client
                         callbackRegistration = registration;
                         e.Accepted = true;
                         found = true;
-                        Utils.Trace("Accepted reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
+                        Utils.LogInfo("Accepted reverse connection: {0} {1}", e.ServerUri, e.EndpointUrl);
                         break;
                     }
                 }
@@ -689,7 +689,7 @@ namespace Opc.Ua.Client
                             callbackRegistration = registration;
                             e.Accepted = true;
                             found = true;
-                            Utils.Trace("Accept any reverse connection for approval: {0} {1}", e.ServerUri, e.EndpointUrl);
+                            Utils.LogInfo("Accept any reverse connection for approval: {0} {1}", e.ServerUri, e.EndpointUrl);
                             break;
                         }
                     }
@@ -714,7 +714,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
         {
-            Utils.Trace("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
+            Utils.LogInfo("Channel status: {0} {1} {2}", e.EndpointUrl, e.ChannelStatus, e.Closed);
         }
 
         /// <summary>

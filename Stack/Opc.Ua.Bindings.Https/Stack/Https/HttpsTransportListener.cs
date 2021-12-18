@@ -244,11 +244,30 @@ namespace Opc.Ua.Bindings
 #else
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
-            m_hostBuilder.UseKestrel(options => {
-                options.ListenAnyIP(m_uri.Port, listenOptions => {
-                    listenOptions.UseHttps(httpsOptions);
+            bool bindToSpecifiedAddress = true;
+            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+            {
+                bindToSpecifiedAddress = false;
+            }
+
+            if (bindToSpecifiedAddress)
+            {
+                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
+                m_hostBuilder.UseKestrel(options => {
+                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
                 });
-            });
+            }
+            else
+            {
+                m_hostBuilder.UseKestrel(options => {
+                    options.ListenAnyIP(m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
+                });
+            }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
@@ -354,7 +373,7 @@ namespace Opc.Ua.Bindings
                     input.TypeId != DataTypeIds.GetEndpointsRequest)
                 {
                     var message = "Connection refused, invalid security policy.";
-                    Utils.Trace(Utils.TraceMasks.Error, message);
+                    Utils.LogError(message);
                     context.Response.ContentLength = message.Length;
                     context.Response.ContentType = "text/plain";
                     context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
@@ -382,7 +401,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "HTTPSLISTENER - Unexpected error processing request.");
+                Utils.LogError(e, "HTTPSLISTENER - Unexpected error processing request.");
                 context.Response.ContentLength = e.Message.Length;
                 context.Response.ContentType = "text/plain";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;

@@ -151,7 +151,7 @@ namespace Opc.Ua.Bindings
                     }
                     else
                     {
-                        Utils.Trace(Utils.TraceMasks.Error, "Failed to create endpoint {0} because the transport profile is unsupported.", uri);
+                        Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", uri);
                     }
                 }
 

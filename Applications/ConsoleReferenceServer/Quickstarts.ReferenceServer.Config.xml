@@ -40,7 +40,7 @@
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/issuer</StorePath>
     </TrustedIssuerCertificates>
 
-    <!-- Where the trust list is stored (UA Applications) -->
+    <!-- Where the trust list is stored -->
     <TrustedPeerCertificates>
       <StoreType>Directory</StoreType>
       <StorePath>%LocalApplicationData%/OPC Foundation/pki/trusted</StorePath>

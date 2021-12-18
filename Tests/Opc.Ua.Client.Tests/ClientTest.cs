@@ -663,7 +663,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     try
                     {
-                        await dictionaryToLoad.Validate(dictionary, true);
+                        await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -672,7 +672,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 else
                 {
-                    await dictionaryToLoad.Validate(dictionary, true);
+                    await dictionaryToLoad.Validate(dictionary, true).ConfigureAwait(false);
                 }
             }
         }

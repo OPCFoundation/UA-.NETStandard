@@ -389,7 +389,6 @@ namespace Opc.Ua
                 {
                     decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
                 }
-
                 else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                 {
                     decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
@@ -883,7 +882,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error exporting node:" + e.Message);
+                    Utils.LogError("Unexpected error exporting node:" + e.Message);
                 }
             }
         }
@@ -1221,7 +1220,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="arrayDimensions">The array dimensions.</param>
         /// <returns>The XML string value.</returns>
-        internal static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
+        public static string ArrayDimensionsToXml(IList<uint> arrayDimensions)
         {
             if (arrayDimensions == null)
             {
@@ -1248,7 +1247,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="value">The XML string value.</param>
         /// <returns>The array dimensions list.</returns>
-        internal static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
+        public static ReadOnlyList<uint> ArrayDimensionsFromXml(string value)
         {
             if (String.IsNullOrEmpty(value))
             {

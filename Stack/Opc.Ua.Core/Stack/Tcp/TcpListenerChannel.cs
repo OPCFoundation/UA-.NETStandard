@@ -101,7 +101,9 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Connecting;
 
                 Socket = new TcpMessageSocket(this, socket, BufferManager, Quotas.MaxBufferSize);
-                Utils.Trace("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+
+                Utils.LogInfo("{0} SOCKET ATTACHED: {1:X8}, ChannelId={2}", ChannelName, Socket.Handle, ChannelId);
+
                 Socket.ReadNextMessage();
 
                 // automatically clean up the channel if no hello received.
@@ -125,7 +127,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                Utils.Trace("Channel {0}: SendResponse {1}", ChannelId, requestId);
+                Utils.EventLog.SendResponse((int)ChannelId, (int)requestId);
 
                 BufferCollection buffers = null;
 
@@ -217,13 +219,13 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                Utils.Trace(
+                Utils.LogError(
                     "{0} ForceChannelFault Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason.ToLongString());
+                    reason);
 
                 CompleteReverseHello(new ServiceResultException(reason));
 
@@ -240,7 +242,6 @@ namespace Opc.Ua.Bindings
                     {
                         SendErrorMessage(reason);
                     }
-
                 }
 
                 State = TcpChannelState.Faulted;
@@ -297,13 +298,13 @@ namespace Opc.Ua.Bindings
                     reason = new ServiceResult(StatusCodes.BadTimeout);
                 }
 
-                Utils.Trace(
+                Utils.LogInfo(
                     "{0} Cleanup Socket={1:X8}, ChannelId={2}, TokenId={3}, Reason={4}",
                     ChannelName,
                     (Socket != null) ? Socket.Handle : 0,
                     (CurrentToken != null) ? CurrentToken.ChannelId : 0,
                     (CurrentToken != null) ? CurrentToken.TokenId : 0,
-                    reason.ToLongString());
+                    reason.ToString());
 
                 // close channel.
                 ChannelClosed();
@@ -354,7 +355,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error re-sending request (ID={0}).", response.Key);
+                    Utils.LogError(e, "Unexpected error re-sending request (ID={0}).", response.Key);
                 }
             }
         }
@@ -364,7 +365,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendErrorMessage(ServiceResult error)
         {
-            Utils.Trace("Channel {0}: SendErrorMessage()", ChannelId);
+            Utils.LogTrace("ChannelId {0}: SendErrorMessage={1}", ChannelId, error.StatusCode);
 
             byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
@@ -397,7 +398,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
-            Utils.Trace("Channel {0} Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
 
             BufferCollection buffers = null;
 
@@ -472,7 +473,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, ServiceResult fault)
         {
-            Utils.Trace("Channel {0} Request {1}: SendServiceFault()", ChannelId, requestId);
+            Utils.LogTrace("ChannelId {0}: Request {1}: SendServiceFault={2}", ChannelId, requestId, fault.StatusCode);
 
             BufferCollection chunksToSend = null;
 
@@ -581,5 +582,4 @@ namespace Opc.Ua.Bindings
     /// Used to report the status of the channel.
     /// </summary>
     public delegate void TcpChannelStatusEventHandler(TcpServerChannel channel, ServiceResult status, bool closed);
-
 }

@@ -172,6 +172,8 @@ namespace Opc.Ua
         {
             ITransportListener listener = null;
 
+            Utils.LogInfo("Create Reverse Connection to Client at {0}.", url);
+
             if (TransportListeners != null)
             {
                 foreach (var ii in TransportListeners)
@@ -189,12 +191,11 @@ namespace Opc.Ua
                 throw new ArgumentException(nameof(url), "No suitable listener found.");
             }
 
-            Utils.Trace((int)Utils.TraceMasks.Information, "Connecting to Client at {0}.", url);
             listener.CreateReverseConnection(url, timeout);
         }
 
         /// <summary>
-        /// Starts the server (called from a IIS host process).
+        /// Starts the server.
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information 
         /// for a UA application</param>
@@ -437,7 +438,6 @@ namespace Opc.Ua
                 maxRequestThreadCount = configuration.ServerConfiguration.MaxRequestThreadCount;
                 maxQueuedRequestCount = configuration.ServerConfiguration.MaxQueuedRequestCount;
             }
-
             else if (configuration.DiscoveryServerConfiguration != null)
             {
                 minRequestThreadCount = configuration.DiscoveryServerConfiguration.MinRequestThreadCount;
@@ -503,7 +503,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
+                        Utils.LogError(e, "Unexpected error closing a listener. {0}", listeners[ii].GetType().FullName);
                     }
                 }
 
@@ -776,7 +776,7 @@ namespace Opc.Ua
                     message.Append(' ')
                         .Append(e.InnerException.Message);
                 }
-                Utils.Trace(e, message.ToString());
+                Utils.LogError(e, message.ToString());
                 throw;
             }
         }
@@ -786,7 +786,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The configuration.</param>
         /// <param name="description">The description.</param>
-        /// <returns>Returns a collection of UserTokenPolicy objects, the return type is <seealso cref="UserTokenPolicyCollection"/> . </returns>
+        /// <returns>
+        /// Returns a collection of UserTokenPolicy objects,
+        /// the return type is <seealso cref="UserTokenPolicyCollection"/> .
+        /// </returns>
         public virtual UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
             int policyId = 0;
@@ -869,13 +872,25 @@ namespace Opc.Ua
             }
 
             // check for aliases.
-            System.Net.IPHostEntry entry = System.Net.Dns.GetHostEntry(computerName);
+            IPHostEntry entry = null;
 
-            for (int ii = 0; ii < entry.Aliases.Length; ii++)
+            try
             {
-                if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                entry = Dns.GetHostEntry(computerName);
+            }
+            catch (System.Net.Sockets.SocketException e)
+            {
+                Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+            }
+
+            if (entry != null)
+            {
+                for (int ii = 0; ii < entry.Aliases.Length; ii++)
                 {
-                    return computerName.ToUpper();
+                    if (Utils.AreDomainsEqual(hostname, entry.Aliases[ii]))
+                    {
+                        return computerName.ToUpper();
+                    }
                 }
             }
 
@@ -1420,15 +1435,27 @@ namespace Opc.Ua
             public void ScheduleIncomingRequest(IEndpointIncomingRequest request)
             {
 #if THREAD_SCHEDULER
-                bool tooManyOperations = false;
+                int totalThreadCount;
+                int activeThreadCount;
 
-                // queue the request.
-                lock (m_lock)   // i.e. Monitor.Enter(m_lock)
+                // Queue the request. Call logger only outside lock.
+                Monitor.Enter(m_lock);
+                bool monitorExit = true;
+                try
                 {
                     // check able to schedule requests.
                     if (m_stopped || m_queue.Count >= m_maxRequestCount)
                     {
-                        tooManyOperations = true;
+                        // too many operations
+                        totalThreadCount = m_totalThreadCount;
+                        activeThreadCount = m_activeThreadCount;
+                        monitorExit = false;
+                        Monitor.Exit(m_lock);
+
+                        request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+
+                        Utils.LogTrace("Too many operations. Total: {0} Active: {1}",
+                            totalThreadCount, activeThreadCount);
                     }
                     else
                     {
@@ -1442,20 +1469,29 @@ namespace Opc.Ua
                         // start a new thread to handle the request if none are idle and the pool is not full.
                         else if (m_totalThreadCount < m_maxThreadCount)
                         {
+                            totalThreadCount = ++m_totalThreadCount;
+                            activeThreadCount = ++m_activeThreadCount;
+                            monitorExit = false;
+                            Monitor.Exit(m_lock);
+
+                            // new threads start in an active state
                             Thread thread = new Thread(OnProcessRequestQueue);
                             thread.IsBackground = true;
                             thread.Start(null);
-                            m_totalThreadCount++;
-                            m_activeThreadCount++;  // new threads start in an active state
 
-                            Utils.Trace(Utils.TraceMasks.Error, "Thread created: " + thread.ManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count: " + m_activeThreadCount);
+                            Utils.LogTrace("Thread created: {0:X8}. Total: {1} Active: {2}",
+                                thread.ManagedThreadId, totalThreadCount, activeThreadCount);
+
+                            return;
                         }
                     }
                 }
-
-                if (tooManyOperations)
+                finally
                 {
-                    request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
+                    if (monitorExit)
+                    {
+                        Monitor.Exit(m_lock);
+                    }
                 }
 #else
                 if (m_stopped)
@@ -1469,7 +1505,7 @@ namespace Opc.Ua
                 {
                     Interlocked.Decrement(ref m_activeThreadCount);
                     request.OperationCompleted(null, StatusCodes.BadTooManyOperations);
-                    Utils.Trace(Utils.TraceMasks.Error, "Too many operations. Active thread count: {0}", m_activeThreadCount);
+                    Utils.LogWarning("Too many operations. Active thread count: {0}", m_activeThreadCount);
                     return;
                 }
 
@@ -1507,9 +1543,8 @@ namespace Opc.Ua
                             if (m_stopped || (!Monitor.Wait(m_lock, 30000) && m_totalThreadCount > m_minThreadCount))
                             {
                                 m_totalThreadCount--;
-
-                                Utils.Trace(Utils.TraceMasks.Error, "Thread ended: " + Environment.CurrentManagedThreadId + ". Current thread count: " + m_totalThreadCount + ". Active thread count" + m_activeThreadCount);
-
+                                Utils.LogTrace("Thread ended: {0:X8}. Total: {1} Active: {2}",
+                                    Environment.CurrentManagedThreadId, m_totalThreadCount, m_activeThreadCount);
                                 return;
                             }
 
@@ -1527,7 +1562,7 @@ namespace Opc.Ua
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error processing incoming request.");
+                            Utils.LogError(e, "Unexpected error processing incoming request.");
                         }
                         finally
                         {

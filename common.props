@@ -33,10 +33,19 @@
     <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
   </ItemGroup>
 
+  <Choose>
+    <!-- VS 2017 workaround -->
+    <When  Condition="'$(RCS)' == 'true'">
+      <ItemGroup>
+        <PackageReference Include="Roslynator.Analyzers" Version="3.3.0" PrivateAssets="All" />
+      </ItemGroup>
+    </When>
+  </Choose>
+
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
   </ItemGroup>
-  
+
   <!-- Deterministic build is currently not supported for code coverage tests. -->
   <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>

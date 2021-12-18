@@ -111,7 +111,11 @@ namespace Opc.Ua
         {
             using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                return rsaPublicKey.KeySize;
+                if (rsaPublicKey != null)
+                {
+                    return rsaPublicKey.KeySize;
+                }
+                return -1;
             }
         }
 

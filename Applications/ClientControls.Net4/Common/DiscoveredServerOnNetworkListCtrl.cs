@@ -217,7 +217,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error discovering servers.");
+                Utils.LogError(e, "Unexpected error discovering servers.");
             }
         }
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.Controls
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace("Error retrieving FindServersOnNetwork paramters. Error=({1}){0}", e.Message, e.GetType());
+                    Utils.LogError("Error retrieving FindServersOnNetwork parameters. Error=({1}){0}", e.Message, e.GetType());
                     return false;
                 }
 
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.Controls
             }
             catch (Exception e)
             {
-                Utils.Trace("DISCOVERY ERROR - Could not fetch servers from url: {0}. Error=({2}){1}", discoveryUrl, e.Message, e.GetType());
+                Utils.LogError("DISCOVERY ERROR - Could not fetch servers from url: {0}. Error=({2}){1}", discoveryUrl, e.Message, e.GetType());
                 return false;
             }
             finally

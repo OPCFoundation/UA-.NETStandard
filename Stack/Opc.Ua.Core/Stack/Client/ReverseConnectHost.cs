@@ -70,6 +70,8 @@ namespace Opc.Ua
                     ReverseConnectListener = true
                 };
 
+                Utils.LogInfo("Open reverse connect listener for {0}.", Url);
+
                 m_listener.Open(
                    Url,
                    settings,
@@ -81,7 +83,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not open listener for {0}.", Url);
+                Utils.LogError(e, "Could not open listener for {0}.", Url);
                 throw;
             }
         }

@@ -294,7 +294,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising ConnectionStatusChanged event.");
+                    Utils.LogError(exception, "Unexpected error raising ConnectionStatusChanged event.");
                 }
             }
         }
@@ -759,7 +759,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error reverting to normal permissions.");
+                Utils.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
@@ -780,7 +780,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising KeepAlive event.");
+                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
@@ -802,7 +802,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising KeepAlive event.");
+                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }

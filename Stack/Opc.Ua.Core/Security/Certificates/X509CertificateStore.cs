@@ -147,7 +147,8 @@ namespace Opc.Ua
                     {
                         store.Add(certificate);
                     }
-                    Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), store.Name);
+
+                    Utils.LogCertificate("Added certificate to X509Store {0}.", certificate, store.Name);
                 }
             }
 

@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// Specialized in creating the necessary <see cref="UdpClient"/> instances from an URL
     /// </summary>
-    internal class UdpClientCreator
+    internal static class UdpClientCreator
     {
         public const int SIO_UDP_CONNRESET = -1744830452;
 
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Transport
         internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
         {
             StringBuilder buffer = new StringBuilder();
-            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkInterface != null ? networkInterface : "null");            
+            buffer.AppendFormat("networkAddressUrl.NetworkInterface = {0} \n", networkInterface ?? "null");            
             buffer.AppendFormat("configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
@@ -249,11 +249,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             if (address == null) return false;
             byte[] bytes = address.GetAddressBytes();
-            if (bytes[0] >= 224 && bytes[0] <= 239)
-            {
-                return true;
-            }
-            return false;
+            return bytes[0] >= 224 && bytes[0] <= 239;
         }
 
         /// <summary>
