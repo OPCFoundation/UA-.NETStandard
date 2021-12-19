@@ -778,8 +778,8 @@ namespace Opc.Ua
             }
 
             var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
-            if (signatureQualifier != null)
-            { 
+            if (!string.IsNullOrEmpty(signatureQualifier))
+            {
                 fileName.Append(" [");
                 fileName.Append(signatureQualifier);
                 fileName.Append(']');

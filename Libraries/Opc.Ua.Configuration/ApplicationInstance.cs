@@ -403,8 +403,9 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Deletes all application certificates.
         /// </summary>
-        public async Task DeleteApplicationInstanceCertificate()
+        public async Task DeleteApplicationInstanceCertificate(string[] profileIds = null)
         {
+            // TODO: delete only selected profiles
             if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
             foreach (var id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
             {
@@ -833,6 +834,7 @@ namespace Opc.Ua.Configuration
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
 
+                Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
                 Utils.LogInfo("Certificate created for RSA. Thumbprint={0}", id.Certificate.Thumbprint);
             }
             else
@@ -877,6 +879,8 @@ namespace Opc.Ua.Configuration
                     .SetECCurve(curve)
                     .CreateForECDsa();
 
+                Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
+
                 Utils.LogInfo("Certificate created for {0}. Thumbprint={1}", curve.Oid.FriendlyName, id.Certificate.Thumbprint);
 #endif
             }
@@ -899,7 +903,7 @@ namespace Opc.Ua.Configuration
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
-            Utils.LogCertificate("Certificate created for {0}.", id.Certificate, configuration.ApplicationUri);
+            Utils.LogInfo("Certificate saved, reloaded and activated.");
 
             // do not dispose temp cert, or X509Store certs become unusable
 
