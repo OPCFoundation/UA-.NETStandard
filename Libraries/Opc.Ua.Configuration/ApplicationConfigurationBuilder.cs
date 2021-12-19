@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Xml;
@@ -97,7 +98,7 @@ namespace Opc.Ua.Configuration
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
-            rejectedRoot = DefaultPKIRoot(rejectedRoot);
+            rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
             var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
@@ -765,25 +766,34 @@ namespace Opc.Ua.Configuration
             var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             if (pkiRootType.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
             {
+                string leafPath = "";
                 switch (trustListType)
                 {
-                    case TrustlistType.Application:
-                        return Path.Combine(pkiRoot, "own");
-                    case TrustlistType.Trusted:
-                        return Path.Combine(pkiRoot, "trusted");
-                    case TrustlistType.Issuer:
-                        return Path.Combine(pkiRoot, "issuer");
-                    case TrustlistType.TrustedHttps:
-                        return Path.Combine(pkiRoot, "trustedHttps");
-                    case TrustlistType.IssuerHttps:
-                        return Path.Combine(pkiRoot, "issuerHttps");
-                    case TrustlistType.TrustedUser:
-                        return Path.Combine(pkiRoot, "trustedUser");
-                    case TrustlistType.IssuerUser:
-                        return Path.Combine(pkiRoot, "issuerUser");
-                    case TrustlistType.Rejected:
-                        return Path.Combine(pkiRoot, "rejected");
+                    case TrustlistType.Application: leafPath = "own"; break;
+                    case TrustlistType.Trusted: leafPath = "trusted"; break;
+                    case TrustlistType.Issuer: leafPath = "issuer"; break;
+                    case TrustlistType.TrustedHttps: leafPath = "trustedHttps"; break;
+                    case TrustlistType.IssuerHttps: leafPath = "issuerHttps"; break;
+                    case TrustlistType.TrustedUser: leafPath = "trustedUser"; break;
+                    case TrustlistType.IssuerUser: leafPath = "issuerUser"; break;
+                    case TrustlistType.Rejected: leafPath = "rejected"; break;
                 }
+                // Caller may have already provided the leaf path, then no need to add.
+                int startIndex = pkiRoot.Length - leafPath.Length;
+                char lastChar = pkiRoot.Last();
+                if (lastChar == Path.DirectorySeparatorChar ||
+                    lastChar == Path.AltDirectorySeparatorChar)
+                {
+                    startIndex--;
+                }
+                if (startIndex > 0)
+                {
+                    if (pkiRoot.Substring(startIndex, leafPath.Length;).Equals(leafPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return pkiRoot;
+                    }
+                }
+                return Path.Combine(pkiRoot, leafPath);
             }
             else if (pkiRootType.Equals(CertificateStoreType.X509Store, StringComparison.OrdinalIgnoreCase))
             {
