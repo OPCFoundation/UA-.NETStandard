@@ -26,6 +26,7 @@ jobs:
     - name: Prepare Tag Repo Info
       run: |
         echo IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]' | awk '{gsub(/-|\./, "")}1') >> $GITHUB_ENV
+        echo REFSERVER_REPO=ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver >> $GITHUB_ENV
 
     - name: Prepare Tag Branch info
       if: env.NBGV_PublicRelease == 'False'
@@ -54,4 +55,5 @@ jobs:
         docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}${{ env.IMAGE_TAG }}
         docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:latest${{ env.IMAGE_TAG }}
         docker images ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver
+        curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver/tags/list
 
