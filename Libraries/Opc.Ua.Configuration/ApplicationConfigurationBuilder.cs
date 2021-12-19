@@ -788,7 +788,7 @@ namespace Opc.Ua.Configuration
                 }
                 if (startIndex > 0)
                 {
-                    if (pkiRoot.Substring(startIndex, leafPath.Length;).Equals(leafPath, StringComparison.OrdinalIgnoreCase))
+                    if (pkiRoot.Substring(startIndex, leafPath.Length).Equals(leafPath, StringComparison.OrdinalIgnoreCase))
                     {
                         return pkiRoot;
                     }
