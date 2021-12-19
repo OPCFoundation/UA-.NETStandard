@@ -16,10 +16,10 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: '6.x'
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+#    - name: Set up QEMU
+#      uses: docker/setup-qemu-action@v1
+#    - name: Set up Docker Buildx
+#      uses: docker/setup-buildx-action@v1
     - name: PrepareReg Names
       run: |
         echo IMAGE_REPOSITORY=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]' | awk '{gsub(/-|\./, "")}1') >> $GITHUB_ENV
@@ -38,8 +38,12 @@ jobs:
         ./dockerbuild.sh
         docker image ls
         docker image tag consolerefserver:latest ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:${{ env.IMAGE_TAG }}
-        docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:${{ env.IMAGE_TAG }}
+        
+    - name: Push to GitHub Container Registry
+      if: env.IS_NOT_PR == 'true'
+      run: | 
         docker image ls
+        docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:${{ env.IMAGE_TAG }}
 
 #    - name: Build Docker 
 #      uses: "docker/build-push-action@v2"
