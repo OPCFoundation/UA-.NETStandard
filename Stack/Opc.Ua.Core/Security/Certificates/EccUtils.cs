@@ -55,12 +55,12 @@ namespace Opc.Ua
             {
                 switch (securityPolicyUri)
                 {
-                    case SecurityPolicies.Aes128_Sha256_nistP256:
-                    case SecurityPolicies.Aes256_Sha384_nistP384:
-                    case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                    case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                    case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                    case SecurityPolicies.ChaCha20Poly1305_curve448:
+                    case SecurityPolicies.ECC_nistP256:
+                    case SecurityPolicies.ECC_nistP384:
+                    case SecurityPolicies.ECC_brainpoolP256r1:
+                    case SecurityPolicies.ECC_brainpoolP384r1:
+                    case SecurityPolicies.ECC_curve25519:
+                    case SecurityPolicies.ECC_curve448:
                     {
                         return true;
                     }
@@ -202,28 +202,28 @@ namespace Opc.Ua
                 case NistP256KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP256;
-                    securityPolicyUris = new string[] { SecurityPolicies.Aes128_Sha256_nistP256 };
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP256 };
                     break;
                 }
 
                 case NistP384KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.nistP384;
-                    securityPolicyUris = new string[] { SecurityPolicies.Aes256_Sha384_nistP384, SecurityPolicies.Aes128_Sha256_nistP256 };
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256 };
                     break;
                 }
 
                 case BrainpoolP256r1KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.Aes128_Sha256_brainpoolP256r1 };
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP256r1 };
                     break;
                 }
 
                 case BrainpoolP384r1KeyParameters:
                 {
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.Aes256_Sha384_brainpoolP384r1, SecurityPolicies.Aes128_Sha256_brainpoolP256r1 };
+                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1 };
                     break;
                 }
 
@@ -271,21 +271,21 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     return HashAlgorithmName.SHA256;
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     return HashAlgorithmName.SHA384;
                 }
 
                 case SecurityPolicies.None:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 default:
                 {
                     return HashAlgorithmName.SHA256;
@@ -727,23 +727,23 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     encryptingKeySize = 16;
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     encryptingKeySize = 32;
                     algorithmName = HashAlgorithmName.SHA384;
                     break;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     encryptingKeySize = 32;
                     blockSize = 12;
@@ -870,8 +870,8 @@ namespace Opc.Ua
 
             switch (SecurityPolicyUri)
             {
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     signatureAlgorithm = HashAlgorithmName.SHA384;
                     break;
@@ -921,8 +921,8 @@ namespace Opc.Ua
 
                 switch (SecurityPolicyUri)
                 {
-                    case SecurityPolicies.Aes256_Sha384_nistP384:
-                    case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                    case SecurityPolicies.ECC_nistP384:
+                    case SecurityPolicies.ECC_brainpoolP384r1:
                     {
                         signatureAlgorithm = HashAlgorithmName.SHA384;
                         break;

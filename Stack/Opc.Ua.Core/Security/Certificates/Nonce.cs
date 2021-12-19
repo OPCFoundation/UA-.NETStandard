@@ -188,17 +188,17 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256); }
-                case SecurityPolicies.Aes256_Sha384_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384); }
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1); }
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1); }
+                case SecurityPolicies.ECC_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256); }
+                case SecurityPolicies.ECC_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384); }
+                case SecurityPolicies.ECC_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1); }
+                case SecurityPolicies.ECC_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1); }
 #if CURVE25519
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ECC_curve25519:
                 {
                     return CreateNonceForCurve25519();
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return CreateNonceForCurve448();
                 }
@@ -289,17 +289,17 @@ namespace Opc.Ua
 
             switch (securityPolicyUri)
             {
-                case SecurityPolicies.Aes128_Sha256_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData); }
-                case SecurityPolicies.Aes256_Sha384_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData); }
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData); }
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData); }
+                case SecurityPolicies.ECC_nistP256: { return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData); }
+                case SecurityPolicies.ECC_nistP384: { return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData); }
+                case SecurityPolicies.ECC_brainpoolP256r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData); }
+                case SecurityPolicies.ECC_brainpoolP384r1: { return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData); }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ECC_curve25519:
                 {
                     return CreateNonceForCurve25519(nonceData);
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return CreateNonceForCurve448(nonceData);
                 }

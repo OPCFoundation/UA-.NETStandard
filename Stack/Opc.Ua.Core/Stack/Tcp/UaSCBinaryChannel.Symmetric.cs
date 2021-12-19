@@ -161,8 +161,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     m_hmacHashSize = 32;
                     m_signatureKeySize = 32;
@@ -171,8 +171,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     UseAuthenticatedEncryption = true;
                     m_hmacHashSize = 16;
@@ -182,8 +182,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     m_hmacHashSize = 48;
                     m_signatureKeySize = 48;
@@ -297,8 +297,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     algorithmName = HashAlgorithmName.SHA256;
                     var length = (SecurityMode == MessageSecurityMode.Sign) ? s_HkdfAes128SignOnlyKeyLength : s_HkdfAes128SignAndEncryptKeyLength;
@@ -316,8 +316,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     algorithmName = HashAlgorithmName.SHA384;
                     var length = (SecurityMode == MessageSecurityMode.Sign) ? s_HkdfAes256SignOnlyKeyLength : s_HkdfAes256SignAndEncryptKeyLength;
@@ -335,8 +335,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     algorithmName = HashAlgorithmName.SHA256;
                     var length = s_HkdfChaCha20Poly1305KeyLength;
@@ -371,10 +371,10 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     // create encryptors. 
                     SymmetricAlgorithm AesCbcEncryptorProvider = Aes.Create();
@@ -393,8 +393,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     break;
                 }
@@ -419,24 +419,24 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     token.ServerHmac = new HMACSHA256(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA256(token.ClientSigningKey);
                     break;
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     token.ServerHmac = new HMACSHA384(token.ServerSigningKey);
                     token.ClientHmac = new HMACSHA384(token.ClientSigningKey);
                     break;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     break;
                 }
@@ -818,16 +818,16 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP256:
                 {
                     return SymmetricSign(token, dataToSign, useClientKeys);
                 }
 
 #if GCMMODE
-                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.ECC_nistP256:
                 //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
                 {
                     return SymmetricSignWithAESGCM(token, dataToSign, useClientKeys);
@@ -856,17 +856,17 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic128Rsa15:
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.ECC_nistP256:
                 {
                     return SymmetricVerify(token, signature, dataToVerify, useClientKeys);
                 }
 #if GCMMODE
-                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.ECC_nistP256:
                 //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
                 {
                     return SymmetricVerifyWithAESGCM(token, signature, dataToVerify, useClientKeys);
@@ -895,9 +895,9 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
@@ -905,8 +905,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #if CURVE25519
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
@@ -918,7 +918,7 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #endif
-                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.ECC_nistP256:
                 //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
                 {
                     break;
@@ -942,9 +942,9 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                 {
@@ -952,8 +952,8 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #if CURVE25519
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                     {
@@ -965,7 +965,7 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #endif
-                case SecurityPolicies.Aes128_Sha256_nistP256:
+                case SecurityPolicies.ECC_nistP256:
                 //case SecurityPolicies.Aes128_Gcm256_RsaOaep:
                 {
                     break;

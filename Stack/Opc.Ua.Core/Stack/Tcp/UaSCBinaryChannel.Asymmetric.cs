@@ -197,24 +197,24 @@ namespace Opc.Ua.Bindings
                     return 32;
                 }
 
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
                 {
                     return 64;
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     return 96;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
+                case SecurityPolicies.ECC_curve25519:
                 {
                     return 32;
                 }
 
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return 56;
                 }
@@ -250,12 +250,12 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     m_localNonce = Nonce.CreateNonce(SecurityPolicyUri, GetNonceLength());
                     return m_localNonce.Data;
@@ -308,12 +308,12 @@ namespace Opc.Ua.Bindings
                     break;
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
                     return true;
@@ -349,12 +349,12 @@ namespace Opc.Ua.Bindings
                     return RsaUtils.GetPlainTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
                 }
 
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return 1;
                 }
@@ -391,12 +391,12 @@ namespace Opc.Ua.Bindings
                     return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
                 }
 
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return 1;
                 }
@@ -502,12 +502,12 @@ namespace Opc.Ua.Bindings
                     return RsaUtils.GetSignatureLength(senderCertificate);
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return EccUtils.GetSignatureLength(senderCertificate);
                 }
@@ -1256,16 +1256,16 @@ namespace Opc.Ua.Bindings
                     return Rsa_Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256);
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA384);
                 }
@@ -1311,16 +1311,16 @@ namespace Opc.Ua.Bindings
                     return Rsa_Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
                 }
 #if ECC_SUPPORT
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 {
                     return EccUtils.Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA256);
                 }
 
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
                 {
                     return EccUtils.Verify(dataToVerify, signature, senderCertificate, HashAlgorithmName.SHA384);
                 }
@@ -1348,12 +1348,12 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 default:
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 case SecurityPolicies.None:
                 {
                     byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
@@ -1398,12 +1398,12 @@ namespace Opc.Ua.Bindings
             switch (SecurityPolicyUri)
             {
                 default:
-                case SecurityPolicies.Aes128_Sha256_nistP256:
-                case SecurityPolicies.Aes256_Sha384_nistP384:
-                case SecurityPolicies.Aes128_Sha256_brainpoolP256r1:
-                case SecurityPolicies.Aes256_Sha384_brainpoolP384r1:
-                case SecurityPolicies.ChaCha20Poly1305_curve25519:
-                case SecurityPolicies.ChaCha20Poly1305_curve448:
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                case SecurityPolicies.ECC_curve25519:
+                case SecurityPolicies.ECC_curve448:
                 case SecurityPolicies.None:
                 {
                     byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");

@@ -141,24 +141,24 @@ namespace Opc.Ua
                     switch (identifier)
                     {
                         case ObjectTypes.EccNistP256ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.Aes128_Sha256_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256);
                             break;
                         case ObjectTypes.EccNistP384ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.Aes128_Sha256_nistP256);
-                            securityPolicies.Add(SecurityPolicies.Aes256_Sha384_nistP384);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384);
                             break;
                         case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.Aes128_Sha256_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
                             break;
                         case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.Aes128_Sha256_brainpoolP256r1);
-                            securityPolicies.Add(SecurityPolicies.Aes256_Sha384_brainpoolP384r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1);
                             break;
                         case ObjectTypes.EccCurve25519ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ChaCha20Poly1305_curve25519);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519);
                             break;
                         case ObjectTypes.EccCurve448ApplicationCertificateType:
-                            securityPolicies.Add(SecurityPolicies.ChaCha20Poly1305_curve448);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448);
                             break;
                         case ObjectTypes.RsaMinApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.Basic128Rsa15);
