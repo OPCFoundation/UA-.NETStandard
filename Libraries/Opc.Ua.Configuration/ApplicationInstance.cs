@@ -834,8 +834,7 @@ namespace Opc.Ua.Configuration
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
 
-                Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
-                Utils.LogInfo("Certificate created for RSA. Thumbprint={0}", id.Certificate.Thumbprint);
+                Utils.LogCertificate("Certificate created for RSA.", id.Certificate);
             }
             else
             {
@@ -879,9 +878,7 @@ namespace Opc.Ua.Configuration
                     .SetECCurve(curve)
                     .CreateForECDsa();
 
-                Utils.LogCertificate("Certificate created for {0}.", certificate, configuration.ApplicationUri);
-
-                Utils.LogInfo("Certificate created for {0}. Thumbprint={1}", curve.Oid.FriendlyName, id.Certificate.Thumbprint);
+                Utils.LogCertificate("Certificate created for {0}.", id.Certificate, curve.Oid.FriendlyName);
 #endif
             }
 
@@ -903,7 +900,7 @@ namespace Opc.Ua.Configuration
 
             await configuration.CertificateValidator.Update(configuration.SecurityConfiguration).ConfigureAwait(false);
 
-            Utils.LogInfo("Certificate saved, reloaded and activated.");
+            Utils.LogInfo("New Certificate saved, reloaded and activated.");
 
             // do not dispose temp cert, or X509Store certs become unusable
 
