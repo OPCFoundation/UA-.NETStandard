@@ -51,7 +51,7 @@ jobs:
     - name: Push to GitHub Container Registry
       if: env.IS_NOT_PR == 'true'
       run: | 
-        docker image ls
         docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}${{ env.IMAGE_TAG }}
         docker image push ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver:latest${{ env.IMAGE_TAG }}
+        docker inspect ghcr.io/${{ env.IMAGE_REPOSITORY }}/refserver
 
