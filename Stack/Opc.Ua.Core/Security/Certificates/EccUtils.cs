@@ -266,7 +266,7 @@ namespace Opc.Ua
         {
             if (securityPolicyUri == null)
             {
-                throw new ArgumentNullException("securityPolicyUri");
+                throw new ArgumentNullException(nameof(securityPolicyUri));
             }
 
             switch (securityPolicyUri)
