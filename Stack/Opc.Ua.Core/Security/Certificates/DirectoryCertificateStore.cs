@@ -177,7 +177,7 @@ namespace Opc.Ua
             const int kRetries = 5;
             const int kRetryDelay = 100;
 
-            int retry = Retries;
+            int retry = kRetries;
             bool found = false;
 
             do
