@@ -19,13 +19,7 @@
   </PropertyGroup>
 
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
-      <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" />
-        <PackageReference Include="System.Net.Http" Version="4.3.4" />
-      </ItemGroup>
-    </When>
-    <When Condition="'$(TargetFramework)' == 'net5.0'">
+    <When Condition="'$(TargetFramework)' == 'netcoreapp3.1' OR '$(TargetFramework)' == 'net5.0' OR '$(TargetFramework)' == 'net6.0'">
       <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
         <PackageReference Include="System.Net.Http" Version="4.3.4" />
