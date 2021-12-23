@@ -110,6 +110,8 @@ namespace Opc.Ua.Bindings
         {
             try
             {
+                Utils.LogInfo("{0} Open {1}.", nameof(HttpsTransportChannel), m_url);
+
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
                 var handler = new HttpClientHandler();
@@ -153,6 +155,8 @@ namespace Opc.Ua.Bindings
                                     return false;
                                 };
                             propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
+
+                            Utils.LogInfo("{0} ServerCertificate callback enabled.", nameof(HttpsTransportChannel));
                         }
                         catch (PlatformNotSupportedException)
                         {
@@ -174,6 +178,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Close()
         {
+            Utils.LogInfo("{0} Close {1}.", nameof(HttpsTransportChannel), m_url);
             m_client?.Dispose();
         }
 
@@ -209,7 +214,7 @@ namespace Opc.Ua.Bindings
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = m_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
-                    string.Compare(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None) != 0)
+                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
                 {
                     content.Headers.Add("OPCUA-SecurityPolicy", EndpointDescription.SecurityPolicyUri);
                 }
