@@ -242,7 +242,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(LogLevel.Trace, eventId, exception, message, args);
+                EventLog.Log(LogLevel.Trace, eventId, exception, message, args);
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -261,7 +261,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(LogLevel.Trace, eventId, message, args);
+                EventLog.Log(LogLevel.Trace, eventId, message, args);
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -280,7 +280,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(LogLevel.Trace, 0, exception, message, args);
+                EventLog.Log(LogLevel.Trace, 0, exception, message, args);
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -298,7 +298,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(LogLevel.Trace, 0, message, args);
+                EventLog.Log(LogLevel.Trace, 0, message, args);
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -530,18 +530,23 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(logLevel, eventId, message, args);
+                EventLog.Log(logLevel, eventId, null, message, args);
             }
-            else if (UseTraceEvent)
+            else if (Logger.IsEnabled(logLevel))
             {
-                if (Logger.IsEnabled(logLevel))
+                // note: to support semantic logging strings
+                if (UseTraceEvent && Tracing.IsEnabled())
                 {
                     // call the legacy logging handler (TraceEvent)
-                    Utils.Trace(null, GetTraceMask(eventId, logLevel), message, false, args);
+                    int traceMask = GetTraceMask(eventId, logLevel);
+                    Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, message, string.Empty, null, args));
+                    // done if mask not enabled, otherwise legacy write handler is
+                    // called via logger interface to handle semantic logging.
+                    if ((s_traceMasks & traceMask) == 0)
+                    {
+                        return;
+                    }
                 }
-            }
-            else
-            {
                 Logger.Log(logLevel, eventId, null, message, args);
             }
         }
@@ -558,7 +563,6 @@ namespace Opc.Ua
             Log(logLevel, 0, exception, message, args);
         }
 
-
         /// <summary>
         /// Formats and writes a log message at the specified log level.
         /// </summary>
@@ -571,18 +575,22 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-                EventLog.LogLog(logLevel, eventId, exception, message, args);
+                EventLog.Log(logLevel, eventId, exception, message, args);
             }
-            else if (UseTraceEvent)
+            else if (Logger.IsEnabled(logLevel))
             {
-                if (Logger.IsEnabled(logLevel))
+                if (UseTraceEvent && Tracing.IsEnabled())
                 {
                     // call the legacy logging handler (TraceEvent)
-                    Utils.Trace(exception, GetTraceMask(eventId, logLevel), message, false, args);
+                    int traceMask = GetTraceMask(eventId, logLevel);
+                    Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, message, string.Empty, exception, args));
+                    // done if mask not enabled, otherwise legacy write handler is
+                    // called via logger interface to handle semantic logging.
+                    if ((s_traceMasks & traceMask) == 0)
+                    {
+                        return;
+                    }
                 }
-            }
-            else
-            {
                 Logger.Log(logLevel, eventId, exception, message, args);
             }
         }
@@ -604,6 +612,10 @@ namespace Opc.Ua
             string messageFormat,
             params object[] args)
         {
+            if (EventLog.IsEnabled())
+            {
+                return EventLog.BeginScope(messageFormat, args);
+            }
             return Logger.BeginScope(messageFormat, args);
         }
         #endregion
@@ -614,7 +626,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="eventId">The event id.</param>
         /// <param name="logLevel">The log level.</param>
-        private static int GetTraceMask(EventId eventId, LogLevel logLevel)
+        internal static int GetTraceMask(EventId eventId, LogLevel logLevel)
         {
             int mask = eventId.Id & TraceMasks.All;
             if (mask == 0)
@@ -626,9 +638,14 @@ namespace Opc.Ua
                     case LogLevel.Error:
                         mask = TraceMasks.Error;
                         break;
-                    default:
                     case LogLevel.Information:
                         mask = TraceMasks.Information;
+                        break;
+#if DEBUG
+                    case LogLevel.Debug:
+#endif
+                    case LogLevel.Trace:
+                        mask = TraceMasks.Operation;
                         break;
                 }
             }
