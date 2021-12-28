@@ -43,6 +43,36 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with its node type.
         /// </summary>
+        [Obsolete("Use MonitoredItem constructor without the session parameter.")]
+        public MonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            object mangerHandle,
+            uint subscriptionId,
+            uint id,
+            Session session,
+            ReadValueId itemToMonitor,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringMode monitoringMode,
+            uint clientHandle,
+            MonitoringFilter originalFilter,
+            MonitoringFilter filterToUse,
+            Range range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest,
+            double sourceSamplingInterval)
+         : this(server, nodeManager, mangerHandle, subscriptionId,
+            id, itemToMonitor, diagnosticsMasks, timestampsToReturn, monitoringMode,
+            clientHandle, originalFilter, filterToUse, range, samplingInterval,
+            queueSize, discardOldest, sourceSamplingInterval)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the object with its node type.
+        /// </summary>
         public MonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
