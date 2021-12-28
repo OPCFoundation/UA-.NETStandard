@@ -60,10 +60,6 @@ stages:
       jobnamesuffix: net462
   - template: .azurepipelines/test.yml
     parameters:
-      framework: netcoreapp2.1
-      configuration: Release
-  - template: .azurepipelines/test.yml
-    parameters:
       configuration: Release
       framework: netcoreapp3.1
       jobnamesuffix: core3

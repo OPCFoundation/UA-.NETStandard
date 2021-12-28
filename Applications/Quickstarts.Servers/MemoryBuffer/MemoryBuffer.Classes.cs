@@ -107,8 +107,8 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////xVgAQICAAAAAQAVAAAA" +
-           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6A/oDAAAAGAEB/////wAAAAA=";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////xVggQICAAAAAQAVAAAA" +
+           "TWVtb3J5VGFnVHlwZUluc3RhbmNlAQH6AwEB+gP6AwAAABgBAf////8AAAAA";
         #endregion
         #endif
         #endregion
@@ -239,10 +239,10 @@ namespace MemoryBuffer
 
         #region Initialization String
         private const string InitializationString =
-           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////wRgAAIBAAAAAQAYAAAA" +
-           "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHoA+gDAAD/////AgAAABVgqQoCAAAAAQAMAAAAU3RhcnRB" +
-           "ZGRyZXNzAQHrAwAuAETrAwAABwAAAAAAB/////8BAf////8AAAAAFWCpCgIAAAABAAsAAABTaXplSW5C" +
-           "eXRlcwEB7AMALgBE7AMAAAcAEAAAAAf/////AQH/////AAAAAA==";
+           "AQAAACIAAABodHRwOi8vc2FtcGxlcy5vcmcvVUEvTWVtb3J5QnVmZmVy/////wRggAIBAAAAAQAYAAAA" +
+           "TWVtb3J5QnVmZmVyVHlwZUluc3RhbmNlAQHoAwEB6APoAwAA/////wIAAAAVYKkKAgAAAAEADAAAAFN0" +
+           "YXJ0QWRkcmVzcwEB6wMALgBE6wMAAAcAAAAAAAf/////AQH/////AAAAABVgqQoCAAAAAQALAAAAU2l6" +
+           "ZUluQnl0ZXMBAewDAC4AROwDAAAHABAAAAAH/////wEB/////wAAAAA=";
         #endregion
         #endif
         #endregion

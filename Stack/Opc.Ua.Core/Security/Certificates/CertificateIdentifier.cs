@@ -220,7 +220,7 @@ namespace Opc.Ua
                             var message = new StringBuilder();
                             message.AppendLine("Loaded a certificate with private key from the directory store.");
                             message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
-                            Utils.Trace(Utils.TraceMasks.Error, message.ToString());
+                            Utils.LogError(message.ToString());
                         }
                     }
                 }
@@ -353,7 +353,7 @@ namespace Opc.Ua
                 {
                     if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                     {
-                        if (!needPrivateKey || certificate.HasPrivateKey)
+                        if ((!needPrivateKey || certificate.HasPrivateKey) && X509Utils.GetRSAPublicKeySize(certificate) >= 0)
                         {
                             return certificate;
                         }
@@ -364,7 +364,7 @@ namespace Opc.Ua
 
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (!needPrivateKey || certificate.HasPrivateKey)
+                    if ((!needPrivateKey || certificate.HasPrivateKey) && X509Utils.GetRSAPublicKeySize(certificate) >= 0)
                     {
                         return certificate;
                     }

@@ -165,7 +165,7 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         static void OnValidate(object sender, ValidationEventArgs args)
         {
-            Utils.Trace(Utils.TraceMasks.Error, "Error in XML schema validation: {0}", args.Message);
+            Utils.LogError("Error in XML schema validation: {0}", args.Message);
             throw new InvalidOperationException(args.Message, args.Exception);
         }
         #endregion

@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -313,8 +314,13 @@ namespace Opc.Ua
                             {
                                 continue;
                             }
-
                         }
+                    }
+
+                    // skip if not RSA certificate
+                    if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
+                    {
+                        continue;
                     }
 
                     string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
@@ -353,7 +359,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Could not load private key for certificate " + subjectName);
+                    Utils.LogError(e, "Could not load private key for certificate " + subjectName);
                 }
             }
 
@@ -392,7 +398,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not parse CRL file.");
+                        Utils.LogError(e, "Could not parse CRL file.");
                         continue;
                     }
 
@@ -653,7 +659,7 @@ namespace Opc.Ua
                                 }
                                 catch (Exception e)
                                 {
-                                    Utils.Trace(e, "Could not load private key certificate from file: {0}", entry.PrivateKeyFile.Name);
+                                    Utils.LogError(e, "Could not load private key certificate from file: {0}", entry.PrivateKeyFile.Name);
                                 }
                             }
 
@@ -679,7 +685,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not load certificate from file: {0}", file.FullName);
+                        Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
                     }
                 }
 
