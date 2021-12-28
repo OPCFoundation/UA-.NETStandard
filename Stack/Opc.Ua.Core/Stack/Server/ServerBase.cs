@@ -188,7 +188,7 @@ namespace Opc.Ua
 
             if (listener == null)
             {
-                throw new ArgumentException(nameof(url), "No suitable listener found.");
+                throw new ArgumentException("No suitable listener found.", nameof(url));
             }
 
             listener.CreateReverseConnection(url, timeout);
