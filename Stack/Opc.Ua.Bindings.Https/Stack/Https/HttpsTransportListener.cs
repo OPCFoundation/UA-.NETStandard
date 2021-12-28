@@ -30,8 +30,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.Hosting;
 
 
 namespace Opc.Ua.Bindings
@@ -370,7 +370,8 @@ namespace Opc.Ua.Bindings
                 }
 
                 if (endpoint == null &&
-                    input.TypeId != DataTypeIds.GetEndpointsRequest)
+                    input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                    input.TypeId != DataTypeIds.FindServersRequest)
                 {
                     var message = "Connection refused, invalid security policy.";
                     Utils.LogError(message);
@@ -393,7 +394,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
