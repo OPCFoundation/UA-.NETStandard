@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Xml;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -39,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture, Category("EncodableTypes")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
-    public class EncodableTypesTests : EncoderCommon
+    public class EncodeableTypesTests : EncoderCommon
     {
         #region DataPointSources
         [DatapointSource]
@@ -67,7 +70,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreNotEqual(testObject.BinaryEncodingId, testObject.XmlEncodingId);
             EncodeDecode(encoderType, BuiltInType.ExtensionObject, new ExtensionObject(testObject.TypeId, testObject));
         }
+        #endregion
 
+        #region Private Methods
         /// <summary>
         /// Create an instance of an encodeable type with default values.
         /// </summary>
@@ -141,7 +146,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     }
                 }
             }
-
         }
         #endregion
     }

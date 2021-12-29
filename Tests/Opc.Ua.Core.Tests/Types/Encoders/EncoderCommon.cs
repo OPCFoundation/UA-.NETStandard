@@ -52,6 +52,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
         protected const int RandomStart = 4840;
         protected const int RandomRepeats = 100;
+        protected const int ArrayRepeats = 3;
         protected const string ApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }

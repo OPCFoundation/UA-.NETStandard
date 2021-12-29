@@ -98,6 +98,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
+                // TODO: passcode should be secure string
                 string passcode = Guid.NewGuid().ToString();
                 return X509PfxUtils.CreateCertificateFromPKCS12(CreatePfxForRSA(passcode), passcode);
             }
@@ -364,7 +365,6 @@ namespace Opc.Ua.Security.Certificates
             {
                 cg.AddExtension(extension.Oid.Value, extension.Critical, Asn1Object.FromByteArray(extension.RawData));
             }
-
         }
 
         /// <summary>

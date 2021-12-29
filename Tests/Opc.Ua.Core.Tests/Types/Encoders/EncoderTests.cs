@@ -291,12 +291,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
-        [Category("Array")]
+        [Category("Array"), Repeat(ArrayRepeats)]
         public void ReEncodeVariantArrayInDataValue(
             EncodingType encoderType,
             BuiltInType builtInType
             )
         {
+            SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
@@ -308,12 +309,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a one dimensional Array.
         /// </summary>
         [Theory]
-        [Category("Array")]
+        [Category("Array"), Repeat(ArrayRepeats)]
         public void EncodeArray(
             EncodingType encoderType,
             BuiltInType builtInType
             )
         {
+            SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int arrayDimension = RandomSource.NextInt32(99) + 1;
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, arrayDimension, true);
@@ -352,12 +354,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode and decode of a Matrix in a Variant.
         /// </summary>
         [Theory]
-        [Category("Matrix")]
+        [Category("Matrix"), Repeat(ArrayRepeats)]
         public void ReEncodeVariantMatrixInDataValue(
             EncodingType encoderType,
             BuiltInType builtInType
             )
         {
+            SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int matrixDimension = RandomSource.NextInt32(8) + 2;
             int[] dimensions = new int[matrixDimension];
@@ -372,11 +375,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Verify encode of a Matrix in a Variant to non reversible JSON.
         /// </summary>
         [Theory]
-        [Category("Matrix")]
+        [Category("Matrix"), Repeat(ArrayRepeats)]
         public void EncodeBuiltInTypeMatrixAsVariantInDataValueToNonReversibleJson(
             BuiltInType builtInType
             )
         {
+            SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int matrixDimension = RandomSource.NextInt32(8) + 2;
             int[] dimensions = new int[matrixDimension];
@@ -385,19 +389,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Array randomData = DataGenerator.GetRandomArray(builtInType, false, elements, true);
             var variant = new Variant(new Matrix(randomData, builtInType, dimensions));
             string json = EncodeDataValue(EncodingType.Json, BuiltInType.Variant, variant, false);
-            PrettifyAndValidateJson(json);
+            var result = PrettifyAndValidateJson(json);
+            TestContext.Out.WriteLine("Result:");
+            TestContext.Out.WriteLine(result);
         }
 
         /// <summary>
         /// Verify encode of a Matrix in a multi dimensional array.
         /// </summary>
         [Theory]
-        [Category("Matrix")]
+        [Category("Matrix"), Repeat(ArrayRepeats)]
         public void EncodeMatrixInArray(
         EncodingType encoderType,
         BuiltInType builtInType
             )
         {
+            SetRepeatedRandomSeed();
             Assume.That(builtInType != BuiltInType.Null);
             int matrixDimension = RandomSource.NextInt32(8) + 2;
             int[] dimensions = new int[matrixDimension];
