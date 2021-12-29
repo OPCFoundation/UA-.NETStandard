@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
@@ -624,7 +625,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,            
+        public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
             List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
             bool isTrusted = false;
@@ -643,7 +644,7 @@ namespace Opc.Ua
                 if (validationErrors != null)
                 {
                     (issuer, revocationStatus) = await GetIssuerNoException(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
-                 }
+                }
                 else
                 {
                     issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
@@ -734,7 +735,7 @@ namespace Opc.Ua
             // check if self-signed.
             if (X509Utils.CompareDistinguishedName(certificate.Subject, certificate.Issuer))
             {
-                return (null, null) ;
+                return (null, null);
             }
 
             string subjectName = certificate.IssuerName.Name;
@@ -814,18 +815,17 @@ namespace Opc.Ua
                                             }
 
                                             if (m_rejectUnknownRevocationStatus)
-                                            {        
-                                                serviceResult = new ServiceResultException(status);                                                
+                                            {
+                                                serviceResult = new ServiceResultException(status);
                                             }
                                         }
-
                                         else
                                         {
                                             if (status == StatusCodes.BadCertificateRevoked && X509Utils.IsCertificateAuthority(certificate))
                                             {
                                                 status.Code = StatusCodes.BadCertificateIssuerRevoked;
                                             }
-                                            serviceResult = new ServiceResultException(status);                                            
+                                            serviceResult = new ServiceResultException(status);
                                         }
                                     }
                                 }
@@ -857,11 +857,10 @@ namespace Opc.Ua
             CertificateStoreIdentifier certificateStore,
             bool checkRecovationStatus)
         {
-
             (CertificateIdentifier result, ServiceResultException srex) =
                 await GetIssuerNoException(certificate, explicitList, certificateStore, checkRecovationStatus
                 ).ConfigureAwait(false);
-            if(srex != null)
+            if (srex != null)
             {
                 throw srex;
             }
@@ -893,7 +892,7 @@ namespace Opc.Ua
 
             // get the issuers (checks the revocation lists if using directory stores).
             List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-            Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();            
+            Dictionary<X509Certificate2, ServiceResultException> validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
 
             bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
 
@@ -1059,24 +1058,21 @@ namespace Opc.Ua
             ServiceResult sresult = null;
 
             foreach (KeyValuePair<X509Certificate2, ServiceResultException> kvp in validationErrors)
-            {                
+            {
                 if (kvp.Value != null)
                 {
                     if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevoked)
                     {
                         p1List[kvp.Key] = kvp.Value;
                     }
-
                     else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
                     {
                         p2List[kvp.Key] = kvp.Value;
                     }
-
                     else if (kvp.Value.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
                     {
                         p3List[kvp.Key] = kvp.Value;
                     }
-
                     else if (kvp.Value.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
                     {
                         //p4List[kvp.Key] = kvp.Value;
@@ -1313,6 +1309,23 @@ namespace Opc.Ua
                 oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
                 oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
                 oid.Value == "1.3.14.3.2.27";          // dsaSHA1
+        }
+
+        /// <summary>
+        /// Returns a certificate information message.
+        /// </summary>
+        private string CertificateMessage(string error, X509Certificate2 certificate)
+        {
+            var message = new StringBuilder()
+                .AppendLine(error)
+                .AppendFormat("Subject: {0}", certificate.Subject)
+                .AppendLine();
+            if (!certificate.Subject.Equals(certificate.Issuer, StringComparison.Ordinal))
+            {
+                message.AppendFormat("Issuer: {0}", certificate.Issuer)
+                .AppendLine();
+            }
+            return message.ToString();
         }
 
         /// <summary>
