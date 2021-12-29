@@ -699,8 +699,6 @@ namespace Opc.Ua
             return isTrusted;
         }
 
-
-
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
@@ -716,7 +714,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
-        /// <returns></returns>
         public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
         {
             return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
@@ -845,9 +842,6 @@ namespace Opc.Ua
             return (null, null);
         }
 
-
-
-
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
@@ -932,7 +926,6 @@ namespace Opc.Ua
                 target = new CertificateIdentifier(certificate);
             }
 
-            //ServiceResult sresult = null;
             for (int ii = 0; ii < chain.ChainElements.Count; ii++)
             {
                 X509ChainElement element = chain.ChainElements[ii];
@@ -1544,7 +1537,6 @@ namespace Opc.Ua
 
         #endregion
     }
-
 
     /// <summary>
     /// Used to handle certificate update events.

@@ -189,12 +189,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     subject,
                     app.DomainNames)
                     .SetNotAfter(subCABaseTime.AddMonths(4))
-                    .SetNotBefore(subCABaseTime.AddMonths(1))                    
+                    .SetNotBefore(subCABaseTime.AddMonths(1))
                     .SetIssuer(signingCert)
                     .CreateForRSA();
                 app.Certificate = expiredappcert.RawData;
                 m_notYetValidAppCerts.Add(expiredappcert);
-
             }
         }
 
@@ -528,7 +527,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(v == 2 ?
+                        Assert.AreEqual(v == kCaChainCount - 1 ?
                             StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
@@ -562,7 +561,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual( v == 2 ?
+                        Assert.AreEqual(v == kCaChainCount - 1 ?
                             StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
@@ -600,7 +599,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(v == 2 ?
+                        Assert.AreEqual(v == kCaChainCount - 1 ?
                             StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
@@ -633,7 +632,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(v == 2 ?
+                        Assert.AreEqual(v == kCaChainCount - 1 ?
                             StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
@@ -670,7 +669,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         var serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
-                        Assert.AreEqual(v == 2 ?
+                        Assert.AreEqual(v == kCaChainCount - 1 ?
                             StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
@@ -1238,17 +1237,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Certificate chain with revoced certificate,
         /// with CA CRLs missing and revocation status enforced.
-        /// </summary>        
-        [Test]
-        public async Task VerifySomeMissingCRLRevokedTrustedStoreAppChains()
+        /// </summary>
+        [Theory]
+        public async Task VerifySomeMissingCRLRevokedTrustedStoreAppChains(bool rejectUnknownRevocationStatus)
         {
             // verify cert is revoked with CRL in trusted store
-            
+
             for (int v = 0; v < kCaChainCount; v++)
-            {                
+            {
                 using (var validator = TemporaryCertValidator.Create())
                 {
-
                     // Discussion:
                     // one CA (root or intermediate) is added to the trust store, all others to the issuer store
                     // for the one in the trust store, a CRL is added revoking the certificates signed by the CA
@@ -1269,24 +1267,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     var certValidator = validator.Update();
 
                     // ****** setting under test ******
-                    certValidator.RejectUnknownRevocationStatus = true;                                       
+                    certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
                     foreach (var app in m_goodApplicationTestSet)
                     {
                         ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
 
-                        Assert.AreEqual(v == 2 ?
+                        Assert.AreEqual(v == kCaChainCount - 1 ?
                             StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked, serviceResultException.StatusCode, serviceResultException.Message);
                     }
                 }
             }
         }
-        
 
-        
         /// <summary>
         /// certificate chain with all CRLs missing and revocation enforced.
-        /// </summary>        
+        /// </summary>
         [Test]
         public async Task VerifyAllMissingCRLRevokedTrustedStoreAppChains()
         {
@@ -1300,12 +1296,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // it does not detect the missing CA CRLs                
                 using (var validator = TemporaryCertValidator.Create())
                 {
-
                     for (int i = 0; i < kCaChainCount; i++)
                     {
                         if (i == v)
                         {
-                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);                            
+                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1328,15 +1323,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         int isPresentCertificateIssuerRevocationUnknown = 0;
                         ServiceResult inner = serviceResultException.InnerResult;
                         while (inner != null)
-                        {                            
+                        {
                             if (inner.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
                             {
                                 isPresentCertificateIssuerRevocationUnknown++;
-                                
                             }
                             inner = inner.InnerResult;
-                        } ;
-                        Assert.IsTrue(isPresentCertificateIssuerRevocationUnknown == 2);
+                        };
+                        Assert.IsTrue(isPresentCertificateIssuerRevocationUnknown == kCaChainCount - 1);
                     }
                 }
             }
@@ -1345,28 +1339,27 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// certificate chains with missing CRL for trust store and revocation list enforced.
         ///  No revoked certificate.
-        /// </summary>        
-        [Test]
-        public async Task VerifySomeMissingCRLTrustedStoreAppChains()
+        /// </summary>
+        [Theory]
+        public async Task VerifySomeMissingCRLTrustedStoreAppChains(bool rejectUnknownRevocationStatus)
         {
             //Discussion:
-            // v == 2: empty CRL is placed into the issuer stores, no CRL in trust store:
+            // v == kCaChainCount - 1: empty CRL is placed into the issuer stores, no CRL in trust store:
             // -> validator complains about missing revocation list for CA which signed the application certificate (ok)
 
-            // v != 2: in the trust store the CRL for one of the issuer certificates is missing.
+            // v != kCaChainCount - 1: in the trust store the CRL for one of the issuer certificates is missing.
             // all other CRLs are present and empty
             // -> validator complains correctly about missing issuer revocation list
 
             for (int v = 0; v < kCaChainCount; v++)
-            {                
+            {
                 using (var validator = TemporaryCertValidator.Create())
                 {
-
                     for (int i = 0; i < kCaChainCount; i++)
                     {
                         if (i == v)
                         {
-                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);                            
+                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1377,15 +1370,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     var certValidator = validator.Update();
 
                     // ****** setting under test ******
-                    certValidator.RejectUnknownRevocationStatus = true;
+                    certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
                     foreach (var app in m_goodApplicationTestSet)
                     {
-                        ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
+                        if (rejectUnknownRevocationStatus)
+                        {
+                            ServiceResultException serviceResultException = Assert.Throws<ServiceResultException>(() => certValidator.Validate(new X509Certificate2(app.Certificate)));
 
-                        Assert.IsTrue(v == 2 ? StatusCodes.BadCertificateRevocationUnknown == serviceResultException.StatusCode :
-                            StatusCodes.BadCertificateIssuerRevocationUnknown == serviceResultException.StatusCode,
-                            serviceResultException.Message);
+                            Assert.AreEqual(v == kCaChainCount - 1 ? StatusCodes.BadCertificateRevocationUnknown : StatusCodes.BadCertificateIssuerRevocationUnknown,
+                                serviceResultException.StatusCode,
+                                serviceResultException.Message);
+                        }
+                        else
+                        {
+                            certValidator.Validate(new X509Certificate2(app.Certificate));
+                        }
                     }
                 }
             }
@@ -1394,9 +1394,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Verify app certs with incomplete chain throw.
         /// </summary>
-        [Test]
-        public async Task VerifyMissingCRLANDAppChainsIncompleteChain()
-        {            
+        [Theory]
+        public async Task VerifyMissingCRLANDAppChainsIncompleteChain(bool rejectUnknownRevocationStatus)
+        {
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
@@ -1406,13 +1406,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     {
                         if (i != v)
                         {
-                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);                            
+                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                         }
                     }
                     var certValidator = validator.Update();
 
                     // ****** setting under test ******
-                    certValidator.RejectUnknownRevocationStatus = true;
+                    certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
                     foreach (var app in m_goodApplicationTestSet)
                     {
@@ -1429,10 +1429,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// verify not yet valid app certs in a chain with
         /// CRL.
         /// </summary>
-        [Test]
-        public async Task VerifyExistingCRLAppChainsExpiredCertificates()
+        [Theory]
+        public async Task VerifyExistingCRLAppChainsExpiredCertificates(bool rejectUnknownRevocationStatus)
         {
-            for(int v= 0; v < kCaChainCount; v++)
+            for (int v = 0; v < kCaChainCount; v++)
             {
                 using (var validator = TemporaryCertValidator.Create())
                 {
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     var certValidator = validator.Update();
 
                     // ****** setting under test ******
-                    certValidator.RejectUnknownRevocationStatus = true;
+                    certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
                     foreach (var app in m_NotYetValidCertsApplicationTestSet)
                     {
@@ -1465,13 +1465,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <summary>
         /// Not yet valid application certificates in a certificate chain
-        /// CRLs are missing and Revocation status check is enforced. 
+        /// CRLs are missing and Revocation status check is enforced.
         /// Should report BadCertificateTimeInvalid and (inner result)
         /// BadCertificateRevocationUnknown or BadCertificateIssuerRevocationUnknown.
         /// Currently misbehaves: chain
         /// </summary>
-        [Test]
-        public async Task VerifyMissingCRLAppChainsExpiredCertificates()
+        [Theory]
+        public async Task VerifyMissingCRLAppChainsExpiredCertificates(bool rejectUnknownRevocationStatus)
         {
             for (int v = 0; v < kCaChainCount; v++)
             {
@@ -1482,18 +1482,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         if (i != v)
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            //validator.TrustedStore.AddCRL(m_crlChain[i]);
                         }
                         else
                         {
                             await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
-                            //validator.IssuerStore.AddCRL(m_crlChain[i]);
                         }
                     }
                     var certValidator = validator.Update();
 
                     // ****** setting under test ******
-                    certValidator.RejectUnknownRevocationStatus = true;
+                    certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
                     foreach (var app in m_NotYetValidCertsApplicationTestSet)
                     {
@@ -1509,7 +1507,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             if (inner.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
                             {
                                 isPresentCertificateIssuerRevocationUnknown++;
-
                             }
                             else if (inner.StatusCode == StatusCodes.BadCertificateRevocationUnknown)
                             {
@@ -1517,8 +1514,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             }
                             inner = inner.InnerResult;
                         };
-                        Assert.IsTrue(isPresentCertificateIssuerRevocationUnknown >= 2);
-                        Assert.IsTrue(isPresentCertificateRevocationUnknown >= 1);
+                        if (rejectUnknownRevocationStatus)
+                        {
+                            Assert.LessOrEqual(kCaChainCount - 1, isPresentCertificateIssuerRevocationUnknown);
+                            Assert.AreEqual(1, isPresentCertificateRevocationUnknown);
+                        }
+                        else
+                        {
+                            Assert.AreEqual(0, isPresentCertificateIssuerRevocationUnknown);
+                            Assert.AreEqual(0, isPresentCertificateRevocationUnknown);
+                        }
+
                     }
                 }
             }
@@ -1527,9 +1533,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// No certificate is trusted, and one CRL is missing
         /// </summary>
-        /// <returns></returns>
-        [Test]
-        public async Task VerifyMissingCRLNoTrust()
+        [Theory]
+        public async Task VerifyMissingCRLNoTrust(bool rejectUnknownRevocationStatus)
         {
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
@@ -1541,14 +1546,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
                         if (i != v)
                         {
-                            
                             validator.IssuerStore.AddCRL(m_crlChain[i]);
                         }
                     }
                     var certValidator = validator.Update();
 
                     // ****** setting under test ******
-                    certValidator.RejectUnknownRevocationStatus = true;
+                    certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
 
                     foreach (var app in m_goodApplicationTestSet)
                     {
@@ -1558,10 +1562,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
         }
-
         #endregion missing revocation list when revocation is enforced
 
-        #endregion
+        #endregion Test Methods
 
         #region Private Methods
         private void OnCertificateUpdate(object sender, CertificateUpdateEventArgs e)
