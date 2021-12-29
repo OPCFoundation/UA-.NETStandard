@@ -212,7 +212,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
-                content.Headers.ContentType = m_mediaTypeHeaderValue;
+                content.Headers.ContentType = s_mediaTypeHeaderValue;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
                 {
@@ -344,7 +344,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 ByteArrayContent content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
-                content.Headers.ContentType = m_mediaTypeHeaderValue;
+                content.Headers.ContentType = s_mediaTypeHeaderValue;
                 var result = await m_client.PostAsync(m_url, content, ct).ConfigureAwait(false);
                 result.EnsureSuccessStatusCode();
                 Stream responseContent = await result.Content.ReadAsStreamAsync().ConfigureAwait(false);
@@ -395,7 +395,7 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
-        private static readonly MediaTypeHeaderValue m_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
+        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
     }
 }
 
