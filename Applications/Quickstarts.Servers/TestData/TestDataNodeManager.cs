@@ -699,7 +699,7 @@ namespace TestData
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error monitoring system status.");
+                    Utils.LogError(e, "Unexpected error monitoring system status.");
                 }
             }
 #endif

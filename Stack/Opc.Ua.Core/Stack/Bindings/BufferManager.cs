@@ -10,13 +10,15 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+//#define TRACE_MEMORY
+//#define TRACK_MEMORY 
+
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 
 namespace Opc.Ua.Bindings
 {
-
     #region BufferCollection Class
     /// <summary>
     /// A collection of buffers.
@@ -159,7 +161,7 @@ namespace Opc.Ua.Bindings
                 m_allocations[m_id] = allocation;
 #endif
 #if TRACE_MEMORY
-                Utils.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
+                Utils.EventLog.Trace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
                 buffer[buffer.Length - 1] = m_cookieUnlocked;
                 return buffer;
@@ -181,8 +183,8 @@ namespace Opc.Ua.Bindings
 
             lock (m_lock)
             {
-                int id = BitConverter.ToInt32(buffer, buffer.Length-5);       
-         
+                int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
+
                 Allocation allocation = null;
 
                 if (m_allocations.TryGetValue(id, out allocation))
@@ -191,7 +193,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***", 
+                        Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***", 
                             m_name,
                             allocation.Id, 
                             allocation.Owner, 
@@ -201,7 +203,7 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.Trace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
+            Utils.EventLog.Trace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
 #endif
         }
 
@@ -216,7 +218,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
-            Utils.Trace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            Utils.EventLog.Trace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[buffer.Length - 1] = m_cookieLocked;
         }
@@ -232,7 +234,7 @@ namespace Opc.Ua.Bindings
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
-            Utils.Trace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
+            Utils.EventLog.Trace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
             buffer[buffer.Length - 1] = m_cookieUnlocked;
         }
@@ -252,7 +254,7 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
 #if TRACE_MEMORY
-                Utils.Trace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
+                Utils.EventLog.Trace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
 #endif
                 if (buffer[buffer.Length - 1] != m_cookieUnlocked)
                 {
@@ -264,9 +266,9 @@ namespace Opc.Ua.Bindings
 
 #if TRACK_MEMORY
                 m_allocated -= buffer.Length;
-                
+
                 int id = BitConverter.ToInt32(buffer, buffer.Length-5);       
-         
+
                 Allocation allocation = null;
 
                 if (m_allocations.TryGetValue(id, out allocation))
@@ -275,7 +277,7 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.Trace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***", 
+                        Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***", 
                             m_name,
                             allocation.Id, 
                             allocation.Owner, 
@@ -286,7 +288,7 @@ namespace Opc.Ua.Bindings
 
                 m_allocations.Remove(id);
                                
-                //Utils.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
+                Utils.EventLog.Trace("Deallocated ID {0}: {1}/{2}", id, buffer.Length, m_allocated);
 
                 foreach (KeyValuePair<int,Allocation> current in m_allocations)
                 {
@@ -305,7 +307,7 @@ namespace Opc.Ua.Bindings
                     {        
                         if (allocation.Reported < age)
                         {
-                            Utils.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}", 
+                            Utils.EventLog.Trace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}", 
                                 m_name,
                                 allocation.Id, 
                                 allocation.Owner, 

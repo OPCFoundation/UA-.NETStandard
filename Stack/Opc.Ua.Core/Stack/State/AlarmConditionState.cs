@@ -711,7 +711,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error unshelving alarm.");
+                Utils.LogError(e, "Unexpected error unshelving alarm.");
             }
         }
 
@@ -734,7 +734,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error updating UnshelveTime.");
+                Utils.LogError(e, "Unexpected error updating UnshelveTime.");
             }
         }
 
@@ -782,5 +782,4 @@ namespace Opc.Ua
     public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
         ISystemContext context,
         AlarmConditionState alarm);
-
 }

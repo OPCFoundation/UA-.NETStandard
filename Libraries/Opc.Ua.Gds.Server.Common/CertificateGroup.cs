@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Server
         #region ICertificateGroupProvider
         public virtual async Task Init()
         {
-            Utils.Trace(Utils.TraceMasks.Information, "InitializeCertificateGroup: {0}", m_subjectName);
+            Utils.LogInfo("InitializeCertificateGroup: {0}", m_subjectName);
 
             using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_authoritiesStorePath))
             {
@@ -98,7 +98,7 @@ namespace Opc.Ua.Gds.Server
 
             if (Certificate == null)
             {
-                Utils.Trace(Utils.TraceMasks.Security,
+                Utils.LogInfo(Utils.TraceMasks.Security,
                     "Create new CA Certificate: {0}, KeySize: {1}, HashSize: {2}, LifeTime: {3} months",
                     m_subjectName,
                     Configuration.CACertificateKeySize,
@@ -107,6 +107,7 @@ namespace Opc.Ua.Gds.Server
                     );
                 X509Certificate2 newCertificate = await CreateCACertificateAsync(m_subjectName).ConfigureAwait(false);
                 Certificate = new X509Certificate2(newCertificate.RawData);
+                Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificate);
             }
         }
 

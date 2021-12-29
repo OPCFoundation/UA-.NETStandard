@@ -121,7 +121,7 @@ namespace Opc.Ua
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error raising configuration file changed event.");
+                Utils.LogError(exception, "Unexpected error raising configuration file changed event.");
             }
         }
         #endregion
