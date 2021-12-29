@@ -366,39 +366,6 @@ namespace Opc.Ua
             {
                 return BuiltInType.Null;
             }
-            switch ((uint)datatypeId.Identifier)
-            {
-                // subtype of DateTime
-                case DataTypes.UtcTime: return BuiltInType.DateTime;
-                // subtype of ByteString
-                case DataTypes.ApplicationInstanceCertificate:
-                case DataTypes.AudioDataType:
-                case DataTypes.ContinuationPoint:
-                case DataTypes.Image:
-                case DataTypes.ImageBMP:
-                case DataTypes.ImageGIF:
-                case DataTypes.ImageJPG:
-                case DataTypes.ImagePNG: return BuiltInType.ByteString;
-                // subtype of NodeId
-                case DataTypes.SessionAuthenticationToken: return BuiltInType.NodeId;
-                // subtype of Double
-                case DataTypes.Duration: return BuiltInType.Double;
-                // subtype of UInt32
-                case DataTypes.IntegerId:
-                case DataTypes.Index:
-                case DataTypes.VersionTime:
-                case DataTypes.Counter: return BuiltInType.UInt32;
-                // subtype of UInt64
-                case DataTypes.BitFieldMaskDataType: return BuiltInType.UInt64;
-                // subtype of String
-                case DataTypes.DateString:
-                case DataTypes.DecimalString:
-                case DataTypes.DurationString:
-                case DataTypes.LocaleId:
-                case DataTypes.NormalizedString:
-                case DataTypes.NumericRange:
-                case DataTypes.TimeString: return BuiltInType.String;
-            }
 
             return (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
         }
@@ -511,14 +478,14 @@ namespace Opc.Ua
         /// <param name="datatypeId">The datatype id.</param>
         /// <param name="factory">The factory used to store and retrieve underlying OPC UA system types.</param>
         /// <returns>The system type for the <paramref name="datatypeId"/>.</returns>
-        public static Type GetSystemType(ExpandedNodeId datatypeId, IEncodeableFactory factory)
+        public static Type GetSystemType(NodeId datatypeId, IEncodeableFactory factory)
         {
             if (datatypeId == null)
             {
                 return null;
             }
 
-            if (datatypeId.NamespaceIndex != 0 || datatypeId.IdType != Opc.Ua.IdType.Numeric || datatypeId.IsAbsolute)
+            if (datatypeId.NamespaceIndex != 0 || datatypeId.IdType != Opc.Ua.IdType.Numeric)
             {
                 return factory.GetSystemType(datatypeId);
             }
@@ -1128,7 +1095,7 @@ namespace Opc.Ua
 
             TypeInfo typeInfo = Construct(value.GetType());
 
-            // check for instances of matrices.
+            // check for instances of matrixes.
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
                 Matrix matrix = value as Matrix;

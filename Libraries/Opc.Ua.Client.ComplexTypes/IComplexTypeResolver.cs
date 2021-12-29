@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Gets the factory used to create encodeable objects that the server understands.
         /// </summary>
-        EncodeableFactory Factory { get; }
+        IEncodeableFactory Factory { get; }
 
         /// <summary>
         /// Loads all dictionaries of the OPC binary or Xml schema type system.

@@ -728,7 +728,7 @@ namespace Opc.Ua.Client.ComplexTypes
         private void AddEnumerationOrStructureType(INode dataTypeNode, IList<INode> serverEnumTypes, IList<INode> serverStructTypes)
         {
             NodeId superType = ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_complexTypeResolver.NamespaceUris);
-            do
+            while (true)
             {
                 superType = m_complexTypeResolver.FindSuperType(superType);
                 if (superType.IsNullNodeId)
@@ -804,8 +804,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                     if (newType == null)
                     {
-                        var dataType = m_complexTypeResolver.Find(enumType.NodeId) as DataTypeNode;
-                        if (dataType != null)
+                        var dataTypeNode = m_complexTypeResolver.Find(enumType.NodeId) as DataTypeNode;
+                        if (dataTypeNode != null)
                         {
                             if (dataTypeNode.DataTypeDefinition != null)
                             {
@@ -817,7 +817,7 @@ namespace Opc.Ua.Client.ComplexTypes
                                 // browse for EnumFields or EnumStrings property
                                 var property = m_complexTypeResolver.BrowseForSingleProperty(enumType.NodeId);
                                 var enumArray = m_complexTypeResolver.ReadValue(property.NodeId);
-                                if (enumArray.Value is ExtensionObject[])
+                                if (enumArray.Value is ExtensionObject[] extensionObject)
                                 {
                                     // 3. use EnumValues
                                     newType = complexTypeBuilder.AddEnumType(enumType.BrowseName.Name, extensionObject);
@@ -890,7 +890,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (property != null)
                     {
                         var enumArray = m_complexTypeResolver.ReadValue(property.NodeId);
-                        if (enumArray.Value is ExtensionObject[])
+                        if (enumArray.Value is ExtensionObject[] extensionObject)
                         {
                             // 2. use EnumValues
                             newType = complexTypeBuilder.AddEnumType(name, extensionObject);

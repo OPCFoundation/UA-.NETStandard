@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
         /// <inheritdoc/>
-        public EncodeableFactory Factory => m_session.Factory;
+        public IEncodeableFactory Factory => m_session.Factory;
 
         /// <inheritdoc/>
         public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
