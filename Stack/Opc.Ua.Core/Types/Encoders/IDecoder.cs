@@ -28,7 +28,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        ServiceMessageContext Context { get; }
+        IServiceMessageContext Context { get; }
 
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.
@@ -328,6 +328,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType);
+        object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null);
     }
 }

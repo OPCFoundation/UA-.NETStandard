@@ -34,17 +34,14 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
 
-
 namespace Opc.Ua.Gds.Tests
 {
-
     public class GlobalDiscoveryTestServer
     {
         public GlobalDiscoverySampleServer Server => m_server;
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
-
 
         public GlobalDiscoveryTestServer(bool _autoAccept)
         {
@@ -130,7 +127,6 @@ namespace Opc.Ua.Gds.Tests
             {
                 throw new ServiceResultException("Server failed to start");
             }
-
         }
 
         public void StopServer()
@@ -146,7 +142,6 @@ namespace Opc.Ua.Gds.Tests
                     server.Stop();
                 }
             }
-
         }
 
         public string ReadLogFile()
@@ -188,8 +183,60 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
+#if !USE_FILE_CONFIG
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
+#else
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string gdsRoot = Path.Combine(root, "GDS");
+            var gdsConfig = new GlobalDiscoveryServerConfiguration() {
+                AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
+                ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
+                DefaultSubjectNameContext = "O=OPC Foundation",
+                CertificateGroups = new CertificateGroupConfigurationCollection()
+                {
+                    new CertificateGroupConfiguration()
+                    {
+                        Id = "Default",
+                        CertificateType ="RsaSha256ApplicationCertificateType",
+                        SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                        BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
+                        DefaultCertificateHashSize = 256,
+                        DefaultCertificateKeySize = 2048,
+                        DefaultCertificateLifetime = 12,
+                        CACertificateHashSize = 512,
+                        CACertificateKeySize = 4096,
+                        CACertificateLifetime = 60
+                    }
+                },
+                DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json")
+            };
+
+            // build the application configuration.
+            ApplicationConfiguration config = await application
+                .Build(
+                    "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
+                    "http://opcfoundation.org/UA/GlobalDiscoveryTestServer")
+                .AsServer(new string[] { "opc.tcp://localhost:58810/GlobalDiscoveryTestServer" })
+                .AddUserTokenPolicy(UserTokenType.Anonymous)
+                .AddUserTokenPolicy(UserTokenType.UserName)
+                .SetDiagnosticsEnabled(true)
+                .AddServerCapabilities("GDS")
+                .AddServerProfile("http://opcfoundation.org/UA-Profile/Server/GlobalDiscoveryAndCertificateManagement2017")
+                .SetShutdownDelay(0)
+                .AddSecurityConfiguration(
+                    "CN=Global Discovery Test Server, O=OPC Foundation, DC=localhost",
+                    gdsRoot)
+                .SetAutoAcceptUntrustedCertificates(true)
+                .SetRejectSHA1SignedCertificates(false)
+                .SetRejectUnknownRevocationStatus(true)
+                .SetMinimumCertificateKeySize(1024)
+                .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
+                .SetDeleteOnLoad(true)
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
+                .SetTraceMasks(519)
+                .Create().ConfigureAwait(false);
+#endif
             TestUtils.PatchBaseAddressesPorts(config, basePort);
             return config;
         }

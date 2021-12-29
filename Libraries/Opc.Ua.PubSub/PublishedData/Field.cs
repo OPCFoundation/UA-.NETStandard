@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -53,5 +53,31 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Get configured <see cref="FieldMetaData"/> object for this <see cref="Field"/> instance.
         /// </summary>
         public FieldMetaData FieldMetaData { get; internal set; }
+
+        #region MemberwiseClone method
+        /// <summary>
+        /// Create a deep copy of current DataSet
+        /// </summary>
+        public new object MemberwiseClone()
+        {
+            Field copy = base.MemberwiseClone() as Field;
+            if (Value != null)
+            {
+                if (copy != null)
+                {
+                    copy.Value = Value.MemberwiseClone() as DataValue;
+                }
+            }
+
+            if (FieldMetaData != null)
+            {
+                if (copy != null)
+                {
+                    copy.FieldMetaData = FieldMetaData.MemberwiseClone() as FieldMetaData;
+                }
+            }
+            return copy;
+        }
+        #endregion
     }
 }

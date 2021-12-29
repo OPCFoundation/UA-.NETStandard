@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -191,7 +191,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var cert = CertificateBuilder.Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                .AddExtension(X509Extensions.BuildX509CRLDistributionPoints("http://myca/mycert.crl"))
+                .AddExtension(X509Extensions.BuildX509CRLDistributionPoints(new string[] { "http://myca/mycert.crl", "http://myaltca/mycert.crl" }))
                 .SetECCurve(ecCurveHashPair.Curve)
                 .CreateForECDsa();
             Assert.NotNull(cert);
@@ -310,7 +310,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetIssuer(new X509Certificate2(signingCert.RawData))
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed ECDsa cert");
+                WriteCertificate(cert, "Default signed ECDsa cert");
             }
 
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
@@ -323,7 +323,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed ECDsa cert with Public Key");
+                WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
             }
 
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
@@ -335,7 +335,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default signed RSA cert");
+                WriteCertificate(cert, "Default signed RSA cert");
             }
 
             // ensure invalid path throws argument exception

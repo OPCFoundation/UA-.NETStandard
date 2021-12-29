@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.Uadp;
 using System;
+using Opc.Ua.PubSub.Transport;
 
 namespace Opc.Ua.PubSub
 {
@@ -36,20 +36,28 @@ namespace Opc.Ua.PubSub
     /// Implementation of Factory pattern - Used to create objects depending on used protocol
     /// </summary>
     internal static class ObjectFactory
-    {        
+    {
         /// <summary>
         /// Create connections from PubSubConnectionDataType configuration objects.
         /// </summary>
-        /// <param name="uaPubSubApplication"></param>
-        /// <param name="pubSubConnectionDataType"></param>
-        /// <returns></returns>
+        /// <param name="uaPubSubApplication">The parent <see cref="UaPubSubApplication"/></param>
+        /// <param name="pubSubConnectionDataType">The configuration object for the new <see cref="UaPubSubConnection"/></param>
+        /// <returns>The new instance of <see cref="UaPubSubConnection"/>.</returns>
         public static UaPubSubConnection CreateConnection(UaPubSubApplication uaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
-            if (pubSubConnectionDataType.TransportProfileUri == Profiles.UadpTransport)
+            if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
             {
-                return new UadpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
+                return new UdpPubSubConnection(uaPubSubApplication, pubSubConnectionDataType);
+            }
+            else if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubMqttUadpTransport)
+            {
+                return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Uadp);
+            }
+            else if (pubSubConnectionDataType.TransportProfileUri == Profiles.PubSubMqttJsonTransport)
+            {
+                return new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json);
             }
             throw new ArgumentException("Invalid TransportProfileUri.", "pubSubConnectionDataType");
-        }        
+        }
     }
 }

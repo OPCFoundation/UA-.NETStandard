@@ -19,22 +19,22 @@ namespace Opc.Ua
 	/// A base class for UA endpoints.
 	/// </summary>
     public abstract class EndpointBase : IEndpointBase, ITransportListenerCallback
-    {    
+    {
         #region Constructors
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
         /// </summary>
         protected EndpointBase()
         {
-            SupportedServices  = new Dictionary<ExpandedNodeId,ServiceDefinition>();
-            
+            SupportedServices = new Dictionary<ExpandedNodeId, ServiceDefinition>();
+
             try
             {
                 m_host = GetHostForContext();
                 m_server = GetServerForContext();
 
                 MessageContext = m_server.MessageContext;
-               
+
                 EndpointDescription = GetEndpointDescription();
             }
             catch (Exception e)
@@ -57,8 +57,8 @@ namespace Opc.Ua
 
             m_host = host;
             m_server = host.Server;
-            
-            SupportedServices  = new Dictionary<ExpandedNodeId,ServiceDefinition>();
+
+            SupportedServices = new Dictionary<ExpandedNodeId, ServiceDefinition>();
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace Opc.Ua
             SupportedServices = new Dictionary<ExpandedNodeId, ServiceDefinition>();
         }
         #endregion
-             
+
         #region ITransportListenerCallback Members
         /// <summary>
         /// Begins processing a request received via a binary encoded channel.
@@ -154,9 +154,9 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region IEndpointBase Members
-        #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
+#if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
@@ -205,7 +205,7 @@ namespace Opc.Ua
                 return outgoing;
             }
         }
-        #else
+#else
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
@@ -218,7 +218,7 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                 }
-                
+
                 // set the request context.
                 SetRequestContext(RequestEncoding.Binary);
 
@@ -259,22 +259,22 @@ namespace Opc.Ua
                 return outgoing;
             }
         }
-        #endif
-        
+#endif
+
         /// <summary>
         /// Returns the host associated with the current context.
         /// </summary>
         /// <value>The host associated with the current context.</value>
         protected IServiceHostBase HostForContext
         {
-            get 
-            { 
+            get
+            {
                 if (m_host == null)
                 {
                     m_host = GetHostForContext();
                 }
 
-                return m_host; 
+                return m_host;
             }
         }
 
@@ -295,14 +295,14 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         protected IServerBase ServerForContext
         {
-            get 
-            { 
+            get
+            {
                 if (m_server == null)
                 {
                     m_server = GetServerForContext();
                 }
 
-                return m_server; 
+                return m_server;
             }
         }
 
@@ -339,7 +339,7 @@ namespace Opc.Ua
         {
             return null;
         }
-        
+
         /// <summary>
         /// Finds the service identified by the request type.
         /// </summary>
@@ -350,7 +350,7 @@ namespace Opc.Ua
             if (!SupportedServices.TryGetValue(requestTypeId, out service))
             {
                 throw ServiceResultException.Create(
-                    StatusCodes.BadServiceUnsupported, 
+                    StatusCodes.BadServiceUnsupported,
                     "'{0}' is an unrecognized service identifier.",
                     requestTypeId);
             }
@@ -372,7 +372,7 @@ namespace Opc.Ua
 
             if (request != null)
             {
-                fault.ResponseHeader.Timestamp     = DateTime.UtcNow;
+                fault.ResponseHeader.Timestamp = DateTime.UtcNow;
                 fault.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
 
                 if (request.RequestHeader != null)
@@ -388,30 +388,30 @@ namespace Opc.Ua
             if (sre != null)
             {
                 result = new ServiceResult(sre);
-
-                Utils.Trace(
-                    Utils.TraceMasks.Service, 
-                    "Service Fault Occured. Reason={0}", 
-                    result);
+                Utils.LogWarning("SERVER - Service Fault Occured. Reason={0}", result.StatusCode);
+                if (sre.StatusCode == StatusCodes.BadUnexpectedError)
+                {
+                    Utils.LogWarning(Utils.TraceMasks.StackTrace, sre, sre.ToString());
+                }
             }
             else
             {
                 result = new ServiceResult(exception, StatusCodes.BadUnexpectedError);
-                Utils.Trace(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
-            }                               
+                Utils.LogError(exception, "SERVER - Unexpected Service Fault: {0}", exception.Message);
+            }
 
             fault.ResponseHeader.ServiceResult = result.Code;
 
             StringTable stringTable = new StringTable();
 
             fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
-                result, 
-                diagnosticsMask, 
-                true, 
+                result,
+                diagnosticsMask,
+                true,
                 stringTable);
 
             fault.ResponseHeader.StringTable = stringTable.ToArray();
- 
+
             return fault;
         }
 
@@ -432,7 +432,7 @@ namespace Opc.Ua
             {
                 error = ServiceResult.Create(StatusCodes.BadUnexpectedError, "An unknown error occurred.");
             }
-            
+
             // construct the fault code and fault reason.
             string codeName = StatusCodes.GetBrowseName(error.Code);
 
@@ -443,9 +443,9 @@ namespace Opc.Ua
         /// Returns the message context used by the server associated with the endpoint.
         /// </summary>
         /// <value>The message context.</value>
-        protected ServiceMessageContext MessageContext
+        protected IServiceMessageContext MessageContext
         {
-            get { return m_messageContext;  }
+            get { return m_messageContext; }
             set { m_messageContext = value; }
         }
 
@@ -455,29 +455,29 @@ namespace Opc.Ua
         /// <value>The endpoint description.</value>
         protected EndpointDescription EndpointDescription
         {
-            get { return m_endpointDescription;  }
+            get { return m_endpointDescription; }
             set { m_endpointDescription = value; }
         }
 
         /// <summary>
-        /// The types known to the server.
+        /// Returns the error of the server.
         /// </summary>
         /// <value>The server error.</value>
         protected ServiceResult ServerError
         {
-            get { return m_serverError;  }
+            get { return m_serverError; }
             set { m_serverError = value; }
         }
 
         /// <summary>
-        /// The types known to the server.
+        /// The types of services known to the server.
         /// </summary>
         protected Dictionary<ExpandedNodeId, ServiceDefinition> SupportedServices
         {
             get { return m_supportedServices; }
             set { m_supportedServices = value; }
         }
-             
+
         /// <summary>
         /// Sets the request context for the thread.
         /// </summary>
@@ -523,7 +523,7 @@ namespace Opc.Ua
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
             public ServiceDefinition(
-                Type requestType, 
+                Type requestType,
                 InvokeServiceEventHandler invokeMethod)
             {
                 m_requestType = requestType;
@@ -546,8 +546,8 @@ namespace Opc.Ua
             public Type ResponseType
             {
                 get { return m_requestType; }
-            }            
-            
+            }
+
             /// <summary>
             /// Processes the request.
             /// </summary>
@@ -824,7 +824,6 @@ namespace Opc.Ua
 
                     // call the service.
                     m_response = m_service.Invoke(m_request);
-
                 }
                 catch (Exception e)
                 {
@@ -852,9 +851,9 @@ namespace Opc.Ua
 
         #region Private Fields
         private ServiceResult m_serverError;
-        private ServiceMessageContext m_messageContext;
+        private IServiceMessageContext m_messageContext;
         private EndpointDescription m_endpointDescription;
-        private Dictionary<ExpandedNodeId,ServiceDefinition> m_supportedServices;
+        private Dictionary<ExpandedNodeId, ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;
         private IServerBase m_server;
         private string g_ImplementationString = "Opc.Ua.EndpointBase UA Service " + Utils.GetAssemblySoftwareVersion();

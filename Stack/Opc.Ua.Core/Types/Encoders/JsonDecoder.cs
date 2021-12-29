@@ -34,11 +34,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-
         private JsonTextReader m_reader;
         private Dictionary<string, object> m_root;
         private Stack<object> m_stack;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
@@ -58,7 +57,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="json">The JSON encoded string.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(string json, ServiceMessageContext context)
+        public JsonDecoder(string json, IServiceMessageContext context)
         {
             if (context == null)
             {
@@ -75,16 +74,12 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Get referece to current JsonTextReader
-        /// </summary>
-        public JsonTextReader Reader { get { return m_reader; } }
-        /// <summary>
         /// Create a JSON decoder to decode a <see cref="Type"/>from a <see cref="JsonTextReader"/>.
         /// </summary>
         /// <param name="systemType">The system type of the encoded JSON stram.</param>
         /// <param name="reader">The text reader.</param>
         /// <param name="context">The service message context to use.</param>
-        public JsonDecoder(Type systemType, JsonTextReader reader, ServiceMessageContext context)
+        public JsonDecoder(Type systemType, JsonTextReader reader, IServiceMessageContext context)
         {
             Initialize();
 
@@ -109,7 +104,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeSessionLessMessage(byte[] buffer, ServiceMessageContext context)
+        public static IEncodeable DecodeSessionLessMessage(byte[] buffer, IServiceMessageContext context)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -132,7 +127,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, ServiceMessageContext context)
+        public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, IServiceMessageContext context)
         {
             return DecodeMessage(new ArraySegment<byte>(buffer), expectedType, context);
         }
@@ -140,7 +135,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, ServiceMessageContext context)
+        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, IServiceMessageContext context)
         {
             if (context == null)
             {
@@ -294,7 +289,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -934,7 +929,6 @@ namespace Opc.Ua
                         {
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                         }
-
                     }
                 }
                 return DefaultNodeId(idType, namespaceIndex);
@@ -1060,7 +1054,6 @@ namespace Opc.Ua
 
                 // read the uint code
                 return ReadUInt32(null);
-
             }
             finally
             {
@@ -1404,7 +1397,7 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
-                    Utils.Trace("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
+                    Utils.LogWarning("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
                 }
                 else
                 {
@@ -1453,13 +1446,12 @@ namespace Opc.Ua
                 }
 
                 var ostrm = new MemoryStream();
-
-                using (JsonTextWriter writer = new JsonTextWriter(new StreamWriter(ostrm)))
+                using (var stream = new StreamWriter(ostrm))
+                using (JsonTextWriter writer = new JsonTextWriter(stream))
                 {
                     EncodeAsJson(writer, token);
+                    return new ExtensionObject(typeId, ostrm.ToArray());
                 }
-
-                return new ExtensionObject(typeId, ostrm.ToArray());
             }
             finally
             {
@@ -2394,7 +2386,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an array with the specified valueRank and the specified BuiltInType
         /// </summary>
-        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType)
+        public object ReadArray(string fieldName, int valueRank, BuiltInType builtInType, ExpandedNodeId encodeableTypeId = null)
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2447,7 +2439,17 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return ReadInt32Array(fieldName).ToArray();
                     case BuiltInType.Variant:
+                    {
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            }
+                        }
                         return ReadVariantArray(fieldName).ToArray();
+                    }
                     case BuiltInType.ExtensionObject:
                         return ReadExtensionObjectArray(fieldName).ToArray();
                     case BuiltInType.DiagnosticInfo:
@@ -2469,7 +2471,7 @@ namespace Opc.Ua
                 }
                 List<object> elements = new List<object>();
                 List<int> dimensions = new List<int>();
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0);
+                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, encodeableTypeId);
 
                 switch (builtInType)
                 {
@@ -2520,6 +2522,19 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return new Matrix(elements.Cast<Int32>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.Variant:
+                        if (encodeableTypeId != null)
+                        {
+                            Type systemType = Context.Factory.GetSystemType(encodeableTypeId);
+                            if (systemType != null)
+                            {
+                                Array newElements = Array.CreateInstance(systemType, elements.Count);
+                                for (int i = 0; i < elements.Count; i++)
+                                {
+                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType), i);
+                                }
+                                return new Matrix(newElements, builtInType, dimensions.ToArray());
+                            }
+                        }
                         return new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
                     case BuiltInType.ExtensionObject:
                         return new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
@@ -2792,7 +2807,7 @@ namespace Opc.Ua
         /// <summary>
         /// Read the Matrix part (simple array or array of arrays)
         /// </summary>
-        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level)
+        private void ReadMatrixPart(string fieldName, List<object> currentArray, BuiltInType builtInType, ref List<object> elements, ref List<int> dimensions, int level, ExpandedNodeId encodeableTypeId = null)
         {
             // check the nesting level for avoiding a stack overflow.
             if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
@@ -2823,7 +2838,7 @@ namespace Opc.Ua
 
                             PushArray(fieldName, ii);
 
-                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1);
+                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, encodeableTypeId);
 
                             Pop();
                         }
@@ -2835,7 +2850,7 @@ namespace Opc.Ua
                     if (!hasInnerArray)
                     {
                         // read array from one dimension
-                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType) as System.Collections.IList;
+                        var part = ReadArray(null, ValueRanks.OneDimension, builtInType, encodeableTypeId) as System.Collections.IList;
                         if (part != null && part.Count > 0)
                         {
                             // add part elements to final list 

@@ -28,37 +28,40 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an encoder that writes to a memory buffer.
         /// </summary>
-        public BinaryEncoder(ServiceMessageContext context)
+        public BinaryEncoder(IServiceMessageContext context)
         {
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
             m_context = context;
+            m_leaveOpen = false;
             m_nestingLevel = 0;
         }
 
         /// <summary>
         /// Creates an encoder that writes to a fixed size memory buffer.
         /// </summary>
-        public BinaryEncoder(byte[] buffer, int start, int count, ServiceMessageContext context)
+        public BinaryEncoder(byte[] buffer, int start, int count, IServiceMessageContext context)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
 
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
             m_context = context;
+            m_leaveOpen = false;
             m_nestingLevel = 0;
         }
 
         /// <summary>
         /// Creates an encoder that writes to the stream.
         /// </summary>
-        public BinaryEncoder(Stream stream, ServiceMessageContext context)
+        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
 
             m_ostrm = stream;
-            m_writer = new BinaryWriter(m_ostrm);
+            m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
             m_context = context;
+            m_leaveOpen = leaveOpen;
             m_nestingLevel = 0;
         }
         #endregion
@@ -121,9 +124,9 @@ namespace Opc.Ua
             m_writer.Flush();
             m_writer.Dispose();
 
-            if (m_ostrm is MemoryStream)
+            if (m_ostrm is MemoryStream memoryStream)
             {
-                return ((MemoryStream)m_ostrm).ToArray();
+                return memoryStream.ToArray();
             }
 
             return null;
@@ -157,11 +160,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets the stream that the encoder is writing to.
-        /// </summary>
-        public Stream BaseStream => m_writer.BaseStream;
-
-        /// <summary>
         /// Writes raw bytes to the stream.
         /// </summary>
         public void WriteRawBytes(byte[] buffer, int offset, int count)
@@ -172,7 +170,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a buffer.
         /// </summary>
-        public static byte[] EncodeMessage(IEncodeable message, ServiceMessageContext context)
+        public static byte[] EncodeMessage(IEncodeable message, IServiceMessageContext context)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -190,7 +188,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -236,7 +234,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static void EncodeMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (stream == null) throw new ArgumentNullException(nameof(stream));
@@ -313,7 +311,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// Binary Encoder always produces reversible encoding.
@@ -1641,6 +1639,14 @@ namespace Opc.Ua
                         WriteXmlElementArray(null, (System.Xml.XmlElement[])array);
                         break;
                     case BuiltInType.Variant:
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = array as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
+                            return;
+                        }
+
                         WriteVariantArray(null, (Variant[])array);
                         break;
                     case BuiltInType.Enumeration:
@@ -1752,7 +1758,7 @@ namespace Opc.Ua
                         }
                         break;
                     }
-                    case BuiltInType.Enumeration: 
+                    case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
                     {
                         Int32[] values = (Int32[])matrix.Elements;
@@ -1942,6 +1948,17 @@ namespace Opc.Ua
                             for (int ii = 0; ii < variants.Length; ii++)
                             {
                                 WriteVariant(null, variants[ii]);
+                            }
+                            break;
+                        }
+
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = matrix.Elements as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            for (int ii = 0; ii < encodeableArray.Length; ii++)
+                            {
+                                WriteEncodeable(null, encodeableArray[ii], null);
                             }
                             break;
                         }
@@ -2334,7 +2351,8 @@ namespace Opc.Ua
         #region Private Fields
         private Stream m_ostrm;
         private BinaryWriter m_writer;
-        private ServiceMessageContext m_context;
+        private bool m_leaveOpen;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

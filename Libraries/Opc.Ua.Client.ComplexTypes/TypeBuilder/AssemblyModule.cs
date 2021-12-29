@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -48,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()),
                 AssemblyBuilderAccess.Run);
-            m_moduleBuilder = m_assemblyBuilder.DefineDynamicModule(m_opcTypesModuleName);
+            m_moduleBuilder = m_assemblyBuilder.DefineDynamicModule(kOpcTypesModuleName);
         }
         #endregion Constructors
 
@@ -73,8 +72,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #region Private Fields
         private readonly AssemblyBuilder m_assemblyBuilder;
         private readonly ModuleBuilder m_moduleBuilder;
-        private const string m_opcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
+        private const string kOpcTypesModuleName = "Opc.Ua.ComplexTypes.Module";
         #endregion Private Fields
     }
-
 }//namespace

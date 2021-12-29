@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public class Session : SessionClient, IDisposable
+    public partial class Session : SessionClient, IDisposable
     {
         #region Constructors
         /// <summary>
@@ -173,12 +173,11 @@ namespace Opc.Ua.Client
                 // check for valid certificate.
                 if (m_instanceCertificate == null)
                 {
+                    var cert = m_configuration.SecurityConfiguration.ApplicationCertificate;
                     throw ServiceResultException.Create(
                         StatusCodes.BadConfigurationError,
                         "Cannot find the application instance certificate. Store={0}, SubjectName={1}, Thumbprint={2}.",
-                        m_configuration.SecurityConfiguration.ApplicationCertificate.StorePath,
-                        m_configuration.SecurityConfiguration.ApplicationCertificate.SubjectName,
-                        m_configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint);
+                        cert.StorePath, cert.SubjectName, cert.Thumbprint);
                 }
 
                 // check for private key.
@@ -203,7 +202,7 @@ namespace Opc.Ua.Client
             }
 
             // initialize the message context.
-            ServiceMessageContext messageContext = channel.MessageContext;
+            IServiceMessageContext messageContext = channel.MessageContext;
 
             if (messageContext != null)
             {
@@ -322,7 +321,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.LogWarning(Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -336,7 +335,7 @@ namespace Opc.Ua.Client
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
                     {
-                        Utils.Trace(Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.LogWarning(Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
                     }
                     else
                     {
@@ -366,7 +365,6 @@ namespace Opc.Ua.Client
                 {
                     Utils.SilentDispose(subscription);
                 }
-
                 m_subscriptions.Clear();
             }
 
@@ -547,7 +545,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the factory used to create encodeable objects that the server understands.
         /// </summary>
-        public EncodeableFactory Factory => m_factory;
+        public IEncodeableFactory Factory => m_factory;
 
         /// <summary>
         /// Gets the cache of the server's type tree.
@@ -572,7 +570,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the data type system dictionaries in use.
         /// </summary>
-        public Dictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
+        public IReadOnlyDictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
@@ -807,7 +805,7 @@ namespace Opc.Ua.Client
             }
 
             // create message context.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
@@ -915,7 +913,7 @@ namespace Opc.Ua.Client
             {
                 connection = await reverseConnectManager.WaitForConnection(
                     endpoint.EndpointUrl,
-                    endpoint.ReverseConnect.ServerUri,
+                    endpoint.ReverseConnect?.ServerUri,
                     ct).ConfigureAwait(false);
 
                 if (updateBeforeConnect)
@@ -948,7 +946,7 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static Session Recreate(Session template)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            var messageContext = template.m_configuration.CreateMessageContext();
             messageContext.Factory = template.Factory;
 
             // create the channel object used to connect to the server.
@@ -997,7 +995,7 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static Session Recreate(Session template, ITransportWaitingConnection connection)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            var messageContext = template.m_configuration.CreateMessageContext();
             messageContext.Factory = template.Factory;
 
             // create the channel object used to connect to the server.
@@ -1079,14 +1077,14 @@ namespace Opc.Ua.Client
                     // check if already connecting.
                     if (m_reconnecting)
                     {
-                        Utils.Trace("Session is already attempting to reconnect.");
+                        Utils.LogWarning("Session is already attempting to reconnect.");
 
                         throw ServiceResultException.Create(
                             StatusCodes.BadInvalidState,
                             "Session is already attempting to reconnect.");
                     }
 
-                    Utils.Trace("Session RECONNECT starting.");
+                    Utils.LogInfo("Session RECONNECT starting.");
                     m_reconnecting = true;
 
                     // stop keep alives.
@@ -1107,7 +1105,7 @@ namespace Opc.Ua.Client
 
                 if (identityPolicy == null)
                 {
-                    Utils.Trace("Endpoint does not support the user identity type provided.");
+                    Utils.LogError("Reconnect: Endpoint does not support the user identity type provided.");
 
                     throw ServiceResultException.Create(
                         StatusCodes.BadUserAccessDenied,
@@ -1147,7 +1145,7 @@ namespace Opc.Ua.Client
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
 
-                Utils.Trace("Session REPLACING channel.");
+                Utils.LogInfo("Session REPLACING channel.");
 
                 if (connection != null)
                 {
@@ -1200,7 +1198,7 @@ namespace Opc.Ua.Client
                 StatusCodeCollection certificateResults = null;
                 DiagnosticInfoCollection certificateDiagnosticInfos = null;
 
-                Utils.Trace("Session RE-ACTIVATING session.");
+                Utils.LogInfo("Session RE-ACTIVATING session.");
 
                 IAsyncResult result = BeginActivateSession(
                     null,
@@ -1214,7 +1212,7 @@ namespace Opc.Ua.Client
 
                 if (!result.AsyncWaitHandle.WaitOne(5000))
                 {
-                    Utils.Trace("WARNING: ACTIVATE SESSION timed out. {1}/{0}", OutstandingRequestCount, GoodPublishRequestCount);
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {1}/{0}", OutstandingRequestCount, GoodPublishRequestCount);
                 }
 
                 EndActivateSession(
@@ -1227,7 +1225,7 @@ namespace Opc.Ua.Client
 
                 lock (SyncRoot)
                 {
-                    Utils.Trace("Session RECONNECT completed successfully.");
+                    Utils.LogInfo("Session RECONNECT completed successfully.");
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
                     m_reconnecting = false;
@@ -1293,12 +1291,12 @@ namespace Opc.Ua.Client
         /// <returns>The list of loaded subscriptions</returns>
         public IEnumerable<Subscription> Load(string filePath)
         {
-            XmlReaderSettings settings = new XmlReaderSettings();
-
-            settings.DtdProcessing = DtdProcessing.Prohibit;
-            settings.XmlResolver = null;
-            settings.ConformanceLevel = ConformanceLevel.Document;
-            settings.CloseInput = true;
+            XmlReaderSettings settings = new XmlReaderSettings {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document,
+                CloseInput = true
+            };
 
             XmlReader reader = XmlReader.Create(filePath, settings);
 
@@ -1364,7 +1362,7 @@ namespace Opc.Ua.Client
 
             if (ServiceResult.IsBad(result))
             {
-                Utils.Trace("FetchNamespaceTables: Cannot read NamespaceArray node: {0} " + result.StatusCode);
+                Utils.LogError("FetchNamespaceTables: Cannot read NamespaceArray node: {0}", result.StatusCode);
             }
             else
             {
@@ -1376,7 +1374,7 @@ namespace Opc.Ua.Client
 
             if (ServiceResult.IsBad(result))
             {
-                Utils.Trace("FetchNamespaceTables: Cannot read ServerArray node: {0} " + result.StatusCode);
+                Utils.LogError("FetchNamespaceTables: Cannot read ServerArray node: {0} ", result.StatusCode);
             }
             else
             {
@@ -1600,7 +1598,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
+                        Utils.LogError("Dictionary load error for Dictionary {0} : {1}", r.NodeId, ex.Message);
                     }
                 }
             }
@@ -2436,7 +2434,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace("Create session failed with client certificate NULL. " + ex.Message);
+                    Utils.LogInfo("Create session failed with client certificate NULL. " + ex.Message);
                     successCreateSession = false;
                 }
             }
@@ -2469,8 +2467,9 @@ namespace Opc.Ua.Client
                 base.SessionCreated(sessionId, sessionCookie);
             }
 
-            Utils.Trace("Revised session timeout value: {0}. ", m_sessionTimeout);
-            Utils.Trace("Max response message size value: {0}. Max request message size: {1} ", MessageContext.MaxMessageSize, m_maxRequestMessageSize);
+            Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
+            Utils.LogInfo("Max response message size value: {0}. Max request message size: {1} ",
+                MessageContext.MaxMessageSize, m_maxRequestMessageSize);
 
             //we need to call CloseSession if CreateSession was successful but some other exception is thrown
             try
@@ -2502,7 +2501,7 @@ namespace Opc.Ua.Client
 
                 if (serverSignature == null || serverSignature.Signature == null)
                 {
-                    Utils.Trace("Server signature is null or empty.");
+                    Utils.LogInfo("Server signature is null or empty.");
 
                     //throw ServiceResultException.Create(
                     //    StatusCodes.BadSecurityChecksFailed,
@@ -2729,13 +2728,13 @@ namespace Opc.Ua.Client
                 {
                     for (int i = 0; i < certificateResults.Count; i++)
                     {
-                        Utils.Trace("ActivateSession result[{0}] = {1}", i, certificateResults[i]);
+                        Utils.LogInfo("ActivateSession result[{0}] = {1}", i, certificateResults[i]);
                     }
                 }
 
                 if (certificateResults == null || certificateResults.Count == 0)
                 {
-                    Utils.Trace("Empty results were received for the ActivateSession call.");
+                    Utils.LogInfo("Empty results were received for the ActivateSession call.");
                 }
 
                 // fetch namespaces.
@@ -2768,7 +2767,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace("Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
+                    Utils.LogError("Cleanup: CloseSession() or CloseChannel() raised exception. " + e.Message);
                 }
                 finally
                 {
@@ -3212,7 +3211,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Session: Unexpected eror raising SessionClosing event.");
+                        Utils.LogError(e, "Session: Unexpected eror raising SessionClosing event.");
                     }
                 }
             }
@@ -3247,7 +3246,7 @@ namespace Opc.Ua.Client
                         result = StatusCodes.Bad;
                     }
 
-                    Utils.Trace("Session close error: " + result);
+                    Utils.LogError("Session close error: " + result);
                 }
             }
 
@@ -3324,24 +3323,8 @@ namespace Opc.Ua.Client
         {
             if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
 
-            bool removed = false;
             List<Subscription> subscriptionsToDelete = new List<Subscription>();
-
-            lock (SyncRoot)
-            {
-                foreach (Subscription subscription in subscriptions)
-                {
-                    if (m_subscriptions.Remove(subscription))
-                    {
-                        if (subscription.Created)
-                        {
-                            subscriptionsToDelete.Add(subscription);
-                        }
-
-                        removed = true;
-                    }
-                }
-            }
+            bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
 
             foreach (Subscription subscription in subscriptionsToDelete)
             {
@@ -3356,7 +3339,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            return true;
+            return removed;
         }
         #endregion
 
@@ -3858,7 +3841,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace("Could not send keep alive request: {1} {0}", e.Message, e.GetType().FullName);
+                Utils.LogError("Could not send keep alive request: {1} {0}", e.Message, e.GetType().FullName);
             }
         }
 
@@ -3898,7 +3881,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace("Unexpected keep alive error occurred: {0}", e.Message);
+                Utils.LogError("Unexpected keep alive error occurred: {0}", e.Message);
             }
         }
 
@@ -3959,7 +3942,7 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Session: Unexpected error invoking KeepAliveCallback.");
+                    Utils.LogError(e, "Session: Unexpected error invoking KeepAliveCallback.");
                 }
             }
         }
@@ -3976,7 +3959,7 @@ namespace Opc.Ua.Client
                 delta = DateTime.UtcNow.Ticks - m_lastKeepAliveTime.Ticks;
             }
 
-            Utils.Trace(
+            Utils.LogInfo(
                 "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={3}/{2}",
                 ((double)delta) / TimeSpan.TicksPerSecond,
                 this.Endpoint.EndpointUrl,
@@ -4000,11 +3983,35 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Session: Unexpected error invoking KeepAliveCallback.");
+                    Utils.LogError(e, "Session: Unexpected error invoking KeepAliveCallback.");
                 }
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Prepare a list of subscriptions to delete.
+        /// </summary>
+        private bool PrepareSubscriptionsToDelete(IEnumerable<Subscription> subscriptions, IList<Subscription> subscriptionsToDelete)
+        {
+            bool removed = false;
+            lock (SyncRoot)
+            {
+                foreach (Subscription subscription in subscriptions)
+                {
+                    if (m_subscriptions.Remove(subscription))
+                    {
+                        if (subscription.Created)
+                        {
+                            subscriptionsToDelete.Add(subscription);
+                        }
+
+                        removed = true;
+                    }
+                }
+            }
+            return removed;
         }
         #endregion
 
@@ -4017,7 +4024,7 @@ namespace Opc.Ua.Client
             // do not publish if reconnecting.
             if (m_reconnecting)
             {
-                Utils.Trace("Published skipped due to reconnect");
+                Utils.LogWarning("Publish skipped due to reconnect");
                 return null;
             }
 
@@ -4058,13 +4065,13 @@ namespace Opc.Ua.Client
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
-                Utils.Trace("PUBLISH #{0} SENT", requestHeader.RequestHandle);
+                Utils.LogTrace("PUBLISH #{0} SENT", requestHeader.RequestHandle);
 
                 return result;
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error sending publish request.");
+                Utils.LogError(e, "Unexpected error sending publish request.");
                 return null;
             }
         }
@@ -4085,7 +4092,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Utils.Trace("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
+                Utils.LogTrace("PUBLISH #{0} RECEIVED", requestHeader.RequestHandle);
 
                 // complete publish.
                 uint subscriptionId;
@@ -4107,18 +4114,18 @@ namespace Opc.Ua.Client
                 {
                     if (StatusCode.IsBad(code))
                     {
-                        Utils.Trace("Error - Publish call finished. ResultCode={0}; SubscriptionId={1};", code.ToString(), subscriptionId);
+                        Utils.LogError("Error - Publish call finished. ResultCode={0}; SubscriptionId={1};", code.ToString(), subscriptionId);
                     }
                 }
 
                 // nothing more to do if session changed.
                 if (sessionId != SessionId)
                 {
-                    Utils.Trace("Publish response discarded because session id changed: Old {0} != New {1}", sessionId, SessionId);
+                    Utils.LogWarning("Publish response discarded because session id changed: Old {0} != New {1}", sessionId, SessionId);
                     return;
                 }
 
-                Utils.Trace("NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}", subscriptionId, notificationMessage.SequenceNumber);
+                Utils.LogTrace("NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}", subscriptionId, notificationMessage.SequenceNumber);
 
                 // process response.
                 ProcessPublishResponse(
@@ -4131,7 +4138,7 @@ namespace Opc.Ua.Client
                 // nothing more to do if reconnecting.
                 if (m_reconnecting)
                 {
-                    Utils.Trace("No new publish sent because of reconnect in progress.");
+                    Utils.LogWarning("No new publish sent because of reconnect in progress.");
                     return;
                 }
             }
@@ -4140,11 +4147,11 @@ namespace Opc.Ua.Client
                 if (m_subscriptions.Count == 0)
                 {
                     // Publish responses with error should occur after deleting the last subscription.
-                    Utils.Trace("Publish #{0}, Subscription count = 0, Error: {1}", requestHeader.RequestHandle, e.Message);
+                    Utils.LogError("Publish #{0}, Subscription count = 0, Error: {1}", requestHeader.RequestHandle, e.Message);
                 }
                 else
                 {
-                    Utils.Trace("Publish #{0}, Reconnecting={2}, Error: {1}", requestHeader.RequestHandle, e.Message, m_reconnecting);
+                    Utils.LogError("Publish #{0}, Reconnecting={2}, Error: {1}", requestHeader.RequestHandle, e.Message, m_reconnecting);
                 }
 
                 moreNotifications = false;
@@ -4152,14 +4159,14 @@ namespace Opc.Ua.Client
                 // ignore errors if reconnecting.
                 if (m_reconnecting)
                 {
-                    Utils.Trace("Publish abandoned after error due to reconnect: {0}", e.Message);
+                    Utils.LogWarning("Publish abandoned after error due to reconnect: {0}", e.Message);
                     return;
                 }
 
                 // nothing more to do if session changed.
                 if (sessionId != SessionId)
                 {
-                    Utils.Trace("Publish abandoned after error because session id changed: Old {0} != New {1}", sessionId, SessionId);
+                    Utils.LogError("Publish abandoned after error because session id changed: Old {0} != New {1}", sessionId, SessionId);
                     return;
                 }
 
@@ -4192,7 +4199,7 @@ namespace Opc.Ua.Client
                         }
                         catch (Exception e2)
                         {
-                            Utils.Trace(e2, "Session: Unexpected error invoking PublishErrorCallback.");
+                            Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
                         }
                     }
                 }
@@ -4210,7 +4217,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                Utils.Trace(e, "PUBLISH #{0} - Unhandled error during Publish.", requestHeader.RequestHandle);
+                Utils.LogError(e, "PUBLISH #{0} - Unhandled error during Publish.", requestHeader.RequestHandle);
             }
 
             int requestCount = GoodPublishRequestCount;
@@ -4221,7 +4228,7 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.Trace("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, Subscriptions={1}", requestCount, m_subscriptions.Count);
+                Utils.LogInfo("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, Subscriptions={1}", requestCount, m_subscriptions.Count);
             }
         }
 
@@ -4239,7 +4246,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Utils.Trace("Requesting Republish for {0}-{1}", subscriptionId, sequenceNumber);
+                Utils.LogInfo("Requesting Republish for {0}-{1}", subscriptionId, sequenceNumber);
 
                 // request republish.
                 NotificationMessage notificationMessage = null;
@@ -4250,7 +4257,7 @@ namespace Opc.Ua.Client
                     sequenceNumber,
                     out notificationMessage);
 
-                Utils.Trace("Received Republish for {0}-{1}", subscriptionId, sequenceNumber);
+                Utils.LogInfo("Received Republish for {0}-{1}", subscriptionId, sequenceNumber);
 
                 // process response.
                 ProcessPublishResponse(
@@ -4270,12 +4277,12 @@ namespace Opc.Ua.Client
                 switch (error.StatusCode.Code)
                 {
                     case StatusCodes.BadMessageNotAvailable:
-                        Utils.Trace("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
+                        Utils.LogWarning("Message {0}-{1} no longer available.", subscriptionId, sequenceNumber);
                         break;
                     // if encoding limits are exceeded, the issue is logged and 
                     // the published data is acknoledged to prevent the endless republish loop.
                     case StatusCodes.BadEncodingLimitsExceeded:
-                        Utils.Trace(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
+                        Utils.LogError(e, "Message {0}-{1} exceeded size limits, ignored.", subscriptionId, sequenceNumber);
                         var ack = new SubscriptionAcknowledgement {
                             SubscriptionId = subscriptionId,
                             SequenceNumber = sequenceNumber
@@ -4287,7 +4294,7 @@ namespace Opc.Ua.Client
                         break;
                     default:
                         result = false;
-                        Utils.Trace(e, "Unexpected error sending republish request.");
+                        Utils.LogError(e, "Unexpected error sending republish request.");
                         break;
                 }
 
@@ -4312,7 +4319,7 @@ namespace Opc.Ua.Client
                     }
                     catch (Exception e2)
                     {
-                        Utils.Trace(e2, "Session: Unexpected error invoking PublishErrorCallback.");
+                        Utils.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
                     }
                 }
 
@@ -4383,7 +4390,7 @@ namespace Opc.Ua.Client
                             if (((lastSentSequenceNumber >= availableSequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) ||
                                 (lastSentSequenceNumber == availableSequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
                             {
-                                Utils.Trace("Received sequence number which was already acknowledged={0}", availableSequenceNumber);
+                                Utils.LogWarning("Received sequence number which was already acknowledged={0}", availableSequenceNumber);
                             }
                         }
                     }
@@ -4397,7 +4404,7 @@ namespace Opc.Ua.Client
                     // If the last sent sequence number is greater or equal to the notificationMessage's sequence number (returned by the publish), a warning must be logged.
                     if (((lastSentSequenceNumber >= notificationMessage.SequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) || (lastSentSequenceNumber == notificationMessage.SequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
                     {
-                        Utils.Trace("Received sequence number which was already acknowledged={0}", notificationMessage.SequenceNumber);
+                        Utils.LogWarning("Received sequence number which was already acknowledged={0}", notificationMessage.SequenceNumber);
                     }
                 }
 
@@ -4407,7 +4414,7 @@ namespace Opc.Ua.Client
                     {
                         if (acknowledgement.SubscriptionId == subscriptionId && !availableSequenceNumbers.Contains(acknowledgement.SequenceNumber))
                         {
-                            Utils.Trace("Sequence number={0} was not received in the available sequence numbers.", acknowledgement.SequenceNumber);
+                            Utils.LogWarning("Sequence number={0} was not received in the available sequence numbers.", acknowledgement.SequenceNumber);
                         }
                     }
                 }
@@ -4416,7 +4423,7 @@ namespace Opc.Ua.Client
 
                 if (notificationMessage.IsEmpty)
                 {
-                    Utils.Trace("Empty notification message received for SessionId {0} with PublishTime {1}", SessionId, notificationMessage.PublishTime.ToLocalTime());
+                    Utils.LogTrace("Empty notification message received for SessionId {0} with PublishTime {1}", SessionId, notificationMessage.PublishTime.ToLocalTime());
                 }
 
                 // find the subscription.
@@ -4436,13 +4443,13 @@ namespace Opc.Ua.Client
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) < DateTime.UtcNow)
                 {
-                    Utils.Trace("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogWarning("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // Validate publish time and reject old values.
                 if (notificationMessage.PublishTime > DateTime.UtcNow.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
                 {
-                    Utils.Trace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogWarning("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
                 }
 
                 // update subscription cache.                                 
@@ -4467,7 +4474,7 @@ namespace Opc.Ua.Client
             else
             {
                 // Delete abandoned subscription from server.
-                Utils.Trace("Received Publish Response for Unknown SubscriptionId={0}", subscriptionId);
+                Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
 
                 Task.Run(() => {
                     DeleteSubscription(subscriptionId);
@@ -4492,7 +4499,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Session: Unexpected error while raising Notification event.");
+                Utils.LogError(e, "Session: Unexpected error while raising Notification event.");
             }
         }
 
@@ -4503,7 +4510,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                Utils.Trace("Deleting server subscription for SubscriptionId={0}", subscriptionId);
+                Utils.LogInfo("Deleting server subscription for SubscriptionId={0}", subscriptionId);
 
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { subscriptionId };
@@ -4528,12 +4535,12 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Session: Unexpected error while deleting subscription for SubscriptionId={0}.", subscriptionId);
+                Utils.LogError(e, "Session: Unexpected error while deleting subscription for SubscriptionId={0}.", subscriptionId);
             }
         }
 
         /// <summary>
-        /// Load certificate chain for connection.
+        /// Load certificate for connection.
         /// </summary>
         private static async Task<X509Certificate2> LoadCertificate(ApplicationConfiguration configuration)
         {
@@ -4585,7 +4592,7 @@ namespace Opc.Ua.Client
         private StringCollection m_preferredLocales;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private EncodeableFactory m_factory;
+        private IEncodeableFactory m_factory;
         private SystemContext m_systemContext;
         private NodeCache m_nodeCache;
         private ApplicationConfiguration m_configuration;

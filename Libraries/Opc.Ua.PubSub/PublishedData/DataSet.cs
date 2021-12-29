@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -52,6 +52,11 @@ namespace Opc.Ua.PubSub.PublishedData
         public string Name { get; set; }
 
         /// <summary>
+        /// Get/Set flag that indicates if DataSet is delta frame
+        /// </summary>
+        public bool IsDeltaFrame { get; set; }
+
+        /// <summary>
         /// Get/Set the DataSetWriterId that produced this DataSet
         /// </summary>
         public int DataSetWriterId { get; set; }
@@ -62,9 +67,44 @@ namespace Opc.Ua.PubSub.PublishedData
         public uint SequenceNumber { get; internal set; }
 
         /// <summary>
+        /// Gets DataSetMetaData for this DataSet
+        /// </summary>
+        public DataSetMetaDataType DataSetMetaData { get; set; }
+
+        /// <summary>
         /// Get/Set data set fields for this data set
         /// </summary>
         public Field[] Fields { get; set; }
+        #endregion
+
+        #region MemberwiseClone method
+        /// <summary>
+        /// Create a deep copy of current DataSet
+        /// </summary>
+        public new object MemberwiseClone()
+        {
+            DataSet copy = base.MemberwiseClone() as DataSet;
+            if (DataSetMetaData != null)
+            {
+                if (copy != null)
+                {
+                    copy.DataSetMetaData = DataSetMetaData.MemberwiseClone() as DataSetMetaDataType;
+                }
+            }
+
+            if (Fields != null)
+            {
+                if (copy != null)
+                {
+                    copy.Fields = new Field[Fields.Length];
+                    for (int i = 0; i < Fields.Length; i++)
+                    {
+                        copy.Fields[i] = Fields[i].MemberwiseClone() as Field;
+                    }
+                }
+            }
+            return copy;
+        }
         #endregion
     }
 }

@@ -26,7 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-#if !NETSTANDARD2_1 && !NET472 && !NET5_0
+#if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
 
 using System;
 using System.Security.Cryptography;
@@ -287,8 +287,8 @@ namespace Opc.Ua.Security.Certificates
             cg.SetSubjectDN(m_subjectDN);
 
             // valid for
-            cg.SetNotBefore(NotBefore);
-            cg.SetNotAfter(NotAfter);
+            cg.SetNotBefore(NotBefore.ToUniversalTime());
+            cg.SetNotAfter(NotAfter.ToUniversalTime());
 
             // serial number
             cg.SetSerialNumber(new BigInteger(1, m_serialNumber.Reverse().ToArray()));
@@ -375,8 +375,7 @@ namespace Opc.Ua.Security.Certificates
         {
             // Cases locked out by API flow
             Debug.Assert(m_rsaPublicKey != null, "Need a public key for the certificate.");
-            Debug.Assert(IssuerCAKeyCert != null, "Need a issuer certificate to sign.");
-            if (!IssuerCAKeyCert.HasPrivateKey && signatureFactory == null)
+            if ((IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey) && signatureFactory == null)
             {
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }

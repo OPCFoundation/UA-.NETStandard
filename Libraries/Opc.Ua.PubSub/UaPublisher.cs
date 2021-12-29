@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -28,24 +28,24 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace Opc.Ua.PubSub
 {
     /// <summary>
     /// A class responsible with calculating and triggering publish messages.
     /// </summary>
-    internal class UaPublisher : IUaPublisher, IDisposable
+    internal class UaPublisher : IUaPublisher
     {
         #region Fields
-        private const int MinPublishingInterval = 10;
-        private object m_lock = new object();
-        // event used to trigger publish 
-        private ManualResetEvent m_shutdownEvent;
+        private readonly object m_lock = new object();
+        
+        private readonly IUaPubSubConnection m_pubSubConnection;
+        private readonly WriterGroupDataType m_writerGroupConfiguration;
+        private readonly WriterGroupPublishState m_writerGroupPublishState;
 
-        private IUaPubSubConnection m_pubSubConnection;
-        private WriterGroupDataType m_writerGroupConfiguration;
+        // the component that triggers the publish messages
+        private readonly IntervalRunner m_intervalRunner;
         #endregion
 
         #region Constructors
@@ -55,10 +55,21 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPublisher(IUaPubSubConnection pubSubConnection, WriterGroupDataType writerGroupConfiguration)
         {
-            m_pubSubConnection = pubSubConnection;
-            m_writerGroupConfiguration = writerGroupConfiguration;            
+            if (pubSubConnection == null)
+            {
+                throw new ArgumentNullException(nameof(pubSubConnection));
+            }
+            if (writerGroupConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(writerGroupConfiguration));
+            }
 
-            Initialize();
+            m_pubSubConnection = pubSubConnection;
+            m_writerGroupConfiguration = writerGroupConfiguration;
+            m_writerGroupPublishState = new WriterGroupPublishState();
+
+            m_intervalRunner = new IntervalRunner(m_writerGroupConfiguration.Name, m_writerGroupConfiguration.PublishingInterval, CanPublish, PublishMessages);
+            
         }
 
         #endregion
@@ -78,119 +89,6 @@ namespace Opc.Ua.PubSub
         public WriterGroupDataType WriterGroupConfiguration
         {
             get { return m_writerGroupConfiguration; }
-        }
-        #endregion
-        
-        #region Public Methods
-
-        /// <summary>
-        /// Starts the publisher and makes it ready to send data.
-        /// </summary>
-        public void Start()
-        {
-            lock (m_lock)
-            {
-                m_shutdownEvent.Reset();
-
-                Task.Run(() =>
-                {
-                    PublishData();
-                });
-            }
-        }
-
-        /// <summary>
-        /// stop the publishing thread.
-        /// </summary>
-        public virtual void Stop()
-        {
-            lock (m_lock)
-            {
-                m_shutdownEvent.Set();
-            }
-        }
-        #endregion
-
-        #region Private Methods
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_shutdownEvent = new ManualResetEvent(true);
-        }
-
-        /// <summary>
-        /// Periodically checks if there is data to publish.
-        /// </summary>
-        private void PublishData()
-        {
-            try
-            {
-                do
-                {
-                    int sleepCycle = 0;
-
-                    lock (m_lock)
-                    {
-                        if (m_writerGroupConfiguration != null)
-                        {
-                            sleepCycle = Convert.ToInt32(m_writerGroupConfiguration.PublishingInterval);
-                        }
-                    }
-
-                    if (sleepCycle < MinPublishingInterval)
-                    {
-                        sleepCycle = MinPublishingInterval;
-                    }
-
-                    if (m_shutdownEvent.WaitOne(sleepCycle))
-                    {
-                        Utils.Trace(Utils.TraceMasks.Information, "UaPublisher: Publish Thread Exited Normally.");
-                        break;
-                    }
-
-                    lock (m_lock)
-                    {
-                        if (m_pubSubConnection.CanPublish(m_writerGroupConfiguration))
-                        {
-                            // call on a new thread
-                            Task.Run(() =>
-                            {
-                                PublishMessage();
-                            });
-                        }
-                    }                    
-                }
-                while (true);
-            }
-            catch (Exception e)
-            {
-                // Unexpected exception in publish thread!
-                Utils.Trace(e, "UaPublisher: Publish Thread Exited Unexpectedly");
-            }
-        }
-
-        /// <summary>
-        /// Generate and publish a message
-        /// </summary>
-        private void PublishMessage()
-        {
-            try
-            {
-                UaNetworkMessage uaNetworkMessage = m_pubSubConnection.CreateNetworkMessage(m_writerGroupConfiguration);
-                if (uaNetworkMessage != null)
-                {
-                    bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
-                    Utils.Trace(Utils.TraceMasks.Information, 
-                        "UaPublisher.PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
-                }
-            }
-            catch (Exception e)
-            {
-                // Unexpected exception in PublishMessage
-                Utils.Trace(e, "UaPublisher.PublishMessage");
-            }
         }
         #endregion
 
@@ -214,8 +112,73 @@ namespace Opc.Ua.PubSub
             if (disposing)
             {
                 Stop();
-                // free managed resources
-                m_shutdownEvent.Dispose();
+
+                m_intervalRunner.Dispose();
+            }
+        }
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Starts the publisher and makes it ready to send data.
+        /// </summary>
+        public void Start()
+        {
+            m_intervalRunner.Start();
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
+        }
+
+        /// <summary>
+        /// Stop the publishing thread.
+        /// </summary>
+        public virtual void Stop()
+        {
+            m_intervalRunner.Stop();
+
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", m_writerGroupConfiguration.Name);
+        }
+        #endregion
+
+        #region Private Methods
+        
+        /// <summary>
+        /// Decide if the connection can publish
+        /// </summary>
+        /// <returns></returns>
+        private bool CanPublish()
+        {
+            lock (m_lock)
+            {
+                return m_pubSubConnection.CanPublish(m_writerGroupConfiguration);
+            }
+        }
+
+        /// <summary>
+        /// Generate and publish a messages
+        /// </summary>
+        private void PublishMessages()
+        {
+            try
+            {
+                IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration, m_writerGroupPublishState);
+                if (networkMessages != null)
+                {
+                    foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
+                    {
+                        if (uaNetworkMessage != null)
+                        {
+                            bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
+                            Utils.Trace(Utils.TraceMasks.Information,
+                                "UaPublisher - PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                // Unexpected exception in PublishMessages
+                Utils.Trace(e, "UaPublisher.PublishMessages");
             }
         }
         #endregion

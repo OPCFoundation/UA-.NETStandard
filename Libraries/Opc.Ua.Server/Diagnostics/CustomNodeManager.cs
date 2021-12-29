@@ -1047,9 +1047,9 @@ namespace Opc.Ua.Server
         /// This method validates any placeholder handle.
         /// </remarks>
         public virtual NodeMetadata GetNodeMetadata(
-            OperationContext context, 
-            object           targetHandle, 
-            BrowseResultMask resultMask)
+                   OperationContext context,
+                   object targetHandle,
+                   BrowseResultMask resultMask)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
 
@@ -1139,47 +1139,7 @@ namespace Opc.Ua.Server
                     metadata.UserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[12]));
                 }
 
-                // check if NamespaceMetadata is defined for NamespaceUri
-                string namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
-                NamespaceMetadataState namespaceMetadataState = Server.NodeManager.ConfigurationNodeManager.GetNamespaceMetadataState(namespaceUri);
-
-                if (namespaceMetadataState != null)
-                {
-                    List<object> namespaceMetadataValues;
-
-                    if (namespaceMetadataState.DefaultAccessRestrictions != null)
-                    {
-                        // get DefaultAccessRestrictions for Namespace
-                        namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions.ReadAttributes(systemContext, Attributes.Value);
-
-                        if (namespaceMetadataValues[0] != null)
-                        {
-                            metadata.DefaultAccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType), namespaceMetadataValues[0]);
-                        }
-                    }
-
-                    if (namespaceMetadataState.DefaultRolePermissions != null)
-                    {
-                        // get DefaultRolePermissions for Namespace
-                        namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions.ReadAttributes(systemContext, Attributes.Value);
-
-                        if (namespaceMetadataValues[0] != null)
-                        {
-                            metadata.DefaultRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]));
-                        }
-                    }
-
-                    if (namespaceMetadataState.DefaultUserRolePermissions != null)
-                    {
-                        // get DefaultUserRolePermissions for Namespace
-                        namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions.ReadAttributes(systemContext, Attributes.Value);
-
-                        if (namespaceMetadataValues[0] != null)
-                        {
-                            metadata.DefaultUserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]));
-                        }
-                    }
-                }
+                SetDefaultPermissions(systemContext, target, metadata);
 
                 // get instance references.
                 BaseInstanceState instance = target as BaseInstanceState;
@@ -1193,6 +1153,62 @@ namespace Opc.Ua.Server
                 // fill in the common attributes.
                 return metadata;
             }
+        }
+
+        /// <summary>
+        /// Sets the AccessRestrictions, RolePermissions and UserRolePermissions values in the metadata
+        /// </summary>
+        /// <param name="values"></param>
+        /// <param name="metadata"></param>
+        private static void SetAccessAndRolePermissions(List<object> values, NodeMetadata metadata)
+        {
+            if (values[0] != null)
+            {
+                metadata.AccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType), values[0]);
+            }
+            if (values[1] != null)
+            {
+                metadata.RolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[1]));
+            }
+            if (values[2] != null)
+            {
+                metadata.UserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[2]));
+            }
+        }
+
+        /// <summary>
+        /// Reads and caches the Attributes used by the AccessRestrictions and RolePermission validation process
+        /// </summary>
+        /// <param name="uniqueNodesServiceAttributes">The cache used to save the attributes</param>
+        /// <param name="systemContext">The context</param>
+        /// <param name="target">The target for which the attributes are read and cached</param>
+        /// <param name="key">The key representing the NodeId for which the cache is kept</param>
+        /// <returns>The values of the attributes</returns>
+        private static List<object> ReadAndCacheValidationAttributes(Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes, ServerSystemContext systemContext, NodeState target, NodeId key)
+        {
+            List<object> values = ReadValidationAttributes(systemContext, target);
+            uniqueNodesServiceAttributes[key] = values;
+
+            return values;
+        }
+
+        /// <summary>
+        /// Reads the Attributes used by the AccessRestrictions and RolePermission validation process
+        /// </summary>
+        /// <param name="systemContext">The context</param>
+        /// <param name="target">The target for which the attributes are read and cached</param>
+        /// <returns>The values of the attributes</returns>
+        private static List<object> ReadValidationAttributes(ServerSystemContext systemContext, NodeState target)
+        {
+            // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
+            // The are originating from services in the context of AccessRestrictions and RolePermission validation.
+            // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
+            List<object> values = target.ReadAttributes(systemContext,
+                                           Attributes.AccessRestrictions,
+                                           Attributes.RolePermissions,
+                                           Attributes.UserRolePermissions);
+
+            return values;
         }
 
         /// <summary>
@@ -1892,7 +1908,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    Utils.TraceDebug("WRITE: Value={0} Range={1}", nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
+                    ServerUtils.EventLog.WriteValueRange(nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 
                     PropertyState propertyState = handle.Node as PropertyState;
                     object previousPropertyValue = null;
@@ -4299,6 +4315,132 @@ namespace Opc.Ua.Server
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns the metadata containing the AccessRestrictions, RolePermissions and UserRolePermissions for the node.
+        /// Returns null if the node does not exist.
+        /// </summary>
+        /// <remarks>
+        /// This method validates any placeholder handle.
+        /// </remarks>
+        public virtual NodeMetadata GetPermissionMetadata(
+            OperationContext context,
+            object targetHandle,
+            BrowseResultMask resultMask,
+            Dictionary<NodeId, List<object>> uniqueNodesServiceAttributes,
+            bool permissionsOnly)
+        {
+            ServerSystemContext systemContext = m_systemContext.Copy(context);
+
+            lock (Lock)
+            {
+                // check for valid handle.
+                NodeHandle handle = IsHandleInNamespace(targetHandle);
+
+                if (handle == null)
+                {
+                    return null;
+                }
+
+                // validate node.
+                NodeState target = ValidateNode(systemContext, handle, null);
+
+                if (target == null)
+                {
+                    return null;
+                }
+
+                List<object> values = null;
+
+                // construct the meta-data object.
+                NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
+
+                // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
+                if (uniqueNodesServiceAttributes != null)
+                {
+                    NodeId key = handle.NodeId;
+                    if (uniqueNodesServiceAttributes.ContainsKey(key))
+                    {
+                        if (uniqueNodesServiceAttributes[key].Count == 0)
+                        {
+                            values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                        }
+                        else
+                        {
+                            // Retrieve value from cache
+                            values = uniqueNodesServiceAttributes[key];
+                        }
+                    }
+                    else
+                    {
+                        values = ReadAndCacheValidationAttributes(uniqueNodesServiceAttributes, systemContext, target, key);
+                    }
+
+                    SetAccessAndRolePermissions(values, metadata);
+                }// All other calls that do not use the cache
+                else if (permissionsOnly == true)
+                {
+                    values = ReadValidationAttributes(systemContext, target);
+                    SetAccessAndRolePermissions(values, metadata);
+                }
+
+                SetDefaultPermissions(systemContext, target, metadata);
+
+                return metadata;
+            }
+        }
+
+
+        /// <summary>
+        /// Set the metadata default permission values for DefaultAccessRestrictions, DefaultRolePermissions and DefaultUserRolePermissions
+        /// </summary>
+        /// <param name="systemContext"></param>
+        /// <param name="target"></param>
+        /// <param name="metadata"></param>
+        private void SetDefaultPermissions(ServerSystemContext systemContext, NodeState target, NodeMetadata metadata)
+        {
+            // check if NamespaceMetadata is defined for NamespaceUri
+            string namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
+            NamespaceMetadataState namespaceMetadataState = Server.NodeManager.ConfigurationNodeManager.GetNamespaceMetadataState(namespaceUri);
+
+            if (namespaceMetadataState != null)
+            {
+                List<object> namespaceMetadataValues;
+
+                if (namespaceMetadataState.DefaultAccessRestrictions != null)
+                {
+                    // get DefaultAccessRestrictions for Namespace
+                    namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions.ReadAttributes(systemContext, Attributes.Value);
+
+                    if (namespaceMetadataValues[0] != null)
+                    {
+                        metadata.DefaultAccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType), namespaceMetadataValues[0]);
+                    }
+                }
+
+                if (namespaceMetadataState.DefaultRolePermissions != null)
+                {
+                    // get DefaultRolePermissions for Namespace
+                    namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions.ReadAttributes(systemContext, Attributes.Value);
+
+                    if (namespaceMetadataValues[0] != null)
+                    {
+                        metadata.DefaultRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]));
+                    }
+                }
+
+                if (namespaceMetadataState.DefaultUserRolePermissions != null)
+                {
+                    // get DefaultUserRolePermissions for Namespace
+                    namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions.ReadAttributes(systemContext, Attributes.Value);
+
+                    if (namespaceMetadataValues[0] != null)
+                    {
+                        metadata.DefaultUserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]));
+                    }
+                }
+            }
         }
         #endregion
 

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETSTANDARD2_1 || NET472 || NET5_0
+#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 
 using System;
 using System.Security.Cryptography;
@@ -80,7 +80,6 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
-
             CreateDefaults();
 
             if (m_rsaPublicKey != null &&
@@ -135,12 +134,17 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
         {
-
             CreateDefaults();
 
-            if (IssuerCAKeyCert == null)
+            if (m_rsaPublicKey == null && IssuerCAKeyCert == null)
             {
-                throw new NotSupportedException("X509 Signature generator requires an issuer certificate.");
+                throw new NotSupportedException("Need an issuer certificate or a public key for a signature generator.");
+            }
+
+            var issuerSubjectName = SubjectName;
+            if (IssuerCAKeyCert != null)
+            {
+                issuerSubjectName = IssuerCAKeyCert.SubjectName;
             }
 
             RSA rsaKeyPair = null;
@@ -155,11 +159,8 @@ namespace Opc.Ua.Security.Certificates
 
             CreateX509Extensions(request, false);
 
-            X509Certificate2 signedCert;
-
-            var issuerSubjectName = IssuerCAKeyCert.SubjectName;
-            signedCert = request.Create(
-                IssuerCAKeyCert.SubjectName,
+            X509Certificate2 signedCert = request.Create(
+                issuerSubjectName,
                 generator,
                 NotBefore,
                 NotAfter,
@@ -267,13 +268,14 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+#if NET472_OR_GREATER
+            throw new NotSupportedException("Import a ECDsaPublicKey is not supported on this platform.");
+#else
             int bytes = 0;
             try
             {
                 m_ecdsaPublicKey = ECDsa.Create();
-#if !NET472  // TODO
                 m_ecdsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
-#endif
             }
             catch (Exception e)
             {
@@ -285,6 +287,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
             return this;
+#endif
         }
 #endif
 
@@ -292,13 +295,14 @@ namespace Opc.Ua.Security.Certificates
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
             if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+#if NET472_OR_GREATER
+            throw new NotSupportedException("Import a RSAPublicKey is not supported on this platform.");
+#else
             int bytes = 0;
             try
             {
                 m_rsaPublicKey = RSA.Create();
-#if !NET472  // TODO
                 m_rsaPublicKey.ImportSubjectPublicKeyInfo(publicKey, out bytes);
-#endif
             }
             catch (Exception e)
             {
@@ -310,6 +314,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
             return this;
+#endif
         }
         #endregion
 
@@ -335,7 +340,6 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="forECDsa">If the certificate is for ECDsa, not RSA.</param>
         private void CreateX509Extensions(CertificateRequest request, bool forECDsa)
         {
-
             // Basic Constraints
             X509BasicConstraintsExtension bc = GetBasicContraints();
             request.CertificateExtensions.Add(bc);

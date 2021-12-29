@@ -34,58 +34,6 @@ using System.Reflection;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A client side cache of the server's type model.
-    /// </summary>
-    public interface INodeCache : INodeTable, ITypeTable
-    {
-        /// <summary>
-        /// Loads the UA defined types into the cache.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        void LoadUaDefinedTypes(ISystemContext context);
-
-        /// <summary>
-        /// Removes all nodes from the cache.
-        /// </summary>
-        void Clear();
-
-        /// <summary>
-        /// Fetches a node from the server and updates the cache.
-        /// </summary>
-        Node FetchNode(ExpandedNodeId nodeId);
-
-        /// <summary>
-        /// Adds the supertypes of the node to the cache.
-        /// </summary>
-        void FetchSuperTypes(ExpandedNodeId nodeId);
-
-        /// <summary>
-        /// Returns the references of the specified node that meet the criteria specified.
-        /// </summary>
-        IList<INode> FindReferences(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
-
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
-        string GetDisplayText(INode node);
-
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
-        string GetDisplayText(ExpandedNodeId nodeId);
-
-        /// <summary>
-        /// Returns a display name for the target of a reference.
-        /// </summary>
-        string GetDisplayText(ReferenceDescription reference);
-
-        /// <summary>
-        /// Builds the relative path from a type to a node.
-        /// </summary>
-        NodeId BuildBrowsePath(ILocalNode node, IList<QualifiedName> browsePath);
-    }
-
-    /// <summary>
     /// An implementation of a client side nodecache.
     /// </summary>
     public class NodeCache : INodeCache
@@ -101,6 +49,7 @@ namespace Opc.Ua.Client
             m_session = session;
             m_typeTree = new TypeTable(m_session.NamespaceUris);
             m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
+            m_uaTypesLoaded = false;
         }
         #endregion
 
@@ -149,7 +98,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, e.Message);
+                Utils.LogError("Could not fetch node from server: NodeId={0}, Reason='{1}'.", nodeId, e.Message);
                 // m_nodes[nodeId] = null;
                 return null;
             }
@@ -544,8 +493,12 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void LoadUaDefinedTypes(ISystemContext context)
         {
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
+            if (m_uaTypesLoaded)
+            {
+                return;
+            }
 
+            NodeStateCollection predefinedNodes = new NodeStateCollection();
             var assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
             predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
 
@@ -560,11 +513,13 @@ namespace Opc.Ua.Client
 
                 type.Export(context, m_nodes);
             }
+            m_uaTypesLoaded = true;
         }
 
         /// <inheritdoc/>
         public void Clear()
         {
+            m_uaTypesLoaded = false;
             m_nodes.Clear();
         }
 
@@ -607,7 +562,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.Trace("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
+                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, e.Message);
             }
 
             // add to cache.
@@ -782,6 +737,7 @@ namespace Opc.Ua.Client
         private Session m_session;
         private TypeTable m_typeTree;
         private NodeTable m_nodes;
+        private bool m_uaTypesLoaded;
         #endregion
     }
 }

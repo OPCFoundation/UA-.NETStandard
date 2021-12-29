@@ -17,6 +17,13 @@ jobs:
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET 6.0'
+    condition: and(eq('${{parameters.framework}}', 'net6.0'), ne(variables['poolImage'], 'windows-2022'))
+    inputs:
+      packageType: 'sdk'
+      version: '6.0.x'
+      includePreviewVersions: true
   - task: NuGetToolInstaller@1
     inputs:
       versionSpec: '>=5.8.x'
@@ -29,16 +36,17 @@ jobs:
     displayName: Restore ${{ parameters.framework }}
     inputs:
       command: restore
-      projects: '**/*.Tests.csproj'
+      projects: 'UA Core Library.sln'
       arguments: '--framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.framework }}
     timeoutInMinutes: 20
     inputs:
       command: test
-      projects: '**/*.Tests.csproj'
+      projects: 'UA Core Library.sln'
       # note: /p:CollectCoverage=true is only used to disable deterministc builds
-      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage"'
+      arguments: '--no-restore --framework ${{ parameters.framework }} --configuration ${{ parameters.configuration }} /p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory $(Agent.TempDirectory)'
+      publishTestResults: false
   - script: |
       bash <(curl -s https://codecov.io/bash) -s $(Agent.TempDirectory)
 
@@ -54,7 +62,7 @@ jobs:
       arguments: install --tool-path tools dotnet-reportgenerator-globaltool 
     displayName: Install ReportGenerator tool
   - script: |
-      tools/reportgenerator -reports:$(Agent.TempDirectory)/**/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
+      tools/reportgenerator -reports:$(Agent.TempDirectory)/**/????????-*/coverage.cobertura.xml -targetdir:$(Build.SourcesDirectory)/CodeCoverage "-reporttypes:Cobertura;HtmlSummary" "-title:UA .Net Standard Test Coverage" "-assemblyfilters:-*.Tests"
       mv $(Build.SourcesDirectory)/CodeCoverage/summary.htm $(Build.SourcesDirectory)/CodeCoverage/index.htm 
 
     displayName: Create Code Coverage Report

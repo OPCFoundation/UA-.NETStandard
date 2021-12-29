@@ -86,13 +86,13 @@ namespace Opc.Ua
             bool found = false;
             foreach (StoreLocation availableLocation in (StoreLocation[])Enum.GetValues(typeof(StoreLocation)))
             {
-                if (availableLocation.ToString() == storeLocation)
+                if (availableLocation.ToString().Equals(storeLocation, StringComparison.OrdinalIgnoreCase))
                 {
                     m_storeLocation = availableLocation;
                     found = true;
                 }
             }
-            if (found == false)
+            if (!found)
             {
                 var message = new StringBuilder();
                 message.AppendLine("Store location specified not available.");
@@ -130,7 +130,7 @@ namespace Opc.Ua
                 store.Open(OpenFlags.ReadWrite);
                 if (!store.Certificates.Contains(certificate))
                 {
-#if NETSTANDARD2_1 || NET5_0
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
                     if (certificate.HasPrivateKey &&
                         (Environment.OSVersion.Platform == PlatformID.Win32NT))
                     {
@@ -147,7 +147,8 @@ namespace Opc.Ua
                     {
                         store.Add(certificate);
                     }
-                    Utils.Trace(Utils.TraceMasks.Information, "Added cert {0} to X509Store {1}.", certificate.ToString(), store.Name);
+
+                    Utils.LogCertificate("Added certificate to X509Store {0}.", certificate, store.Name);
                 }
             }
 

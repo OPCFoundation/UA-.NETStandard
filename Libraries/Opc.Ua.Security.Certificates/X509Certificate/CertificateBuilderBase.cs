@@ -61,7 +61,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilderBase(X500DistinguishedName subjectName)
+        protected CertificateBuilderBase(X500DistinguishedName subjectName)
         {
             m_issuerName = m_subjectName = subjectName;
             Initialize();
@@ -70,7 +70,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilderBase(string subjectName)
+        protected CertificateBuilderBase(string subjectName)
         {
             m_issuerName = m_subjectName = new X500DistinguishedName(subjectName);
             Initialize();
@@ -134,7 +134,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (length > X509Defaults.SerialNumberLengthMax || length == 0)
             {
-                throw new ArgumentOutOfRangeException("SerialNumber length out of Range");
+                throw new ArgumentOutOfRangeException(nameof(length), "SerialNumber length out of Range");
             }
             m_serialNumberLength = length;
             m_presetSerial = false;
@@ -147,7 +147,7 @@ namespace Opc.Ua.Security.Certificates
             if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
                 serialNumber.Length == 0)
             {
-                throw new ArgumentOutOfRangeException("SerialNumber array exceeds supported length.");
+                throw new ArgumentOutOfRangeException(nameof(serialNumber), "SerialNumber array exceeds supported length.");
             }
             m_serialNumberLength = serialNumber.Length;
             m_serialNumber = new byte[serialNumber.Length];
@@ -196,7 +196,6 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public ICertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
-            if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
             m_hashAlgorithmName = hashAlgorithmName;
             return this;
         }
@@ -211,7 +210,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize)
+        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(ushort keySize)
         {
             if (keySize == 0)
             {
@@ -220,7 +219,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (keySize % 1024 != 0 || keySize < X509Defaults.RSAKeySizeMin || keySize > X509Defaults.RSAKeySizeMax)
             {
-                throw new ArgumentException(nameof(keySize), "KeySize must be a multiple of 1024 or is not in the allowed range.");
+                throw new ArgumentException("KeySize must be a multiple of 1024 or is not in the allowed range.", nameof(keySize));
             }
 
             m_keySize = keySize;
@@ -290,13 +289,13 @@ namespace Opc.Ua.Security.Certificates
             // lifetime must be in range of issuer
             if (m_issuerCAKeyCert != null)
             {
-                if (NotAfter > m_issuerCAKeyCert.NotAfter)
+                if (NotAfter.ToUniversalTime() > m_issuerCAKeyCert.NotAfter.ToUniversalTime())
                 {
-                    m_notAfter = m_issuerCAKeyCert.NotAfter;
+                    m_notAfter = m_issuerCAKeyCert.NotAfter.ToUniversalTime();
                 }
-                if (NotBefore < m_issuerCAKeyCert.NotBefore)
+                if (NotBefore.ToUniversalTime() < m_issuerCAKeyCert.NotBefore.ToUniversalTime())
                 {
-                    m_notBefore = m_issuerCAKeyCert.NotBefore;
+                    m_notBefore = m_issuerCAKeyCert.NotBefore.ToUniversalTime();
                 }
             }
         }

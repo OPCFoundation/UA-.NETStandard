@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -41,7 +42,6 @@ namespace Opc.Ua.PubSub
     public class UaPubSubApplication : IDisposable
     {
         #region Fields
-        private object m_lock = new object();
         private List<IUaPubSubConnection> m_uaPubSubConnections;
         private DataCollector m_dataCollector;
         private IUaPubSubDataStore m_dataStore;
@@ -50,9 +50,35 @@ namespace Opc.Ua.PubSub
 
         #region Events
         /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
+        /// </summary>
+        public event EventHandler<RawDataReceivedEventArgs> RawDataReceived;
+
+        /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
         public event EventHandler<SubscribedDataEventArgs> DataReceived;
+
+        /// <summary>
+        /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
+        /// </summary>
+        public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
+
+        /// <summary>
+        /// Event that is triggered before the configuration is updated with a new MetaData 
+        /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
+        /// </summary>
+        public event EventHandler<ConfigurationUpdatingEventArgs> ConfigurationUpdating;
+        #endregion
+
+        #region Event Callbacks
+        /// <summary>
+        /// Raised when the MQTT broker certificate is validated.
+        /// </summary>
+        /// <returns> 
+        /// Returns whether the broker certificate is valid and trusted.
+        /// </returns>
+        public ValidateBrokerCertificateHandler OnValidateBrokerCertificate;
         #endregion
 
         #region Constructors
@@ -61,9 +87,11 @@ namespace Opc.Ua.PubSub
         ///  Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
         /// </summary>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
-        private UaPubSubApplication(IUaPubSubDataStore dataStore = null)
+        /// <param name="applicationId"> The application id for instance.</param>
+        private UaPubSubApplication(IUaPubSubDataStore dataStore = null, string applicationId = null)
         {
             m_uaPubSubConnections = new List<IUaPubSubConnection>();
+
             if (dataStore != null)
             {
                 m_dataStore = dataStore;
@@ -72,34 +100,55 @@ namespace Opc.Ua.PubSub
             {
                 m_dataStore = new UaPubSubDataStore();
             }
+
+            if (!String.IsNullOrEmpty(applicationId))
+            {
+                ApplicationId = applicationId;
+            }
+            else
+            {
+                ApplicationId = $"opcua:{System.Net.Dns.GetHostName()}:{new Random().Next().ToString("D10")}";
+            }
+
             m_dataCollector = new DataCollector(m_dataStore);
             m_uaPubSubConfigurator = new UaPubSubConfigurator();
             m_uaPubSubConfigurator.ConnectionAdded += UaPubSubConfigurator_ConnectionAdded;
             m_uaPubSubConfigurator.ConnectionRemoved += UaPubSubConfigurator_ConnectionRemoved;
             m_uaPubSubConfigurator.PublishedDataSetAdded += UaPubSubConfigurator_PublishedDataSetAdded;
             m_uaPubSubConfigurator.PublishedDataSetRemoved += UaPubSubConfigurator_PublishedDataSetRemoved;
+
+            Utils.Trace("An instance of UaPubSubApplication was created.");
         }
 
         #endregion
 
         #region Public Properties
         /// <summary>
+        /// The application id associated with the UA
+        /// </summary>
+        public string ApplicationId { get; set; }
+
+        /// <summary>
         /// Get the list of SupportedTransportProfiles
         /// </summary>
         public static string[] SupportedTransportProfiles
         {
-            get { return new string[] { Profiles.UadpTransport }; }
+            get
+            {
+                return new string[] { Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles.PubSubMqttUadpTransport };
+            }
         }
 
         /// <summary>
         /// Get reference to the associated <see cref="UaPubSubConfigurator"/> instance.
         /// </summary>
-        public UaPubSubConfigurator UaPubSubConfigurator {  get { return m_uaPubSubConfigurator; } }
-        
+        public UaPubSubConfigurator UaPubSubConfigurator { get { return m_uaPubSubConfigurator; } }
+
         /// <summary>
         /// Get reference to current DataStore. Write here all node values needed to be published by this PubSubApplication
         /// </summary>
-        public IUaPubSubDataStore DataStore {  get { return m_dataStore; } }
+        public IUaPubSubDataStore DataStore { get { return m_dataStore; } }
+
         #endregion
 
         #region Internal Properties
@@ -127,7 +176,7 @@ namespace Opc.Ua.PubSub
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(IUaPubSubDataStore dataStore)
-        {     
+        {
             return Create(new PubSubConfigurationDataType(), dataStore);
         }
 
@@ -160,7 +209,8 @@ namespace Opc.Ua.PubSub
         /// <param name="pubSubConfiguration">The configuration object.</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null, IUaPubSubDataStore dataStore = null)
+        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null,
+            IUaPubSubDataStore dataStore = null)
         {
             // if no argument received, start with empty configuration
             if (pubSubConfiguration == null)
@@ -169,22 +219,23 @@ namespace Opc.Ua.PubSub
             }
 
             UaPubSubApplication uaPubSubApplication = new UaPubSubApplication(dataStore);
-            uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);            
+            uaPubSubApplication.m_uaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
             return uaPubSubApplication;
         }
         #endregion
 
         #region Public Methods
-
         /// <summary>
         /// Start Publish/Subscribe jobs associated with this instance
         /// </summary>
         public void Start()
         {
-            foreach(var connection in m_uaPubSubConnections)
+            Utils.Trace("UaPubSubApplication is starting.");
+            foreach (var connection in m_uaPubSubConnections)
             {
                 connection.Start();
             }
+            Utils.Trace("UaPubSubApplication was started.");
         }
 
         /// <summary>
@@ -192,14 +243,35 @@ namespace Opc.Ua.PubSub
         /// </summary>
         public void Stop()
         {
+            Utils.Trace("UaPubSubApplication is stopping.");
             foreach (var connection in m_uaPubSubConnections)
             {
                 connection.Stop();
             }
-        }        
+            Utils.Trace("UaPubSubApplication is stopped.");
+        }
+
         #endregion
 
         #region Internal Methods
+        /// <summary>
+        /// Raise <see cref="RawDataReceived"/> event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseRawDataReceivedEvent(RawDataReceivedEventArgs e)
+        {
+            try
+            {
+                if (RawDataReceived != null)
+                {
+                    RawDataReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseRawDataReceivedEvent");
+            }
+        }
 
         /// <summary>
         /// Raise DataReceived event
@@ -216,24 +288,60 @@ namespace Opc.Ua.PubSub
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex, "UaPubSubApplication.RaiseSubscriptionRecievedEvent");
+                Utils.Trace(ex, "UaPubSubApplication.RaiseDataReceivedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise MetaDataReceived event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseMetaDataReceivedEvent(SubscribedDataEventArgs e)
+        {
+            try
+            {
+                if (MetaDataReceived != null)
+                {
+                    MetaDataReceived(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
+            }
+        }
+
+        /// <summary>
+        /// Raise <see cref="ConfigurationUpdating"/> event
+        /// </summary>
+        /// <param name="e"></param>
+        internal void RaiseConfigurationUpdatingEvent(ConfigurationUpdatingEventArgs e)
+        {
+            try
+            {
+                if (ConfigurationUpdating != null)
+                {
+                    ConfigurationUpdating(this, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Trace(ex, "UaPubSubApplication.RaiseConfigurationUpdatingEvent");
             }
         }
         #endregion
 
         #region Private Methods - UaPubSubConfigurator event handlers
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetAdded"/> event
+        /// Handler for PublishedDataSetAdded event
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void UaPubSubConfigurator_PublishedDataSetAdded(object sender, PublishedDataSetEventArgs e)
         {
             DataCollector.AddPublishedDataSet(e.PublishedDataSetDataType);
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.PublishedDataSetRemoved"/> event
+        /// Handler for PublishedDataSetRemoved event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -243,7 +351,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.ConnectionRemoved"/> event
+        /// Handler for ConnectionRemoved event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -266,7 +374,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        /// Handler for <see cref="UaPubSubConfigurator.ConnectionAdded"/> event
+        /// Handler for ConnectionAdded event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -278,7 +386,7 @@ namespace Opc.Ua.PubSub
                 m_uaPubSubConnections.Add(newUaPubSubConnection);
             }
         }
-        #endregion       
+        #endregion
 
         #region IDisposable Implementation
         /// <summary>
@@ -306,13 +414,20 @@ namespace Opc.Ua.PubSub
 
                 Stop();
                 // free managed resources
-                foreach(var connection in m_uaPubSubConnections)
+                foreach (var connection in m_uaPubSubConnections)
                 {
                     connection.Dispose();
                 }
                 m_uaPubSubConnections.Clear();
             }
-        }       
+        }
         #endregion
     }
+
+    /// <summary>
+    /// A delegate which validates the MQTT broker certificate.
+    /// </summary>
+    /// <param name="brokerCertificate">The broker certificate.</param>
+    /// <returns>Returns whether the broker certificate is valid and trusted.</returns>
+    public delegate bool ValidateBrokerCertificateHandler(X509Certificate2 brokerCertificate);
 }

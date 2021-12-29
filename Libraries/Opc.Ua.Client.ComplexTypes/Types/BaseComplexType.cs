@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -126,8 +125,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
-
+            encoder.PushNamespace(XmlNamespace);
+            
             foreach (var property in GetPropertyEnumerator())
             {
                 EncodeProperty(encoder, property.PropertyInfo, property.ValueRank);
@@ -139,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public virtual void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             foreach (var property in GetPropertyEnumerator())
             {
@@ -209,8 +208,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
-                    return body.ToString();
+                    return body.Append('}').ToString();
                 }
 
                 if (!NodeId.IsNull(this.TypeId))
@@ -263,7 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
-        /// Ordered enumerator for properties.      
+        /// Ordered enumerator for properties.
         /// </summary>
         public virtual IEnumerable<ComplexTypePropertyAttribute> GetPropertyEnumerator()
         {
@@ -272,6 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion IComplexTypeProperties
 
         #region Private Members
+
         /// <summary>
         /// Formatting helper.
         /// </summary>
@@ -279,7 +278,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (body.Length == 0)
             {
-                body.Append("{");
+                body.Append('{');
             }
             else
             {
@@ -303,17 +302,17 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 bool first = true;
                 var enumerable = value as IEnumerable;
-                body.Append("[");
+                body.Append('[');
                 foreach (var item in enumerable)
                 {
                     if (!first)
                     {
-                        body.Append(",");
+                        body.Append(',');
                     }
                     AppendPropertyValue(formatProvider, body, item);
                     first = false;
                 }
-                body.Append("]");
+                body.Append(']');
             }
             else
             {
@@ -621,7 +620,6 @@ namespace Opc.Ua.Client.ComplexTypes
                     $"Unknown type {elementType} to encode.");
             }
         }
-
 
         /// <summary>
         /// Decode a property based on the property type and value rank.
@@ -940,9 +938,30 @@ namespace Opc.Ua.Client.ComplexTypes
         }
         #endregion Private Members
 
+
+        #region Protected Properties
+
+        /// <summary>
+        /// Provide XmlNamespace based on systemType
+        /// </summary>
+        protected string XmlNamespace
+        {
+            get
+            {
+                if (m_xmlName == null)
+                {
+                    m_xmlName = EncodeableFactory.GetXmlName(GetType());
+                }
+
+                return m_xmlName != null ? m_xmlName.Namespace : string.Empty;
+            }
+        }
+
+        #endregion
+
         #region Protected Fields
         /// <summary>
-        /// The list of properties of this complex type. 
+        /// The list of properties of this complex type.
         /// </summary>
         protected IList<ComplexTypePropertyAttribute> m_propertyList;
         /// <summary>
@@ -952,10 +971,10 @@ namespace Opc.Ua.Client.ComplexTypes
         #endregion Protected Fields
 
         #region Private Fields
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
+        private XmlQualifiedName m_xmlName;
         #endregion Private Fields
+
     }
-
-
 }//namespace

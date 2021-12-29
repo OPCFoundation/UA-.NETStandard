@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.IO;
 
 namespace Opc.Ua
 {
@@ -71,6 +72,25 @@ namespace Opc.Ua
 
         #region Public Properties
         /// <summary>
+        /// The path to the default PKI Root.
+        /// </summary>
+#if NETFRAMEWORK
+        public static readonly string DefaultPKIRoot = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki");
+#else
+        public static readonly string DefaultPKIRoot = Path.Combine("%LocalApplicationData%","OPC Foundation","pki");
+#endif
+
+        /// <summary>
+        /// The path to the current user X509Store.
+        /// </summary>
+        public static readonly string CurrentUser = "CurrentUser\\";
+
+        /// <summary>
+        /// The path to the local machine X509Store.
+        /// </summary>
+        public static readonly string LocalMachine = "LocalMachine\\";
+
+        /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         public CertificateValidationOptions ValidationOptions
@@ -91,22 +111,12 @@ namespace Opc.Ua
                 return CertificateStoreType.Directory;
             }
 
-            if (storePath.StartsWith("LocalMachine\\", StringComparison.OrdinalIgnoreCase))
+            if (storePath.StartsWith(LocalMachine, StringComparison.OrdinalIgnoreCase))
             {
                 return CertificateStoreType.X509Store;
             }
 
-            if (storePath.StartsWith("CurrentUser\\", StringComparison.OrdinalIgnoreCase))
-            {
-                return CertificateStoreType.X509Store;
-            }
-
-            if (storePath.StartsWith("User\\", StringComparison.OrdinalIgnoreCase))
-            {
-                return CertificateStoreType.X509Store;
-            }
-
-            if (storePath.StartsWith("Service\\", StringComparison.OrdinalIgnoreCase))
+            if (storePath.StartsWith(CurrentUser, StringComparison.OrdinalIgnoreCase))
             {
                 return CertificateStoreType.X509Store;
             }
@@ -129,15 +139,20 @@ namespace Opc.Ua
             switch (storeType)
             {
                 case CertificateStoreType.X509Store:
-                    {
-                        store = new X509CertificateStore();
-                        break;
-                    }
+                {
+                    store = new X509CertificateStore();
+                    break;
+                }
                 case CertificateStoreType.Directory:
-                    {
-                        store = new DirectoryCertificateStore();
-                        break;
-                    }
+                {
+                    store = new DirectoryCertificateStore();
+                    break;
+                }
+
+                default:
+                {
+                    throw new ArgumentException($"Invalid store type name: {storeType}", nameof(storeType));
+                }
             }
             return store;
         }

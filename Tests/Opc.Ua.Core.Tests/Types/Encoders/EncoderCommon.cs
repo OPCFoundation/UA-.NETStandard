@@ -56,7 +56,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected const string ApplicationUri = "uri:localhost:opcfoundation.org:EncoderCommon";
         protected RandomSource RandomSource { get; private set; }
         protected DataGenerator DataGenerator { get; private set; }
-        protected ServiceMessageContext Context { get; private set; }
+        protected IServiceMessageContext Context { get; private set; }
         protected NamespaceTable NameSpaceUris { get; private set; }
         protected StringTable ServerUris { get; private set; }
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <returns></returns>
         protected IEncoder CreateEncoder(
             EncodingType encoderType,
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             Stream stream,
             Type systemType,
             bool useReversibleEncoding = true,
@@ -338,8 +338,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     var xmlWriter = XmlWriter.Create(stream);
                     return new XmlEncoder(systemType, xmlWriter, context);
                 case EncodingType.Json:
-                    var streamWriter = new StreamWriter(stream, new System.Text.UTF8Encoding(false));
-                    return new JsonEncoder(context, useReversibleEncoding, streamWriter, topLevelIsArray) {
+                    return new JsonEncoder(context, useReversibleEncoding, topLevelIsArray, stream) {
                         IncludeDefaultValues = includeDefaultValues,
                         IncludeDefaultNumberValues = includeDefaultNumbers
                     };
@@ -352,7 +351,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected IDecoder CreateDecoder(
             EncodingType decoderType,
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             Stream stream,
             Type systemType
             )
@@ -362,7 +361,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case EncodingType.Binary:
                     return new BinaryDecoder(stream, context);
                 case EncodingType.Xml:
-                    var xmlReader = XmlReader.Create(stream);
+                    var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
                     return new XmlDecoder(systemType, xmlReader, context);
                 case EncodingType.Json:
                     var jsonTextReader = new JsonTextReader(new StreamReader(stream));

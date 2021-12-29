@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Linq;
 using System.Reflection;
@@ -36,7 +35,7 @@ using System.Reflection.Emit;
 namespace Opc.Ua.Client.ComplexTypes
 {
     /// <summary>
-    /// Build an assembly with custom enum types and 
+    /// Build an assembly with custom enum types and
     /// complex types based on the BaseComplexType class
     /// using System.Reflection.Emit.
     /// </summary>
@@ -195,7 +194,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.Serializable,
                 baseType);
             structureBuilder.DataContractAttribute(m_targetNamespace);
-            structureBuilder.StructureDefinitonAttribute(structureDefinition);
+            structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
         }
         #endregion Public Members
@@ -208,7 +207,9 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (String.IsNullOrWhiteSpace(moduleName))
             {
-                Uri uri = new Uri(targetNamespace, UriKind.RelativeOrAbsolute);
+                // remove space chars in malformed namespace url
+                var tempNamespace = targetNamespace.Replace(" ", "");
+                Uri uri = new Uri(tempNamespace, UriKind.RelativeOrAbsolute);
                 var tempName = uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString();
 
                 tempName = tempName.Replace("/", "");
@@ -240,5 +241,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly int m_targetNamespaceIndex;
         #endregion Private Fields
     }
-
 }//namespace

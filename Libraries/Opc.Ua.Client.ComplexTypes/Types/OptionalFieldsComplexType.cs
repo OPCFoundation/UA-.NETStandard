@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -85,7 +84,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public override void Encode(IEncoder encoder)
         {
-            encoder.PushNamespace(TypeId.NamespaceUri);
+            encoder.PushNamespace(XmlNamespace);
 
             if (encoder.UseReversibleEncoding)
             {
@@ -110,7 +109,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public override void Decode(IDecoder decoder)
         {
-            decoder.PushNamespace(TypeId.NamespaceUri);
+            decoder.PushNamespace(XmlNamespace);
 
             m_encodingMask = decoder.ReadUInt32("EncodingMask");
 
@@ -203,7 +202,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 if (body.Length > 0)
                 {
-                    body.Append("}");
+                    body.Append('}');
                     return body.ToString();
                 }
 
@@ -319,6 +318,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private UInt32 m_encodingMask;
         #endregion Private Fields
     }
-
-
 }//namespace

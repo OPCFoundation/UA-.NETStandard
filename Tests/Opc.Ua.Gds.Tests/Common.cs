@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 
 
@@ -107,6 +108,7 @@ namespace Opc.Ua.Gds.Tests
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
+            string locale = _randomSource.NextInt32(10) == 0 ? null : "en-US";
             string privateKeyFormat = _randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
@@ -134,7 +136,7 @@ namespace Opc.Ua.Gds.Tests
             }
             ApplicationTestData testData = new ApplicationTestData {
                 ApplicationRecord = new ApplicationRecordDataType {
-                    ApplicationNames = new LocalizedTextCollection { new LocalizedText("en-us", appName) },
+                    ApplicationNames = new LocalizedTextCollection { new LocalizedText(locale, appName) },
                     ApplicationUri = appUri,
                     ApplicationType = appType,
                     ProductUri = prodUri,
@@ -287,6 +289,8 @@ namespace Opc.Ua.Gds.Tests
 
     public static class TestUtils
     {
+        private static Random m_random = new Random();
+
         public static void CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
             var certs = store.Enumerate().Result;
@@ -314,11 +318,10 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        const int MaxPort = 64000;
         const int MinPort = Opc.Ua.Utils.UaTcpDefaultPort;
         public static void PatchBaseAddressesPorts(ApplicationConfiguration config, int basePort)
         {
-            if (basePort >= MinPort && basePort <= MaxPort)
+            if (basePort >= MinPort && basePort <= ServerFixtureUtils.MaxTestPort)
             {
                 StringCollection newBaseAddresses = new StringCollection();
                 foreach (var baseAddress in config.ServerConfiguration.BaseAddresses)
@@ -333,7 +336,7 @@ namespace Opc.Ua.Gds.Tests
 
         public static string PatchOnlyGDSEndpointUrlPort(string url, int port)
         {
-            if (port >= MinPort && port <= MaxPort)
+            if (port >= MinPort && port <= ServerFixtureUtils.MaxTestPort)
             {
                 UriBuilder newUrl = new UriBuilder(url);
                 if (newUrl.Path.Contains("GlobalDiscoveryTestServer"))
@@ -348,22 +351,20 @@ namespace Opc.Ua.Gds.Tests
         public static async Task<GlobalDiscoveryTestServer> StartGDS(bool clean)
         {
             GlobalDiscoveryTestServer server = null;
-            Random random = new Random();
-            int testPort;
+            int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             bool retryStartServer = false;
-            int serverStartRetries = 10;
+            int serverStartRetries = 25;
             do
             {
                 try
                 {
-                    // work around travis issue by selecting different ports on every run
-                    testPort = random.Next(50000, 60000);
                     server = new GlobalDiscoveryTestServer(true);
                     await server.StartServer(clean, testPort).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {
                     serverStartRetries--;
+                    testPort = m_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
                     if (serverStartRetries == 0 ||
                         sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
@@ -371,7 +372,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     retryStartServer = true;
                 }
-                await Task.Delay(1000).ConfigureAwait(false);
+                await Task.Delay(m_random.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
             return server;

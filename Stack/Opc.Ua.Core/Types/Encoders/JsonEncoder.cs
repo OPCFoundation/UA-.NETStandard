@@ -25,37 +25,106 @@ namespace Opc.Ua
     public class JsonEncoder : IEncoder, IDisposable
     {
         #region Private Fields
-        private MemoryStream m_destination;
+        private const int kStreamWriterBufferSize = 1024;
+        private Stream m_stream;
+        private MemoryStream m_memoryStream;
         private StreamWriter m_writer;
         private Stack<string> m_namespaces;
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
-        private ServiceMessageContext m_context;
+        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private bool m_topLevelIsArray;
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
+        private bool m_leaveOpen;
         #endregion
 
         #region Constructors
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="useReversibleEncoding"></param>
+        public JsonEncoder(
+            IServiceMessageContext context,
+            bool useReversibleEncoding) :
+            this(context, useReversibleEncoding, false, null, false)
+        {
+        }
+
+        /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public JsonEncoder(
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             bool useReversibleEncoding,
-            StreamWriter writer = null,
+            bool topLevelIsArray = false,
+            Stream stream = null,
+            bool leaveOpen = false,
+            int streamSize = kStreamWriterBufferSize
+            )
+        {
+            Initialize();
+
+            m_context = context;
+            m_stream = stream;
+            m_leaveOpen = leaveOpen;
+            UseReversibleEncoding = useReversibleEncoding;
+            m_topLevelIsArray = topLevelIsArray;
+
+            if (m_stream == null)
+            {
+                m_memoryStream = new MemoryStream();
+                m_writer = new StreamWriter(m_memoryStream, new UTF8Encoding(false), streamSize, false);
+                m_leaveOpen = false;
+            }
+            else
+            {
+                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), streamSize, m_leaveOpen);
+            }
+
+            InitializeWriter();
+        }
+
+        /// <summary>
+        /// Initializes the object with default values.
+        /// </summary>
+        public JsonEncoder(
+            IServiceMessageContext context,
+            bool useReversibleEncoding,
+            StreamWriter writer,
             bool topLevelIsArray = false)
         {
             Initialize();
 
             m_context = context;
-            m_nestingLevel = 0;
             m_writer = writer;
             UseReversibleEncoding = useReversibleEncoding;
             m_topLevelIsArray = topLevelIsArray;
+
+            if (m_writer == null)
+            {
+                m_stream = new MemoryStream();
+                m_writer = new StreamWriter(m_stream, new UTF8Encoding(false), kStreamWriterBufferSize);
+            }
+
+            InitializeWriter();
+        }
+
+        /// <summary>
+        /// Sets private members to default values.
+        /// </summary>
+        private void Initialize()
+        {
+            m_stream = null;
+            m_writer = null;
+            m_namespaces = new Stack<string>();
+            m_commaRequired = false;
+            m_leaveOpen = false;
+            m_nestingLevel = 0;
             m_levelOneSkipped = false;
 
             // defaults for JSON encoding
@@ -66,13 +135,13 @@ namespace Opc.Ua
             ForceNamespaceUri = false;
             IncludeDefaultValues = false;
             IncludeDefaultNumberValues = true;
+        }
 
-            if (m_writer == null)
-            {
-                m_destination = new MemoryStream();
-                m_writer = new StreamWriter(m_destination, new UTF8Encoding(false));
-            }
-
+        /// <summary>
+        /// Initialize Writer.
+        /// </summary>
+        private void InitializeWriter()
+        {
             if (m_topLevelIsArray)
             {
                 m_writer.Write("[");
@@ -82,38 +151,19 @@ namespace Opc.Ua
                 m_writer.Write("{");
             }
         }
-
-        /// <summary>
-        /// Sets private members to default values.
-        /// </summary>
-        private void Initialize()
-        {
-            m_destination = null;
-            m_writer = null;
-            m_namespaces = new Stack<string>();
-            m_commaRequired = false;
-        }
-
-        /// <summary>
-        /// Writes the root element to the stream.
-        /// </summary>
-        private void Initialize(string fieldName, string namespaceUri)
-        {
-        }
         #endregion
 
         #region Public Methods
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, ServiceMessageContext context, bool leaveOpen = false)
+        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             // create encoder.
-            JsonEncoder encoder = new JsonEncoder(context, true, new StreamWriter(stream, new UTF8Encoding(false), 65535, leaveOpen));
-
+            JsonEncoder encoder = new JsonEncoder(context, true, false, stream, leaveOpen);
             try
             {
                 long start = stream.Position;
@@ -143,25 +193,24 @@ namespace Opc.Ua
             {
                 if (leaveOpen)
                 {
-                    encoder.m_writer.Flush();
                     stream.Position = 0;
                 }
+                encoder.Dispose();
             }
         }
 
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, ServiceMessageContext context)
+        public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, IServiceMessageContext context)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             using (MemoryStream stream = new MemoryStream(buffer, true))
+            using (var encoder = new JsonEncoder(context, true, false, stream))
             {
-                var encoder = new JsonEncoder(context, true, new StreamWriter(stream, new UTF8Encoding(false), 65535, false));
-
                 // encode message
                 encoder.EncodeMessage(message);
                 int length = encoder.Close();
@@ -215,11 +264,15 @@ namespace Opc.Ua
         public string CloseAndReturnText()
         {
             Close();
-            if (m_destination == null)
+            if (m_memoryStream == null)
             {
-                return String.Empty;
+                if (m_stream is MemoryStream memoryStream)
+                {
+                    return Encoding.UTF8.GetString(memoryStream.ToArray());
+                }
+                throw new NotSupportedException("Cannot get text from external stream. Use Close or MemoryStream instead.");
             }
-            return Encoding.UTF8.GetString(m_destination.ToArray());
+            return Encoding.UTF8.GetString(m_memoryStream.ToArray());
         }
 
         /// <summary>
@@ -243,6 +296,10 @@ namespace Opc.Ua
             int length = (int)m_writer.BaseStream.Position;
             m_writer.Dispose();
             m_writer = null;
+            if (m_leaveOpen)
+            {
+                m_stream.Position = 0;
+            }
             return length;
         }
         #endregion
@@ -280,7 +337,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public ServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context => m_context;
 
         /// <summary>
         /// The Json encoder reversible encoding option
@@ -413,8 +470,8 @@ namespace Opc.Ua
             m_nestingLevel--;
         }
 
-        private readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
-        private readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
+        private static readonly char[] m_specialChars = new char[] { '"', '\\', '\n', '\r', '\t', '\b', '\f', };
+        private static readonly char[] m_substitution = new char[] { '"', '\\', 'n', 'r', 't', 'b', 'f' };
 
         private void EscapeString(string value)
         {
@@ -2369,6 +2426,14 @@ namespace Opc.Ua
                         if (variants != null)
                         {
                             WriteVariantArray(fieldName, variants);
+                            return;
+                        }
+
+                        // try to write IEncodeable Array
+                        IEncodeable[] encodeableArray = array as IEncodeable[];
+                        if (encodeableArray != null)
+                        {
+                            WriteEncodeableArray(fieldName, encodeableArray, array.GetType().GetElementType());
                             return;
                         }
 

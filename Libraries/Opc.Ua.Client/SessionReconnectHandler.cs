@@ -101,7 +101,6 @@ namespace Opc.Ua.Client
                 m_reconnectTimer = new System.Threading.Timer(OnReconnect, null, reconnectPeriod, Timeout.Infinite);
             }
         }
-
         #endregion
 
         #region Private Methods
@@ -138,13 +137,13 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error during reconnect.");
+                Utils.LogError(exception, "Unexpected error during reconnect.");
             }
 
             // schedule the next reconnect.
             lock (m_lock)
             {
-                m_reconnectTimer = new System.Threading.Timer(OnReconnect, null, m_reconnectPeriod, Timeout.Infinite);
+                m_reconnectTimer = new Timer(OnReconnect, null, m_reconnectPeriod, Timeout.Infinite);
             }
         }
 
@@ -178,21 +177,28 @@ namespace Opc.Ua.Client
                 catch (Exception exception)
                 {
                     // recreate the session if it has been closed.
-                    ServiceResultException sre = exception as ServiceResultException;
-
-                    // check if the server endpoint could not be reached.
-                    if ((sre != null &&
-                        (sre.StatusCode == StatusCodes.BadTcpInternalError ||
-                         sre.StatusCode == StatusCodes.BadCommunicationError ||
-                         sre.StatusCode == StatusCodes.BadNotConnected ||
-                         sre.StatusCode == StatusCodes.BadTimeout)))
+                    if (exception is ServiceResultException sre)
                     {
-                        // check if reconnecting is still an option.
-                        if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
+                        Utils.LogWarning("Reconnect failed. Reason={0}.", sre.Result);
+
+                        // check if the server endpoint could not be reached.
+                        // TODO: reconnect stopped working for https
+                        if (sre.StatusCode == StatusCodes.BadTcpInternalError ||
+                            sre.StatusCode == StatusCodes.BadCommunicationError ||
+                            sre.StatusCode == StatusCodes.BadNotConnected ||
+                            sre.StatusCode == StatusCodes.BadTimeout)
                         {
-                            Utils.Trace("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
-                            return false;
+                            // check if reconnecting is still an option.
+                            if (m_session.LastKeepAliveTime.AddMilliseconds(m_session.SessionTimeout) > DateTime.UtcNow)
+                            {
+                                Utils.LogInfo("Calling OnReconnectSession in {0} ms.", m_reconnectPeriod);
+                                return false;
+                            }
                         }
+                    }
+                    else
+                    {
+                        Utils.LogError(exception, "Reconnect failed.");
                     }
 
                     m_reconnectFailed = true;
@@ -222,7 +228,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace("Could not reconnect the Session. {0}", exception.Message);
+                Utils.LogError("Could not reconnect the Session. {0}", exception.Message);
                 return false;
             }
         }

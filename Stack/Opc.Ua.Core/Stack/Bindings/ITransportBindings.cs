@@ -97,7 +97,7 @@ namespace Opc.Ua.Bindings
         /// <param name="instanceCertificateChain">The cert cahin of the server certificate.</param>
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
-            IDictionary<string, Task> hosts,
+            IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,

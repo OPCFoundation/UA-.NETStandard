@@ -198,7 +198,7 @@ namespace Opc.Ua.Client.Controls
 
                     foreach (string item in StorePathCB.Items)
                     {
-                        if (String.Compare(storePath, item, StringComparison.OrdinalIgnoreCase) == 0)
+                        if (String.Equals(storePath, item, StringComparison.OrdinalIgnoreCase))
                         {
                             found = true;
                             break;
@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.Controls
 
                 for (int ii = 0; ii < StorePathCB.Items.Count; ii++)
                 {
-                    if (String.Compare(storePath, StorePathCB.Items[ii] as string, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (String.Equals(storePath, StorePathCB.Items[ii] as string, StringComparison.OrdinalIgnoreCase))
                     {
                         StorePathCB.SelectedIndex = ii;
                         found = true;

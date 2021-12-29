@@ -88,7 +88,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets the context used when serializing messages exchanged via the channel.
         /// </summary>
-        public ServiceMessageContext MessageContext => m_quotas.MessageContext;
+        public IServiceMessageContext MessageContext => m_quotas.MessageContext;
 
         /// <summary>
         ///  Gets the the channel's current security token.
@@ -196,7 +196,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public void Reconnect(ITransportWaitingConnection connection)
         {
-            Utils.Trace("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
+            Utils.LogInfo("TransportChannel RECONNECT: Reconnecting to {0}.", m_url);
 
             lock (m_lock)
             {
@@ -227,7 +227,7 @@ namespace Opc.Ua.Bindings
                         catch (Exception e)
                         {
                             // do nothing.
-                            Utils.Trace(e, "Ignoring exception while closing transport channel during Reconnect.");
+                            Utils.LogTrace(e, "Ignoring exception while closing transport channel during Reconnect.");
                         }
                         finally
                         {
@@ -403,15 +403,15 @@ namespace Opc.Ua.Bindings
             m_quotas.ChannelLifetime = m_settings.Configuration.ChannelLifetime;
             m_quotas.SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime;
 
-            m_quotas.MessageContext = new ServiceMessageContext();
-
-            m_quotas.MessageContext.MaxArrayLength = m_settings.Configuration.MaxArrayLength;
-            m_quotas.MessageContext.MaxByteStringLength = m_settings.Configuration.MaxByteStringLength;
-            m_quotas.MessageContext.MaxMessageSize = m_settings.Configuration.MaxMessageSize;
-            m_quotas.MessageContext.MaxStringLength = m_settings.Configuration.MaxStringLength;
-            m_quotas.MessageContext.NamespaceUris = m_settings.NamespaceUris;
-            m_quotas.MessageContext.ServerUris = new StringTable();
-            m_quotas.MessageContext.Factory = m_settings.Factory;
+            m_quotas.MessageContext = new ServiceMessageContext() {
+                MaxArrayLength = m_settings.Configuration.MaxArrayLength,
+                MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
+                MaxMessageSize = m_settings.Configuration.MaxMessageSize,
+                MaxStringLength = m_settings.Configuration.MaxStringLength,
+                NamespaceUris = m_settings.NamespaceUris,
+                ServerUris = new StringTable(),
+                Factory = m_settings.Factory
+            };
 
             m_quotas.CertificateValidator = settings.CertificateValidator;
 

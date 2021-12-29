@@ -155,7 +155,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error connecting to LDS");
+                Utils.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return serverUrls;
@@ -193,7 +193,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Unexpected error connecting to LDS");
+                Utils.LogError(exception, "Unexpected error connecting to LDS");
             }
 
             return gdsUrls;
@@ -958,11 +958,12 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error reverting to normal permissions.");
+                Utils.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
         #endregion
+
         #region Private Fields
         private ConfiguredEndpoint m_endpoint;
         #endregion

@@ -72,7 +72,7 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            ServiceMessageContext messageContext)
+            IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
             ITransportChannel channel = CreateUaBinaryChannel(

@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -50,5 +50,10 @@ namespace Opc.Ua.PubSub
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
         /// <returns></returns>
         DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value);
+
+        /// <summary>
+        /// Updates the metadata if it has changed from when the DataStore was created.
+        /// </summary>
+        void UpdateMetaData(PublishedDataSetDataType publishedDataSet);
     }
 }

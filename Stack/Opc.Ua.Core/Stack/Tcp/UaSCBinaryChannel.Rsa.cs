@@ -15,6 +15,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -23,7 +24,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public partial class UaSCUaBinaryChannel
     {
-
         /// <summary>
         /// Creates an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
         /// </summary>
@@ -70,14 +70,10 @@ namespace Opc.Ua.Bindings
                     string messageType = new UTF8Encoding().GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                     int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                     string actualSignature = Utils.ToHexString(signature);
-                    var message = new StringBuilder();
-                    message.AppendLine("Could not validate signature.");
-                    message.AppendLine("Certificate ={0}, MessageType ={1}, Length ={2}");
-                    message.AppendLine("ActualSignature={3}");
-                    Utils.Trace(message.ToString(), signingCertificate.Subject,
-                        messageType, messageLength, actualSignature
-                        );
-
+                    Utils.LogError("Could not validate signature.");
+                    Utils.LogCertificate(LogLevel.Error, "Certificate: ", signingCertificate);
+                    Utils.LogError("MessageType ={0}, Length ={1}, ActualSignature={2}",
+                        messageType, messageLength, actualSignature);
                     return false;
                 }
                 return true;
@@ -107,7 +103,7 @@ namespace Opc.Ua.Bindings
                 // verify the input data is the correct block size.
                 if (dataToEncrypt.Count % inputBlockSize != 0)
                 {
-                    Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
+                    Utils.LogWarning("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
                 }
 
                 byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Encrypt");
@@ -119,7 +115,6 @@ namespace Opc.Ua.Bindings
                     headerToCopy.Count,
                     encryptedBuffer.Length - headerToCopy.Count))
                 {
-
                     // encrypt body.
                     byte[] input = new byte[inputBlockSize];
 
@@ -147,7 +142,6 @@ namespace Opc.Ua.Bindings
             // get the encrypting key.
             using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
             {
-
                 if (rsa == null)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
@@ -159,7 +153,7 @@ namespace Opc.Ua.Bindings
                 // verify the input data is the correct block size.
                 if (dataToDecrypt.Count % inputBlockSize != 0)
                 {
-                    Utils.Trace("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
+                    Utils.LogWarning("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
                 }
 
                 byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");

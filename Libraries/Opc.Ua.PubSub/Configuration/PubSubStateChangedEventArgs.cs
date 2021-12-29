@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * 
@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
 using System;
 
 namespace Opc.Ua.PubSub.Configuration
@@ -56,5 +55,5 @@ namespace Opc.Ua.PubSub.Configuration
         /// Old <see cref="PubSubState"/> 
         /// </summary>
         public PubSubState OldState { get; set; }
-    }    
+    }
 }

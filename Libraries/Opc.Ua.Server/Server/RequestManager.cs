@@ -140,29 +140,6 @@ namespace Opc.Ua.Server
 
             lock (m_requestsLock)
             {
-                // find the completed request.
-                bool deadlineExists = false;
-
-                foreach (OperationContext request in m_requests.Values)
-                {
-                    if (request.RequestId == context.RequestId)
-                    {
-                        continue;
-                    }
-
-                    if (request.OperationDeadline < DateTime.MaxValue)
-                    {
-                        deadlineExists = true;
-                    }
-                }
-
-                // check if the timer can be cancelled.
-                if (m_requestTimer != null && !deadlineExists)
-                {
-                    m_requestTimer.Dispose();
-                    m_requestTimer = null;
-                }
-
                 // remove the request.
                 m_requests.Remove(context.RequestId);
             }
@@ -204,7 +181,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error reporting RequestCancelled event.");
+                            Utils.LogError(e, "Unexpected error reporting RequestCancelled event.");
                         }
                     }
                 }
@@ -223,6 +200,9 @@ namespace Opc.Ua.Server
             // flag requests as expired.
             lock (m_requestsLock)
             {
+                // find the completed request.
+                bool deadlineExists = false;
+
                 foreach (OperationContext request in m_requests.Values)
                 {
                     if (request.OperationDeadline < DateTime.UtcNow)
@@ -230,6 +210,17 @@ namespace Opc.Ua.Server
                         request.SetStatusCode(StatusCodes.BadTimeout);
                         expiredRequests.Add(request.RequestId);
                     }
+                    else if (request.OperationDeadline < DateTime.MaxValue)
+                    {
+                        deadlineExists = true;
+                    }
+                }
+
+                // check if the timer can be cancelled.
+                if (m_requestTimer != null && !deadlineExists)
+                {
+                    m_requestTimer.Dispose();
+                    m_requestTimer = null;
                 }
             }
 
@@ -246,7 +237,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error reporting RequestCancelled event.");
+                            Utils.LogError(e, "Unexpected error reporting RequestCancelled event.");
                         }
                     }
                 }

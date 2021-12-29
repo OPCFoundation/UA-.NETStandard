@@ -41,7 +41,7 @@ using Opc.Ua.Test;
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 {
     /// <summary>
-    /// Sample custom types 
+    /// Sample custom types
     /// </summary>
     public static partial class Namespaces
     {
@@ -66,19 +66,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// </summary>
     public class ComplexTypesCommon : EncoderCommon
     {
-        protected AssemblyModule Module;
-        protected ComplexTypeBuilder ComplexTypeBuilder;
-        protected int NodeIdCount;
-
+        protected AssemblyModule m_module;
+        protected ComplexTypeBuilder m_complexTypeBuilder;
+        protected int m_nodeIdCount;
 
         #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            NodeIdCount = 0;
-            Module = new AssemblyModule();
-            ComplexTypeBuilder = new ComplexTypeBuilder(
-                Module,
+            m_nodeIdCount = 0;
+            m_module = new AssemblyModule();
+            m_complexTypeBuilder = new ComplexTypeBuilder(
+                m_module,
                 Namespaces.OpcUaEncoderTests,
                 3,
                 "Tests"
@@ -137,12 +136,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Builds a complex type with all BuiltInTypes as properties.
         /// </summary>
         public Type BuildComplexTypeWithAllBuiltInTypes(
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             StructureType structureType,
             string testFunc,
             out ExpandedNodeId nodeId)
         {
-            uint typeId = (uint)Interlocked.Add(ref NodeIdCount, 100);
+            uint typeId = (uint)Interlocked.Add(ref m_nodeIdCount, 100);
             var complexTypeStructure = new StructureDefinition() {
                 BaseDataType = structureType == StructureType.Union ?
                     DataTypeIds.Union : DataTypeIds.Structure,
@@ -151,12 +150,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 StructureType = structureType
             };
 
-            var fieldBuilder = ComplexTypeBuilder.AddStructuredType(
+            var fieldBuilder = m_complexTypeBuilder.AddStructuredType(
                 structureType.ToString() + "." + testFunc,
                 complexTypeStructure);
-            nodeId = new ExpandedNodeId(typeId++, ComplexTypeBuilder.TargetNamespace);
-            var binaryEncodingId = new ExpandedNodeId(typeId++, ComplexTypeBuilder.TargetNamespace);
-            var xmlEncodingId = new ExpandedNodeId(typeId++, ComplexTypeBuilder.TargetNamespace);
+            nodeId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
+            var binaryEncodingId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
+            var xmlEncodingId = new ExpandedNodeId(typeId++, m_complexTypeBuilder.TargetNamespace);
             fieldBuilder.AddTypeIdAttribute(
                 nodeId, binaryEncodingId, xmlEncodingId
                 );
@@ -212,7 +211,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Create array of types for tests.
         /// </summary>
         public void CreateComplexTypes(
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
             string nameExtension)
         {
@@ -271,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Encode and decode a complex type, verify the result against expected data.
         /// </summary>
         protected void EncodeDecodeComplexType(
-            ServiceMessageContext encoderContext,
+            IServiceMessageContext encoderContext,
             EncodingType encoderType,
             StructureType structureType,
             ExpandedNodeId nodeId,
