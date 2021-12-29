@@ -863,7 +863,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             var internalNodeId = NormalizeExpandedNodeId(nodeId);
             Utils.LogDebug("Adding Type {0} as: {1}", type.FullName, internalNodeId);
-            m_session.Factory.AddEncodeableType(internalNodeId, type);
+            m_complexTypeResolver.Factory.AddEncodeableType(internalNodeId, type);
         }
 
         /// <summary>

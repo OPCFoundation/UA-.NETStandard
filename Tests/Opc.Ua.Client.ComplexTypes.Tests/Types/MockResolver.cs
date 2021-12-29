@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public NamespaceTable NamespaceUris => m_namespaceUris;
 
         /// <inheritdoc/>
-        public EncodeableFactory Factory => m_factory;
+        public IEncodeableFactory Factory => m_factory;
 
         /// <inheritdoc/>
         public Task<Dictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null)
