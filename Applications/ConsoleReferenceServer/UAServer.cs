@@ -197,7 +197,7 @@ namespace Quickstarts
                     return;
                 }
             }
-            m_output.WriteLine("Rejected Certificate: {0} [{1}] [{2}]", e.Error, e.Certificate.Subject,  e.Certificate.Thumbprint);
+            m_output.WriteLine("Rejected Certificate: {0} [{1}] [{2}]", e.Error, e.Certificate.Subject, e.Certificate.Thumbprint);
         }
 
         /// <summary>
@@ -214,9 +214,9 @@ namespace Quickstarts
         /// </summary>
         private void PrintSessionStatus(Session session, string reason, bool lastContact = false)
         {
+            StringBuilder item = new StringBuilder();
             lock (session.DiagnosticsLock)
             {
-                StringBuilder item = new StringBuilder();
                 item.AppendFormat("{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
                 if (lastContact)
                 {
@@ -230,8 +230,8 @@ namespace Quickstarts
                     }
                     item.AppendFormat(":{0}", session.Id);
                 }
-                m_output.WriteLine(item.ToString());
             }
+            m_output.WriteLine(item.ToString());
         }
 
         /// <summary>

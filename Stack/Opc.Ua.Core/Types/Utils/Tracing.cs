@@ -20,7 +20,7 @@ namespace Opc.Ua
     public class Tracing
     {
         #region Private Members
-        private static object m_syncRoot = new Object();
+        private static object s_syncRoot = new object();
         private static Tracing s_instance;
         #endregion Private Members
 
@@ -49,7 +49,7 @@ namespace Opc.Ua
             {
                 if (s_instance == null)
                 {
-                    lock (m_syncRoot)
+                    lock (s_syncRoot)
                     {
                         if (s_instance == null)
                         {
