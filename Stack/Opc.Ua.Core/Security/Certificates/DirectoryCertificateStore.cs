@@ -174,7 +174,10 @@ namespace Opc.Ua
         /// <summary cref="ICertificateStore.Delete(string)" />
         public async Task<bool> Delete(string thumbprint)
         {
-            int retry = 5;
+            const int kRetries = 5;
+            const int kRetryDelay = 100;
+
+            int retry = kRetries;
             bool found = false;
 
             do
@@ -202,6 +205,8 @@ namespace Opc.Ua
                     }
                     catch (IOException)
                     {
+                        // file to delete may still be in use, retry
+                        Utils.LogWarning("Failed to delete cert [{0}], retry.", thumbprint);
                         retry--;
                     }
 
@@ -213,7 +218,7 @@ namespace Opc.Ua
 
                 if (retry > 0)
                 {
-                    await Task.Delay(100).ConfigureAwait(false);
+                    await Task.Delay(kRetryDelay).ConfigureAwait(false);
                 }
 
             } while (retry > 0);
