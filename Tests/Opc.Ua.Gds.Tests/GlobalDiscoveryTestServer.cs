@@ -181,7 +181,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
+        private static async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
@@ -195,10 +195,9 @@ namespace Opc.Ua.Gds.Tests
                 DefaultSubjectNameContext = "O=OPC Foundation",
                 CertificateGroups = new CertificateGroupConfigurationCollection()
                 {
-                    new CertificateGroupConfiguration()
-                    {
+                    new CertificateGroupConfiguration() {
                         Id = "Default",
-                        CertificateType ="RsaSha256ApplicationCertificateType",
+                        CertificateType = "RsaSha256ApplicationCertificateType",
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                         BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
                         DefaultCertificateHashSize = 256,

@@ -44,9 +44,9 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class ApplicationsNodeManager : CustomNodeManager2
     {
-        NodeId DefaultApplicationGroupId;
-        NodeId DefaultHttpsGroupId;
-        NodeId DefaultUserTokenGroupId;
+        private NodeId m_defaultApplicationGroupId;
+        private NodeId m_defaultHttpsGroupId;
+        private NodeId m_defaultUserTokenGroupId;
 
         #region Constructors
         /// <summary>
@@ -88,9 +88,9 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            DefaultApplicationGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
-            DefaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
-            DefaultUserTokenGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
+            m_defaultApplicationGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
+            m_defaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
+            m_defaultUserTokenGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
 
             m_autoApprove = autoApprove;
             m_database = database;
@@ -193,7 +193,7 @@ namespace Opc.Ua.Gds.Server
 
             if (NodeId.IsNull(certificateGroupId))
             {
-                certificateGroupId = DefaultApplicationGroupId;
+                certificateGroupId = m_defaultApplicationGroupId;
             }
 
             CertificateGroup certificateGroup = null;
@@ -686,7 +686,7 @@ namespace Opc.Ua.Gds.Server
 
                 if (field.StartsWith("CN=", StringComparison.Ordinal))
                 {
-                    if (certificateGroup.Id == DefaultHttpsGroupId)
+                    if (certificateGroup.Id == m_defaultHttpsGroupId)
                     {
                         var error = CheckHttpsDomain(application, field.Substring(3));
 
@@ -808,15 +808,15 @@ namespace Opc.Ua.Gds.Server
 
                 buffer.Append("CN=");
 
-                if ((NodeId.IsNull(certificateGroup.Id) || (certificateGroup.Id == DefaultApplicationGroupId)) && (application.ApplicationNames.Count > 0))
+                if ((NodeId.IsNull(certificateGroup.Id) || (certificateGroup.Id == m_defaultApplicationGroupId)) && (application.ApplicationNames.Count > 0))
                 {
                     buffer.Append(application.ApplicationNames[0]);
                 }
-                else if (certificateGroup.Id == DefaultHttpsGroupId)
+                else if (certificateGroup.Id == m_defaultHttpsGroupId)
                 {
                     buffer.Append(GetDefaultHttpsDomain(application));
                 }
-                else if (certificateGroup.Id == DefaultUserTokenGroupId)
+                else if (certificateGroup.Id == m_defaultUserTokenGroupId)
                 {
                     buffer.Append(GetDefaultUserToken());
                 }
@@ -1165,7 +1165,7 @@ namespace Opc.Ua.Gds.Server
 
             if (NodeId.IsNull(certificateGroupId))
             {
-                certificateGroupId = DefaultApplicationGroupId;
+                certificateGroupId = m_defaultApplicationGroupId;
             }
 
             trustListId = GetTrustListId(certificateGroupId);
@@ -1198,7 +1198,7 @@ namespace Opc.Ua.Gds.Server
 
             if (NodeId.IsNull(certificateGroupId))
             {
-                certificateGroupId = DefaultApplicationGroupId;
+                certificateGroupId = m_defaultApplicationGroupId;
             }
 
             Boolean? updateRequiredResult = GetCertificateStatus(certificateGroupId, certificateTypeId);
@@ -1326,12 +1326,12 @@ namespace Opc.Ua.Gds.Server
             certificateGroup.DefaultTrustList = null;
             if (Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.HttpsCertificateType))
             {
-                certificateGroup.Id = DefaultHttpsGroupId;
+                certificateGroup.Id = m_defaultHttpsGroupId;
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
             else if (Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.UserCredentialCertificateType))
             {
-                certificateGroup.Id = DefaultUserTokenGroupId;
+                certificateGroup.Id = m_defaultUserTokenGroupId;
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
             else if (Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.ApplicationCertificateType) ||
@@ -1339,7 +1339,7 @@ namespace Opc.Ua.Gds.Server
                 Utils.Equals(certificateType, Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 )
             {
-                certificateGroup.Id = DefaultApplicationGroupId;
+                certificateGroup.Id = m_defaultApplicationGroupId;
                 certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
             else

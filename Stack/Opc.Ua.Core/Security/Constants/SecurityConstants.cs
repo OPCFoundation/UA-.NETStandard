@@ -133,7 +133,6 @@ namespace Opc.Ua
         /// </summary>
         public const string PubSubMqttJsonTransport = "http://opcfoundation.org/UA-Profile/Transport/pubsub-mqtt-json";
 
-
         /// <summary>
         /// An Issued User Token that complies with the JWT specification.
         /// </summary>
