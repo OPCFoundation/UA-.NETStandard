@@ -1596,10 +1596,6 @@ namespace Opc.Ua
         private object m_serverError;
         private object m_certificateValidator;
         private CertificateTypesProvider m_InstanceCertificateTypesProvider;
-#if mist
-        private object m_instanceCertificate;
-        private X509Certificate2Collection m_instanceCertificateChain;
-#endif
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;

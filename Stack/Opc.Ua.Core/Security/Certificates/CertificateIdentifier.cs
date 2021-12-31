@@ -984,14 +984,6 @@ namespace Opc.Ua
             m_certificateValidator = config.CertificateValidator;
         }
 
-#if mist
-        public async Task<X509Certificate2Collection> GetInstanceCertificateChain(string securityPolicy)
-        {
-            var certificateTypes = CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicy);
-            var certificate = await GetInstanceCertificateAsync(certificateTypes, false).ConfigureAwait(false);
-            return await LoadCertificateChainAsync(certificate).ConfigureAwait(false);
-        }
-#endif
         /// <summary>
         /// Return the instance certificate for a security policy.
         /// </summary>

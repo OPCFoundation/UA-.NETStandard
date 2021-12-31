@@ -293,28 +293,6 @@ namespace Opc.Ua
             }
         }
 
-#if mist
-        /// <summary>
-        /// Encrypts the data using ECC based encryption.
-        /// </summary>
-        public static byte[] Encrypt(
-            byte[] dataToEncrypt,
-            ICertificate encryptingCertificate)
-        {
-            return dataToEncrypt;
-        }
-
-        /// <summary>
-        /// Encrypts the data using ECC based encryption.
-        /// </summary>
-        public static byte[] Decrypt(
-            ArraySegment<byte> dataToDecrypt,
-            ICertificate encryptingCertificate)
-        {
-            return dataToDecrypt.Array;
-        }
-#endif
-
         /// <summary>
         /// Computes an ECDSA signature.
         /// </summary>
