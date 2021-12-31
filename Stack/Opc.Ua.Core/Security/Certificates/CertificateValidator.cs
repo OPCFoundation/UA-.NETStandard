@@ -853,45 +853,48 @@ namespace Opc.Ua
             }
 
             // build chain.
-            X509Chain chain = new X509Chain();
-            chain.ChainPolicy = policy;
-            chain.Build(certificate);
-
-            // check the chain results.
-            CertificateIdentifier target = trustedCertificate;
-
-            if (target == null)
+            using (X509Chain chain = new X509Chain())
             {
-                target = new CertificateIdentifier(certificate);
-            }
+                chain.ChainPolicy = policy;
+                chain.Build(certificate);
+
+                // check the chain results.
+                CertificateIdentifier target = trustedCertificate;
+
+                if (target == null)
+                {
+                    target = new CertificateIdentifier(certificate);
+                }
 
             ServiceResult sresult = null;
             for (int ii = 0; ii < chain.ChainElements.Count; ii++)
             {
                 X509ChainElement element = chain.ChainElements[ii];
 
-                CertificateIdentifier issuer = null;
+                    CertificateIdentifier issuer = null;
 
-                if (ii < issuers.Count)
-                {
-                    issuer = issuers[ii];
-                }
-                // check for chain status errors.
-                if (element.ChainElementStatus.Length > 0)
-                {
-                    foreach (X509ChainStatus status in element.ChainElementStatus)
+                    if (ii < issuers.Count)
                     {
-                        ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
-                        if (ServiceResult.IsBad(result))
+                        issuer = issuers[ii];
+                    }
+
+                    // check for chain status errors.
+                    if (element.ChainElementStatus.Length > 0)
+                    {
+                        foreach (X509ChainStatus status in element.ChainElementStatus)
                         {
-                            sresult = new ServiceResult(result, sresult);
+                            ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
+                            if (ServiceResult.IsBad(result))
+                            {
+                                sresult = new ServiceResult(result, sresult);
+                            }
                         }
                     }
-                }
 
-                if (issuer != null)
-                {
-                    target = issuer;
+                    if (issuer != null)
+                    {
+                        target = issuer;
+                    }
                 }
             }
 

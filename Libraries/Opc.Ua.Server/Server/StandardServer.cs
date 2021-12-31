@@ -648,6 +648,7 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificateIssuerRevocationUnknown:
                 case StatusCodes.BadCertificateInvalid:
                 case StatusCodes.BadCertificateHostNameInvalid:
+                case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
                 {
                     return true;
