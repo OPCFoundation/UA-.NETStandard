@@ -501,13 +501,15 @@ namespace Opc.Ua.Bindings
             {
                 ServiceResultException innerException = e.InnerException as ServiceResultException;
 
-                // If the certificate structre, signature and trust list checks pass, we return the other specific validation errors instead of BadSecurityChecksFailed
+                // If the certificate structre, signature and trust list checks pass,
+                // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (innerException != null)
                 {
                     if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
                         innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
                         innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
                         innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
+                        innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
                         (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
                     {
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, e.Message);
@@ -528,7 +530,7 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                ForceChannelFault(e, StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
+                ForceChannelFault(StatusCodes.BadSecurityChecksFailed, "Could not verify security on OpenSecureChannel request.");
                 return false;
             }
 
