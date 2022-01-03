@@ -583,6 +583,8 @@ namespace Opc.Ua
             string serialNumber,
             string authorityKeyId)
         {
+            bool check = false;
+
             // check for null.
             if (certificate == null)
             {
@@ -602,6 +604,7 @@ namespace Opc.Ua
                 {
                     return false;
                 }
+                check = true;
             }
 
             // check for authority key id match.
@@ -615,11 +618,12 @@ namespace Opc.Ua
                     {
                         return false;
                     }
+                    check = true;
                 }
             }
 
-            // found match.
-            return true;
+            // found match if keyId or serial number was checked
+            return check;
         }
 
         /// <summary>

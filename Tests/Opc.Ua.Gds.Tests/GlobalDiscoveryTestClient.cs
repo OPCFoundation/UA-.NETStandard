@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Tests
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity AdminUser { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
+        public ApplicationConfiguration Configuration { get; private set; }
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Tests
 
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+            Configuration = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
@@ -74,11 +74,13 @@ namespace Opc.Ua.Gds.Tests
             };
 
             // build the application configuration.
-            Config = await application
+            Configuration = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
                 .AsClient()
+                .SetDefaultSessionTimeout(600000)
+                .SetMinSubscriptionLifetime(10000)
                 .AddSecurityConfiguration(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     pkiRoot)
@@ -98,10 +100,10 @@ namespace Opc.Ua.Gds.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            m_client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
+            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
+            m_client = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
@@ -129,7 +131,7 @@ namespace Opc.Ua.Gds.Tests
 
         public string ReadLogFile()
         {
-            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
