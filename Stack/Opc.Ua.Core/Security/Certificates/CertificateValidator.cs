@@ -853,6 +853,7 @@ namespace Opc.Ua
             }
 
             // build chain.
+            ServiceResult sresult = null;
             using (X509Chain chain = new X509Chain())
             {
                 chain.ChainPolicy = policy;
@@ -866,10 +867,9 @@ namespace Opc.Ua
                     target = new CertificateIdentifier(certificate);
                 }
 
-            ServiceResult sresult = null;
-            for (int ii = 0; ii < chain.ChainElements.Count; ii++)
-            {
-                X509ChainElement element = chain.ChainElements[ii];
+                for (int ii = 0; ii < chain.ChainElements.Count; ii++)
+                {
+                    X509ChainElement element = chain.ChainElements[ii];
 
                     CertificateIdentifier issuer = null;
 
