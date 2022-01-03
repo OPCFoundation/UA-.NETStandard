@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -2205,7 +2206,10 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        value = new Variant(array);
+#if DEBUG
+                        Debug.Assert(array.Rank == 1);
+#endif
+                        value = new Variant(array, new TypeInfo(builtInType, 1));
                     }
                 }
             }
