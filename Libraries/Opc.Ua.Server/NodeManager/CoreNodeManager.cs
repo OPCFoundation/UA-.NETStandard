@@ -2385,7 +2385,7 @@ namespace Opc.Ua.Server
             }
         }
         
-        #if XXX
+        #if XXX // TODO remove?
         /// <summary>
         /// Changes the type definition for an instance.
         /// </summary>

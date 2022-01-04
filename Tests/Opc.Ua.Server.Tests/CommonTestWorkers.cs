@@ -393,6 +393,132 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
         }
+
+        /// <summary>
+        /// Worker method to test TransferSubscriptions of a server.
+        /// </summary>
+        public static void CreateSubscriptionForTransfer(
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            NodeId testNode,
+            out UInt32Collection subscriptionIds)
+        {
+            // start time
+            requestHeader.Timestamp = DateTime.UtcNow;
+            uint subscriptionId = CreateSubscription(services, requestHeader);
+            //CreateMonitoredItem(services, requestHeader, subscriptionId, VariableIds.Server_ServerStatus_CurrentTime);
+            CreateMonitoredItem(services, requestHeader, subscriptionId, testNode);
+
+            subscriptionIds = new UInt32Collection();
+            subscriptionIds.Add(subscriptionId);
+
+            // enable publishing
+            var subscriptions = new UInt32Collection() { subscriptionId };
+            var response = services.SetPublishingMode(requestHeader, true, subscriptions,
+                        out var statuses, out var diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
+
+            // wait some time to settle
+            Thread.Sleep(1000);
+
+            // publish request
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            response = services.Publish(requestHeader, acknoledgements,
+                out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection _, out diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.AreEqual(subscriptionId, publishedId);
+            // static node, do not acknoledge
+            Assert.AreEqual(1, availableSequenceNumbers.Count);
+        }
+
+        /// <summary>
+        /// Worker method to test Transfer of subscriptions to new session.
+        /// </summary>
+        public static void TransferSubscriptionTest(
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialData)
+        {
+            Assert.AreEqual(1, subscriptionIds.Count);
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            var responseHeader = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData, out var results, out var _);
+            Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
+
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            var response = services.Publish(requestHeader, acknoledgements,
+                out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection _, out var diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.AreEqual(subscriptionIds[0], publishedId);
+            Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
+            //Assert.AreEqual(0, availableSequenceNumbers.Count);
+
+            Assert.AreEqual(1, results.Count);
+            var transferResult = results[0];
+            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+            Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+        }
         #endregion
+
+        #region Private Helpers
+        private static uint CreateSubscription(IServerTestServices services, RequestHeader requestHeader)
+        {
+            // start time
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            // create subscription
+            double publishingInterval = 1000.0;
+            uint lifetimeCount = 60;
+            uint maxKeepAliveCount = 2;
+            uint maxNotificationPerPublish = 0;
+            byte priority = 128;
+            bool enabled = false;
+
+            var response = services.CreateSubscription(requestHeader,
+                publishingInterval, lifetimeCount, maxKeepAliveCount,
+                maxNotificationPerPublish, enabled, priority,
+                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
+            ServerFixtureUtils.ValidateResponse(response);
+
+            return id;
+        }
+
+        private static void CreateMonitoredItem(
+            IServerTestServices services, RequestHeader requestHeader,
+            uint subscriptionId, NodeId nodeId)
+        {
+            uint queueSize = 5;
+            var itemsToCreate = new MonitoredItemCreateRequestCollection {
+                // add item
+                new MonitoredItemCreateRequest {
+                    ItemToMonitor = new ReadValueId {
+                        AttributeId = Attributes.Value,
+                        NodeId = nodeId
+                    },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters {
+                        ClientHandle = 1u,
+                        SamplingInterval = -1,
+                        Filter = null,
+                        DiscardOldest = true,
+                        QueueSize = queueSize
+                    }
+                }
+            };
+            var response = services.CreateMonitoredItems(requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
+                out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
+        }
+        #endregion
+
     }
 }

@@ -320,7 +320,6 @@ namespace Opc.Ua.Server.Tests
         {
             var serverTestServices = new ServerTestServices(m_server);
             CommonTestWorkers.SubscriptionTest(serverTestServices, m_requestHeader);
-
         }
 
         /// <summary>
@@ -328,83 +327,29 @@ namespace Opc.Ua.Server.Tests
         /// Create a secondary Session
         /// Transfer subscription with a monitored item from one session to the other
         /// </summary>
-        [Test]
-        public void TransferSubscription()
+        [Theory]
+        public void TransferSubscription(bool sendInitialData)
         {
             var serverTestServices = new ServerTestServices(m_server);
-
-            var subscriptionId = CreateSubscription(serverTestServices);
-            MonitoreItem(serverTestServices, subscriptionId);
-
             // save old security context, test fixture can only work with one session
             var securityContext = SecureChannelContext.Current;
-            var requestHeader = m_server.CreateAndActivateSession("Test");
+            try
+            {
+                NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testNode, out var subscriptionIds);
 
-            UInt32Collection subscriptionIds = new UInt32Collection();
-            subscriptionIds.Add(subscriptionId);
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession");
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData);
 
-            requestHeader.Timestamp = DateTime.UtcNow;
-            var responseHeader = m_server.TransferSubscriptions(requestHeader, subscriptionIds, false, out var results, out var _);
-            Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
-
-            Assert.AreEqual(1, results.Count);
-            var transferResult = results[0];
-            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-
-            requestHeader.Timestamp = DateTime.UtcNow;
-            m_server.CloseSession(requestHeader);
-
-            //restore security context, that close connection can work
-            SecureChannelContext.Current = securityContext;
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                m_server.CloseSession(transferRequestHeader);
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
         }
         #endregion
-
-        private uint CreateSubscription(IServerTestServices services)
-        {
-            // start time
-            m_requestHeader.Timestamp = DateTime.UtcNow;
-
-            // create subscription
-            double publishingInterval = 1000.0;
-            uint lifetimeCount = 60;
-            uint maxKeepAliveCount = 2;
-            uint maxNotificationPerPublish = 0;
-            byte priority = 128;
-            bool enabled = false;
-
-            var response = services.CreateSubscription(m_requestHeader,
-                publishingInterval, lifetimeCount, maxKeepAliveCount,
-                maxNotificationPerPublish, enabled, priority,
-                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
-            ServerFixtureUtils.ValidateResponse(response);
-
-            return id;
-        }
-
-        private void MonitoreItem(IServerTestServices services, uint subscriptionId)
-        {
-            uint queueSize = 5;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
-
-            // add item
-            itemsToCreate.Add(new MonitoredItemCreateRequest {
-                ItemToMonitor = new ReadValueId {
-                    AttributeId = Attributes.Value,
-                    NodeId = VariableIds.Server_ServerStatus_CurrentTime
-                },
-                MonitoringMode = MonitoringMode.Reporting,
-                RequestedParameters = new MonitoringParameters {
-                    ClientHandle = 1u,
-                    SamplingInterval = -1,
-                    Filter = null,
-                    DiscardOldest = true,
-                    QueueSize = queueSize
-                }
-            });
-            var response = services.CreateMonitoredItems(m_requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
-                out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
-        }
     }
 }
