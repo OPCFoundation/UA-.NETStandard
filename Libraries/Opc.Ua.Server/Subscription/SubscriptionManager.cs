@@ -443,10 +443,10 @@ namespace Opc.Ua.Server
 
                     if (!NodeId.IsNull(sessionId))
                     {
-                        // check that the subscrition is the owner.
+                        // check that the subscription is the owner.
                         if (context != null && !Object.ReferenceEquals(context.Session, subscription.Session))
                         {
-                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                            throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                         }
 
                         SessionPublishQueue queue = null;
@@ -1141,6 +1141,9 @@ namespace Opc.Ua.Server
             results = new TransferResultCollection();
             diagnosticInfos = new DiagnosticInfoCollection();
 
+            Utils.LogInfo("TransferSubscriptions to SessionId={0}, Count={1}, sendInitialValues={2}",
+                context.Session.Id, subscriptionIds.Count, sendInitialValues);
+
             for (int ii = 0; ii < subscriptionIds.Count; ii++)
             {
                 TransferResult result = new TransferResult();
@@ -1163,33 +1166,51 @@ namespace Opc.Ua.Server
                     }
 
                     // check if new and old sessions are different
-                    var oldSession = subscription.Session;
-                    if (oldSession != null && (oldSession.Id == null || oldSession.Id == NodeId.Null || oldSession.Id == context.Session.Id))
+                    var ownerSession = subscription.Session;
+                    if (ownerSession != null)
                     {
-                        result.StatusCode = StatusCodes.BadNothingToDo;
-                        results.Add(result);
-                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        if (!NodeId.IsNull(ownerSession.Id) && ownerSession.Id == context.Session.Id)
                         {
-                            diagnosticInfos.Add(null);
+                            result.StatusCode = StatusCodes.BadNothingToDo;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null);
+                            }
+                            continue;
                         }
-                        continue;
+
+                        // The Server shall validate that the Client of that Session is operating on behalf of the same user
+                        // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
+                        // --> Bad_UserAccessDenied
+                        // TODO: handle case when session was abandoned
+
+                        bool invalidIdentity = !Utils.IsEqual(ownerSession.IdentityToken, context.Session.IdentityToken);
+
+                        // special case UserNameIdentityToken, technically only the user name is relevant.
+                        if (invalidIdentity &&
+                            (ownerSession.IdentityToken is UserNameIdentityToken oldUser) &&
+                            (context.Session.IdentityToken is UserNameIdentityToken newUser))
+                        {
+                            invalidIdentity = !string.Equals(oldUser.UserName, newUser.UserName, StringComparison.Ordinal);
+                        }
+
+                        if (invalidIdentity)
+                        {
+                            result.StatusCode = StatusCodes.BadUserAccessDenied;
+                            results.Add(result);
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                diagnosticInfos.Add(null);
+                            }
+                            continue;
+                        }
                     }
 
-                    // The Server shall validate that the Client of that Session is operating on behalf of the same user
-                    // and that the potentially new Client supports the Profiles that are necessary for the Subscription.
-                    // --> Bad_UserAccessDenied
-                    if (oldSession != null && (!oldSession.IdentityToken.IsEqual(context.Session.IdentityToken)))
-                    {
-                        result.StatusCode = StatusCodes.BadUserAccessDenied;
-                        results.Add(result);
-                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                        {
-                            diagnosticInfos.Add(null);
-                        }
-                        continue;
-                    }
+#if TODO check the client profile
                     // --> Bad_InsufficientClientProfile
-                    if (!oldSession.CheckSecurityPolicyOfEndpoint(context.ChannelContext.EndpointDescription))
+                    if (oldSession == null ||
+                        !oldSession.CheckSecurityPolicyOfEndpoint(context.ChannelContext.EndpointDescription))
                     {
                         result.StatusCode = StatusCodes.BadInsufficientClientProfile;
                         results.Add(result);
@@ -1199,36 +1220,40 @@ namespace Opc.Ua.Server
                         }
                         continue;
                     }
+#endif
 
-                    // transfer session
+                    // transfer session, add subscription to publish queue
                     lock (m_lock)
                     {
-                        subscription.TransferSession(context.Session, sendInitialValues);
-                        if (!m_publishQueues.TryGetValue(context.SessionId, out var publishQueue))
+                        subscription.TransferSession(context, sendInitialValues);
+
+                        // remove from queue in old session
+                        if (ownerSession != null)
                         {
-                            if (publishQueue == null)
+                            if (m_publishQueues.TryGetValue(ownerSession.Id, out var ownerPublishQueue) &&
+                                ownerPublishQueue != null)
                             {
-                                m_publishQueues[context.SessionId] = publishQueue = new SessionPublishQueue(m_server, context.Session, m_maxPublishRequestCount);
+                                ownerPublishQueue.Remove(subscription);
                             }
-                            publishQueue.Add(subscription);
                         }
+
+                        // add to queue in new session, create queue if necessary
+                        if (!m_publishQueues.TryGetValue(context.SessionId, out var publishQueue) ||
+                            publishQueue == null)
+                        {
+                            m_publishQueues[context.SessionId] = publishQueue =
+                                new SessionPublishQueue(m_server, context.Session, m_maxPublishRequestCount);
+                        }
+                        publishQueue.Add(subscription);
                     }
 
                     lock (m_statusMessagesLock)
                     {
-                        if (!m_statusMessages.TryGetValue(context.SessionId, out var messagesQueue) && messagesQueue == null)
+                        if (!m_statusMessages.TryGetValue(context.SessionId, out var messagesQueue) ||
+                            messagesQueue == null)
                         {
                             m_statusMessages[context.SessionId] = new Queue<StatusMessage>();
                         }
-                    }
-
-                    lock (m_server.DiagnosticsWriteLock)
-                    {
-                        var publishingIntervalCount = GetPublishingIntervalCount();
-                        ServerDiagnosticsSummaryDataType diagnostics = m_server.ServerDiagnostics;
-                        diagnostics.CurrentSubscriptionCount++;
-                        diagnostics.CumulatedSubscriptionCount++;
-                        diagnostics.PublishingIntervalCount = publishingIntervalCount;
                     }
 
                     if (context.Session != null)
@@ -1244,18 +1269,23 @@ namespace Opc.Ua.Server
                     RaiseSubscriptionEvent(subscription, false);
                     result.StatusCode = StatusCodes.Good;
 
-                    //Server shall issue a StatusChangeNotification notificationMessage with the status code Good_SubscriptionTransferred to the old Session.
-                    //oldSession.
-                    var message = new StatusMessage();
-                    message.SubscriptionId = subscription.Id;
-                    message.Message = subscription.SubscriptionTransfered();
-                    if (oldSession != null && oldSession.Id != null && m_statusMessages.TryGetValue(oldSession.Id, out var queue))
+                    // Notify old session with Good_SubscriptionTransferred.
+                    if (ownerSession != null)
                     {
-                        queue.Enqueue(message);
+                        // TODO: Who counts diagnostics of old session
+
+                        if (!NodeId.IsNull(ownerSession.Id) && m_statusMessages.TryGetValue(ownerSession.Id, out var queue))
+                        {
+                            var message = new StatusMessage {
+                                SubscriptionId = subscription.Id,
+                                Message = subscription.SubscriptionTransferred()
+                            };
+                            queue.Enqueue(message);
+                        }
                     }
 
-                    //If the Server transfers the Subscription, it returns the sequence numbers of the NotificationMessages that are available for retransmission.
-                    //The Client should acknowledge all Messages in this list for which it will not request retransmission.
+                    // Return the sequence numbers that are available for retransmission.
+                    // The Client should acknowledge all Messages in this list for which it will not request retransmission.
                     result.AvailableSequenceNumbers = subscription.AvailableSequenceNumbersForRetransmission();
 
                     // save results.
@@ -1264,8 +1294,10 @@ namespace Opc.Ua.Server
                     {
                         diagnosticInfos.Add(null);
                     }
+
+                    Utils.LogInfo("Transferred subscription Id {0} to SessionId {1}", subscription.Id, context.Session.Id);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     result.StatusCode = StatusCodes.Bad;
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)

@@ -2474,6 +2474,34 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems)
+        {
+            List<bool> processedItems = new List<bool>(monitoredItems.Count);
+
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                processedItems.Add(monitoredItems[ii] == null);
+            }
+
+            // call each node manager.
+            foreach (INodeManager nodeManager in m_nodeManagers)
+            {
+                nodeManager.TransferMonitoredItems(
+                    context,
+                    subscriptionId,
+                    sendInitialValues,
+                    monitoredItems,
+                    processedItems);
+            }
+        }
+
+        /// <summary>
         /// Deletes a set of monitored items.
         /// </summary>
         public virtual void DeleteMonitoredItems(

@@ -301,6 +301,16 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors);
 
         /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        void TransferMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems);
+
+        /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
         /// </summary>
         void SetMonitoringMode(

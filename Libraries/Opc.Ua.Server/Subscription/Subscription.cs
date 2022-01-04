@@ -35,6 +35,7 @@ using System.Threading;
 using System.Runtime.Serialization;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -493,7 +494,7 @@ namespace Opc.Ua.Server
                     {
                         if (!m_waitingForPublish)
                         {
-                            // TraceState("READY TO PUBLISH");
+                            // TraceState(LogLevel.Trace, TraceStateId.Deleted, "READY TO PUBLISH");
                         }
 
                         m_waitingForPublish = true;
@@ -506,7 +507,7 @@ namespace Opc.Ua.Server
                 {
                     if (!m_waitingForPublish)
                     {
-                        // TraceState("READY TO KEEPALIVE");
+                        // TraceState(LogLevel.Trace, TraceStateId.Items, "READY TO KEEPALIVE");
                     }
 
                     m_waitingForPublish = true;
@@ -521,28 +522,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Transfers the subscription to a new session.
         /// </summary>
-        /// <param name="session">The session to which the subscription is transferred.</param>
-        /// <param name="sendInitialValues">the first Publish response(s) after the TransferSubscriptions
-        /// call shall contain the current values of all Monitored Items in the Subscription where the
-        /// Monitoring Mode is set to Reporting.</param>
-        public void TransferSession(Session session, bool sendInitialValues)
+        /// <param name="context">The session to which the subscription is transferred.</param>
+        /// <param name="sendInitialValues">Whether the first Publish response shall contain current values.</param> 
+        public void TransferSession(OperationContext context, bool sendInitialValues)
         {
             lock (m_lock)
             {
-                m_session = session;
+                m_session = context.Session;
             }
 
-            foreach(var monitoredItem in m_monitoredItems.Values)
-            {
-                if (sendInitialValues)
-                {
-                    var triggeredMonitoredItem = (monitoredItem as ITriggeredMonitoredItem);
-                    if (triggeredMonitoredItem != null)
-                    {
-                        triggeredMonitoredItem.SetTriggered();
-                    }
-                }
-            }
+            m_server.NodeManager.TransferMonitoredItems(context, Id, sendInitialValues, m_monitoredItems.Values.ToList());
 
             lock (DiagnosticsWriteLock)
             {
@@ -636,7 +625,7 @@ namespace Opc.Ua.Server
                     return StatusCodes.BadSequenceNumberInvalid;
                 }
 
-                // TraceState("ACK " + sequenceNumber.ToString());
+                // TraceState(LogLevel.Trace, TraceStateId.Items, "ACK " + sequenceNumber.ToString());
 
                 // message not found.
                 return StatusCodes.BadSequenceNumberUnknown;
@@ -686,7 +675,7 @@ namespace Opc.Ua.Server
                     // clear counters on success.
                     if (message != null)
                     {
-                        // TraceState(Utils.Format("PUBLISH #{0}", message.SequenceNumber));
+                        // TraceState(LogLevel.Trace, TraceStateId.Items, Utils.Format("PUBLISH #{0}", message.SequenceNumber));
                         ResetKeepaliveCount();
                         m_waitingForPublish = moreNotifications;
                         ResetLifetimeCount();
@@ -708,10 +697,10 @@ namespace Opc.Ua.Server
             {
                 m_expired = true;
 
-                message = new NotificationMessage();
-
-                message.SequenceNumber = (uint)m_sequenceNumber;
-                message.PublishTime = DateTime.UtcNow;
+                message = new NotificationMessage {
+                    SequenceNumber = (uint)m_sequenceNumber,
+                    PublishTime = DateTime.UtcNow
+                };
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
 
@@ -720,8 +709,9 @@ namespace Opc.Ua.Server
                     m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
                 }
 
-                StatusChangeNotification notification = new StatusChangeNotification();
-                notification.Status = StatusCodes.BadTimeout;
+                StatusChangeNotification notification = new StatusChangeNotification {
+                    Status = StatusCodes.BadTimeout
+                };
                 message.NotificationData.Add(new ExtensionObject(notification));
             }
 
@@ -729,17 +719,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Publishes a SubscriptionTransfered status message.
+        /// Publishes a SubscriptionTransferred status message.
         /// </summary>
-        public NotificationMessage SubscriptionTransfered()
+        public NotificationMessage SubscriptionTransferred()
         {
             NotificationMessage message = null;
 
             lock (m_lock)
             {
-                message = new NotificationMessage();
-                message.SequenceNumber = (uint)m_sequenceNumber;
-                message.PublishTime = DateTime.UtcNow;
+                message = new NotificationMessage {
+                    SequenceNumber = (uint)m_sequenceNumber,
+                    PublishTime = DateTime.UtcNow
+                };
 
                 Utils.IncrementIdentifier(ref m_sequenceNumber);
 
@@ -748,8 +739,9 @@ namespace Opc.Ua.Server
                     m_diagnostics.NextSequenceNumber = (uint)m_sequenceNumber;
                 }
 
-                StatusChangeNotification notification = new StatusChangeNotification();
-                notification.Status = StatusCodes.GoodSubscriptionTransferred;
+                var notification = new StatusChangeNotification {
+                    Status = StatusCodes.GoodSubscriptionTransferred
+                };
                 message.NotificationData.Add(new ExtensionObject(notification));
             }
 
@@ -767,7 +759,7 @@ namespace Opc.Ua.Server
             // check session.
             VerifySession(context);
 
-            // TraceState("PUBLISH");
+            // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH");
 
             // check if a keep alive should be sent if there is no data.
             bool keepAliveIfNoData = (m_keepAliveCounter >= m_maxKeepAliveCount);
@@ -786,7 +778,7 @@ namespace Opc.Ua.Server
 
                 moreNotifications = m_waitingForPublish = m_lastSentMessage < m_sentMessages.Count - 1;
 
-                // TraceState("PUBLISH QUEUED MESSAGE");
+                // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH QUEUED MESSAGE");
                 return m_sentMessages[m_lastSentMessage++];
             }
 
@@ -910,7 +902,7 @@ namespace Opc.Ua.Server
                     availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
                 }
 
-                // TraceState("PUBLISH KEEPALIVE");
+                // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
                 return message;
             }
 
@@ -955,7 +947,7 @@ namespace Opc.Ua.Server
                 availableSequenceNumbers.Add(m_sentMessages[ii].SequenceNumber);
             }
 
-            // TraceState("PUBLISH NEW MESSAGE");
+            // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH NEW MESSAGE");
             return m_sentMessages[m_lastSentMessage++];
         }
 
@@ -1812,7 +1804,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                foreach(var id in idsToList)
+                foreach (var id in idsToList)
                 {
                     m_monitoredItems.Remove(id);
                 }

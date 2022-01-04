@@ -214,6 +214,16 @@ namespace Opc.Ua.Server
         uint AttributeId { get; }
 
         /// <summary>
+        /// The index range requested by the monitored item.
+        /// </summary>
+        NumericRange IndexRange { get; }
+
+        /// <summary>
+        /// The data encoding requested by the monitored item.
+        /// </summary>
+        QualifiedName DataEncoding { get; }
+
+        /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
         void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters);

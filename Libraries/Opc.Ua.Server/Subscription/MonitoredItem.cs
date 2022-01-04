@@ -1267,7 +1267,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     ServerUtils.EventLog.DequeueValue(m_lastValue.WrappedValue, m_lastValue.StatusCode);
-                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
+                     Publish(context, notifications, diagnostics, m_lastValue, m_lastError);
                 }
 
                 // reset state variables.
