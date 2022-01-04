@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -171,36 +172,58 @@ namespace Opc.Ua
         }
 
         /// <summary cref="ICertificateStore.Delete(string)" />
-        public Task<bool> Delete(string thumbprint)
+        public async Task<bool> Delete(string thumbprint)
         {
-            lock (m_lock)
+            const int kRetries = 5;
+            const int kRetryDelay = 100;
+
+            int retry = kRetries;
+            bool found = false;
+
+            do
             {
-                bool found = false;
-
-                Entry entry = Find(thumbprint);
-
-                if (entry != null)
+                lock (m_lock)
                 {
-                    if (entry.PrivateKeyFile != null && entry.PrivateKeyFile.Exists)
+                    Entry entry = Find(thumbprint);
+                    try
                     {
-                        entry.PrivateKeyFile.Delete();
-                        found = true;
+                        if (entry != null)
+                        {
+                            if (entry.PrivateKeyFile != null && entry.PrivateKeyFile.Exists)
+                            {
+                                entry.PrivateKeyFile.Delete();
+                                found = true;
+                            }
+
+                            if (entry.CertificateFile != null && entry.CertificateFile.Exists)
+                            {
+                                entry.CertificateFile.Delete();
+                                found = true;
+                            }
+                        }
+                        retry = 0;
+                    }
+                    catch (IOException)
+                    {
+                        // file to delete may still be in use, retry
+                        Utils.LogWarning("Failed to delete cert [{0}], retry.", thumbprint);
+                        retry--;
                     }
 
-                    if (entry.CertificateFile != null && entry.CertificateFile.Exists)
+                    if (found)
                     {
-                        entry.CertificateFile.Delete();
-                        found = true;
+                        m_lastDirectoryCheck = DateTime.MinValue;
                     }
                 }
 
-                if (found)
+                if (retry > 0)
                 {
-                    m_lastDirectoryCheck = DateTime.MinValue;
+                    await Task.Delay(kRetryDelay).ConfigureAwait(false);
                 }
 
-                return Task.FromResult(found);
-            }
+            } while (retry > 0);
+
+            return found;
         }
 
         /// <summary cref="ICertificateStore.FindByThumbprint(string)" />
@@ -313,8 +336,13 @@ namespace Opc.Ua
                             {
                                 continue;
                             }
-
                         }
+                    }
+
+                    // skip if not RSA certificate
+                    if (X509Utils.GetRSAPublicKeySize(certificate) < 0)
+                    {
+                        continue;
                     }
 
                     string fileRoot = file.Name.Substring(0, file.Name.Length - file.Extension.Length);
@@ -353,7 +381,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Could not load private key for certificate " + subjectName);
+                    Utils.LogError(e, "Could not load private key for certificate " + subjectName);
                 }
             }
 
@@ -392,7 +420,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not parse CRL file.");
+                        Utils.LogError(e, "Could not parse CRL file.");
                         continue;
                     }
 
@@ -653,7 +681,7 @@ namespace Opc.Ua
                                 }
                                 catch (Exception e)
                                 {
-                                    Utils.Trace(e, "Could not load private key certificate from file: {0}", entry.PrivateKeyFile.Name);
+                                    Utils.LogError(e, "Could not load private key certificate from file: {0}", entry.PrivateKeyFile.Name);
                                 }
                             }
 
@@ -679,7 +707,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not load certificate from file: {0}", file.FullName);
+                        Utils.LogError(e, "Could not load certificate from file: {0}", file.FullName);
                     }
                 }
 

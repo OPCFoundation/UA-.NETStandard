@@ -35,7 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
-using Opc.Ua.Security.Certificates;
+using static Opc.Ua.Utils;
 
 namespace Opc.Ua.Server
 {
@@ -60,7 +60,9 @@ namespace Opc.Ua.Server
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_serverInternal"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_registrationTimer"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_configurationWatcher")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_serverInternal"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_registrationTimer"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_configurationWatcher")]
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -448,13 +450,13 @@ namespace Opc.Ua.Server
                     ServerInternal.ServerDiagnostics.CumulatedSessionCount++;
                 }
 
-                Utils.Trace("Server - SESSION CREATED. SessionId={0}", sessionId);
+                Utils.LogInfo("Server - SESSION CREATED. SessionId={0}", sessionId);
 
                 return CreateResponse(requestHeader, StatusCodes.Good);
             }
             catch (ServiceResultException e)
             {
-                Utils.Trace("Server - SESSION CREATE failed. {0}", e.Message);
+                Utils.LogError("Server - SESSION CREATE failed. {0}", e.Message);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
@@ -584,13 +586,13 @@ namespace Opc.Ua.Server
                     // TBD - call Node Manager and Subscription Manager.
                 }
 
-                Utils.Trace("Server - SESSION ACTIVATED.");
+                Utils.LogInfo("Server - SESSION ACTIVATED.");
 
                 return CreateResponse(requestHeader, StatusCodes.Good);
             }
             catch (ServiceResultException e)
             {
-                Utils.Trace("Server - SESSION ACTIVATE failed. {0}", e.Message);
+                Utils.LogInfo("Server - SESSION ACTIVATE failed. {0}", e.Message);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
                 {
@@ -646,6 +648,7 @@ namespace Opc.Ua.Server
                 case StatusCodes.BadCertificateIssuerRevocationUnknown:
                 case StatusCodes.BadCertificateInvalid:
                 case StatusCodes.BadCertificateHostNameInvalid:
+                case StatusCodes.BadCertificatePolicyCheckFailed:
                 case StatusCodes.BadApplicationSignatureInvalid:
                 {
                     return true;
@@ -1445,14 +1448,14 @@ namespace Opc.Ua.Server
                 // check if there is an odd delay.
                 if (DateTime.UtcNow > requestHeader.Timestamp.AddMilliseconds(100))
                 {
-                    Utils.Trace(
+                    Utils.LogTrace(m_eventId,
                         "WARNING. Unexpected delay receiving Publish request. Time={0:hh:mm:ss.fff}, ReceiveTime={1:hh:mm:ss.fff}",
                         DateTime.UtcNow,
                         requestHeader.Timestamp);
                 }
                 */
 
-                Utils.Trace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
+                Utils.LogTrace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
 
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
@@ -1467,7 +1470,7 @@ namespace Opc.Ua.Server
                 /*
                 if (notificationMessage != null)
                 {
-                    Utils.Trace(
+                    Utils.LogTrace(m_eventId, 
                         "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
                         subscriptionId,
                         notificationMessage.SequenceNumber,
@@ -1541,7 +1544,7 @@ namespace Opc.Ua.Server
                     operation.Response.DiagnosticInfos = diagnosticInfos;
                     operation.Response.NotificationMessage = notificationMessage;
 
-                    Utils.Trace("PUBLISH: #{0} Completed Synchronously", input.RequestHeader.RequestHandle);
+                    Utils.LogTrace("PUBLISH: #{0} Completed Synchronously", input.RequestHeader.RequestHandle);
                     request.OperationCompleted(operation.Response, null);
                 }
             }
@@ -2236,7 +2239,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.Trace("RegisterServer{0} failed for at: {1}. Exception={2}",
+                                Utils.LogWarning("RegisterServer{0} failed for at: {1}. Exception={2}",
                                     m_useRegisterServer2 ? "2" : "", endpoint.EndpointUrl, e.Message);
                                 m_useRegisterServer2 = !m_useRegisterServer2;
                             }
@@ -2251,7 +2254,7 @@ namespace Opc.Ua.Server
                                     }
                                     catch (Exception e)
                                     {
-                                        Utils.Trace("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                        Utils.LogWarning("Could not cleanly close connection with LDS. Exception={0}", e.Message);
                                     }
                                 }
                             }
@@ -2329,7 +2332,7 @@ namespace Opc.Ua.Server
                                 Timeout.Infinite);
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
-                            Utils.Trace("Register server succeeded. Registering again in {0} ms", m_maxRegistrationInterval);
+                            Utils.LogInfo("Register server succeeded. Registering again in {0} ms", m_maxRegistrationInterval);
                         }
                     }
                 }
@@ -2347,7 +2350,7 @@ namespace Opc.Ua.Server
                                 m_lastRegistrationInterval = m_maxRegistrationInterval;
                             }
 
-                            Utils.Trace("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
+                            Utils.LogInfo("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
 
                             // create timer.
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_lastRegistrationInterval, Timeout.Infinite);
@@ -2357,7 +2360,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected exception handling registration timer.");
+                Utils.LogError(e, "Unexpected exception handling registration timer.");
             }
         }
         #endregion
@@ -2430,6 +2433,8 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
+                LogInfo(TraceMasks.StartStop, "Server - Enter {0} state.", state.ToString());
+
                 m_serverInternal.CurrentState = state;
             }
         }
@@ -2482,11 +2487,7 @@ namespace Opc.Ua.Server
 
             OperationContext context = ServerInternal.SessionManager.ValidateRequest(requestHeader, requestType);
 
-            Utils.Trace(
-                (int)Utils.TraceMasks.Service,
-                "{0} Validated. ID={1}",
-                context.RequestType,
-                context.RequestId);
+            ServerUtils.EventLog.ServerCall(context.RequestType.ToString(), context.RequestId);
 
             // notify the request manager.
             ServerInternal.RequestManager.RequestReceived(context);
@@ -2642,7 +2643,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not load updated configuration file from: {0}", args);
+                Utils.LogError(e, "Could not load updated configuration file from: {0}", args);
             }
         }
 
@@ -2805,6 +2806,8 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - Start application {0}.", configuration.ApplicationName);
+
                     // create the datastore for the instance.
                     m_serverInternal = new ServerInternalData(
                         ServerProperties,
@@ -2813,13 +2816,16 @@ namespace Opc.Ua.Server
                         new CertificateValidator(),
                         InstanceCertificate);
 
-                    // create the manager responsible for providing localized string resources.
+                    // create the manager responsible for providing localized string resources.                    
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);
 
                     // create the manager responsible for incoming requests.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateRequestManager.");
                     RequestManager requestManager = CreateRequestManager(m_serverInternal, configuration);
 
                     // create the master node manager.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
                     MasterNodeManager masterNodeManager = CreateMasterNodeManager(m_serverInternal, configuration);
 
                     // add the node manager to the datastore.
@@ -2829,6 +2835,7 @@ namespace Opc.Ua.Server
                     masterNodeManager.Startup();
 
                     // create the manager responsible for handling events.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateEventManager.");
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                     // creates the server object.
@@ -2841,13 +2848,16 @@ namespace Opc.Ua.Server
                     OnNodeManagerStarted(m_serverInternal);
 
                     // create the manager responsible for aggregates.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateAggregateManager.");
                     m_serverInternal.AggregateManager = CreateAggregateManager(m_serverInternal, configuration);
 
                     // start the session manager.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSessionManager.");
                     SessionManager sessionManager = CreateSessionManager(m_serverInternal, configuration);
                     sessionManager.Startup();
 
                     // start the subscription manager.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
                     SubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
                     subscriptionManager.Startup();
 
@@ -2864,7 +2874,6 @@ namespace Opc.Ua.Server
                         ApplicationDescription serverDescription = ServerDescription;
 
                         m_registrationInfo = new RegisteredServer();
-
                         m_registrationInfo.ServerUri = serverDescription.ApplicationUri;
                         m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
                         m_registrationInfo.ProductUri = serverDescription.ProductUri;
@@ -2917,6 +2926,7 @@ namespace Opc.Ua.Server
 
                         if (m_maxRegistrationInterval > 0)
                         {
+                            Utils.LogInfo(TraceMasks.StartStop, "Server - Registration Timer started.");
                             m_registrationTimer = new Timer(OnRegisterServer, this, m_minRegistrationInterval, Timeout.Infinite);
                         }
                     }
@@ -2925,22 +2935,25 @@ namespace Opc.Ua.Server
                     SetServerState(ServerState.Running);
 
                     // all initialization is complete.
+                    Utils.LogInfo(TraceMasks.StartStop, "Server - Started.");
                     OnServerStarted(m_serverInternal);
 
                     // monitor the configuration file.
                     if (!String.IsNullOrEmpty(configuration.SourceFilePath))
                     {
+                        Utils.LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
-                        m_configurationWatcher.Changed += new EventHandler<ConfigurationWatcherEventArgs>(this.OnConfigurationChanged);
+                        m_configurationWatcher.Changed += this.OnConfigurationChanged;
                     }
 
                     CertificateValidator.CertificateUpdate += OnCertificateUpdate;
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error starting application");
+                    var message = "Unexpected error starting application";
+                    Utils.LogCritical(TraceMasks.StartStop, e, message);
                     m_serverInternal = null;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
+                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                     ServerError = error;
                     throw new ServiceResultException(error);
                 }
@@ -2952,6 +2965,8 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override void OnServerStopping()
         {
+            Utils.LogInfo(TraceMasks.StartStop, "Server - Stopping.");
+
             ShutDownDelay();
 
             // halt any outstanding timer.
@@ -2971,7 +2986,7 @@ namespace Opc.Ua.Server
                 {
                     // unregister from Discovery Server
                     m_registrationInfo.IsOnline = false;
-                    RegisterWithDiscoveryServer().Wait();
+                    RegisterWithDiscoveryServer().GetAwaiter().GetResult();
                 }
 
                 lock (m_lock)
@@ -3025,10 +3040,13 @@ namespace Opc.Ua.Server
                         ServerInternal.Status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
 
                         // exit if all client connections are closed.
-                        if (ServerInternal.SessionManager.GetSessions().Count == 0)
+                        var sessions = ServerInternal.SessionManager.GetSessions().Count;
+                        if (sessions == 0)
                         {
                             break;
                         }
+
+                        Utils.LogInfo(TraceMasks.StartStop, "{0} active sessions. Seconds until shutdown: {1}s", sessions, timeTillShutdown);
 
                         Thread.Sleep(1000);
                     }

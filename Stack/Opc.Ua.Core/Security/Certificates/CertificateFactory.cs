@@ -102,7 +102,7 @@ namespace Opc.Ua
                 {
                     if (!X509Utils.VerifyRSAKeyPair(certificate, certificate))
                     {
-                        Utils.Trace(Utils.TraceMasks.Error, "WARNING - Trying to add certificate to cache with invalid private key.");
+                        Utils.LogWarning("Trying to add certificate to cache with invalid private key.");
                         return null;
                     }
                 }
@@ -112,7 +112,7 @@ namespace Opc.Ua
 
                 if (m_certificates.Count > 100)
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "WARNING - Process certificate cache has {0} certificates in it.", m_certificates.Count);
+                    Utils.LogWarning("Certificate cache has {0} certificates in it.", m_certificates.Count);
                 }
 
             }

@@ -38,7 +38,7 @@ namespace Opc.Ua.Security
             EndpointDescription endpoint,
             X509Certificate2 clientCertificate,
             X509Certificate2 serverCertificate,
-            BinaryEncodingSupport encodingSupport)        
+            BinaryEncodingSupport encodingSupport)
         {
             // do nothing if security turned off.
             if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)
@@ -46,67 +46,39 @@ namespace Opc.Ua.Security
                 return;
             }
 
-            StringBuilder buffer = new StringBuilder();
-
-            buffer.Append("SECURE CHANNEL CREATED");
-            buffer.Append(" [");
-            buffer.Append(implementationInfo);
-            buffer.Append(']');
-            buffer.Append(" [ID=");
-            buffer.Append(secureChannelId);
-            buffer.Append(']');
-            buffer.Append(" Connected To: ");
-            buffer.Append(endpointUrl);
-
             if (endpoint != null)
             {
-                buffer.Append(" [");
-                buffer.AppendFormat(CultureInfo.InvariantCulture, "{0}", endpoint.SecurityMode);
-                buffer.Append('/');
-                buffer.Append(SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri));
-                buffer.Append('/');
-
+                string encoding;
                 if (encodingSupport == BinaryEncodingSupport.Required)
                 {
-                    buffer.Append("Binary");
+                    encoding = "Binary";
                 }
                 else if (encodingSupport == BinaryEncodingSupport.None)
                 {
-                    buffer.Append("Xml");
+                    encoding = "Xml";
                 }
                 else
                 {
-                    buffer.Append("BinaryOrXml");
+                    encoding = "BinaryOrXml";
                 }
 
-                buffer.Append(']');
+                Utils.LogInfo("SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2} [{3}/{4}/{5}]",
+                    implementationInfo, secureChannelId, endpointUrl,
+                    endpoint.SecurityMode.ToString(), SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri), encoding);
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
-                    if (clientCertificate != null)
-                    {
-                        buffer.Append(" Client Certificate: [");
-                        buffer.Append(clientCertificate.Subject);
-                        buffer.Append("] [");
-                        buffer.Append(clientCertificate.Thumbprint);
-                        buffer.Append(']');
-                    }
-
-                    if (serverCertificate != null)
-                    {
-                        buffer.Append(" Server Certificate: [");
-                        buffer.Append(serverCertificate.Subject);
-                        buffer.Append("] [");
-                        buffer.Append(serverCertificate.Thumbprint);
-                        buffer.Append(']');
-                    }
+                    Utils.LogCertificate("Client Certificate: ", clientCertificate);
+                    Utils.LogCertificate("Server Certificate: ", serverCertificate);
                 }
             }
-
-            Utils.Trace(Utils.TraceMasks.Security, buffer.ToString());
+            else
+            {
+                Utils.LogInfo("SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2}", implementationInfo, secureChannelId, endpointUrl);
+            }
         }
 
-        
+
         /// <summary>
         /// Called when a secure channel is renewed by the client.
         /// </summary>
@@ -122,17 +94,7 @@ namespace Opc.Ua.Security
                 return;
             }
 
-            StringBuilder buffer = new StringBuilder();
-
-            buffer.Append("SECURE CHANNEL RENEWED");
-            buffer.Append(" [");
-            buffer.Append(implementationInfo);
-            buffer.Append(']');
-            buffer.Append(" [ID=");
-            buffer.Append(secureChannelId);
-            buffer.Append(']');
-
-            Utils.Trace(Utils.TraceMasks.Security, buffer.ToString());
+            Utils.LogInfo("SECURE CHANNEL RENEWED [{0}] [ID={1}]", implementationInfo, secureChannelId);
         }
     }
 }

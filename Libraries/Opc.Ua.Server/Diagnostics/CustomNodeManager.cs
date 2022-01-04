@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -34,6 +34,7 @@ using System.Reflection;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.Server;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server
 {
@@ -1657,6 +1658,12 @@ namespace Opc.Ua.Server
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
                         value);
+#if DEBUG
+                    if (nodeToRead.AttributeId == Attributes.Value)
+                    {
+                        ServerUtils.EventLog.ReadValueRange(nodeToRead.NodeId, value.WrappedValue, nodeToRead.IndexRange);
+                    }
+#endif
                 }
 
                 // check for nothing to do.
@@ -1908,8 +1915,9 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    Utils.TraceDebug("WRITE: Value={0} Range={1}", nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
-
+#if DEBUG
+                    ServerUtils.EventLog.WriteValueRange(nodeToWrite.NodeId, nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
+#endif
                     PropertyState propertyState = handle.Node as PropertyState;
                     object previousPropertyValue = null;
 
@@ -3643,16 +3651,16 @@ namespace Opc.Ua.Server
         /// <param name="handle">The item handle.</param>
         /// <param name="monitoredItem">The monitored item.</param>
         protected virtual void ReadInitialValue(
-            ServerSystemContext context,
+            ISystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            IDataChangeMonitoredItem2 monitoredItem)
         {
-            DataValue initialValue = new DataValue();
-
-            initialValue.Value = null;
-            initialValue.ServerTimestamp = DateTime.UtcNow;
-            initialValue.SourceTimestamp = DateTime.MinValue;
-            initialValue.StatusCode = StatusCodes.BadWaitingForInitialData;
+            DataValue initialValue = new DataValue {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.BadWaitingForInitialData
+            };
 
             ServiceResult error = handle.Node.ReadAttribute(
                 context,
@@ -3661,7 +3669,7 @@ namespace Opc.Ua.Server
                 monitoredItem.DataEncoding,
                 initialValue);
 
-            monitoredItem.QueueValue(initialValue, error);
+            monitoredItem.QueueValue(initialValue, error, true);
         }
 
         /// <summary>
@@ -4165,6 +4173,58 @@ namespace Opc.Ua.Server
             // overridden by the sub-class.
         }
         #endregion
+
+        /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="subscriptionId">The subscription Id to which the monitored item is transferred.</param>
+        /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
+        /// <param name="monitoredItems">The set of monitoring items to update.</param>
+        /// <param name="processedItems"></param>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems,
+            IList<bool> processedItems)
+        {
+            ServerSystemContext systemContext = m_systemContext.Copy(context);
+            lock (Lock)
+            {
+                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                {
+                    // skip items that have already been processed.
+                    if (processedItems[ii] || monitoredItems[ii] == null)
+                    {
+                        continue;
+                    }
+
+                    // check handle.
+                    NodeHandle handle = IsHandleInNamespace(monitoredItems[ii].ManagerHandle);
+                    if (handle == null)
+                    {
+                        continue;
+                    }
+
+                    // owned by this node manager.
+                    processedItems[ii] = true;
+                    var monitoredItem = monitoredItems[ii];
+
+#if DEBUG
+                    Debug.Assert(subscriptionId == monitoredItem.SubscriptionId);
+#endif
+
+                    if (sendInitialValues && !monitoredItem.IsReadyToPublish)
+                    {
+                        if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
+                        {
+                            ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
+                        }
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.

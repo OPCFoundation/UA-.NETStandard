@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -582,7 +583,6 @@ namespace Opc.Ua
             }
 
             return value;
-
         }
 
         /// <summary>
@@ -1516,7 +1516,7 @@ namespace Opc.Ua
                         if (dimensions[ii] <= 0)
                         {
                             /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                            Utils.Trace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", ii, dimensions[ii]);
+                            Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", ii, dimensions[ii]);
                             dimensions[ii] = 0;
                             length = 0;
                             break;
@@ -1781,7 +1781,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(ex, "Error reading array of XmlElement.");
+                        Utils.LogError(ex, "Error reading array of XmlElement.");
                     }
 
                     break;
@@ -2010,7 +2010,7 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(extension.TypeId))
             {
-                Utils.Trace(
+                Utils.LogWarning(
                     "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
                     typeId);
             }
@@ -2049,7 +2049,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace("Could not decode known type {0}. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
+                        Utils.LogError("Could not decode known type {0}. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
                     }
                 }
 
@@ -2206,11 +2206,13 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        value = new Variant(array);
+#if DEBUG
+                        Debug.Assert(array.Rank == 1);
+#endif
+                        value = new Variant(array, new TypeInfo(builtInType, 1));
                     }
                 }
             }
-
             else
             {
                 switch ((BuiltInType)encodingByte)
@@ -2320,7 +2322,7 @@ namespace Opc.Ua
                         }
                         catch (Exception ex)
                         {
-                            Utils.Trace(ex, "Error reading xml element for variant.");
+                            Utils.LogError(ex, "Error reading xml element for variant.");
                             value.Set(StatusCodes.BadEncodingError);
                         }
                         break;

@@ -13,7 +13,6 @@
 using System;
 using System.Collections;
 using System.Threading;
-using System.Reflection;
 
 namespace Opc.Ua
 {
@@ -30,7 +29,7 @@ namespace Opc.Ua
         public ClientBase(ITransportChannel channel)
         {
             if (channel == null) throw new ArgumentNullException(nameof(channel));
-            
+
             m_channel = channel;
             m_useTransportChannel = true;
 
@@ -42,13 +41,13 @@ namespace Opc.Ua
             }
         }
         #endregion
-                
+
         #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
-        {   
+        {
             Dispose(true);
         }
 
@@ -138,10 +137,10 @@ namespace Opc.Ua
                     }
                 }
 
-                return channel; 
+                return channel;
             }
-            
-            protected set 
+
+            protected set
             {
                 ITransportChannel channel = m_channel;
                 m_channel = null;
@@ -159,7 +158,7 @@ namespace Opc.Ua
                     }
                 }
 
-                m_channel = value; 
+                m_channel = value;
             }
         }
 
@@ -244,7 +243,7 @@ namespace Opc.Ua
             }
         }
         #endregion
-        
+
         #region Public Methods
         /// <summary>
         /// Closes the channel.
@@ -402,13 +401,8 @@ namespace Opc.Ua
         protected virtual void UpdateRequestHeader(IServiceRequest request, bool useDefaults, string serviceName)
         {
             UpdateRequestHeader(request, useDefaults);
-
-            Utils.Trace(
-                (int)Utils.TraceMasks.Service, 
-                "{0} Called. RequestHandle={1}, PendingRequestCount={2}",
-                serviceName,
-                request.RequestHeader.RequestHandle,
-                Interlocked.Increment(ref m_pendingRequestCount));
+            int incrementedCount = Interlocked.Increment(ref m_pendingRequestCount);
+            Utils.EventLog.ServiceCallStart(serviceName, (int)request.RequestHeader.RequestHandle, incrementedCount);
         }
 
         /// <summary>
@@ -441,22 +435,11 @@ namespace Opc.Ua
 
             if (statusCode != StatusCodes.Good)
             {
-                Utils.Trace(
-                    (int)Utils.TraceMasks.Service,
-                    "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}",
-                    serviceName,
-                    requestHandle,
-                    statusCode,
-                    pendingRequestCount);
+                Utils.EventLog.ServiceCallBadStop(serviceName, (int)requestHandle, (int)statusCode.Code, pendingRequestCount);
             }
             else
             {
-                Utils.Trace(
-                    (int)Utils.TraceMasks.Service,
-                    "{0} Completed. RequestHandle={1}, PendingRequestCount={2}",
-                    serviceName,
-                    requestHandle,
-                    pendingRequestCount);
+                Utils.EventLog.ServiceCallStop(serviceName, (int)requestHandle, pendingRequestCount);
             }
         }
 

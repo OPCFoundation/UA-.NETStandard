@@ -624,7 +624,7 @@ namespace Opc.Ua.Gds.Tests
             )
         {
             m_pushClient.PushClient.AdminCredentials = sysAdmin ? m_pushClient.SysAdminUser : m_pushClient.AppUser;
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).Wait();
+            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
@@ -661,7 +661,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (_applicationRecord == null && discoveryUrl != null)
             {
-                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(discoveryUrl, true);
+                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_gdsClient.Configuration, discoveryUrl, true);
                 ApplicationDescription description = endpointDescription.Server;
                 _applicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { description.ApplicationName },
@@ -681,7 +681,7 @@ namespace Opc.Ua.Gds.Tests
             // add issuer and trusted certs to client stores
             NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(id, null);
             var trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-            AddTrustListToStore(m_gdsClient.Config.SecurityConfiguration, trustList);
+            AddTrustListToStore(m_gdsClient.Configuration.SecurityConfiguration, trustList);
             AddTrustListToStore(m_pushClient.Config.SecurityConfiguration, trustList);
         }
 
@@ -695,8 +695,8 @@ namespace Opc.Ua.Gds.Tests
         {
             DisconnectPushClient();
             Thread.Sleep(2000);
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).Wait();
+            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
+            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             Assert.AreEqual(
                 certificate,
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate

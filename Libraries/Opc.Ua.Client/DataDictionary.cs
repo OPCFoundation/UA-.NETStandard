@@ -293,11 +293,11 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Could not validate schema.");
                     if (throwOnError)
                     {
                         throw;
                     }
+                    Utils.LogWarning(e, "Could not validate XML schema, error is ignored.");
                 }
 
                 m_validator = validator;
@@ -313,11 +313,11 @@ namespace Opc.Ua.Client
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, $"Could not validate schema. {e.Message}");
                     if (throwOnError)
                     {
                         throw;
                     }
+                    Utils.LogWarning(e, "Could not validate binary schema, error is ignored.");
                 }
 
                 m_validator = validator;

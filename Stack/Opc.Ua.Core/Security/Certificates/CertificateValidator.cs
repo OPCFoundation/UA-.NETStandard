@@ -14,13 +14,12 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Validates certificates.
     /// </summary>
@@ -243,7 +242,7 @@ namespace Opc.Ua
         /// </summary>
         public bool AutoAcceptUntrustedCertificates
         {
-            get { return m_autoAcceptUntrustedCertificates; }
+            get => m_autoAcceptUntrustedCertificates;
             set
             {
                 lock (m_lock)
@@ -263,7 +262,7 @@ namespace Opc.Ua
         /// </summary>
         public bool RejectSHA1SignedCertificates
         {
-            get { return m_rejectSHA1SignedCertificates; }
+            get => m_rejectSHA1SignedCertificates;
             set
             {
                 lock (m_lock)
@@ -283,7 +282,7 @@ namespace Opc.Ua
         /// </summary>
         public bool RejectUnknownRevocationStatus
         {
-            get { return m_rejectUnknownRevocationStatus; }
+            get => m_rejectUnknownRevocationStatus;
             set
             {
                 lock (m_lock)
@@ -303,7 +302,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort MinimumCertificateKeySize
         {
-            get { return m_minimumCertificateKeySize; }
+            get => m_minimumCertificateKeySize;
             set
             {
                 lock (m_lock)
@@ -363,7 +362,6 @@ namespace Opc.Ua
             {
                 lock (m_lock)
                 {
-
                     InternalValidate(chain, endpoint).GetAwaiter().GetResult();
 
                     // add to list of validated certificates.
@@ -376,14 +374,16 @@ namespace Opc.Ua
                 if (ContainsUnsuppressibleSC(se.Result))
                 {
                     SaveCertificate(certificate);
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}.", certificate.Subject, se.Result.ToString());
-                    TraceInnerServiceResults(se.Result);
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
+                        certificate, se.Result.StatusCode);
+                    LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
                 }
                 else
                 {
-                    Utils.Trace("Certificate Vaildation failed for '{0}'. Reason={1}", certificate.Subject, se.ToLongString());
-                    TraceInnerServiceResults(se.Result);
+                    Utils.LogCertificate(LogLevel.Warning, "Certificate Validation failed. Reason={0}.",
+                        certificate, se.Result.StatusCode);
+                    LogInnerServiceResults(LogLevel.Warning, se.Result.InnerResult);
                 }
 
                 // invoke callback.
@@ -394,6 +394,7 @@ namespace Opc.Ua
                 {
                     do
                     {
+                        accept = false;
                         if (m_CertificateValidation != null)
                         {
                             CertificateValidationEventArgs args = new CertificateValidationEventArgs(serviceResult, certificate);
@@ -410,7 +411,7 @@ namespace Opc.Ua
                             serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                         {
                             accept = true;
-                            Utils.Trace(Utils.TraceMasks.Security, "Automatically accepted certificate: {0}", certificate.Subject);
+                            Utils.LogCertificate("Auto accepted certificate: ", certificate);
                         }
 
                         if (accept)
@@ -429,8 +430,9 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
-                        certificate.Subject, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={0}.",
+                        certificate, serviceResult != null ? serviceResult.StatusCode.ToString() : "Unknown Error");
+
                     SaveCertificate(certificate);
 
                     throw new ServiceResultException(se, StatusCodes.BadCertificateInvalid);
@@ -439,7 +441,7 @@ namespace Opc.Ua
                 // add to list of peers.
                 lock (m_lock)
                 {
-                    Utils.Trace("Validation error suppressed for '{0}'.", certificate.Subject);
+                    Utils.LogCertificate(LogLevel.Warning, "Validation errors suppressed: ", certificate);
                     m_validatedCertificates[certificate.Thumbprint] = new X509Certificate2(certificate.RawData);
                 }
             }
@@ -470,11 +472,11 @@ namespace Opc.Ua
         /// <summary>
         /// List all reasons for failing cert validation.
         /// </summary>
-        private static void TraceInnerServiceResults(ServiceResult result)
+        private static void LogInnerServiceResults(LogLevel logLevel, ServiceResult result)
         {
             while (result != null)
             {
-                Utils.Trace(Utils.TraceMasks.Security, " -- {0}", result.ToString());
+                Utils.Log(logLevel, Utils.TraceMasks.Security, " -- {0}", result.ToString());
                 result = result.InnerResult;
             }
         }
@@ -488,7 +490,7 @@ namespace Opc.Ua
             {
                 if (m_rejectedCertificateStore != null)
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Writing rejected certificate to directory: {0}", m_rejectedCertificateStore);
+                    Utils.LogTrace("Writing rejected certificate to: {0}", m_rejectedCertificateStore);
                     try
                     {
                         ICertificateStore store = m_rejectedCertificateStore.OpenStore();
@@ -516,7 +518,7 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
+                        Utils.LogError(e, "Could not write certificate to directory: {0}", m_rejectedCertificateStore);
                     }
                 }
             }
@@ -580,6 +582,8 @@ namespace Opc.Ua
             string serialNumber,
             string authorityKeyId)
         {
+            bool check = false;
+
             // check for null.
             if (certificate == null)
             {
@@ -599,6 +603,7 @@ namespace Opc.Ua
                 {
                     return false;
                 }
+                check = true;
             }
 
             // check for authority key id match.
@@ -612,11 +617,12 @@ namespace Opc.Ua
                     {
                         return false;
                     }
+                    check = true;
                 }
             }
 
-            // found match.
-            return true;
+            // found match if keyId or serial number was checked
+            return check;
         }
 
         /// <summary>
@@ -847,45 +853,48 @@ namespace Opc.Ua
             }
 
             // build chain.
-            X509Chain chain = new X509Chain();
-            chain.ChainPolicy = policy;
-            chain.Build(certificate);
-
-            // check the chain results.
-            CertificateIdentifier target = trustedCertificate;
-
-            if (target == null)
-            {
-                target = new CertificateIdentifier(certificate);
-            }
-
             ServiceResult sresult = null;
-            for (int ii = 0; ii < chain.ChainElements.Count; ii++)
+            using (X509Chain chain = new X509Chain())
             {
-                X509ChainElement element = chain.ChainElements[ii];
+                chain.ChainPolicy = policy;
+                chain.Build(certificate);
 
-                CertificateIdentifier issuer = null;
+                // check the chain results.
+                CertificateIdentifier target = trustedCertificate;
 
-                if (ii < issuers.Count)
+                if (target == null)
                 {
-                    issuer = issuers[ii];
+                    target = new CertificateIdentifier(certificate);
                 }
-                // check for chain status errors.
-                if (element.ChainElementStatus.Length > 0)
+
+                for (int ii = 0; ii < chain.ChainElements.Count; ii++)
                 {
-                    foreach (X509ChainStatus status in element.ChainElementStatus)
+                    X509ChainElement element = chain.ChainElements[ii];
+
+                    CertificateIdentifier issuer = null;
+
+                    if (ii < issuers.Count)
                     {
-                        ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
-                        if (ServiceResult.IsBad(result))
+                        issuer = issuers[ii];
+                    }
+
+                    // check for chain status errors.
+                    if (element.ChainElementStatus.Length > 0)
+                    {
+                        foreach (X509ChainStatus status in element.ChainElementStatus)
                         {
-                            sresult = new ServiceResult(result, sresult);
+                            ServiceResult result = CheckChainStatus(status, target, issuer, (ii != 0));
+                            if (ServiceResult.IsBad(result))
+                            {
+                                sresult = new ServiceResult(result, sresult);
+                            }
                         }
                     }
-                }
 
-                if (issuer != null)
-                {
-                    target = issuer;
+                    if (issuer != null)
+                    {
+                        target = issuer;
+                    }
                 }
             }
 
@@ -912,7 +921,7 @@ namespace Opc.Ua
             // check if certificate issuer is trusted.
             if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
             {
-                var message = CertificateMessage("Certificate Issuer is not trusted.", certificate);
+                var message = "Certificate Issuer is not trusted.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
             }
@@ -922,7 +931,7 @@ namespace Opc.Ua
             {
                 if (m_applicationCertificate == null || !Utils.IsEqual(m_applicationCertificate.RawData, certificate.RawData))
                 {
-                    var message = CertificateMessage("Certificate is not trusted.", certificate);
+                    var message = "Certificate is not trusted.";
                     sresult = new ServiceResult(StatusCodes.BadCertificateUntrusted,
                     null, null, message, null, sresult);
                 }
@@ -958,12 +967,14 @@ namespace Opc.Ua
             if (keySize < m_minimumCertificateKeySize)
             {
                 sresult = new ServiceResult(StatusCodes.BadCertificatePolicyCheckFailed,
-                    null, null, "Certificate doesn't meet minimum key length requirement.", null, sresult);
+                    null, null,
+                    $"Certificate doesn't meet minimum key length requirement. ({keySize}<{m_minimumCertificateKeySize})",
+                    null, sresult);
             }
 
             if (issuedByCA && chainIncomplete)
             {
-                var message = CertificateMessage("Certificate chain validation incomplete.", certificate);
+                var message = "Certificate chain validation incomplete.";
                 sresult = new ServiceResult(StatusCodes.BadCertificateChainIncomplete,
                     null, null, message, null, sresult);
             }
@@ -1017,8 +1028,8 @@ namespace Opc.Ua
                 if (!accept)
                 {
                     // write the invalid certificate to rejected store if specified.
-                    Utils.Trace(Utils.TraceMasks.Error, "Certificate '{0}' rejected. Reason={1}",
-                        serverCertificate.Subject, serviceResult.ToString());
+                    Utils.LogCertificate(LogLevel.Error, "Certificate rejected. Reason={1}.",
+                        serverCertificate, serviceResult != null ? serviceResult.ToString() : "Unknown Error");
                     SaveCertificate(serverCertificate);
 
                     throw serviceResult;
@@ -1159,20 +1170,6 @@ namespace Opc.Ua
                 oid.Value == "1.2.840.113549.1.1.5" || // sha1RSA
                 oid.Value == "1.3.14.3.2.13" ||        // sha1DSA
                 oid.Value == "1.3.14.3.2.27";          // dsaSHA1
-        }
-
-        /// <summary>
-        /// Returns a certificate information message.
-        /// </summary>
-        private string CertificateMessage(string error, X509Certificate2 certificate)
-        {
-            var message = new StringBuilder();
-            message.AppendLine(error)
-                .AppendFormat("SubjectName: {0}", certificate.SubjectName.Name)
-                .AppendLine()
-                .AppendFormat("IssuerName: {0}", certificate.IssuerName.Name)
-                .AppendLine();
-            return message.ToString();
         }
 
         /// <summary>
@@ -1331,8 +1328,8 @@ namespace Opc.Ua
         /// </summary>
         public bool Accept
         {
-            get { return m_accept; }
-            set { m_accept = value; }
+            get => m_accept;
+            set => m_accept = value;
         }
 
         /// <summary>
@@ -1341,8 +1338,8 @@ namespace Opc.Ua
         /// </summary>
         public bool AcceptAll
         {
-            get { return m_acceptAll; }
-            set { m_acceptAll = value; }
+            get => m_acceptAll;
+            set => m_acceptAll = value;
         }
         #endregion
 

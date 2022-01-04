@@ -35,29 +35,29 @@ using System.Threading;
 
 namespace Opc.Ua.Server
 {
-	/// <summary>
-	/// Manages a monitored item created by a client.
-	/// </summary>
-	public interface IMonitoredItem
+    /// <summary>
+    /// Manages a monitored item created by a client.
+    /// </summary>
+    public interface IMonitoredItem
     {
-		/// <summary>
-		/// The node manager that created the item.
-		/// </summary>
+        /// <summary>
+        /// The node manager that created the item.
+        /// </summary>
         INodeManager NodeManager { get; }
 
-		/// <summary>
-		/// The session that owns the monitored item.
-		/// </summary>
-		Session Session { get; }
+        /// <summary>
+        /// The session that owns the monitored item.
+        /// </summary>
+        Session Session { get; }
 
-		/// <summary>
-		/// The identifier for the item that is unique within the server.
-		/// </summary>
-		uint Id { get; }
+        /// <summary>
+        /// The identifier for the item that is unique within the server.
+        /// </summary>
+        uint Id { get; }
 
-		/// <summary>
-		/// The identifier for the subscription that is unique within the server.
-		/// </summary>
+        /// <summary>
+        /// The identifier for the subscription that is unique within the server.
+        /// </summary>
         uint SubscriptionId { get; }
 
         /// <summary>
@@ -70,10 +70,10 @@ namespace Opc.Ua.Server
         /// </summary>
         ISubscription SubscriptionCallback { get; set; }
 
-		/// <summary>
-		/// The handle assigned by the NodeManager.
-		/// </summary>
-		object ManagerHandle { get; }
+        /// <summary>
+        /// The handle assigned by the NodeManager.
+        /// </summary>
+        object ManagerHandle { get; }
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.
@@ -94,14 +94,14 @@ namespace Opc.Ua.Server
         /// </summary>
         bool IsReadyToTrigger { get; set; }
 
-		/// <summary>
-		/// Returns the result after creating the monitor item.
-		/// </summary>
+        /// <summary>
+        /// Returns the result after creating the monitor item.
+        /// </summary>
         ServiceResult GetCreateResult(out MonitoredItemCreateResult result);
 
-		/// <summary>
-		/// Returns the result after modifying the monitor item.
-		/// </summary>
+        /// <summary>
+        /// Returns the result after modifying the monitor item.
+        /// </summary>
         ServiceResult GetModifyResult(out MonitoredItemModifyResult result);
 
         /// <summary>
@@ -113,11 +113,11 @@ namespace Opc.Ua.Server
         /// The sampling interval for the item.
         /// </summary>
         double SamplingInterval { get; }
-	}
+    }
 
-	/// <summary>
-	/// A monitored item that can be triggered.
-	/// </summary>
+    /// <summary>
+    /// A monitored item that can be triggered.
+    /// </summary>
     public interface ITriggeredMonitoredItem
     {
         /// <summary>
@@ -132,10 +132,10 @@ namespace Opc.Ua.Server
         bool SetTriggered();
     }
 
-	/// <summary>
-	/// Manages a monitored item created by a client.
-	/// </summary>
-	public interface IEventMonitoredItem : IMonitoredItem
+    /// <summary>
+    /// Manages a monitored item created by a client.
+    /// </summary>
+    public interface IEventMonitoredItem : IMonitoredItem
     {
         /// <summary>
         /// Whether the item is monitoring all events produced by the server.
@@ -147,13 +147,13 @@ namespace Opc.Ua.Server
         /// </summary>
         void QueueEvent(IFilterTarget instance);
 
-		/// <summary>
-		/// The filter used by the monitored item.
-		/// </summary>
-		EventFilter EventFilter { get; }
+        /// <summary>
+        /// The filter used by the monitored item.
+        /// </summary>
+        EventFilter EventFilter { get; }
 
-		/// <summary>
-		/// Publishes all available event notifications.
+        /// <summary>
+        /// Publishes all available event notifications.
         /// </summary>
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
         bool Publish(OperationContext context, Queue<EventFieldList> notifications);
@@ -176,42 +176,52 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for the item.
         /// </summary>
         void SetMonitoringMode(MonitoringMode monitoringMode);
-	}
+    }
 
-	/// <summary>
-	/// Manages a monitored item created by a client.
-	/// </summary>
-	public interface IDataChangeMonitoredItem : IMonitoredItem
+    /// <summary>
+    /// Manages a monitored item created by a client.
+    /// </summary>
+    public interface IDataChangeMonitoredItem : IMonitoredItem
     {
-      	/// <summary>
-		/// Updates the queue with a data value or an error.
-		/// </summary>
-		void QueueValue(DataValue value, ServiceResult error);
+        /// <summary>
+        /// Updates the queue with a data value or an error.
+        /// </summary>
+        void QueueValue(DataValue value, ServiceResult error);
 
-		/// <summary>
-		/// The filter used by the monitored item.
-		/// </summary>
-		DataChangeFilter DataChangeFilter { get; }
+        /// <summary>
+        /// The filter used by the monitored item.
+        /// </summary>
+        DataChangeFilter DataChangeFilter { get; }
 
-		/// <summary>
-		/// Publishes all available data change notifications.
-		/// </summary>
+        /// <summary>
+        /// Publishes all available data change notifications.
+        /// </summary>
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
-		bool Publish(
-            OperationContext                 context,
+        bool Publish(
+            OperationContext context,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics);
-	}
+    }
 
-	/// <summary>
-	/// Manages a monitored item created by a client.
-	/// </summary>
+    /// <summary>
+    /// Manages a monitored item created by a client.
+    /// </summary>
     public interface IDataChangeMonitoredItem2 : IDataChangeMonitoredItem
     {
         /// <summary>
         /// The attribute being monitored.
         /// </summary>
         uint AttributeId { get; }
+
+        /// <summary>
+        /// The index range requested by the monitored item.
+        /// </summary>
+        NumericRange IndexRange { get; }
+
+        /// <summary>
+        /// The data encoding requested by the monitored item.
+        /// </summary>
+        QualifiedName DataEncoding { get; }
 
         /// <summary>
         /// Updates the queue with a data value or an error.
@@ -249,28 +259,28 @@ namespace Opc.Ua.Server
         /// </summary>
         ReadValueId GetReadValueId();
 
-		/// <summary>
-		/// Modifies the attributes for monitored item.
-		/// </summary>
-		ServiceResult ModifyAttributes(
-            DiagnosticsMasks   diagnosticsMasks,
+        /// <summary>
+        /// Modifies the attributes for monitored item.
+        /// </summary>
+        ServiceResult ModifyAttributes(
+            DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
-            uint               clientHandle,
-            MonitoringFilter   originalFilter,
-            MonitoringFilter   filterToUse,
-            Range              range,
-            double             samplingInterval,
-            uint               queueSize,
-            bool               discardOldest);
+            uint clientHandle,
+            MonitoringFilter originalFilter,
+            MonitoringFilter filterToUse,
+            Range range,
+            double samplingInterval,
+            uint queueSize,
+            bool discardOldest);
 
         /// <summary>
-		/// Changes the monitoring mode for the item.
-		/// </summary>
+        /// Changes the monitoring mode for the item.
+        /// </summary>
         void SetMonitoringMode(MonitoringMode monitoringMode);
 
-		/// <summary>
-		/// Updates the sampling interval for an item.
-		/// </summary>
+        /// <summary>
+        /// Updates the sampling interval for an item.
+        /// </summary>
         void SetSamplingInterval(double samplingInterval);
     }
 

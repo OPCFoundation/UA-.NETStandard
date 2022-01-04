@@ -45,10 +45,10 @@ namespace Opc.Ua.Server
         /// Initializes the object with default values.
         /// </summary>
         public MasterNodeManager(
-            IServerInternal          server,
+            IServerInternal server,
             ApplicationConfiguration configuration,
-            string                   dynamicNamespaceUri,
-            params INodeManager[]    additionalManagers)
+            string dynamicNamespaceUri,
+            params INodeManager[] additionalManagers)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
@@ -116,8 +116,8 @@ namespace Opc.Ua.Server
         /// Registers the node manager with the master node manager.
         /// </summary>
         private void RegisterNodeManager(
-            INodeManager                        nodeManager,
-            List<INodeManager>                  registeredManagers,
+            INodeManager nodeManager,
+            List<INodeManager> registeredManagers,
             Dictionary<int, List<INodeManager>> namespaceManagers)
         {
             m_nodeManagers.Add(nodeManager);
@@ -303,7 +303,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                Utils.Trace(
+                Utils.LogInfo(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Startup - NodeManagers={0}",
                     m_nodeManagers.Count);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error creating address space for NodeManager #{0}.", ii);
+                        Utils.LogError(e, "Unexpected error creating address space for NodeManager #{0}.", ii);
                     }
                 }
 
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception e)
                     {
-                        Utils.Trace(e, "Unexpected error adding references for NodeManager #{0}.", ii);
+                        Utils.LogError(e, "Unexpected error adding references for NodeManager #{0}.", ii);
                     }
                 }
             }
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server
                         }
                         catch (Exception e)
                         {
-                            Utils.Trace(e, "Unexpected error closing session for NodeManager #{0}.", ii);
+                            Utils.LogError(e, "Unexpected error closing session for NodeManager #{0}.", ii);
                         }
                     }
                 }
@@ -369,13 +369,13 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Shuts down the node managers a
+        /// Shuts down the node managers.
         /// </summary>
         public virtual void Shutdown()
         {
             lock (m_lock)
             {
-                Utils.Trace(
+                Utils.LogInfo(
                     Utils.TraceMasks.StartStop,
                     "MasterNodeManager.Shutdown - NodeManagers={0}",
                     m_nodeManagers.Count);
@@ -593,7 +593,7 @@ namespace Opc.Ua.Server
                 registeredNodeIds.Add(nodesToRegister[ii]);
             }
 
-            Utils.Trace(
+            Utils.LogTrace(
                 (int)Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.RegisterNodes - Count={0}",
                 nodesToRegister.Count);
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server
         {
             if (nodesToUnregister == null) throw new ArgumentNullException(nameof(nodesToUnregister));
 
-            Utils.Trace(
+            Utils.LogTrace(
                 (int)Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.UnregisterNodes - Count={0}",
                 nodesToUnregister.Count);
@@ -647,10 +647,10 @@ namespace Opc.Ua.Server
         /// Translates a start node id plus a relative paths into a node id.
         /// </summary>
         public virtual void TranslateBrowsePathsToNodeIds(
-            OperationContext               context,
-            BrowsePathCollection           browsePaths,
+            OperationContext context,
+            BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection   diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (browsePaths == null) throw new ArgumentNullException(nameof(browsePaths));
 
@@ -721,8 +721,8 @@ namespace Opc.Ua.Server
         /// Updates the diagnostics return parameter.
         /// </summary>
         private void UpdateDiagnostics(
-            OperationContext             context,
-            bool                         diagnosticsExist,
+            OperationContext context,
+            bool diagnosticsExist,
             ref DiagnosticInfoCollection diagnosticInfos)
         {
             if (diagnosticInfos == null)
@@ -762,7 +762,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected ServiceResult TranslateBrowsePath(
             OperationContext context,
-            BrowsePath       browsePath,
+            BrowsePath browsePath,
             BrowsePathResult result)
         {
             Debug.Assert(browsePath != null);
@@ -822,12 +822,12 @@ namespace Opc.Ua.Server
         /// Recursively processes the elements in the RelativePath starting at the specified index.
         /// </summary>
         private void TranslateBrowsePath(
-            OperationContext           context,
-            INodeManager               nodeManager,
-            object                     sourceHandle,
-            RelativePath               relativePath,
+            OperationContext context,
+            INodeManager nodeManager,
+            object sourceHandle,
+            RelativePath relativePath,
             BrowsePathTargetCollection targets,
-            int                        index)
+            int index)
         {
             Debug.Assert(nodeManager != null);
             Debug.Assert(sourceHandle != null);
@@ -869,7 +869,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Unexpected error translating browse path.");
+                Utils.LogError(e, "Unexpected error translating browse path.");
                 return;
             }
 
@@ -980,11 +980,11 @@ namespace Opc.Ua.Server
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
         public virtual void Browse(
-            OperationContext             context,
-            ViewDescription              view,
-            uint                         maxReferencesPerNode,
-            BrowseDescriptionCollection  nodesToBrowse,
-            out BrowseResultCollection   results,
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            BrowseDescriptionCollection nodesToBrowse,
+            out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -1137,10 +1137,10 @@ namespace Opc.Ua.Server
         /// Continues a browse operation that was previously halted.
         /// </summary>
         public virtual void BrowseNext(
-            OperationContext             context,
-            bool                         releaseContinuationPoints,
-            ByteStringCollection         continuationPoints,
-            out BrowseResultCollection   results,
+            OperationContext context,
+            bool releaseContinuationPoints,
+            ByteStringCollection continuationPoints,
+            out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -1276,12 +1276,12 @@ namespace Opc.Ua.Server
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
         private ServiceResult Browse(
-            OperationContext  context,
-            ViewDescription   view,
-            uint              maxReferencesPerNode,
-            bool              assignContinuationPoint,
+            OperationContext context,
+            ViewDescription view,
+            uint maxReferencesPerNode,
+            bool assignContinuationPoint,
             BrowseDescription nodeToBrowse,
-            BrowseResult      result)
+            BrowseResult result)
         {
             Debug.Assert(context != null);
             Debug.Assert(nodeToBrowse != null);
@@ -1316,17 +1316,17 @@ namespace Opc.Ua.Server
             // create a continuation point.
             ContinuationPoint cp = new ContinuationPoint();
 
-            cp.Manager            = nodeManager;
-            cp.View               = view;
-            cp.NodeToBrowse       = handle;
+            cp.Manager = nodeManager;
+            cp.View = view;
+            cp.NodeToBrowse = handle;
             cp.MaxResultsToReturn = maxReferencesPerNode;
-            cp.BrowseDirection    = nodeToBrowse.BrowseDirection;
-            cp.ReferenceTypeId    = nodeToBrowse.ReferenceTypeId;
-            cp.IncludeSubtypes    = nodeToBrowse.IncludeSubtypes;
-            cp.NodeClassMask      = nodeToBrowse.NodeClassMask;
-            cp.ResultMask         = (BrowseResultMask)nodeToBrowse.ResultMask;
-            cp.Index              = 0;
-            cp.Data               = null;
+            cp.BrowseDirection = nodeToBrowse.BrowseDirection;
+            cp.ReferenceTypeId = nodeToBrowse.ReferenceTypeId;
+            cp.IncludeSubtypes = nodeToBrowse.IncludeSubtypes;
+            cp.NodeClassMask = nodeToBrowse.NodeClassMask;
+            cp.ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask;
+            cp.Index = 0;
+            cp.Data = null;
 
             // check if reference type left unspecified.
             if (NodeId.IsNull(cp.ReferenceTypeId))
@@ -1355,9 +1355,9 @@ namespace Opc.Ua.Server
         /// Loops until browse is complete for max results reached.
         /// </summary>
         protected ServiceResult FetchReferences(
-            OperationContext                   context,
-            bool                               assignContinuationPoint,
-            ref ContinuationPoint              cp,
+            OperationContext context,
+            bool assignContinuationPoint,
+            ref ContinuationPoint cp,
             ref ReferenceDescriptionCollection references)
         {
             Debug.Assert(context != null);
@@ -1434,10 +1434,10 @@ namespace Opc.Ua.Server
         /// Updates the reference description with the node attributes.
         /// </summary>
         private bool UpdateReferenceDescription(
-            OperationContext     context,
-            NodeId               targetId,
-            NodeClass            nodeClassMask,
-            BrowseResultMask     resultMask,
+            OperationContext context,
+            NodeId targetId,
+            NodeClass nodeClassMask,
+            BrowseResultMask resultMask,
             ReferenceDescription description)
         {
             if (targetId == null) throw new ArgumentNullException(nameof(targetId));
@@ -1483,14 +1483,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reads a set of nodes
+        /// Reads a set of nodes.
         /// </summary>
         public virtual void Read(
-            OperationContext             context,
-            double                       maxAge,
-            TimestampsToReturn           timestampsToReturn,
-            ReadValueIdCollection        nodesToRead,
-            out DataValueCollection      values,
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ReadValueIdCollection nodesToRead,
+            out DataValueCollection values,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             if (nodesToRead == null) throw new ArgumentNullException(nameof(nodesToRead));
@@ -1519,7 +1519,7 @@ namespace Opc.Ua.Server
             // add placeholder for each result.
             bool validItems = false;
 
-            Utils.Trace(
+            Utils.LogTrace(
                 (int)Utils.TraceMasks.ServiceDetail,
                 "MasterNodeManager.Read - Count={0}",
                 nodesToRead.Count);
@@ -1555,12 +1555,13 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
-                    Utils.Trace(
+#if VERBOSE
+                    Utils.LogTrace(
                         (int)Utils.TraceMasks.ServiceDetail,
                         "MasterNodeManager.Read - Calling NodeManager {0} of {1}",
                         ii,
                         m_nodeManagers.Count);
-
+#endif
                     m_nodeManagers[ii].Read(
                         context,
                         maxAge,
@@ -1619,13 +1620,13 @@ namespace Opc.Ua.Server
         /// Reads the history of a set of items.
         /// </summary>
         public virtual void HistoryRead(
-            OperationContext                context,
-            ExtensionObject                 historyReadDetails,
-            TimestampsToReturn              timestampsToReturn,
-            bool                            releaseContinuationPoints,
-            HistoryReadValueIdCollection    nodesToRead,
+            OperationContext context,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueIdCollection nodesToRead,
             out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection    diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             // validate history details parameter.
             if (ExtensionObject.IsNull(historyReadDetails))
@@ -1744,9 +1745,9 @@ namespace Opc.Ua.Server
         /// Writes a set of values.
         /// </summary>
         public virtual void Write(
-            OperationContext             context,
-            WriteValueCollection         nodesToWrite,
-            out StatusCodeCollection     results,
+            OperationContext context,
+            WriteValueCollection nodesToWrite,
+            out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
@@ -1839,10 +1840,10 @@ namespace Opc.Ua.Server
         /// Updates the history for a set of nodes.
         /// </summary>
         public virtual void HistoryUpdate(
-            OperationContext                  context,
-            ExtensionObjectCollection         historyUpdateDetails,
+            OperationContext context,
+            ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection      diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             Type detailsType = null;
             List<HistoryUpdateDetails> nodesToUpdate = new List<HistoryUpdateDetails>();
@@ -1973,10 +1974,10 @@ namespace Opc.Ua.Server
         /// Calls a method defined on a object.
         /// </summary>
         public virtual void Call(
-            OperationContext               context,
-            CallMethodRequestCollection    methodsToCall,
+            OperationContext context,
+            CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection   diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (methodsToCall == null) throw new ArgumentNullException(nameof(methodsToCall));
@@ -2079,7 +2080,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Error calling ConditionRefresh on NodeManager.");
+                    Utils.LogError(e, "Error calling ConditionRefresh on NodeManager.");
                 }
             }
         }
@@ -2088,19 +2089,19 @@ namespace Opc.Ua.Server
         /// Creates a set of monitored items.
         /// </summary>
         public virtual void CreateMonitoredItems(
-            OperationContext                  context,
-            uint                              subscriptionId,
-            double                            publishingInterval,
-            TimestampsToReturn                timestampsToReturn,
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
             IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult>              errors,
-            IList<MonitoringFilterResult>     filterResults,
-            IList<IMonitoredItem>             monitoredItems)
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IMonitoredItem> monitoredItems)
         {
-            if (context == null)        throw new ArgumentNullException(nameof(context));
-            if (itemsToCreate == null)  throw new ArgumentNullException(nameof(itemsToCreate));
-            if (errors == null)         throw new ArgumentNullException(nameof(errors));
-            if (filterResults == null)   throw new ArgumentNullException(nameof(filterResults));
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (itemsToCreate == null) throw new ArgumentNullException(nameof(itemsToCreate));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (filterResults == null) throw new ArgumentNullException(nameof(filterResults));
             if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
             if (publishingInterval < 0) throw new ArgumentOutOfRangeException(nameof(publishingInterval));
 
@@ -2173,15 +2174,15 @@ namespace Opc.Ua.Server
         /// Create monitored items for event subscriptions.
         /// </summary>
         private void CreateMonitoredItemsForEvents(
-            OperationContext                  context,
-            uint                              subscriptionId,
-            double                            publishingInterval,
-            TimestampsToReturn                timestampsToReturn,
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
             IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult>              errors,
-            IList<MonitoringFilterResult>     filterResults,
-            IList<IMonitoredItem>             monitoredItems,
-            ref long                          globalIdCounter)
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IMonitoredItem> monitoredItems,
+            ref long globalIdCounter)
         {
             for (int ii = 0; ii < itemsToCreate.Count; ii++)
             {
@@ -2280,7 +2281,7 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                Utils.Trace(e, "NodeManager threw an exception subscribing to all events. NodeManager={0}", manager);
+                                Utils.LogError(e, "NodeManager threw an exception subscribing to all events. NodeManager={0}", manager);
                             }
                         }
                     }
@@ -2308,18 +2309,18 @@ namespace Opc.Ua.Server
         /// Modifies a set of monitored items.
         /// </summary>
         public virtual void ModifyMonitoredItems(
-            OperationContext                  context,
-            TimestampsToReturn                timestampsToReturn,
-            IList<IMonitoredItem>             monitoredItems,
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
-            IList<ServiceResult>              errors,
-            IList<MonitoringFilterResult>     filterResults)
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults)
         {
-            if (context == null)        throw new ArgumentNullException(nameof(context));
-            if (itemsToModify == null)  throw new ArgumentNullException(nameof(itemsToModify));
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (itemsToModify == null) throw new ArgumentNullException(nameof(itemsToModify));
             if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-            if (errors == null)         throw new ArgumentNullException(nameof(errors));
-            if (filterResults == null)   throw new ArgumentNullException(nameof(filterResults));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (filterResults == null) throw new ArgumentNullException(nameof(filterResults));
 
             if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
             {
@@ -2390,12 +2391,12 @@ namespace Opc.Ua.Server
         /// Modify monitored items for event subscriptions.
         /// </summary>
         private void ModifyMonitoredItemsForEvents(
-            OperationContext                  context,
-            TimestampsToReturn                timestampsToReturn,
-            IList<IMonitoredItem>             monitoredItems,
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
-            IList<ServiceResult>              errors,
-            IList<MonitoringFilterResult>     filterResults)
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults)
         {
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
@@ -2473,17 +2474,45 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Transfers a set of monitored items.
+        /// </summary>
+        public virtual void TransferMonitoredItems(
+            OperationContext context,
+            uint subscriptionId,
+            bool sendInitialValues,
+            IList<IMonitoredItem> monitoredItems)
+        {
+            List<bool> processedItems = new List<bool>(monitoredItems.Count);
+
+            for (int ii = 0; ii < monitoredItems.Count; ii++)
+            {
+                processedItems.Add(monitoredItems[ii] == null);
+            }
+
+            // call each node manager.
+            foreach (INodeManager nodeManager in m_nodeManagers)
+            {
+                nodeManager.TransferMonitoredItems(
+                    context,
+                    subscriptionId,
+                    sendInitialValues,
+                    monitoredItems,
+                    processedItems);
+            }
+        }
+
+        /// <summary>
         /// Deletes a set of monitored items.
         /// </summary>
         public virtual void DeleteMonitoredItems(
-            OperationContext      context,
-            uint                  subscriptionId,
+            OperationContext context,
+            uint subscriptionId,
             IList<IMonitoredItem> itemsToDelete,
-            IList<ServiceResult>  errors)
+            IList<ServiceResult> errors)
         {
-            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (context == null) throw new ArgumentNullException(nameof(context));
             if (itemsToDelete == null) throw new ArgumentNullException(nameof(itemsToDelete));
-            if (errors == null)        throw new ArgumentNullException(nameof(errors));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
 
             List<bool> processedItems = new List<bool>(itemsToDelete.Count);
 
@@ -2524,11 +2553,11 @@ namespace Opc.Ua.Server
         /// Delete monitored items for event subscriptions.
         /// </summary>
         private void DeleteMonitoredItemsForEvents(
-            OperationContext      context,
-            uint                  subscriptionId,
+            OperationContext context,
+            uint subscriptionId,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool>           processedItems,
-            IList<ServiceResult>  errors)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -2569,14 +2598,14 @@ namespace Opc.Ua.Server
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         public virtual void SetMonitoringMode(
-            OperationContext      context,
-            MonitoringMode        monitoringMode,
+            OperationContext context,
+            MonitoringMode monitoringMode,
             IList<IMonitoredItem> itemsToModify,
-            IList<ServiceResult>  errors)
+            IList<ServiceResult> errors)
         {
-            if (context == null)       throw new ArgumentNullException(nameof(context));
+            if (context == null) throw new ArgumentNullException(nameof(context));
             if (itemsToModify == null) throw new ArgumentNullException(nameof(itemsToModify));
-            if (errors == null)        throw new ArgumentNullException(nameof(errors));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
 
             // call each node manager.
             List<bool> processedItems = new List<bool>(itemsToModify.Count);
@@ -2618,11 +2647,11 @@ namespace Opc.Ua.Server
         /// Delete monitored items for event subscriptions.
         /// </summary>
         private static void SetMonitoringModeForEvents(
-            OperationContext      context,
-            MonitoringMode        monitoringMode,
+            OperationContext context,
+            MonitoringMode monitoringMode,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool>           processedItems,
-            IList<ServiceResult>  errors)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -3020,7 +3049,7 @@ namespace Opc.Ua.Server
                 // fallback to INodeManager.GetNodeMetadata
                 if (nodeManager2 != null)
                 {
-                    nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly); 
+                    nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
                 }
                 // If not INodeManager2 or GetPermissionMetadata() returns null.
                 if (nodeMetadata == null)

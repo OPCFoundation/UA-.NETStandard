@@ -389,7 +389,6 @@ namespace Opc.Ua
                 {
                     decoder = new BinaryDecoder(extension.Body as byte[], messageContext);
                 }
-
                 else if (extension.Encoding == ExtensionObjectEncoding.Xml)
                 {
                     decoder = new XmlDecoder(extension.Body as XmlElement, messageContext);
@@ -883,7 +882,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    Utils.Trace(e, "Unexpected error exporting node:" + e.Message);
+                    Utils.LogError("Unexpected error exporting node:" + e.Message);
                 }
             }
         }
