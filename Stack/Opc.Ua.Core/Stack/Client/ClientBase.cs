@@ -30,15 +30,7 @@ namespace Opc.Ua
         {
             if (channel == null) throw new ArgumentNullException(nameof(channel));
 
-            m_channel = channel;
-            m_useTransportChannel = true;
-
-            UaChannelBase uaChannel = channel as UaChannelBase;
-
-            if (uaChannel != null)
-            {
-                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
-            }
+            InitializeChannel(channel);
         }
         #endregion
 
@@ -246,6 +238,23 @@ namespace Opc.Ua
 
         #region Public Methods
         /// <summary>
+        /// Attach the channel to an already created client.
+        /// </summary>
+        /// <param name="channel">Channel to be used by the client</param>
+        public void AttachChannel(ITransportChannel channel)
+        {
+            InitializeChannel(channel);
+        }
+
+        /// <summary>
+        /// Detach the channel.
+        /// </summary>
+        public void DetachChannel()
+        {
+            m_channel = null;
+        }
+
+        /// <summary>
         /// Closes the channel.
         /// </summary>
         public virtual StatusCode Close()
@@ -282,6 +291,23 @@ namespace Opc.Ua
         #endregion
 
         #region Protected Methods
+        /// <summary>
+        /// Initializes the channel.
+        /// </summary>
+        /// <param name="channel"></param>
+        protected void InitializeChannel(ITransportChannel channel)
+        {
+            m_channel = channel;
+            m_useTransportChannel = true;
+
+            UaChannelBase uaChannel = channel as UaChannelBase;
+
+            if (uaChannel != null)
+            {
+                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
+            }
+        }
+
         /// <summary>
         /// Closes the channel.
         /// </summary>
