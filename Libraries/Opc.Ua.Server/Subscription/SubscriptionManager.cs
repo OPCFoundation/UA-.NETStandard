@@ -1207,7 +1207,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-#if TODO check the client profile
+#if TODO //check the client profile
                     // --> Bad_InsufficientClientProfile
                     if (oldSession == null ||
                         !oldSession.CheckSecurityPolicyOfEndpoint(context.ChannelContext.EndpointDescription))
