@@ -341,6 +341,8 @@ namespace Opc.Ua.Server.Tests
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession");
                 CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData);
 
+                CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds);
+
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 m_server.CloseSession(transferRequestHeader);
             }

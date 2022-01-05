@@ -650,16 +650,15 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Transfer subscription with a monitored item from one session to the other.
+        /// Transfer the subscription using the native service calls, not the client SDK layer.
         /// </summary>
         /// <remarks>
         /// Create a subscription with a monitored item using the native service calls.
         /// Create a secondary Session.
-        /// Transfer the subscription using the native service call.
         /// </remarks>
         [Theory, Order(800)]
         [NonParallelizable]
-        public async Task TransferSubscription(bool sendInitialData)
+        public async Task TransferSubscriptionNative(bool sendInitialData)
         {
             Session transferSession = null;
             try
@@ -673,6 +672,8 @@ namespace Opc.Ua.Client.Tests
                 var clientTestServices = new ClientTestServices(m_session);
                 CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testNode, out var subscriptionIds);
 
+                TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
+
                 transferSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints).ConfigureAwait(false);
                 Assert.AreNotEqual(m_session.SessionId, transferSession.SessionId);
 
@@ -680,9 +681,15 @@ namespace Opc.Ua.Client.Tests
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
-
                 var transferTestServices = new ClientTestServices(transferSession);
                 CommonTestWorkers.TransferSubscriptionTest(transferTestServices, requestHeader, subscriptionIds, sendInitialData);
+
+                // verify the notification of message transfer
+                requestHeader = new RequestHeader {
+                    Timestamp = DateTime.UtcNow,
+                    TimeoutHint = MaxTimeout
+                };
+                CommonTestWorkers.VerifySubscriptionTransferred(clientTestServices, requestHeader, subscriptionIds);
 
                 transferSession?.Close();
             }
@@ -743,7 +750,6 @@ namespace Opc.Ua.Client.Tests
 
             //var result = newSession.TransferSubscriptions(Stream stream, true);
             Assert.IsTrue(result);
-
 
             //restore client state
             var newSubscriptions = newSession.Load(filePath).ToList();

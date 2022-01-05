@@ -406,18 +406,16 @@ namespace Opc.Ua.Server.Tests
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
             uint subscriptionId = CreateSubscription(services, requestHeader);
-            //CreateMonitoredItem(services, requestHeader, subscriptionId, VariableIds.Server_ServerStatus_CurrentTime);
             CreateMonitoredItem(services, requestHeader, subscriptionId, testNode);
 
             subscriptionIds = new UInt32Collection();
             subscriptionIds.Add(subscriptionId);
 
             // enable publishing
-            var subscriptions = new UInt32Collection() { subscriptionId };
-            var response = services.SetPublishingMode(requestHeader, true, subscriptions,
+            var response = services.SetPublishingMode(requestHeader, true, subscriptionIds,
                         out var statuses, out var diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptions);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
             // wait some time to settle
             Thread.Sleep(1000);
@@ -431,6 +429,7 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
             Assert.AreEqual(subscriptionId, publishedId);
+
             // static node, do not acknoledge
             Assert.AreEqual(1, availableSequenceNumbers.Count);
         }
@@ -447,15 +446,51 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, subscriptionIds.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            var responseHeader = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData, out var results, out var _);
-            Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
+            var response = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData,
+                out TransferResultCollection transferResults, out DiagnosticInfoCollection diagnosticInfos);
+            Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+            Assert.AreEqual(subscriptionIds.Count, transferResults.Count);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
 
-            Assert.AreEqual(1, results.Count);
-            var transferResult = results[0];
-            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-            Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+            foreach (var transferResult in transferResults)
+            {
+                Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+                Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+            }
 
             requestHeader.Timestamp = DateTime.UtcNow;
+            var acknoledgements = new SubscriptionAcknowledgementCollection();
+            response = services.Publish(requestHeader, acknoledgements,
+                out uint publishedId, out UInt32Collection availableSequenceNumbers,
+                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out StatusCodeCollection _, out diagnosticInfos);
+            Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+            ServerFixtureUtils.ValidateResponse(response);
+            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
+            Assert.AreEqual(subscriptionIds[0], publishedId);
+            Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
+            //Assert.AreEqual(0, availableSequenceNumbers.Count);
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out StatusCodeCollection statusResults, out diagnosticInfos);
+            Assert.AreEqual(StatusCodes.Good, response.ServiceResult.Code);
+        }
+
+        /// <summary>
+        /// Worker method to verify the SubscriptionTransferred message of a server.
+        /// </summary>
+        public static void VerifySubscriptionTransferred(
+            IServerTestServices services,
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds)
+        {
+            // start time
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            // wait some time to settle
+            Thread.Sleep(100);
+
+            // publish request
             var acknoledgements = new SubscriptionAcknowledgementCollection();
             var response = services.Publish(requestHeader, acknoledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
@@ -463,9 +498,14 @@ namespace Opc.Ua.Server.Tests
                 out StatusCodeCollection _, out var diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknoledgements);
-            Assert.AreEqual(subscriptionIds[0], publishedId);
-            Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
-            //Assert.AreEqual(0, availableSequenceNumbers.Count);
+            Assert.IsFalse(moreNotifications);
+            Assert.IsTrue(subscriptionIds.Contains(publishedId));
+            Assert.AreEqual(1, notificationMessage.NotificationData.Count);
+            var statusMessage = notificationMessage.NotificationData[0].ToString();
+            Assert.IsTrue(statusMessage.Contains("GoodSubscriptionTransferred"));
+
+            // static node, do not acknoledge
+            Assert.AreEqual(0, availableSequenceNumbers.Count);
         }
         #endregion
 
