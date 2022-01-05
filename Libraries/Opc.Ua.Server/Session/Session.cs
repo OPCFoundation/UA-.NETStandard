@@ -1188,18 +1188,6 @@ namespace Opc.Ua.Server
                 }
             }
         }
-
-        /// <summary>
-        /// Checks the security policies of a given EndpointDescription against
-        /// own security settings
-        /// </summary>
-        /// <param name="endpoint">EndpointDescription to check</param>
-        /// <returns>true if endpoint matches required security policy otherwise false</returns>
-        public bool CheckSecurityPolicyOfEndpoint(EndpointDescription endpoint)
-        {
-            return m_securityDiagnostics.SecurityPolicyUri == endpoint.SecurityPolicyUri
-                && m_securityDiagnostics.SecurityMode == endpoint.SecurityMode;
-        }
         #endregion
 
         #region Private Fields
