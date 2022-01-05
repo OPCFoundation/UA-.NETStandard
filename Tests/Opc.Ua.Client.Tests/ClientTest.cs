@@ -607,11 +607,12 @@ namespace Opc.Ua.Client.Tests
         public async Task LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
-            Browser browser = new Browser(m_session);
-            browser.BrowseDirection = BrowseDirection.Forward;
-            browser.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            browser.IncludeSubtypes = false;
-            browser.NodeClassMask = 0;
+            Browser browser = new Browser(m_session) {
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = false,
+                NodeClassMask = 0
+            };
 
             ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
             Assert.NotNull(references);
@@ -648,19 +649,52 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        [Test, Order(800)]
-        public void TransferSubscription_WithOpenSession()
+        /// <summary>
+        /// Transfer subscription with a monitored item from one session to the other.
+        /// </summary>
+        /// <remarks>
+        /// Create a subscription with a monitored item using the native service calls.
+        /// Create a secondary Session.
+        /// Transfer the subscription using the native service call.
+        /// </remarks>
+        [Theory, Order(800)]
+        [NonParallelizable]
+        public async Task TransferSubscription(bool sendInitialData)
         {
-            TransferSubscription(closeSession: false).ConfigureAwait(false).GetAwaiter().GetResult();
+            Session transferSession = null;
+            try
+            {
+                var requestHeader = new RequestHeader {
+                    Timestamp = DateTime.UtcNow,
+                    TimeoutHint = MaxTimeout
+                };
+
+                NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
+                var clientTestServices = new ClientTestServices(m_session);
+                CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testNode, out var subscriptionIds);
+
+                transferSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256, m_endpoints).ConfigureAwait(false);
+                Assert.AreNotEqual(m_session.SessionId, transferSession.SessionId);
+
+                requestHeader = new RequestHeader {
+                    Timestamp = DateTime.UtcNow,
+                    TimeoutHint = MaxTimeout
+                };
+
+                var transferTestServices = new ClientTestServices(transferSession);
+                CommonTestWorkers.TransferSubscriptionTest(transferTestServices, requestHeader, subscriptionIds, sendInitialData);
+
+                transferSession?.Close();
+            }
+            finally
+            {
+                transferSession?.Dispose();
+            }
         }
 
-        [Test, Order(810)]
-        public void TransferSubscription_WithCloseSession()
-        {
-            TransferSubscription(closeSession: true).ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
-        private async Task TransferSubscription(bool closeSession)
+        [Theory, Order(810)]
+        [NonParallelizable]
+        public async Task TransferSubscriptionCloseSession(bool closeSession)
         {
             var oldSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
 
@@ -690,6 +724,7 @@ namespace Opc.Ua.Client.Tests
             await Task.Delay(10_000).ConfigureAwait(false);
 
             var filePath = Path.GetTempFileName();
+
             oldSession.Save(filePath);
             if (closeSession)
             {
@@ -698,18 +733,23 @@ namespace Opc.Ua.Client.Tests
 
             // create second session
             var newSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+
             //transfer subscription
-            var transferRequest = new TransferSubscriptionsRequest();
-            var subscriptionIds = new UInt32Collection();
-            subscriptionIds.Add(subscription.Id);
-            newSession.TransferSubscriptions(transferRequest.RequestHeader, subscriptionIds, true, out var results, out var diagInfos);
-            results.ForEach((result) => Assert.IsTrue(StatusCode.IsGood(result.StatusCode)));
+            var subscriptions = new SubscriptionCollection() {
+                subscription
+            };
+            var result = newSession.TransferSubscriptions(subscriptions, true);
+            Assert.IsTrue(result);
+
+            //var result = newSession.TransferSubscriptions(Stream stream, true);
+            Assert.IsTrue(result);
+
 
             //restore client state
             var newSubscriptions = newSession.Load(filePath).ToList();
             Assert.AreEqual(1, newSubscriptions.Count);
             Assert.AreEqual(1, newSession.Subscriptions.Count());
-            foreach(var newSubscription in newSubscriptions)
+            foreach (var newSubscription in newSubscriptions)
             {
                 newSubscription.Create();
             }
@@ -737,8 +777,6 @@ namespace Opc.Ua.Client.Tests
 
             File.Delete(filePath);
         }
-
-
         #endregion
 
         #region Benchmarks
@@ -764,7 +802,6 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-
         private uint GetOperationLimitValue(NodeId nodeId)
         {
             try

@@ -450,6 +450,12 @@ namespace Opc.Ua.Server.Tests
             var responseHeader = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData, out var results, out var _);
             Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
 
+            Assert.AreEqual(1, results.Count);
+            var transferResult = results[0];
+            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
+            Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
+
+            requestHeader.Timestamp = DateTime.UtcNow;
             var acknoledgements = new SubscriptionAcknowledgementCollection();
             var response = services.Publish(requestHeader, acknoledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
@@ -460,11 +466,6 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(subscriptionIds[0], publishedId);
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
-
-            Assert.AreEqual(1, results.Count);
-            var transferResult = results[0];
-            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-            Assert.AreEqual(1, transferResult.AvailableSequenceNumbers.Count);
         }
         #endregion
 

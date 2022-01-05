@@ -1259,31 +1259,57 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Saves a set of subscriptions.
+        /// Saves a set of subscriptions to a stream.
         /// </summary>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Indent = true;
-            settings.OmitXmlDeclaration = false;
-            settings.Encoding = Encoding.UTF8;
-
-            FileStream stream = new FileStream(filePath, FileMode.Create);
-            XmlWriter writer = XmlWriter.Create(stream, settings);
-
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
-
-            try
+            XmlWriterSettings settings = new XmlWriterSettings {
+                Indent = true,
+                OmitXmlDeclaration = false,
+                Encoding = Encoding.UTF8
+            };
+            using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
                 serializer.WriteObject(writer, subscriptionList);
             }
-            finally
+        }
+
+        /// <summary>
+        /// Saves a set of subscriptions to a file.
+        /// </summary>
+        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        {
+            using (FileStream stream = new FileStream(filePath, FileMode.Create))
             {
-                writer.Flush();
-                writer.Dispose();
-                stream.Dispose();
+                Save(stream, subscriptions);
+            }
+        }
+
+        /// <summary>
+        /// Load the list of subscriptions saved in a file.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <returns>The list of loaded subscriptions</returns>
+        public IEnumerable<Subscription> Load(Stream stream)
+        {
+            XmlReaderSettings settings = new XmlReaderSettings {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document,
+                CloseInput = true
+            };
+
+            using (XmlReader reader = XmlReader.Create(stream, settings))
+            {
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
+                foreach (Subscription subscription in subscriptions)
+                {
+                    AddSubscription(subscription);
+                }
+                return subscriptions;
             }
         }
 
@@ -1294,31 +1320,9 @@ namespace Opc.Ua.Client
         /// <returns>The list of loaded subscriptions</returns>
         public IEnumerable<Subscription> Load(string filePath)
         {
-            XmlReaderSettings settings = new XmlReaderSettings {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document,
-                CloseInput = true
-            };
-
-            XmlReader reader = XmlReader.Create(filePath, settings);
-
-            try
+            using (FileStream stream = File.OpenRead(filePath))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
-
-                SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
-
-                foreach (Subscription subscription in subscriptions)
-                {
-                    AddSubscription(subscription);
-                }
-                m_lastKeepAliveTime = DateTime.UtcNow;
-                return subscriptions;
-            }
-            finally
-            {
-                reader.Dispose();
+                return Load(stream);
             }
         }
 
@@ -3344,6 +3348,36 @@ namespace Opc.Ua.Client
 
             return removed;
         }
+
+        /// <summary>
+        /// Transfers a list of Subscriptions.
+        /// </summary>
+        public bool TransferSubscriptions(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues)
+        {
+            // TODO: check if session is connected to the same server
+
+            // stop old publishing requests
+            var subscriptionIds = new UInt32Collection();
+            foreach (var subscription in subscriptions)
+            {
+                subscription.PublishingEnabled = false;
+                subscriptionIds.Add(subscription.Id);
+            }
+
+            ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+            if (!StatusCode.IsGood(responseHeader.ServiceResult))
+            {
+                Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                return false;
+            }
+
+            ClientBase.ValidateResponse(results, subscriptionIds);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+            return true;
+        }
         #endregion
 
         #region Browse Methods
@@ -3637,41 +3671,6 @@ namespace Opc.Ua.Client
             }
 
             return outputArguments;
-        }
-
-        /// <summary>
-        /// Invokes the TransferSubscriptions service.
-        /// </summary>
-        public override ResponseHeader TransferSubscriptions(
-            RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
-            bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            // stop old publishing requests
-            foreach (var subscription in m_subscriptions)
-            {
-                if (subscriptionIds.Contains(subscription.Id))
-                {
-                    subscription.PublishingEnabled = false;
-                }
-            }
-
-            var response =  base.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
-
-            for (int i = 0; i < results.Count; i++)
-            {
-                if (StatusCode.IsGood(results[i].StatusCode))
-                {
-                    foreach (var sequenceNumber in results[i].AvailableSequenceNumbers)
-                    {
-                        //TODO: let client acknowledge the sequence numbers that were already handled
-                        Republish(subscriptionIds[i], sequenceNumber);
-                    }
-                }
-            }
-            return response;
         }
         #endregion
 
