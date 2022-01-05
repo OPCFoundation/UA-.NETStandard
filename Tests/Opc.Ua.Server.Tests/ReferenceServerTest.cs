@@ -339,11 +339,15 @@ namespace Opc.Ua.Server.Tests
                 CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testNode, out var subscriptionIds);
 
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession");
+                var transferSecurityContext = SecureChannelContext.Current;
                 CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData);
 
+                //restore security context
+                SecureChannelContext.Current = securityContext;
                 CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds);
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
+                SecureChannelContext.Current = transferSecurityContext;
                 m_server.CloseSession(transferRequestHeader);
             }
             finally

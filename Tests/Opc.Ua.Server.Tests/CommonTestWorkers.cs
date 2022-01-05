@@ -505,7 +505,10 @@ namespace Opc.Ua.Server.Tests
             Assert.IsTrue(statusMessage.Contains("GoodSubscriptionTransferred"));
 
             // static node, do not acknoledge
-            Assert.AreEqual(0, availableSequenceNumbers.Count);
+            if (availableSequenceNumbers != null)
+            {
+                Assert.AreEqual(0, availableSequenceNumbers.Count);
+            }
         }
         #endregion
 
