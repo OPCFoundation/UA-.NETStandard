@@ -531,7 +531,16 @@ namespace Opc.Ua.Server
                 m_session = context.Session;
             }
 
-            m_server.NodeManager.TransferMonitoredItems(context, Id, sendInitialValues, m_monitoredItems.Values.ToList());
+            var monitoredItems = m_monitoredItems.Values.ToList();
+            var errors = new List<ServiceResult>(monitoredItems.Count);
+            for (int ii=0; ii<monitoredItems.Count; ii++)
+            {
+                errors.Add(null);
+            }
+
+            m_server.NodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, errors);
+
+            // TODO: handle errors?
 
             lock (DiagnosticsWriteLock)
             {

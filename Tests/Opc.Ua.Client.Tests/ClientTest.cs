@@ -704,7 +704,6 @@ namespace Opc.Ua.Client.Tests
         public async Task TransferSubscriptionCloseSession(bool closeSession)
         {
             var oldSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-
             var subscription = new Subscription(oldSession.DefaultSubscription) {
                 PublishingInterval = 1000,
             };

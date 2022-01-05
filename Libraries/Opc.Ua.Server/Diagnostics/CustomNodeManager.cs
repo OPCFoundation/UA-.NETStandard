@@ -3650,7 +3650,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="handle">The item handle.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        protected virtual void ReadInitialValue(
+        protected virtual ServiceResult ReadInitialValue(
             ISystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem)
@@ -3670,6 +3670,8 @@ namespace Opc.Ua.Server
                 initialValue);
 
             monitoredItem.QueueValue(initialValue, error, true);
+
+            return error;
         }
 
         /// <summary>
@@ -4178,16 +4180,16 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="subscriptionId">The subscription Id to which the monitored item is transferred.</param>
         /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
-        /// <param name="processedItems"></param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
         public virtual void TransferMonitoredItems(
             OperationContext context,
-            uint subscriptionId,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             lock (Lock)
@@ -4211,16 +4213,16 @@ namespace Opc.Ua.Server
                     processedItems[ii] = true;
                     var monitoredItem = monitoredItems[ii];
 
-#if DEBUG
-                    Debug.Assert(subscriptionId == monitoredItem.SubscriptionId);
-#endif
-
                     if (sendInitialValues && !monitoredItem.IsReadyToPublish)
                     {
                         if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
                         {
-                            ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
+                            errors[ii] = ReadInitialValue(systemContext, handle, dataChangeMonitoredItem);
                         }
+                    }
+                    else
+                    {
+                        errors[ii] = StatusCodes.Good;
                     }
                 }
             }

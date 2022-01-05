@@ -1282,7 +1282,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="node">The node to read.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        protected virtual void ReadInitialValue(
+        protected virtual ServiceResult ReadInitialValue(
             OperationContext context,
             ILocalNode node,
             IDataChangeMonitoredItem2 monitoredItem)
@@ -1303,6 +1303,8 @@ namespace Opc.Ua.Server
             }
 
             monitoredItem.QueueValue(initialValue, error, true);
+
+            return error;
         }
 
         /// <summary>
@@ -1487,16 +1489,16 @@ namespace Opc.Ua.Server
         /// Transfers a set of monitored items.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="subscriptionId">The subscription Id to which the monitored item is transferred.</param>
         /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
         /// <param name="processedItems"></param>
+        /// <param name="errors">Any errors.</param>
         public virtual void TransferMonitoredItems(
             OperationContext context,
-            uint subscriptionId,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             if (context == null)        throw new ArgumentNullException(nameof(context));
             if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
@@ -1535,8 +1537,12 @@ namespace Opc.Ua.Server
                     {
                         if (monitoredItem is IDataChangeMonitoredItem2 dataChangeMonitoredItem)
                         {
-                            ReadInitialValue(context, node, dataChangeMonitoredItem);
+                            errors[ii] = ReadInitialValue(context, node, dataChangeMonitoredItem);
                         }
+                    }
+                    else
+                    {
+                        errors[ii] = StatusCodes.Good;
                     }
                 }
             }

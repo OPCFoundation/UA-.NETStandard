@@ -181,25 +181,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Log a WriteValue.
-        /// </summary>
-        [NonEvent]
-        public void WriteValueRange(Variant wrappedValue, string range)
-        {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace("WRITE: Value={0} Range={1}", wrappedValue, range);
-                }
-            }
-        }
-
-        /// <summary>
         /// Log a Queued Value.
         /// </summary>
         [NonEvent]
