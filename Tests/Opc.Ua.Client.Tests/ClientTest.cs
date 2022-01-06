@@ -668,6 +668,8 @@ namespace Opc.Ua.Client.Tests
                     TimeoutHint = MaxTimeout
                 };
 
+                // to validate the behavior of the sendInitialValue flag,
+                // use a static variable to avoid sampled notifications in publish requests
                 NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
                 var clientTestServices = new ClientTestServices(m_session);
                 CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testNode, out var subscriptionIds);
@@ -691,7 +693,7 @@ namespace Opc.Ua.Client.Tests
                 };
                 CommonTestWorkers.VerifySubscriptionTransferred(clientTestServices, requestHeader, subscriptionIds);
 
-                transferSession?.Close();
+                transferSession.Close();
             }
             finally
             {

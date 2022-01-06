@@ -2213,6 +2213,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Sets the subscription to durable mode.
+        /// </summary>
+       public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
+        {
+            lock (m_lock)
+            {
+                // set default
+                revisedLifeTimeInHours = 0;
+
+                if (m_monitoredItems.Count > 0)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+
+                // TODO: enable the durable subscription support here
+
+                return StatusCodes.Good;
+            }
+        }
+
+        /// <summary>
         /// Gets the monitored items for the subscription.
         /// </summary>
         public void GetMonitoredItems(out uint[] serverHandles, out uint[] clientHandles)
