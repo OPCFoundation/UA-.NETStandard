@@ -106,6 +106,7 @@ namespace Opc.Ua.Client
             Initialize(channel, template.m_configuration, template.m_endpoint, template.m_instanceCertificate);
 
             m_defaultSubscription = template.m_defaultSubscription;
+            m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_preferredLocales = template.m_preferredLocales;
@@ -254,6 +255,7 @@ namespace Opc.Ua.Client
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
             m_sessionName = "";
+            m_deleteSubscriptionsOnClose = true;
 
             m_defaultSubscription = new Subscription();
 
@@ -345,6 +347,21 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Dispose and stop the keep alive timer.
+        /// </summary>
+        private void DisposeKeepAliveTimer()
+        {
+            lock (SyncRoot)
+            {
+                // stop the keep alive timer.
+                if (m_keepAliveTimer != null)
+                {
+                    Utils.SilentDispose(m_keepAliveTimer);
+                    m_keepAliveTimer = null;
+                }
+            }
+        }
         #endregion
 
         #region IDisposable Members
@@ -355,11 +372,7 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                lock (SyncRoot)
-                {
-                    Utils.SilentDispose(m_keepAliveTimer);
-                    m_keepAliveTimer = null;
-                }
+                DisposeKeepAliveTimer();
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
@@ -512,7 +525,7 @@ namespace Opc.Ua.Client
         public double SessionTimeout => m_sessionTimeout;
 
         /// <summary>
-        /// Gets the local handle assigned to the session
+        /// Gets the local handle assigned to the session.
         /// </summary>
         public object Handle
         {
@@ -601,6 +614,15 @@ namespace Opc.Ua.Client
                     return m_subscriptions.Count;
                 }
             }
+        }
+
+        /// <summary>
+        /// If the subscriptions are deleted when a session is closed. 
+        /// </summary>
+        public bool DeleteSubscriptionsOnClose
+        {
+            get { return m_deleteSubscriptionsOnClose; }
+            set { m_deleteSubscriptionsOnClose = value; }
         }
 
         /// <summary>
@@ -1091,11 +1113,7 @@ namespace Opc.Ua.Client
                     m_reconnecting = true;
 
                     // stop keep alives.
-                    if (m_keepAliveTimer != null)
-                    {
-                        m_keepAliveTimer.Dispose();
-                        m_keepAliveTimer = null;
-                    }
+                    DisposeKeepAliveTimer();
                 }
 
                 // create the client signature.
@@ -3197,12 +3215,7 @@ namespace Opc.Ua.Client
 
             StatusCode result = StatusCodes.Good;
 
-            // stop the keep alive timer.
-            if (m_keepAliveTimer != null)
-            {
-                m_keepAliveTimer.Dispose();
-                m_keepAliveTimer = null;
-            }
+            DisposeKeepAliveTimer();
 
             // check if currectly connected.
             bool connected = Connected;
@@ -3230,9 +3243,9 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    // close the session and delete all subscriptions.
+                    // close the session and delete all subscriptions if specified.
                     this.OperationTimeout = timeout;
-                    CloseSession(null, true);
+                    CloseSession(null, m_deleteSubscriptionsOnClose);
                     this.OperationTimeout = existingTimeout;
 
                     CloseChannel();
@@ -3720,26 +3733,20 @@ namespace Opc.Ua.Client
                 m_lastKeepAliveTime = DateTime.UtcNow;
             }
 
-            ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
-
-            // read the server state.
-            ReadValueId serverState = new ReadValueId();
-
-            serverState.NodeId = Variables.Server_ServerStatus_State;
-            serverState.AttributeId = Attributes.Value;
-            serverState.DataEncoding = null;
-            serverState.IndexRange = null;
-
-            nodesToRead.Add(serverState);
+            var nodesToRead = new ReadValueIdCollection() {
+                // read the server state.
+                new ReadValueId {
+                    NodeId = Variables.Server_ServerStatus_State,
+                    AttributeId = Attributes.Value,
+                    DataEncoding = null,
+                    IndexRange = null
+                }
+            };
 
             // restart the publish timer.
             lock (SyncRoot)
             {
-                if (m_keepAliveTimer != null)
-                {
-                    m_keepAliveTimer.Dispose();
-                    m_keepAliveTimer = null;
-                }
+                DisposeKeepAliveTimer();
 
                 // start timer.
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
@@ -4624,6 +4631,7 @@ namespace Opc.Ua.Client
         private List<Subscription> m_subscriptions;
         private Dictionary<NodeId, DataDictionary> m_dictionaries;
         private Subscription m_defaultSubscription;
+        private bool m_deleteSubscriptionsOnClose;
         private double m_sessionTimeout;
         private uint m_maxRequestMessageSize;
         private StringCollection m_preferredLocales;
