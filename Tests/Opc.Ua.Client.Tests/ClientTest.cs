@@ -691,7 +691,7 @@ namespace Opc.Ua.Client.Tests
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
-                CommonTestWorkers.VerifySubscriptionTransferred(clientTestServices, requestHeader, subscriptionIds);
+                CommonTestWorkers.VerifySubscriptionTransferred(clientTestServices, requestHeader, subscriptionIds, true);
 
                 transferSession.Close();
             }

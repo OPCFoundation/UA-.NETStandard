@@ -323,9 +323,51 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Create a secondary Session.
         /// Create a subscription with a monitored item.
-        /// Create a secondary Session
-        /// Transfer subscription with a monitored item from one session to the other
+        /// Close session, but do not delete subscriptions.
+        /// Transfer subscription from closed session to the other.
+        /// </summary>
+        [Theory]
+        public void TransferSubscriptionSessionClosed(bool sendInitialData)
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            // save old security context, test fixture can only work with one session
+            var securityContext = SecureChannelContext.Current;
+            try
+            {
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession");
+                var transferSecurityContext = SecureChannelContext.Current;
+
+                NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader, testNode, out var subscriptionIds);
+
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                m_server.CloseSession(transferRequestHeader, false);
+
+                //restore security context, transfer abandoned subscription
+                SecureChannelContext.Current = securityContext;
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, m_requestHeader, subscriptionIds, sendInitialData);
+
+                // subscription was deleted, expect 'BadNoSubscription'
+                var sre = Assert.Throws<ServiceResultException>(() => {
+                    m_requestHeader.Timestamp = DateTime.UtcNow;
+                    CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                });
+                Assert.AreEqual(StatusCodes.BadNoSubscription, sre.StatusCode);
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
+        }
+
+        /// <summary>
+        /// Create a subscription with a monitored item.
+        /// Create a secondary Session.
+        /// Transfer subscription with a monitored item from one session to the other.
         /// </summary>
         [Theory]
         public void TransferSubscription(bool sendInitialData)
@@ -344,7 +386,7 @@ namespace Opc.Ua.Server.Tests
 
                 //restore security context
                 SecureChannelContext.Current = securityContext;
-                CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds);
+                CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 SecureChannelContext.Current = transferSecurityContext;

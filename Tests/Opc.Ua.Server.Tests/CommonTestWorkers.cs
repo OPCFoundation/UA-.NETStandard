@@ -482,7 +482,8 @@ namespace Opc.Ua.Server.Tests
         public static void VerifySubscriptionTransferred(
             IServerTestServices services,
             RequestHeader requestHeader,
-            UInt32Collection subscriptionIds)
+            UInt32Collection subscriptionIds,
+            bool deleteSubscriptions)
         {
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -508,6 +509,13 @@ namespace Opc.Ua.Server.Tests
             if (availableSequenceNumbers != null)
             {
                 Assert.AreEqual(0, availableSequenceNumbers.Count);
+            }
+
+            if (deleteSubscriptions)
+            {
+                response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out var _, out diagnosticInfos);
+                ServerFixtureUtils.ValidateResponse(response);
+                ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
             }
         }
         #endregion
