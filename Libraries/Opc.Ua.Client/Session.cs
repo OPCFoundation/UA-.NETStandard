@@ -3336,7 +3336,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Removes a list of subscriptions from the sessiont.
+        /// Removes a list of subscriptions from the session.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
@@ -3370,7 +3370,6 @@ namespace Opc.Ua.Client
             bool sendInitialValues)
         {
             // TODO: check if session is connected to the same server
-
             // stop old publishing requests
             var subscriptionIds = new UInt32Collection();
             foreach (var subscription in subscriptions)

@@ -51,35 +51,14 @@ namespace Opc.Ua.Client.Tests
     [NonParallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    public class ClientTest
+    public class ClientTest : ClientTestFramework
     {
-        static object[] FixtureArgs = {
-            new object [] { Utils.UriSchemeOpcTcp},
-            new object [] { Utils.UriSchemeHttps}
-        };
-
-        const int MaxReferences = 100;
-        const int MaxTimeout = 10000;
-        ServerFixture<ReferenceServer> m_serverFixture;
-        ClientFixture m_clientFixture;
-        ReferenceServer m_server;
-        EndpointDescriptionCollection m_endpoints;
-        ReferenceDescriptionCollection m_referenceDescriptions;
-        Session m_session;
-        OperationLimits m_operationLimits;
-        string m_uriScheme;
-        string m_pkiRoot;
-        Uri m_url;
-
-        public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp)
+        public ClientTest(string uriScheme = Utils.UriSchemeOpcTcp) :
+            base(uriScheme)
         {
-            m_uriScheme = uriScheme;
         }
 
         #region DataPointSources
-        [DatapointSource]
-        public static readonly string[] Policies = SecurityPolicies.GetDisplayNames()
-            .Select(displayName => SecurityPolicies.GetUri(displayName)).ToArray();
         #endregion
 
         #region Test Setup
@@ -87,79 +66,27 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUp()
+        public new Task OneTimeSetUp()
         {
-            return OneTimeSetUpAsync(null);
-        }
-
-        /// <summary>
-        /// Setup a server and client fixture.
-        /// </summary>
-        /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null)
-        {
-            // pki directory root for test runs.
-            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-
-            // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer> {
-                UriScheme = m_uriScheme,
-                SecurityNone = true,
-                AutoAccept = true,
-                OperationLimits = true
-            };
-
-            if (writer != null)
-            {
-                m_serverFixture.TraceMasks = Utils.TraceMasks.Error;
-            }
-
-            await m_serverFixture.LoadConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.TransportQuotas.MaxMessageSize =
-            m_serverFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
-            m_serverFixture.Config.TransportQuotas.MaxByteStringLength =
-            m_serverFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-
-            m_clientFixture = new ClientFixture();
-            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize =
-            m_clientFixture.Config.TransportQuotas.MaxBufferSize = 4 * 1024 * 1024;
-            m_clientFixture.Config.TransportQuotas.MaxByteStringLength =
-            m_clientFixture.Config.TransportQuotas.MaxStringLength = 1 * 1024 * 1024;
-            m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString());
-            try
-            {
-                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Assert.Ignore("OneTimeSetup failed to create session, tests skipped. Error: {0}", e.Message);
-            }
+            return base.OneTimeSetUp();
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public async Task OneTimeTearDownAsync()
+        public new Task OneTimeTearDownAsync()
         {
-            if (m_session != null)
-            {
-                m_session.Close();
-                m_session.Dispose();
-                m_session = null;
-            }
-            await m_serverFixture.StopAsync().ConfigureAwait(false);
+            return base.OneTimeTearDownAsync();
         }
 
         /// <summary>
         /// Test setup.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public new void SetUp()
         {
-            m_serverFixture.SetTraceOutput(TestContext.Out);
+            base.SetUp();
         }
         #endregion
 
@@ -168,24 +95,18 @@ namespace Opc.Ua.Client.Tests
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public void GlobalSetup()
+        public new void GlobalSetup()
         {
-            Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
-            Console.WriteLine("GlobalSetup: Connecting");
-            m_session = m_clientFixture.ConnectAsync(m_url, SecurityPolicy).GetAwaiter().GetResult();
-            Console.WriteLine("GlobalSetup: Ready");
+            base.GlobalSetup();
         }
 
         /// <summary>
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
+        public new void GlobalCleanup()
         {
-            Console.WriteLine("GlobalCleanup: Disconnect and Stop Server");
-            OneTimeTearDownAsync().GetAwaiter().GetResult();
-            Console.WriteLine("GlobalCleanup: Done");
+            base.GlobalCleanup();
         }
         #endregion
 
@@ -670,9 +591,10 @@ namespace Opc.Ua.Client.Tests
 
                 // to validate the behavior of the sendInitialValue flag,
                 // use a static variable to avoid sampled notifications in publish requests
-                NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
+                var namespaceUris = m_session.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 var clientTestServices = new ClientTestServices(m_session);
-                CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testNode, out var subscriptionIds);
+                CommonTestWorkers.CreateSubscriptionForTransfer(clientTestServices, requestHeader, testSet, out var subscriptionIds);
 
                 TestContext.Out.WriteLine("Transfer SubscriptionIds: {0}", subscriptionIds[0]);
 
@@ -788,17 +710,6 @@ namespace Opc.Ua.Client.Tests
 
         #region Benchmarks
         /// <summary>
-        /// Enumerator for security policies.
-        /// </summary>
-        public IEnumerable<string> BenchPolicies() { return Policies; }
-
-        /// <summary>
-        /// Helper variable for benchmark.
-        /// </summary>
-        [ParamsSource(nameof(BenchPolicies))]
-        public string SecurityPolicy = SecurityPolicies.None;
-
-        /// <summary>
         /// Benchmark wrapper for browse tests.
         /// </summary>
         [Benchmark]
@@ -809,21 +720,6 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        private uint GetOperationLimitValue(NodeId nodeId)
-        {
-            try
-            {
-                return (uint)m_session.ReadValue(nodeId).Value;
-            }
-            catch (ServiceResultException sre)
-            {
-                if (sre.StatusCode == StatusCodes.BadNodeIdUnknown)
-                {
-                    return 0;
-                }
-                throw;
-            }
-        }
         #endregion
     }
 }

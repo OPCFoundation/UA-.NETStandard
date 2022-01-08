@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -338,10 +339,11 @@ namespace Opc.Ua.Server.Tests
             {
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession");
                 var transferSecurityContext = SecureChannelContext.Current;
-
-                NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
-                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader, testNode, out var subscriptionIds);
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader,
+                    testSet, out var subscriptionIds);
 
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 m_server.CloseSession(transferRequestHeader, false);
@@ -377,8 +379,10 @@ namespace Opc.Ua.Server.Tests
             var securityContext = SecureChannelContext.Current;
             try
             {
-                NodeId testNode = new NodeId("Scalar_Static_Int32", 2);
-                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testNode, out var subscriptionIds);
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
+                    testSet, out var subscriptionIds);
 
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession");
                 var transferSecurityContext = SecureChannelContext.Current;

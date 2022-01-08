@@ -39,6 +39,36 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public static class CommonTestWorkers
     {
+        #region Public Test Sets
+        public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
+        {
+            new ExpandedNodeId("Scalar_Static_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+        };
+
+        public static readonly ExpandedNodeId[] NodeIdTestSetDynamic =
+        {
+            new ExpandedNodeId("Scalar_Dynamic_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Dynamic_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+        };
+        #endregion
+
         #region Public Workers
         /// <summary>
         /// Worker function to browse the full address space of a server.
@@ -400,13 +430,16 @@ namespace Opc.Ua.Server.Tests
         public static void CreateSubscriptionForTransfer(
             IServerTestServices services,
             RequestHeader requestHeader,
-            NodeId testNode,
+            NodeId[] testNodes,
             out UInt32Collection subscriptionIds)
         {
             // start time
             requestHeader.Timestamp = DateTime.UtcNow;
             uint subscriptionId = CreateSubscription(services, requestHeader);
-            CreateMonitoredItem(services, requestHeader, subscriptionId, testNode);
+            foreach (NodeId testNode in testNodes)
+            {
+                CreateMonitoredItem(services, requestHeader, subscriptionId, testNode);
+            }
 
             subscriptionIds = new UInt32Collection();
             subscriptionIds.Add(subscriptionId);
