@@ -54,18 +54,18 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
         };
 
-        public static readonly ExpandedNodeId[] NodeIdTestSetDynamic =
+        public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
         {
-            new ExpandedNodeId("Scalar_Dynamic_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Dynamic_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
         };
         #endregion
 

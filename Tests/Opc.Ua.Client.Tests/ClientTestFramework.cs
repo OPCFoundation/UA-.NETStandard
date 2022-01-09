@@ -49,23 +49,6 @@ namespace Opc.Ua.Client.Tests
             new object [] { Utils.UriSchemeHttps}
         };
 
-        /// <summary>
-        /// Well known nodes in the ref server.
-        /// </summary>
-        public static ExpandedNodeId[] NodeIdTestSetStaticNodes =
-        {
-            new ExpandedNodeId("Scalar_Static_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-        };
-
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
         public const int TransportQuota_MaxMessageSize = 4 * 1024 * 1024;
