@@ -4429,7 +4429,8 @@ namespace Opc.Ua.Client
                             lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
 
                             // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
-                            // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish), a warning must be logged.
+                            // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish),
+                            // a warning must be logged.
                             if (((lastSentSequenceNumber >= availableSequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) ||
                                 (lastSentSequenceNumber == availableSequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
                             {

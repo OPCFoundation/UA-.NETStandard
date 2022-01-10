@@ -258,6 +258,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void ChangePreferredLocales()
+        {
+            // change locale
+            var localeCollection = new StringCollection() { "de-de", "en-us" };
+            m_session.ChangePreferredLocales(localeCollection);
+        }
+
+        [Test]
         public void ReadValue()
         {
             // Test ReadValue
@@ -265,10 +273,6 @@ namespace Opc.Ua.Client.Tests
             _ = m_session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType));
             var sre = Assert.Throws<ServiceResultException>(() => m_session.ReadValue(VariableIds.Server_ServerStatus, typeof(ServiceHost)));
             Assert.AreEqual(StatusCodes.BadTypeMismatch, sre.StatusCode);
-
-            // change locale
-            var locale = new StringCollection() { "de-de", "en-us" };
-            m_session.ChangePreferredLocales(locale);
         }
 
         [Test]
@@ -663,90 +667,6 @@ namespace Opc.Ua.Client.Tests
             {
                 transferSession?.Dispose();
             }
-        }
-
-        [Theory, Order(810)]
-        [NonParallelizable]
-        public async Task TransferSubscriptionCloseSession(bool closeSession)
-        {
-            var oldSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-            var subscription = new Subscription(oldSession.DefaultSubscription) {
-                PublishingInterval = 1000,
-            };
-            oldSession.AddSubscription(subscription);
-            subscription.Create();
-
-            NodeId resolvedNodeId = VariableIds.Server_ServerStatus_CurrentTime;
-            var newMonitoredItem = new MonitoredItem(subscription.DefaultItem) {
-                StartNodeId = resolvedNodeId,
-                AttributeId = Attributes.Value,
-                DisplayName = "Current Time",
-                SamplingInterval = 500
-            };
-
-            uint oldSessionCounter = 0;
-            uint newSessionCounter = 0;
-            newMonitoredItem.Notification += (_, args) => {
-                TestContext.Out.WriteLine($"OldSession: Server Timestamp: {(args?.NotificationValue as MonitoredItemNotification).Value.Value.ToString() ?? string.Empty}");
-                oldSessionCounter++;
-            };
-            subscription.AddItem(newMonitoredItem);
-            subscription.ApplyChanges();
-
-            await Task.Delay(10_000).ConfigureAwait(false);
-
-            var filePath = Path.GetTempFileName();
-
-            oldSession.Save(filePath);
-            if (closeSession)
-            {
-                oldSession.CloseSession(null, false);
-            }
-
-            // create second session
-            var newSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-
-            //transfer subscription
-            var subscriptions = new SubscriptionCollection() {
-                subscription
-            };
-            var result = newSession.TransferSubscriptions(subscriptions, true);
-            Assert.IsTrue(result);
-
-            //var result = newSession.TransferSubscriptions(Stream stream, true);
-            Assert.IsTrue(result);
-
-            //restore client state
-            var newSubscriptions = newSession.Load(filePath).ToList();
-            Assert.AreEqual(1, newSubscriptions.Count);
-            Assert.AreEqual(1, newSession.Subscriptions.Count());
-            foreach (var newSubscription in newSubscriptions)
-            {
-                newSubscription.Create();
-            }
-
-            var newMonitoredItems = newSubscriptions.First().MonitoredItems.ToList();
-            Assert.AreEqual(1, newMonitoredItems.Count);
-            Assert.AreNotSame(oldSession, newMonitoredItems.First().Subscription.Session);
-            newMonitoredItems.First().Notification += (_, args) => {
-                TestContext.Out.WriteLine($"OldSession: Server Timestamp: {(args?.NotificationValue as MonitoredItemNotification).Value.Value.ToString() ?? string.Empty}");
-                newSessionCounter++;
-            };
-
-            // wait for some events
-            await Task.Delay(10_000).ConfigureAwait(false);
-
-            //verify that subscription was susccfully transfered
-            Assert.IsTrue(oldSessionCounter > 1);
-            Assert.IsTrue(newSessionCounter > 1);
-
-            newSession.Close();
-            if (!closeSession)
-            {
-                oldSession.Close();
-            }
-
-            File.Delete(filePath);
         }
         #endregion
 
