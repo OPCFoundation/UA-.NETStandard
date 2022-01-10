@@ -42,10 +42,10 @@ namespace Opc.Ua.Server.Tests
         #region Public Test Sets
         public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
         {
-            new ExpandedNodeId("Scalar_Static_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Static_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Static_Byte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -56,10 +56,10 @@ namespace Opc.Ua.Server.Tests
 
         public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
         {
-            new ExpandedNodeId("Scalar_Simulation_Int8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-            new ExpandedNodeId("Scalar_Simulation_UInt8", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+            new ExpandedNodeId("Scalar_Simulation_Byte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_UInt16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_UInt32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_NodeId", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),

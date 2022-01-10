@@ -35,10 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Configuration;
-using Opc.Ua.Server;
-using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -256,7 +252,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!File.Exists(SubscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", SubscriptionTestXml);
 
-            // save
+            // load
             var subscriptions = m_session.Load(SubscriptionTestXml);
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);

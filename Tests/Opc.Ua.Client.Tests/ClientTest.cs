@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -59,6 +60,10 @@ namespace Opc.Ua.Client.Tests
         }
 
         #region DataPointSources
+        public static NodeId[] TypeSystems = {
+            ObjectIds.OPCBinarySchema_TypeSystem,
+            ObjectIds.XmlSchema_TypeSystem
+        };
         #endregion
 
         #region Test Setup
@@ -112,7 +117,7 @@ namespace Opc.Ua.Client.Tests
 
         #region Test Methods
         [Test, Order(100)]
-        public async Task GetEndpoints()
+        public async Task GetEndpointsAsync()
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = 10000;
@@ -120,6 +125,48 @@ namespace Opc.Ua.Client.Tests
             using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
             {
                 m_endpoints = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+                TestContext.Out.WriteLine("Endpoints:");
+                foreach (var endpoint in m_endpoints)
+                {
+                    using (var cert = new X509Certificate2(endpoint.ServerCertificate))
+                    {
+                        TestContext.Out.WriteLine("{0}", endpoint.Server.ApplicationName);
+                        TestContext.Out.WriteLine("  {0}", endpoint.Server.ApplicationUri);
+                        TestContext.Out.WriteLine(" {0}", endpoint.EndpointUrl);
+                        TestContext.Out.WriteLine("  {0}", endpoint.EncodingSupport);
+                        TestContext.Out.WriteLine("  {0}/{1}/{2}", endpoint.SecurityLevel, endpoint.SecurityMode, endpoint.SecurityPolicyUri);
+                        TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
+                        foreach (var userIdentity in endpoint.UserIdentityTokens)
+                        {
+                            TestContext.Out.WriteLine("  {0}", userIdentity.TokenType);
+                            TestContext.Out.WriteLine("  {0}", userIdentity.PolicyId);
+                            TestContext.Out.WriteLine("  {0}", userIdentity.SecurityPolicyUri);
+                        }
+                    }
+                }
+            }
+        }
+
+        [Test, Order(100)]
+        public async Task FindServersAsync()
+        {
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using (var client = DiscoveryClient.Create(m_url, endpointConfiguration))
+            {
+                var servers = await client.FindServersAsync(null).ConfigureAwait(false);
+                foreach (var server in servers)
+                {
+                    TestContext.Out.WriteLine("{0}", server.ApplicationName);
+                    TestContext.Out.WriteLine("  {0}", server.ApplicationUri);
+                    TestContext.Out.WriteLine("  {0}", server.ApplicationType);
+                    TestContext.Out.WriteLine("  {0}", server.ProductUri);
+                    foreach (var discoveryUrl in server.DiscoveryUrls)
+                    {
+                        TestContext.Out.WriteLine("  {0}", discoveryUrl);
+                    }
+                }
             }
         }
 
@@ -177,23 +224,9 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(300)]
-        public void OperationLimits()
+        public new void GetOperationLimits()
         {
-            var operationLimits = new OperationLimits() {
-                MaxNodesPerRead = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead),
-                MaxNodesPerHistoryReadData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData),
-                MaxNodesPerHistoryReadEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents),
-                MaxNodesPerWrite = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerWrite),
-                MaxNodesPerHistoryUpdateData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateData),
-                MaxNodesPerHistoryUpdateEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryUpdateEvents),
-                MaxNodesPerBrowse = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerBrowse),
-                MaxMonitoredItemsPerCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxMonitoredItemsPerCall),
-                MaxNodesPerNodeManagement = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerNodeManagement),
-                MaxNodesPerRegisterNodes = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRegisterNodes),
-                MaxNodesPerTranslateBrowsePathsToNodeIds = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerTranslateBrowsePathsToNodeIds),
-                MaxNodesPerMethodCall = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerMethodCall)
-            };
-            m_operationLimits = operationLimits;
+            base.GetOperationLimits();
         }
 
         [Test]
@@ -225,7 +258,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadValues()
+        public void ReadValue()
         {
             // Test ReadValue
             _ = m_session.ReadValue(VariableIds.Server_ServerRedundancy_RedundancySupport, typeof(Int32));
@@ -236,6 +269,20 @@ namespace Opc.Ua.Client.Tests
             // change locale
             var locale = new StringCollection() { "de-de", "en-us" };
             m_session.ChangePreferredLocales(locale);
+        }
+
+        [Test]
+        public void ReadValues()
+        {
+            var namespaceUris = m_session.NamespaceUris;
+            var testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToList();
+            testSet.AddRange(CommonTestWorkers.NodeIdTestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
+            foreach (var nodeId in testSet)
+            {
+                var dataValue = m_session.ReadValue(nodeId);
+                Assert.NotNull(dataValue);
+                Assert.NotNull(dataValue.Value);
+            }
         }
 
         [Test]
@@ -258,7 +305,7 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(400)]
         public async Task BrowseFullAddressSpace(string securityPolicy)
         {
-            if (m_operationLimits == null) { OperationLimits(); }
+            if (m_operationLimits == null) { GetOperationLimits(); }
 
             var requestHeader = new RequestHeader();
             requestHeader.Timestamp = DateTime.UtcNow;
@@ -517,11 +564,6 @@ namespace Opc.Ua.Client.Tests
             typeSystem = await m_session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
             Assert.NotNull(typeSystem);
         }
-
-        public static NodeId[] TypeSystems = {
-            ObjectIds.OPCBinarySchema_TypeSystem,
-            ObjectIds.XmlSchema_TypeSystem
-        };
 
         [Test, Order(710)]
         [TestCaseSource(nameof(TypeSystems))]
