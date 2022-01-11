@@ -1066,7 +1066,8 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (StructureField field in structureDefinition.Fields)
             {
                 var newType = GetFieldType(field);
-                if (newType == null)
+                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_session.NamespaceUris), field.DataType);
+                if (newType == null && !isRecursiveDataType)
                 {
                     throw new DataTypeNotFoundException(field.DataType);
                 }
@@ -1085,12 +1086,34 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (StructureField field in structureDefinition.Fields)
             {
                 typeListEnumerator.MoveNext();
-                fieldBuilder.AddField(field, typeListEnumerator.Current, order);
+
+                // check for recursive data type:
+                //    field has the same data type as the parent structure
+                var isRecursiveDataType = IsRecursiveDataType(ExpandedNodeId.ToNodeId(complexTypeId, m_session.NamespaceUris), field.DataType);
+                if (isRecursiveDataType)
+                {
+                    if (field.ValueRank < 0) // scalar
+                    {
+                        fieldBuilder.AddField(field, (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder, order);
+                    }
+                    else // array
+                    {
+                        var arrayType = (fieldBuilder as ComplexTypeFieldBuilder).StructureTypeBuilder.MakeArrayType();
+                        fieldBuilder.AddField(field, arrayType, order);
+                    }
+                }
+                else
+                {
+                    fieldBuilder.AddField(field, typeListEnumerator.Current, order);
+                }
                 order++;
             }
 
             return fieldBuilder.CreateType();
         }
+
+        private bool IsRecursiveDataType(NodeId structureDataType, NodeId fieldDataType)
+            => fieldDataType.Equals(structureDataType);
 
         /// <summary>
         /// Determine the type of a field in a StructureField definition.
