@@ -579,6 +579,7 @@ namespace Opc.Ua.Configuration
                 new StatusCode[] {
                     StatusCodes.BadCertificateUntrusted,
                     StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateIssuerTimeInvalid,
                     StatusCodes.BadCertificateHostNameInvalid,
                     StatusCodes.BadCertificateRevocationUnknown,
                     StatusCodes.BadCertificateIssuerRevocationUnknown,
