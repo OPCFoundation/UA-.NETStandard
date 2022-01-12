@@ -141,9 +141,9 @@ namespace Opc.Ua.Server
                 Server.CoreNodeManager.ImportNodes(SystemContext, PredefinedNodes.Values, true);
 
                 // hook up the server GetMonitoredItems method.
-                MethodState getMonitoredItems = (MethodState)FindPredefinedNode(
+                GetMonitoredItemsMethodState getMonitoredItems = (GetMonitoredItemsMethodState)FindPredefinedNode(
                     MethodIds.Server_GetMonitoredItems,
-                    typeof(MethodState));
+                    typeof(GetMonitoredItemsMethodState));
 
                 if (getMonitoredItems != null)
                 {
@@ -169,11 +169,75 @@ namespace Opc.Ua.Server
                         getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
                     }
                 }
+
+#if SUPPORT_DURABLE_SUBSCRIPTION
+                // hook up the server SetSubscriptionDurable method.
+                SetSubscriptionDurableMethodState setSubscriptionDurable= (SetSubscriptionDurableMethodState)FindPredefinedNode(
+                    MethodIds.Server_SetSubscriptionDurable,
+                    typeof(SetSubscriptionDurableMethodState));
+
+                if (setSubscriptionDurable != null)
+                {
+                    setSubscriptionDurable.OnCall = OnSetSubscriptionDurable;
+                }
+#else
+                // Subscription Durable mode not supported by the server.
+                ServerObjectState serverObject = (ServerObjectState) FindPredefinedNode(
+                    ObjectIds.Server,
+                    typeof(ServerObjectState));
+
+                if (serverObject != null)
+                {
+                    NodeState setSubscriptionDurableNode = serverObject.FindChild(
+                        SystemContext,
+                        BrowseNames.SetSubscriptionDurable);
+
+                    if (setSubscriptionDurableNode != null)
+                    {
+                        DeleteNode(SystemContext, MethodIds.Server_SetSubscriptionDurable);
+                        serverObject.SetSubscriptionDurable = null;
+                    }
+                }
+#endif
             }
         }
 
         /// <summary>
-        /// Called when a client locks the server.
+        /// Called when a client sets a subscription as durable.
+        /// </summary>
+
+        public ServiceResult OnSetSubscriptionDurable(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint subscriptionId,
+            uint lifetimeInHours,
+            ref uint revisedLifetimeInHours)
+        {
+            revisedLifetimeInHours = 0;
+
+            foreach (Subscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            {
+                if (subscription.Id == subscriptionId)
+                {
+                    if (subscription.SessionId != context.SessionId)
+                    {
+                        // user tries to access subscription of different session
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+
+                    ServiceResult result = subscription.SetSubscriptionDurable(lifetimeInHours, out uint revisedLifeTimeHours);
+
+                    revisedLifetimeInHours = revisedLifeTimeHours;
+                    return result;
+                }
+            }
+
+            return StatusCodes.BadSubscriptionIdInvalid;
+        }
+
+        /// <summary>
+        /// Called when a client gets the monitored items of a subscription.
         /// </summary>
         public ServiceResult OnGetMonitoredItems(
             ISystemContext context,
@@ -1561,9 +1625,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
+#endregion
 
-        #region Node Access Functions
+#region Node Access Functions
 #if V1_Methods
         /// <summary>
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
@@ -1703,9 +1767,9 @@ namespace Opc.Ua.Server
             return null;
         }
 #endif
-        #endregion
+#endregion
 
-        #region SessionDiagnosticsData Class
+#region SessionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a session diagnostics structures.
         /// </summary>
@@ -1731,9 +1795,9 @@ namespace Opc.Ua.Server
             public SessionSecurityDiagnosticsValue SecurityValue;
             public NodeValueSimpleEventHandler SecurityUpdateCallback;
         }
-        #endregion
+#endregion
 
-        #region SubscriptionDiagnosticsData Class
+#region SubscriptionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a subscription diagnostics structure.
         /// </summary>
@@ -1750,9 +1814,9 @@ namespace Opc.Ua.Server
             public SubscriptionDiagnosticsValue Value;
             public NodeValueSimpleEventHandler UpdateCallback;
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         /// <summary>
         /// Creates a new sampled item.
         /// </summary>
@@ -1844,9 +1908,9 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
-        #endregion
+#endregion
 
-        #region Private Fields
+#region Private Fields
         private ushort m_namespaceIndex;
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
@@ -1862,6 +1926,6 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
-        #endregion
+#endregion
     }
 }

@@ -531,7 +531,16 @@ namespace Opc.Ua.Server
                 m_session = context.Session;
             }
 
-            m_server.NodeManager.TransferMonitoredItems(context, Id, sendInitialValues, m_monitoredItems.Values.ToList());
+            var monitoredItems = m_monitoredItems.Values.ToList();
+            var errors = new List<ServiceResult>(monitoredItems.Count);
+            for (int ii=0; ii<monitoredItems.Count; ii++)
+            {
+                errors.Add(null);
+            }
+
+            m_server.NodeManager.TransferMonitoredItems(context, sendInitialValues, monitoredItems, errors);
+
+            // TODO: handle errors?
 
             lock (DiagnosticsWriteLock)
             {
@@ -2200,6 +2209,27 @@ namespace Opc.Ua.Server
                 }
 
                 // TraceState("CONDITION REFRESH");
+            }
+        }
+
+        /// <summary>
+        /// Sets the subscription to durable mode.
+        /// </summary>
+       public ServiceResult SetSubscriptionDurable(uint lifeTimeInHours, out uint revisedLifeTimeInHours)
+        {
+            lock (m_lock)
+            {
+                // set default
+                revisedLifeTimeInHours = 0;
+
+                if (m_monitoredItems.Count > 0)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+
+                // TODO: enable the durable subscription support here
+
+                return StatusCodes.Good;
             }
         }
 

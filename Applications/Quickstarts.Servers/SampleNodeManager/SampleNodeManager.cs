@@ -2335,7 +2335,7 @@ namespace Opc.Ua.Sample
         /// <param name="context">The context.</param>
         /// <param name="node">The monitored node.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        protected virtual void ReadInitialValue(
+        protected virtual ServiceResult ReadInitialValue(
             ISystemContext context,
             MonitoredNode node,
             DataChangeMonitoredItem monitoredItem)
@@ -2355,6 +2355,8 @@ namespace Opc.Ua.Sample
                 initialValue);
 
             monitoredItem.QueueValue(initialValue, error);
+
+            return error;
         }
 
         /// <summary>
@@ -2924,16 +2926,16 @@ namespace Opc.Ua.Sample
         /// Transfers a set of monitored items.
         /// </summary>
         /// <param name="context">The context.</param>
-        /// <param name="subscriptionId">The subscription Id to which the monitored item is transferred.</param>
         /// <param name="sendInitialValues">Whether the subscription should send initial values after transfer.</param>
         /// <param name="monitoredItems">The set of monitoring items to update.</param>
-        /// <param name="processedItems"></param>
+        /// <param name="processedItems">The list of bool with items that were already processed.</param>
+        /// <param name="errors">Any errors.</param>
         public virtual void TransferMonitoredItems(
             OperationContext context,
-            uint subscriptionId,
             bool sendInitialValues,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             lock (Lock)
@@ -2963,12 +2965,13 @@ namespace Opc.Ua.Sample
                     {
                         if (monitoredItem is DataChangeMonitoredItem dataChangeMonitoredItem)
                         {
-                            ReadInitialValue(systemContext, monitoredNode, dataChangeMonitoredItem);
+                            errors[ii] = ReadInitialValue(systemContext, monitoredNode, dataChangeMonitoredItem);
                         }
                     }
-#if DEBUG
-                    Debug.Assert(subscriptionId == monitoredItem.SubscriptionId);
-#endif
+                    else
+                    {
+                        errors[ii] = StatusCodes.Good;
+                    }
                 }
             }
         }

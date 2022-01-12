@@ -35,10 +35,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Configuration;
-using Opc.Ua.Server;
-using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -48,73 +44,36 @@ namespace Opc.Ua.Client.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
-    public class SubscriptionTest
+    public class SubscriptionTest : ClientTestFramework
     {
         const string SubscriptionTestXml = "SubscriptionTest.xml";
-        const int MaxReferences = 100;
-        ServerFixture<ReferenceServer> m_serverFixture;
-        ClientFixture m_clientFixture;
-        ReferenceServer m_server;
-        Session m_session;
-        Uri m_url;
-        string m_pkiRoot;
 
         #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUp()
+        public new Task OneTimeSetUp()
         {
-            return OneTimeSetUpAsync(null);
-        }
-
-        /// <summary>
-        /// Setup a server and client fixture.
-        /// </summary>
-        /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(TextWriter writer = null)
-        {
-            // pki directory root for test runs. 
-            m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
-
-            // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer>();
-            m_clientFixture = new ClientFixture();
-            m_serverFixture.AutoAccept = true;
-            m_serverFixture.OperationLimits = true;
-            if (writer != null)
-            {
-                m_serverFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
-            }
-            m_server = await m_serverFixture.StartAsync(writer ?? TestContext.Out, m_pkiRoot).ConfigureAwait(false);
-
-            // start client
-            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
-            m_url = new Uri("opc.tcp://localhost:" + m_serverFixture.Port.ToString());
-            m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            return base.OneTimeSetUpAsync(null);
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public async Task OneTimeTearDownAsync()
+        public new Task OneTimeTearDownAsync()
         {
-            m_session.Close();
-            m_session.Dispose();
-            m_session = null;
-            await m_serverFixture.StopAsync().ConfigureAwait(false);
-            await Task.Delay(1000).ConfigureAwait(false);
+            return base.OneTimeTearDownAsync();
         }
 
         /// <summary>
         /// Test setup.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public new void SetUp()
         {
-            m_serverFixture.SetTraceOutput(TestContext.Out);
+            base.SetUp();
         }
         #endregion
 
@@ -182,16 +141,7 @@ namespace Opc.Ua.Client.Tests
             m_session.Save(SubscriptionTestXml);
 
             Thread.Sleep(5000);
-            TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-            TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
-            TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
-            TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
-            TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
-            TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
-            TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
-            TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
-            TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-            TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            OutputSubscriptionInfo(TestContext.Out, subscription);
 
             subscription.ConditionRefresh();
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
@@ -281,16 +231,7 @@ namespace Opc.Ua.Client.Tests
             m_session.Save(SubscriptionTestXml);
 
             await Task.Delay(5000).ConfigureAwait(false);
-            TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-            TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
-            TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
-            TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
-            TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
-            TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
-            TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
-            TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
-            TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-            TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+            OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
             var sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber));
@@ -311,7 +252,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!File.Exists(SubscriptionTestXml)) Assert.Ignore("Save file {0} does not exist yet", SubscriptionTestXml);
 
-            // save
+            // load
             var subscriptions = m_session.Load(SubscriptionTestXml);
             Assert.NotNull(subscriptions);
             Assert.IsNotEmpty(subscriptions);
@@ -326,17 +267,7 @@ namespace Opc.Ua.Client.Tests
 
             foreach (var subscription in subscriptions)
             {
-                TestContext.Out.WriteLine("Subscription            : {0}", subscription.DisplayName);
-                TestContext.Out.WriteLine("CurrentKeepAliveCount   : {0}", subscription.CurrentKeepAliveCount);
-                TestContext.Out.WriteLine("CurrentPublishingEnabled: {0}", subscription.CurrentPublishingEnabled);
-                TestContext.Out.WriteLine("CurrentPriority         : {0}", subscription.CurrentPriority);
-                TestContext.Out.WriteLine("PublishTime             : {0}", subscription.PublishTime);
-                TestContext.Out.WriteLine("LastNotificationTime    : {0}", subscription.LastNotificationTime);
-                TestContext.Out.WriteLine("SequenceNumber          : {0}", subscription.SequenceNumber);
-                TestContext.Out.WriteLine("NotificationCount       : {0}", subscription.NotificationCount);
-                TestContext.Out.WriteLine("LastNotification        : {0}", subscription.LastNotification);
-                TestContext.Out.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
-                TestContext.Out.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
+                OutputSubscriptionInfo(TestContext.Out, subscription);
             }
 
             var result = m_session.RemoveSubscriptions(subscriptions);

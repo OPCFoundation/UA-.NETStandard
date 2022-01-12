@@ -2478,15 +2478,21 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void TransferMonitoredItems(
             OperationContext context,
-            uint subscriptionId,
             bool sendInitialValues,
-            IList<IMonitoredItem> monitoredItems)
+            IList<IMonitoredItem> monitoredItems,
+            IList<ServiceResult> errors)
         {
-            List<bool> processedItems = new List<bool>(monitoredItems.Count);
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
 
+            var processedItems = new List<bool>(monitoredItems.Count);
+
+            // preset results for unknown nodes
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 processedItems.Add(monitoredItems[ii] == null);
+                errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
             }
 
             // call each node manager.
@@ -2494,10 +2500,10 @@ namespace Opc.Ua.Server
             {
                 nodeManager.TransferMonitoredItems(
                     context,
-                    subscriptionId,
                     sendInitialValues,
                     monitoredItems,
-                    processedItems);
+                    processedItems,
+                    errors);
             }
         }
 

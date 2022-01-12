@@ -303,6 +303,14 @@ namespace Opc.Ua
                 }
             }
 
+            TraceWriteLine(output);
+        }
+
+        /// <summary>
+        /// Writes a trace statement.
+        /// </summary>
+        private static void TraceWriteLine(string output)
+        {
             // write to the log file.
             lock (s_traceFileLock)
             {
@@ -389,7 +397,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    TraceWriteLine(e.Message, null);
+                    TraceWriteLine(e.Message);
                 }
             }
         }
@@ -533,6 +541,42 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a message to the trace log.
         /// </summary>
+        public static void Trace<TState>(TState state, Exception exception, int traceMask, Func<TState, Exception, string> formatter)
+        {
+            // do nothing if mask not enabled.
+            bool tracingEnabled = Tracing.IsEnabled();
+            bool traceMaskEnabled = (s_traceMasks & traceMask) != 0;
+            if (!traceMaskEnabled && !tracingEnabled)
+            {
+                return;
+            }
+
+            StringBuilder message = new StringBuilder();
+            try
+            {
+                // append process and timestamp.
+                message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
+                message.Append(formatter(state, exception));
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            var output = message.ToString();
+            if (tracingEnabled)
+            {
+                Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, output, string.Empty, exception, Array.Empty<object>()));
+            }
+            if (traceMaskEnabled)
+            {
+                TraceWriteLine(output);
+            }
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
         public static void Trace(Exception e, int traceMask, string format, bool handled, params object[] args)
         {
             if (!handled)
@@ -568,7 +612,7 @@ namespace Opc.Ua
                 message.Append(format);
             }
 
-            TraceWriteLine(message.ToString(), null);
+            TraceWriteLine(message.ToString());
         }
         #endregion
 

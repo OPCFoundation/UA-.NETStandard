@@ -106,6 +106,7 @@ namespace Opc.Ua.Client
             Initialize(channel, template.m_configuration, template.m_endpoint, template.m_instanceCertificate);
 
             m_defaultSubscription = template.m_defaultSubscription;
+            m_deleteSubscriptionsOnClose = template.m_deleteSubscriptionsOnClose;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
             m_preferredLocales = template.m_preferredLocales;
@@ -254,6 +255,7 @@ namespace Opc.Ua.Client
             m_outstandingRequests = new LinkedList<AsyncRequestState>();
             m_keepAliveInterval = 5000;
             m_sessionName = "";
+            m_deleteSubscriptionsOnClose = true;
 
             m_defaultSubscription = new Subscription();
 
@@ -345,6 +347,21 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Dispose and stop the keep alive timer.
+        /// </summary>
+        private void DisposeKeepAliveTimer()
+        {
+            lock (SyncRoot)
+            {
+                // stop the keep alive timer.
+                if (m_keepAliveTimer != null)
+                {
+                    Utils.SilentDispose(m_keepAliveTimer);
+                    m_keepAliveTimer = null;
+                }
+            }
+        }
         #endregion
 
         #region IDisposable Members
@@ -355,11 +372,7 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
-                lock (SyncRoot)
-                {
-                    Utils.SilentDispose(m_keepAliveTimer);
-                    m_keepAliveTimer = null;
-                }
+                DisposeKeepAliveTimer();
 
                 Utils.SilentDispose(m_defaultSubscription);
                 m_defaultSubscription = null;
@@ -512,7 +525,7 @@ namespace Opc.Ua.Client
         public double SessionTimeout => m_sessionTimeout;
 
         /// <summary>
-        /// Gets the local handle assigned to the session
+        /// Gets the local handle assigned to the session.
         /// </summary>
         public object Handle
         {
@@ -601,6 +614,15 @@ namespace Opc.Ua.Client
                     return m_subscriptions.Count;
                 }
             }
+        }
+
+        /// <summary>
+        /// If the subscriptions are deleted when a session is closed. 
+        /// </summary>
+        public bool DeleteSubscriptionsOnClose
+        {
+            get { return m_deleteSubscriptionsOnClose; }
+            set { m_deleteSubscriptionsOnClose = value; }
         }
 
         /// <summary>
@@ -1091,11 +1113,7 @@ namespace Opc.Ua.Client
                     m_reconnecting = true;
 
                     // stop keep alives.
-                    if (m_keepAliveTimer != null)
-                    {
-                        m_keepAliveTimer.Dispose();
-                        m_keepAliveTimer = null;
-                    }
+                    DisposeKeepAliveTimer();
                 }
 
                 // create the client signature.
@@ -1215,7 +1233,7 @@ namespace Opc.Ua.Client
 
                 if (!result.AsyncWaitHandle.WaitOne(5000))
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {1}/{0}", OutstandingRequestCount, GoodPublishRequestCount);
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                 }
 
                 EndActivateSession(
@@ -1279,31 +1297,57 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Saves a set of subscriptions.
+        /// Saves a set of subscriptions to a stream.
         /// </summary>
-        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        public void Save(Stream stream, IEnumerable<Subscription> subscriptions)
         {
-            XmlWriterSettings settings = new XmlWriterSettings();
-
-            settings.Indent = true;
-            settings.OmitXmlDeclaration = false;
-            settings.Encoding = Encoding.UTF8;
-
-            FileStream stream = new FileStream(filePath, FileMode.Create);
-            XmlWriter writer = XmlWriter.Create(stream, settings);
-
             SubscriptionCollection subscriptionList = new SubscriptionCollection(subscriptions);
-
-            try
+            XmlWriterSettings settings = new XmlWriterSettings {
+                Indent = true,
+                OmitXmlDeclaration = false,
+                Encoding = Encoding.UTF8
+            };
+            using (XmlWriter writer = XmlWriter.Create(stream, settings))
             {
                 DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
                 serializer.WriteObject(writer, subscriptionList);
             }
-            finally
+        }
+
+        /// <summary>
+        /// Saves a set of subscriptions to a file.
+        /// </summary>
+        public void Save(string filePath, IEnumerable<Subscription> subscriptions)
+        {
+            using (FileStream stream = new FileStream(filePath, FileMode.Create))
             {
-                writer.Flush();
-                writer.Dispose();
-                stream.Dispose();
+                Save(stream, subscriptions);
+            }
+        }
+
+        /// <summary>
+        /// Load the list of subscriptions saved in a file.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <returns>The list of loaded subscriptions</returns>
+        public IEnumerable<Subscription> Load(Stream stream)
+        {
+            XmlReaderSettings settings = new XmlReaderSettings {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                ConformanceLevel = ConformanceLevel.Document,
+                CloseInput = true
+            };
+
+            using (XmlReader reader = XmlReader.Create(stream, settings))
+            {
+                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
+                SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
+                foreach (Subscription subscription in subscriptions)
+                {
+                    AddSubscription(subscription);
+                }
+                return subscriptions;
             }
         }
 
@@ -1314,31 +1358,9 @@ namespace Opc.Ua.Client
         /// <returns>The list of loaded subscriptions</returns>
         public IEnumerable<Subscription> Load(string filePath)
         {
-            XmlReaderSettings settings = new XmlReaderSettings {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document,
-                CloseInput = true
-            };
-
-            XmlReader reader = XmlReader.Create(filePath, settings);
-
-            try
+            using (FileStream stream = File.OpenRead(filePath))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SubscriptionCollection));
-
-                SubscriptionCollection subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
-
-                foreach (Subscription subscription in subscriptions)
-                {
-                    AddSubscription(subscription);
-                }
-                m_lastKeepAliveTime = DateTime.UtcNow;
-                return subscriptions;
-            }
-            finally
-            {
-                reader.Dispose();
+                return Load(stream);
             }
         }
 
@@ -3213,12 +3235,7 @@ namespace Opc.Ua.Client
 
             StatusCode result = StatusCodes.Good;
 
-            // stop the keep alive timer.
-            if (m_keepAliveTimer != null)
-            {
-                m_keepAliveTimer.Dispose();
-                m_keepAliveTimer = null;
-            }
+            DisposeKeepAliveTimer();
 
             // check if currectly connected.
             bool connected = Connected;
@@ -3246,9 +3263,9 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    // close the session and delete all subscriptions.
+                    // close the session and delete all subscriptions if specified.
                     this.OperationTimeout = timeout;
-                    CloseSession(null, true);
+                    CloseSession(null, m_deleteSubscriptionsOnClose);
                     this.OperationTimeout = existingTimeout;
 
                     CloseChannel();
@@ -3339,7 +3356,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Removes a list of subscriptions from the sessiont.
+        /// Removes a list of subscriptions from the session.
         /// </summary>
         /// <param name="subscriptions">The list of subscriptions to remove.</param>
         public bool RemoveSubscriptions(IEnumerable<Subscription> subscriptions)
@@ -3363,6 +3380,48 @@ namespace Opc.Ua.Client
             }
 
             return removed;
+        }
+
+        /// <summary>
+        /// Transfers a list of Subscriptions from another session.
+        /// </summary>
+        public bool TransferSubscriptions(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues)
+        {
+            var subscriptionIds = new UInt32Collection();
+            foreach (var subscription in subscriptions)
+            {
+                if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
+                }
+                if (subscription.TransferId == 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing Id."));
+                }
+                subscriptionIds.Add(subscription.TransferId);
+            }
+
+            ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
+            if (!StatusCode.IsGood(responseHeader.ServiceResult))
+            {
+                Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
+                return false;
+            }
+
+            ClientBase.ValidateResponse(results, subscriptionIds);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+            for (int ii = 0; ii < subscriptions.Count; ii++)
+            {
+                if (StatusCode.IsGood(results[ii].StatusCode))
+                {
+                    subscriptions[ii].Transfer(subscriptionIds[ii], results[ii].AvailableSequenceNumbers);
+                }
+            }
+
+            return true;
         }
         #endregion
 
@@ -3658,41 +3717,6 @@ namespace Opc.Ua.Client
 
             return outputArguments;
         }
-
-        /// <summary>
-        /// Invokes the TransferSubscriptions service.
-        /// </summary>
-        public override ResponseHeader TransferSubscriptions(
-            RequestHeader requestHeader,
-            UInt32Collection subscriptionIds,
-            bool sendInitialValues,
-            out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
-        {
-            // stop old publishing requests
-            foreach (var subscription in m_subscriptions)
-            {
-                if (subscriptionIds.Contains(subscription.Id))
-                {
-                    subscription.PublishingEnabled = false;
-                }
-            }
-
-            var response =  base.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
-
-            for (int i = 0; i < results.Count; i++)
-            {
-                if (StatusCode.IsGood(results[i].StatusCode))
-                {
-                    foreach (var sequenceNumber in results[i].AvailableSequenceNumbers)
-                    {
-                        //TODO: let client acknowledge the sequence numbers that were already handled
-                        Republish(subscriptionIds[i], sequenceNumber);
-                    }
-                }
-            }
-            return response;
-        }
         #endregion
 
         #region Protected Methods
@@ -3741,26 +3765,20 @@ namespace Opc.Ua.Client
                 m_lastKeepAliveTime = DateTime.UtcNow;
             }
 
-            ReadValueIdCollection nodesToRead = new ReadValueIdCollection();
-
-            // read the server state.
-            ReadValueId serverState = new ReadValueId();
-
-            serverState.NodeId = Variables.Server_ServerStatus_State;
-            serverState.AttributeId = Attributes.Value;
-            serverState.DataEncoding = null;
-            serverState.IndexRange = null;
-
-            nodesToRead.Add(serverState);
+            var nodesToRead = new ReadValueIdCollection() {
+                // read the server state.
+                new ReadValueId {
+                    NodeId = Variables.Server_ServerStatus_State,
+                    AttributeId = Attributes.Value,
+                    DataEncoding = null,
+                    IndexRange = null
+                }
+            };
 
             // restart the publish timer.
             lock (SyncRoot)
             {
-                if (m_keepAliveTimer != null)
-                {
-                    m_keepAliveTimer.Dispose();
-                    m_keepAliveTimer = null;
-                }
+                DisposeKeepAliveTimer();
 
                 // start timer.
                 m_keepAliveTimer = new Timer(OnKeepAlive, nodesToRead, keepAliveInterval, keepAliveInterval);
@@ -3899,7 +3917,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not send keep alive request: {1} {0}", e.Message, e.GetType().FullName);
+                Utils.LogError("Could not send keep alive request: {0} {1}", e.GetType().FullName, e.Message);
             }
         }
 
@@ -4018,11 +4036,11 @@ namespace Opc.Ua.Client
             }
 
             Utils.LogInfo(
-                "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={3}/{2}",
+                "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
                 ((double)delta) / TimeSpan.TicksPerSecond,
                 this.Endpoint.EndpointUrl,
-                this.OutstandingRequestCount,
-                this.GoodPublishRequestCount);
+                this.GoodPublishRequestCount,
+                this.OutstandingRequestCount);
 
             KeepAliveEventHandler callback = null;
 
@@ -4209,7 +4227,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    Utils.LogError("Publish #{0}, Reconnecting={2}, Error: {1}", requestHeader.RequestHandle, e.Message, m_reconnecting);
+                    Utils.LogError("Publish #{0}, Reconnecting={1}, Error: {2}", requestHeader.RequestHandle, m_reconnecting, e.Message);
                 }
 
                 moreNotifications = false;
@@ -4444,7 +4462,8 @@ namespace Opc.Ua.Client
                             lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
 
                             // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
-                            // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish), a warning must be logged.
+                            // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish),
+                            // a warning must be logged.
                             if (((lastSentSequenceNumber >= availableSequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) ||
                                 (lastSentSequenceNumber == availableSequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
                             {
@@ -4645,6 +4664,7 @@ namespace Opc.Ua.Client
         private List<Subscription> m_subscriptions;
         private Dictionary<NodeId, DataDictionary> m_dictionaries;
         private Subscription m_defaultSubscription;
+        private bool m_deleteSubscriptionsOnClose;
         private double m_sessionTimeout;
         private uint m_maxRequestMessageSize;
         private StringCollection m_preferredLocales;

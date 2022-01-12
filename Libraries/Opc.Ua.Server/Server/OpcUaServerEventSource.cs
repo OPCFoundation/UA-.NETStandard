@@ -181,25 +181,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Log a WriteValue.
-        /// </summary>
-        [NonEvent]
-        public void WriteValueRange(Variant wrappedValue, string range)
-        {
-            if ((TraceMask & TraceMasks.OperationDetail) != 0)
-            {
-                if (IsEnabled())
-                {
-                    //WriteEvent();
-                }
-                else if (Logger.IsEnabled(LogLevel.Trace))
-                {
-                    LogTrace("WRITE: Value={0} Range={1}", wrappedValue, range);
-                }
-            }
-        }
-
-        /// <summary>
         /// Log a Queued Value.
         /// </summary>
         [NonEvent]
@@ -232,7 +213,8 @@ namespace Opc.Ua.Server
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace("DEQUEUE VALUE: Value={0} CODE={1}<{1:X8}> OVERFLOW={2}", wrappedValue, statusCode.Code, statusCode.Overflow);
+                    LogTrace("DEQUEUE VALUE: Value={0} CODE={1}<{2:X8}> OVERFLOW={3}",
+                        wrappedValue, statusCode.Code, statusCode.Code, statusCode.Overflow);
                 }
             }
         }
@@ -251,8 +233,8 @@ namespace Opc.Ua.Server
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace(TraceMasks.OperationDetail, "QUEUE VALUE[{0}]: Value={1} CODE={2}<{2:X8}> OVERFLOW={3}",
-                        id, wrappedValue, statusCode.Code, statusCode.Overflow);
+                    LogTrace(TraceMasks.OperationDetail, "QUEUE VALUE[{0}]: Value={1} CODE={2}<{3:X8}> OVERFLOW={4}",
+                        id, wrappedValue, statusCode.Code, statusCode.Code, statusCode.Overflow);
                 }
             }
         }

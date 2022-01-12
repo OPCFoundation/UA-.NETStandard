@@ -124,6 +124,13 @@ namespace Opc.Ua.Server.Tests
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
             out DiagnosticInfoCollection diagnosticInfos);
+
+        ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
     }
 
     /// <summary>
@@ -261,6 +268,16 @@ namespace Opc.Ua.Server.Tests
             out DiagnosticInfoCollection diagnosticInfos)
         {
             return m_server.DeleteSubscriptions(requestHeader, subscriptionIds, out results, out diagnosticInfos);
+        }
+
+        public ResponseHeader TransferSubscriptions(
+            RequestHeader requestHeader,
+            UInt32Collection subscriptionIds,
+            bool sendInitialValues,
+            out TransferResultCollection results,
+            out DiagnosticInfoCollection diagnosticInfos)
+        {
+            return m_server.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialValues, out results, out diagnosticInfos);
         }
 
         public ResponseHeader TranslateBrowsePathsToNodeIds(

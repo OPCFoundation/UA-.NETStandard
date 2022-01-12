@@ -140,7 +140,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void Initialize()
         {
-            m_id = 0;
+            m_transferId = m_id = 0;
             m_displayName = "Subscription";
             m_publishingInterval = 0;
             m_keepAliveCount = 0;
@@ -396,6 +396,12 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// The unique identifier assigned by the server which can be used to transfer a session.
+        /// </summary>
+        [DataMember(Name = "TransferId", Order = 14)]
+        public uint TransferId { get => m_transferId; set => m_transferId = value; }
 
         /// <summary>
         /// Gets or sets the fast data change callback.
@@ -1473,6 +1479,21 @@ namespace Opc.Ua.Client
 
         #region Private Methods
         /// <summary>
+        /// Call the GetMonitoredItems method on the server.
+        /// </summary>
+        private void GetMonitoredItems()
+        {
+            UInt32Collection serverHandles = null;
+            UInt32Collection clientHandles = null;
+            var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, Id);
+            if (outputArguments != null && outputArguments.Count == 2)
+            {
+                serverHandles = new UInt32Collection((uint[])outputArguments[0]);
+                clientHandles = new UInt32Collection((uint[])outputArguments[1]); ;
+            }
+        }
+
+        /// <summary>
         /// Starts a timer to ensure publish requests are sent frequently enough to detect network interruptions.
         /// </summary>
         private void StartKeepAliveTimer()
@@ -1592,7 +1613,7 @@ namespace Opc.Ua.Client
             else
             {
                 m_currentPublishingEnabled = m_publishingEnabled;
-                m_id = subscriptionId;
+                m_transferId = m_id = subscriptionId;
                 StartKeepAliveTimer();
                 m_changeMask |= SubscriptionChangeMask.Created;
             }
@@ -1632,9 +1653,11 @@ namespace Opc.Ua.Client
         /// </summary>
         private void DeleteSubscription()
         {
-            m_id = 0;
+            m_transferId = m_id = 0;
             CurrentPublishingInterval = 0;
             CurrentKeepAliveCount = 0;
+            m_currentPublishingInterval = 0;
+            m_currentKeepAliveCount = 0;
             m_currentPublishingEnabled = false;
             m_currentPriority = 0;
 
@@ -2221,6 +2244,10 @@ namespace Opc.Ua.Client
         private Session m_session;
         private object m_handle;
         private uint m_id;
+        private uint m_transferId;
+        private double m_currentPublishingInterval;
+        private uint m_currentKeepAliveCount;
+        private uint m_currentLifetimeCount;
         private bool m_currentPublishingEnabled;
         private byte m_currentPriority;
         private Timer m_publishTimer;

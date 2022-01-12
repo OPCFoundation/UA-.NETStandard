@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
@@ -320,91 +321,87 @@ namespace Opc.Ua.Server.Tests
         {
             var serverTestServices = new ServerTestServices(m_server);
             CommonTestWorkers.SubscriptionTest(serverTestServices, m_requestHeader);
+        }
 
+        /// <summary>
+        /// Create a secondary Session.
+        /// Create a subscription with a monitored item.
+        /// Close session, but do not delete subscriptions.
+        /// Transfer subscription from closed session to the other.
+        /// </summary>
+        [Theory]
+        public void TransferSubscriptionSessionClosed(bool sendInitialData)
+        {
+            var serverTestServices = new ServerTestServices(m_server);
+            // save old security context, test fixture can only work with one session
+            var securityContext = SecureChannelContext.Current;
+            try
+            {
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession");
+                var transferSecurityContext = SecureChannelContext.Current;
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader,
+                    testSet, out var subscriptionIds);
+
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                m_server.CloseSession(transferRequestHeader, false);
+
+                //restore security context, transfer abandoned subscription
+                SecureChannelContext.Current = securityContext;
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, m_requestHeader, subscriptionIds, sendInitialData);
+
+                // subscription was deleted, expect 'BadNoSubscription'
+                var sre = Assert.Throws<ServiceResultException>(() => {
+                    m_requestHeader.Timestamp = DateTime.UtcNow;
+                    CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
+                });
+                Assert.AreEqual(StatusCodes.BadNoSubscription, sre.StatusCode);
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
         }
 
         /// <summary>
         /// Create a subscription with a monitored item.
-        /// Create a secondary Session
-        /// Transfer subscription with a monitored item from one session to the other
+        /// Create a secondary Session.
+        /// Transfer subscription with a monitored item from one session to the other.
         /// </summary>
-        [Test]
-        public void TransferSubscription()
+        [Theory]
+        public void TransferSubscription(bool sendInitialData)
         {
             var serverTestServices = new ServerTestServices(m_server);
-
-            var subscriptionId = CreateSubscription(serverTestServices);
-            MonitoreItem(serverTestServices, subscriptionId);
-
             // save old security context, test fixture can only work with one session
             var securityContext = SecureChannelContext.Current;
-            var requestHeader = m_server.CreateAndActivateSession("Test");
+            try
+            {
+                var namespaceUris = m_server.CurrentInstance.NamespaceUris;
+                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader,
+                    testSet, out var subscriptionIds);
 
-            UInt32Collection subscriptionIds = new UInt32Collection();
-            subscriptionIds.Add(subscriptionId);
+                RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession");
+                var transferSecurityContext = SecureChannelContext.Current;
+                CommonTestWorkers.TransferSubscriptionTest(serverTestServices, transferRequestHeader, subscriptionIds, sendInitialData);
 
-            requestHeader.Timestamp = DateTime.UtcNow;
-            var responseHeader = m_server.TransferSubscriptions(requestHeader, subscriptionIds, false, out var results, out var _);
-            Assert.AreEqual(responseHeader.ServiceResult, StatusCodes.Good);
+                //restore security context
+                SecureChannelContext.Current = securityContext;
+                CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
 
-            Assert.AreEqual(1, results.Count);
-            var transferResult = results[0];
-            Assert.IsTrue(StatusCode.IsGood(transferResult.StatusCode));
-
-            requestHeader.Timestamp = DateTime.UtcNow;
-            m_server.CloseSession(requestHeader);
-
-            //restore security context, that close connection can work
-            SecureChannelContext.Current = securityContext;
+                transferRequestHeader.Timestamp = DateTime.UtcNow;
+                SecureChannelContext.Current = transferSecurityContext;
+                m_server.CloseSession(transferRequestHeader);
+            }
+            finally
+            {
+                //restore security context, that close connection can work
+                SecureChannelContext.Current = securityContext;
+            }
         }
         #endregion
-
-        private uint CreateSubscription(IServerTestServices services)
-        {
-            // start time
-            m_requestHeader.Timestamp = DateTime.UtcNow;
-
-            // create subscription
-            double publishingInterval = 1000.0;
-            uint lifetimeCount = 60;
-            uint maxKeepAliveCount = 2;
-            uint maxNotificationPerPublish = 0;
-            byte priority = 128;
-            bool enabled = false;
-
-            var response = services.CreateSubscription(m_requestHeader,
-                publishingInterval, lifetimeCount, maxKeepAliveCount,
-                maxNotificationPerPublish, enabled, priority,
-                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
-            ServerFixtureUtils.ValidateResponse(response);
-
-            return id;
-        }
-
-        private void MonitoreItem(IServerTestServices services, uint subscriptionId)
-        {
-            uint queueSize = 5;
-            var itemsToCreate = new MonitoredItemCreateRequestCollection();
-
-            // add item
-            itemsToCreate.Add(new MonitoredItemCreateRequest {
-                ItemToMonitor = new ReadValueId {
-                    AttributeId = Attributes.Value,
-                    NodeId = VariableIds.Server_ServerStatus_CurrentTime
-                },
-                MonitoringMode = MonitoringMode.Reporting,
-                RequestedParameters = new MonitoringParameters {
-                    ClientHandle = 1u,
-                    SamplingInterval = -1,
-                    Filter = null,
-                    DiscardOldest = true,
-                    QueueSize = queueSize
-                }
-            });
-            var response = services.CreateMonitoredItems(m_requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
-                out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
-            ServerFixtureUtils.ValidateResponse(response);
-            ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
-        }
     }
 }
