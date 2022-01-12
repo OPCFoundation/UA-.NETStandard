@@ -571,7 +571,7 @@ namespace Opc.Ua.Gds.Server
                 }
                 catch
                 {
-                    Utils.Trace(Utils.TraceMasks.Error, "Failed to revoke: {0}", certType.Value);
+                    Utils.LogError("Failed to revoke: {0}", certType.Value);
                 }
             }
 

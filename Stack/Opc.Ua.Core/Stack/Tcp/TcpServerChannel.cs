@@ -625,7 +625,7 @@ namespace Opc.Ua.Bindings
                             request);
 
                         Utils.LogInfo(
-                            "{0} ReconnectToExistingChannel Socket={0:X8}, ChannelId={1}, TokenId={2}",
+                            "{0} ReconnectToExistingChannel Socket={1:X8}, ChannelId={2}, TokenId={3}",
                             ChannelName,
                             (Socket != null) ? Socket.Handle : 0,
                             (CurrentToken != null) ? CurrentToken.ChannelId : 0,
@@ -896,7 +896,7 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    Utils.LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {0} was aborted.", requestId);
+                    Utils.LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.", ChannelId, requestId);
                     chunksToProcess = GetSavedChunks(requestId, messageBody);
                     return true;
                 }
