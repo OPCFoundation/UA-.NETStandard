@@ -53,8 +53,7 @@ namespace Opc.Ua
     /// <remarks>
     /// To simplify porting from Utils.Trace and to avoid
     /// name collisons with anything that is called 'Log'
-    /// the Utils class has been chosen as the home for
-    /// the new logging abstraction functions.
+    /// the Utils class hosts the Logger class.
     /// </remarks>
     public static partial class Utils
     {

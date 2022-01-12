@@ -1230,8 +1230,7 @@ namespace Opc.Ua
                         };
                         if (newPolicies.Find(s =>
                             s.SecurityMode == newPolicy.SecurityMode &&
-                            String.Compare(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri) == 0
-                            ) == null)
+                            string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)) == null)
                         {
                             newPolicies.Add(newPolicy);
                         }
@@ -1245,8 +1244,8 @@ namespace Opc.Ua
                         {
                             if (newPolicies.Find(s =>
                                 s.SecurityMode == securityPolicy.SecurityMode &&
-                                String.Compare(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri) == 0
-                                ) == null)
+                                string.Equals(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri,
+                                    StringComparison.Ordinal)) == null)
                             {
                                 newPolicies.Add(securityPolicy);
                             }
