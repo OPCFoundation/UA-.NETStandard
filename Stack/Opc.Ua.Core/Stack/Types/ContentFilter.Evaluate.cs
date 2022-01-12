@@ -1555,7 +1555,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error converting a {1} (Value={0}) to {2}.", source, sourceType, targetType);
+                Utils.LogError(e, "Error converting a {0} (Value={1}) to {2}.", sourceType, source, targetType);
             }
 
             // conversion not supported.

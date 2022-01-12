@@ -1233,7 +1233,7 @@ namespace Opc.Ua.Client
 
                 if (!result.AsyncWaitHandle.WaitOne(5000))
                 {
-                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {1}/{0}", OutstandingRequestCount, GoodPublishRequestCount);
+                    Utils.LogWarning("WARNING: ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
                 }
 
                 EndActivateSession(
@@ -3884,7 +3884,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not send keep alive request: {1} {0}", e.Message, e.GetType().FullName);
+                Utils.LogError("Could not send keep alive request: {0} {1}", e.GetType().FullName, e.Message);
             }
         }
 
@@ -4003,11 +4003,11 @@ namespace Opc.Ua.Client
             }
 
             Utils.LogInfo(
-                "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={3}/{2}",
+                "KEEP ALIVE LATE: {0}s, EndpointUrl={1}, RequestCount={2}/{3}",
                 ((double)delta) / TimeSpan.TicksPerSecond,
                 this.Endpoint.EndpointUrl,
-                this.OutstandingRequestCount,
-                this.GoodPublishRequestCount);
+                this.GoodPublishRequestCount,
+                this.OutstandingRequestCount);
 
             KeepAliveEventHandler callback = null;
 
@@ -4194,7 +4194,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    Utils.LogError("Publish #{0}, Reconnecting={2}, Error: {1}", requestHeader.RequestHandle, e.Message, m_reconnecting);
+                    Utils.LogError("Publish #{0}, Reconnecting={1}, Error: {2}", requestHeader.RequestHandle, m_reconnecting, e.Message);
                 }
 
                 moreNotifications = false;

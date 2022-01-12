@@ -11,68 +11,34 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// A generic interface class for event source logging 
-    /// </summary>
-    public interface IOpcUaEventSource
-    {
-        /// <summary>
-        /// Write a critical message to the event log.
-        /// </summary>
-        void Critical(string message);
-
-        /// <summary>
-        /// Write a error message to the event log.
-        /// </summary>
-        void Error(string message);
-
-        /// <summary>
-        /// Write a warning message to the event log.
-        /// </summary>
-        void Warning(string message);
-
-        /// <summary>
-        /// Write a informational message to the event log.
-        /// </summary>
-        void Info(string message);
-
-        /// <summary>
-        /// Write a trace message to the event log.
-        /// </summary>
-        void Trace(string message);
-
-        /// <summary>
-        /// Write a debug message to the event log.
-        /// </summary>
-        void Debug(string message);
-    }
-
-    /// <summary>
     /// Event source for high performance logging.
     /// </summary>
-    [EventSource(Name = "OPC-UA-Core", Guid = "AC8BB021-ADD5-4D14-BB94-1E55D98AA080")]
-    internal sealed class OpcUaCoreEventSource : EventSource, IOpcUaEventSource
+    [EventSource(Name = "OPC-UA-Core", Guid = "753029BC-A4AA-4440-8668-290D0692A72B")]
+    internal sealed class OpcUaCoreEventSource : EventSource, ILogger
     {
+        #region Definitions
         private const int TraceId = 1;
         private const int DebugId = TraceId + 1;
         private const int InfoId = DebugId + 1;
         private const int WarningId = InfoId + 1;
         private const int ErrorId = WarningId + 1;
         private const int CriticalId = ErrorId + 1;
-        private const int ExceptionId = CriticalId + 1;
-        private const int ServiceResultExceptionId = ExceptionId + 1;
 
         /// <summary>
         /// The core event ids.
         /// </summary>
-        private const int ServiceCallStartId = ServiceResultExceptionId + 1;
+        private const int ServiceCallStartId = CriticalId + 3;
         private const int ServiceCallStopId = ServiceCallStartId + 1;
         private const int ServiceCallBadStopId = ServiceCallStopId + 1;
         private const int SubscriptionStateId = ServiceCallBadStopId + 1;
@@ -82,8 +48,6 @@ namespace Opc.Ua
         /// <summary>
         /// The core messages.
         /// </summary>
-        private const string ExceptionMessage = "Exception: {0}";
-        private const string ServiceResultExceptionMessage = "ServiceResultException: {0} {1}";
         private const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
         private const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={3}, StatusCode={2}";
@@ -100,7 +64,7 @@ namespace Opc.Ua
         private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Service, nameof(ServiceFault));
 
         /// <summary>
-        /// 
+        /// The task definitions.
         /// </summary>
         public static class Tasks
         {
@@ -110,276 +74,157 @@ namespace Opc.Ua
             public const EventTask ServiceCallTask = (EventTask)1;
         }
 
-        /// <inheritdoc/>
-        [Event(CriticalId, Level = EventLevel.Critical)]
-        public void Critical(string message)
+        /// <summary>
+        /// The keywords for message filters.
+        /// </summary>
+        public static class Keywords
         {
-            if (IsEnabled())
-            {
-                WriteEvent(CriticalId, message);
-            }
+            /// <summary>
+            /// Turns on the 'FormatMessage' event when ILogger.Log() is called.  It gives the formatted string version of the information.
+            /// </summary>
+            public const EventKeywords FormattedMessage = (EventKeywords)1;
+            /// <summary>
+            /// Services events.
+            /// </summary>
+            public const EventKeywords Services = (EventKeywords)2;
+        }
+        #endregion
+
+        #region ILogger Messages 
+        /// <inheritdoc/>
+        [Event(CriticalId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Critical)]
+        internal void Critical(int eventId, string eventName, string message)
+        {
+            WriteFormattedMessage(CriticalId, eventId, eventName, message);
         }
 
         /// <inheritdoc/>
-        [Event(ErrorId, Level = EventLevel.Error)]
-        public void Error(string message)
+        [Event(ErrorId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Error)]
+        internal void Error(int eventId, string eventName, string message)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(ErrorId, message);
-            }
+            WriteFormattedMessage(ErrorId, eventId, eventName, message);
         }
 
         /// <inheritdoc/>
-        [Event(WarningId, Level = EventLevel.Warning)]
-        public void Warning(string message)
+        [Event(WarningId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Warning)]
+        internal void Warning(int eventId, string eventName, string message)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(WarningId, message);
-            }
+            WriteFormattedMessage(WarningId, eventId, eventName, message);
         }
 
         /// <inheritdoc/>
-        [Event(TraceId, Level = EventLevel.Verbose)]
-        public void Trace(string message)
+        [Event(TraceId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Verbose)]
+        internal void Trace(int eventId, string eventName, string message)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(TraceId, message);
-            }
+            WriteFormattedMessage(TraceId, eventId, eventName, message);
         }
 
         /// <inheritdoc/>
-        [Event(InfoId, Level = EventLevel.Informational)]
-        public void Info(string message)
+        [Event(InfoId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Informational)]
+        internal void Info(int eventId, string eventName, string message)
         {
-            if (IsEnabled())
-            {
-                WriteEvent(InfoId, message);
-            }
+            WriteFormattedMessage(InfoId, eventId, eventName, message);
         }
 
         /// <inheritdoc/>
-        [Event(DebugId, Level = EventLevel.Verbose)]
-        public void Debug(string message)
+        [Event(DebugId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Verbose)]
+        internal void Debug(int eventId, string eventName, string message)
         {
 #if DEBUG
-            if (IsEnabled())
-            {
-                WriteEvent(DebugId, message);
-            }
+            WriteFormattedMessage(DebugId, eventId, eventName, message);
 #endif
         }
+        #endregion
 
-        /// <summary>
-        /// Log a critical message.
-        /// </summary>
+        #region ILogger Interface
         [NonEvent]
-        public void Critical(string format, params object[] args)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
-            if (IsEnabled())
+            if (!IsEnabled())
             {
-                Critical(Utils.Format(format, args));
-            }
-            else
-            {
-                Utils.LogCritical(TraceMasks.Error, format, false, args);
-            }
-        }
-
-        /// <summary>
-        /// Log an error message.
-        /// </summary>
-        [NonEvent]
-        public void Error(string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                Error(Utils.Format(format, args));
-            }
-            else
-            {
-                Utils.LogError(format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log information message.
-        /// </summary>
-        [NonEvent]
-        public void Info(string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                Info(Utils.Format(format, args));
-            }
-            else
-            {
-                Utils.LogInfo(format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log a warning message.
-        /// </summary>
-        [NonEvent]
-        public void Warning(string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                Warning(Utils.Format(format, args));
-            }
-            else
-            {
-                Utils.LogWarning(format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log a Trace message.
-        /// </summary>
-        [NonEvent]
-        public void Trace(string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                Trace(Utils.Format(format, args));
-            }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Utils.LogTrace(format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log a trace message.
-        /// </summary>
-        [NonEvent]
-        public void Trace(int mask, string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                Trace(Utils.Format(format, args));
-            }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
-            {
-                Utils.LogTrace(mask, format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log a debug messug.
-        /// </summary>
-        [NonEvent]
-        [Conditional("DEBUG")]
-        public void Debug(string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                Debug(Utils.Format(format, args));
-            }
-            else if (Utils.Logger.IsEnabled(LogLevel.Debug))
-            {
-                Utils.LogDebug(format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log an exception with just a message.
-        /// </summary>
-        /// <param name="message">The exception message.</param>
-        [Event(ExceptionId, Message = ExceptionMessage, Level = EventLevel.Error)]
-        public void Exception(string message)
-        {
-            WriteEvent(ExceptionId, message);
-        }
-
-        /// <summary>
-        /// A service result exception message.
-        /// </summary>
-        [Event(ServiceResultExceptionId, Message = ServiceResultExceptionMessage, Level = EventLevel.Error)]
-        public void ServiceResultException(int statusCode, string message)
-        {
-            WriteEvent(ServiceResultExceptionId, statusCode, message);
-        }
-
-        /// <summary>
-        /// Log an exception.
-        /// </summary>
-        [NonEvent]
-        public void Exception(Exception ex, string format, params object[] args)
-        {
-            if (IsEnabled())
-            {
-                var message = Utils.TraceExceptionMessage(ex, format, args).ToString();
-                if (ex is ServiceResultException sre)
-                {
-                    ServiceResultException((int)sre.StatusCode, message);
-                }
-                else
-                {
-                    Exception(message);
-                }
-            }
-            else
-            {
-                Utils.LogError(ex, format, args);
-            }
-        }
-
-        /// <summary>
-        /// Log a ILogger log message with exception on EventSource.
-        /// </summary>
-        [NonEvent]
-        public void LogLog(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
-        {
-            if (exception != null)
-            {
-                Exception(exception, message, args);
                 return;
             }
-            LogLog(logLevel, eventId, message, args);
+
+            string message = null;
+
+            // Log the formatted message
+            if (IsEnabled(EventLevel.Informational, Keywords.FormattedMessage))
+            {
+                message = formatter(state, exception);
+                switch (logLevel)
+                {
+                    case LogLevel.Trace: Trace(eventId.Id, eventId.Name, message); break;
+                    case LogLevel.Debug: Debug(eventId.Id, eventId.Name, message); break;
+                    case LogLevel.Information: Info(eventId.Id, eventId.Name, message); break;
+                    case LogLevel.Warning: Warning(eventId.Id, eventId.Name, message); break;
+                    case LogLevel.Error: Error(eventId.Id, eventId.Name, message); break;
+                    case LogLevel.Critical: Critical(eventId.Id, eventId.Name, message); break;
+                }
+            }
+        }
+
+        [NonEvent]
+        public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None && IsEnabled();
+
+        [NonEvent]
+        public IDisposable BeginScope<TState>(TState state)
+        {
+            return null;
         }
 
         /// <summary>
-        /// Log a ILogger log message with EventSource.
+        /// The helper to write the formatted message as event.
         /// </summary>
+        /// <param name="id"></param>
+        /// <param name="eventId"></param>
+        /// <param name="EventName"></param>
+        /// <param name="FormattedMessage"></param>
         [NonEvent]
-        public void LogLog(LogLevel logLevel, EventId eventId, string message, params object[] args)
+        internal void WriteFormattedMessage(int id, int eventId, string EventName, string FormattedMessage)
         {
-            if (args.Length == 0)
+            if (IsEnabled())
             {
-                switch (logLevel)
-                {
-                    case LogLevel.Trace: Trace(message); break;
-                    case LogLevel.Debug: Debug(message); break;
-                    case LogLevel.Information: Info(message); break;
-                    case LogLevel.Warning: Warning(message); break;
-                    case LogLevel.Error: Error(message); break;
-                    case LogLevel.Critical: Critical(message); break;
-                }
-            }
-            else
-            {
-                switch (logLevel)
-                {
-                    case LogLevel.Trace: Trace(message, args); break;
-                    case LogLevel.Debug: Debug(message, args); break;
-                    case LogLevel.Information: Info(message, args); break;
-                    case LogLevel.Warning: Warning(message, args); break;
-                    case LogLevel.Error: Error(message, args); break;
-                    case LogLevel.Critical: Critical(message, args); break;
-                }
+                EventName = EventName ?? "";
+                FormattedMessage = FormattedMessage ?? "";
+                WriteEvent(id, eventId, EventName, FormattedMessage);
             }
         }
 
-        //************************************************************************************************************
 
+        [NonEvent]
+        private LogLevel GetDefaultLevel()
+        {
+            EventKeywords allMessageKeywords = Keywords.FormattedMessage;
+
+            if (IsEnabled(EventLevel.Verbose, allMessageKeywords))
+            {
+                return LogLevel.Trace;
+            }
+
+            if (IsEnabled(EventLevel.Informational, allMessageKeywords))
+            {
+                return LogLevel.Information;
+            }
+
+            if (IsEnabled(EventLevel.Warning, allMessageKeywords))
+            {
+                return LogLevel.Warning;
+            }
+
+            if (IsEnabled(EventLevel.Error, allMessageKeywords))
+            {
+                return LogLevel.Error;
+            }
+
+            return LogLevel.Critical;
+        }
+        #endregion
+
+        #region Service Events
         /// <summary>
         /// A server service call message.
         /// </summary>
-        [Event(ServiceCallStartId, Message = ServiceCallStartMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
+        [Event(ServiceCallStartId, Keywords = Keywords.Services, Message = ServiceCallStartMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
         public void ServiceCallStart(string serviceName, int requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -388,14 +233,14 @@ namespace Opc.Ua
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServiceCallStartEventId, ServiceCallStartMessage, serviceName, requestHandle, pendingRequestCount);
+                Utils.Log(LogLevel.Trace, ServiceCallStartEventId, ServiceCallStartMessage, serviceName, requestHandle, pendingRequestCount);
             }
         }
 
         /// <summary>
         /// The server service completed message.
         /// </summary>
-        [Event(ServiceCallStopId, Message = ServiceCallStopMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
+        [Event(ServiceCallStopId, Keywords = Keywords.Services, Message = ServiceCallStopMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
         public void ServiceCallStop(string serviceName, int requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -404,14 +249,14 @@ namespace Opc.Ua
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServiceCallStopEventId, ServiceCallStopMessage, serviceName, requestHandle, pendingRequestCount);
+                Utils.Log(LogLevel.Trace, ServiceCallStopEventId, ServiceCallStopMessage, serviceName, requestHandle, pendingRequestCount);
             }
         }
 
         /// <summary>
         /// A service message completed with a bad status code.
         /// </summary>
-        [Event(ServiceCallBadStopId, Message = ServiceCallBadStopMessage, Level = EventLevel.Warning, Task = Tasks.ServiceCallTask)]
+        [Event(ServiceCallBadStopId, Keywords = Keywords.Services, Message = ServiceCallBadStopMessage, Level = EventLevel.Warning, Task = Tasks.ServiceCallTask)]
         public void ServiceCallBadStop(string serviceName, int requestHandle, int statusCode, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -420,7 +265,7 @@ namespace Opc.Ua
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, statusCode, pendingRequestCount);
+                Utils.Log(LogLevel.Trace, ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, statusCode, pendingRequestCount);
             }
         }
 
@@ -452,8 +297,9 @@ namespace Opc.Ua
             }
             else if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(SendResponseEventId, SendResponseMessage, channelId, requestId);
+                Utils.Log(LogLevel.Trace, SendResponseEventId, SendResponseMessage, channelId, requestId);
             }
         }
+        #endregion
     }
 }
