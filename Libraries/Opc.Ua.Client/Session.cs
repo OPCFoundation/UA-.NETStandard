@@ -1267,6 +1267,7 @@ namespace Opc.Ua.Client
             }
         }
 
+#if TODO
         /// <summary>
         /// Function to republish
         /// </summary>
@@ -1286,6 +1287,7 @@ namespace Opc.Ua.Client
 
             StartKeepAliveTimer();
         }
+#endif
 
         /// <summary>
         /// Saves all the subscriptions of the session.

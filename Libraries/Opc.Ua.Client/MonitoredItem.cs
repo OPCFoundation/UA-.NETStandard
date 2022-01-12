@@ -390,13 +390,23 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Source Id for the monitored item
+        /// Server-assigned id for the MonitoredItem.
         /// </summary>
         [DataMember(Order = 13)]
-        public uint Id
+        public uint ServerId
         {
             get { return m_status.Id; }
             set { m_status.Id = value; }
+        }
+
+        /// <summary>
+        /// Client-supplied id of the MonitoredItem.
+        /// </summary>
+        [DataMember(Order = 14)]
+        public uint ClientId
+        {
+            get { return m_status.ClientHandle; }
+            set { m_status.ClientHandle = value; }
         }
         #endregion
 

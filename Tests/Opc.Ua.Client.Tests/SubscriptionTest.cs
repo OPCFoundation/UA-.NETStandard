@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -439,9 +440,106 @@ namespace Opc.Ua.Client.Tests
                 Assert.True(result);
             }
         }
+
+        [Theory, Order(810)]
+        public async Task TransferSubscription(bool closeOriginSession)
+        {
+            // create test session and subscription
+            var originSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            var subscription = new Subscription(originSession.DefaultSubscription) {
+                PublishingInterval = 1000,
+            };
+            originSession.AddSubscription(subscription);
+            subscription.Create();
+
+            // set defaults
+            subscription.DefaultItem.DiscardOldest = true;
+            subscription.DefaultItem.QueueSize = 5;
+            subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
+
+            // create test set
+            var namespaceUris = m_session.NamespaceUris;
+            NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+            subscription.AddItems(CreateMonitoredItemTestSet(subscription, testSet));
+            subscription.ApplyChanges();
+
+            // settle
+            await Task.Delay(1_000).ConfigureAwait(false);
+
+            // persist the subscription state
+            var filePath = "d:\\Subscriptions.xml";//Path.GetTempFileName();
+
+            // close session, do not delete subscription
+            if (closeOriginSession)
+            {
+                originSession.Save(filePath);
+                originSession.DeleteSubscriptionsOnClose = false;
+                originSession.Close();
+            }
+
+            // create target session
+            var targetSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+
+            // restore client state
+            var restoredSubscriptions = new SubscriptionCollection(targetSession.Load(filePath));
+
+            // hook notifications for log output
+            foreach (var s in restoredSubscriptions)
+            {
+                foreach (var monitoredItem in s.MonitoredItems)
+                {
+                    monitoredItem.Notification += (_, args) => {
+                        TestContext.Out.WriteLine($"TransferredSession: Value: {(args?.NotificationValue as MonitoredItemNotification).Value.Value.ToString() ?? string.Empty}");
+                    };
+                }
+            }
+
+            // transfer restored subscriptions
+            var result = targetSession.TransferSubscriptions(restoredSubscriptions, true);
+            Assert.IsTrue(result);
+
+            for (int ii = 0; ii < restoredSubscriptions.Count; ii++)
+            {
+                Assert.IsTrue(restoredSubscriptions[ii].Created);
+            }
+
+            // wait for some events
+            await Task.Delay(10_000).ConfigureAwait(false);
+
+            // close sessions
+            targetSession.Close();
+            if (!closeOriginSession)
+            {
+                originSession.Close();
+            }
+
+            // cleanup
+            File.Delete(filePath);
+        }
         #endregion
 
         #region Private Methods
+        private IList<MonitoredItem> CreateMonitoredItemTestSet(Subscription subscription, NodeId[] nodeIds)
+        {
+            var list = new List<MonitoredItem>();
+
+            foreach (NodeId nodeId in nodeIds)
+            {
+                var item = new MonitoredItem(subscription.DefaultItem) {
+                    StartNodeId = nodeId
+                };
+                list.Add(item);
+            };
+
+            list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                foreach (var value in item.DequeueValues())
+                {
+                    TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                }
+            });
+
+            return list;
+        }
         #endregion
     }
 }

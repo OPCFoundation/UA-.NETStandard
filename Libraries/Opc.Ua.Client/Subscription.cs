@@ -543,8 +543,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The unique identifier assigned by the server.
         /// </summary>
-        [DataMember(Name = "Id", Order = 14)]
-        public uint Id { get => m_id; set => m_id = value; }
+        public uint Id => m_id;
 
         /// <summary>
         /// Whether the subscription has been created on the server.
@@ -555,19 +554,19 @@ namespace Opc.Ua.Client
         /// The current publishing interval.
         /// </summary>
         [DataMember(Name = "CurrentPublishInterval", Order = 15)]
-        public double CurrentPublishingInterval { get; set; }
+        public double CurrentPublishingInterval => m_currentPublishingInterval;
 
         /// <summary>
         /// The current keep alive count.
         /// </summary>
         [DataMember(Name = "CurrentKeepAliveCount", Order = 16)]
-        public uint CurrentKeepAliveCount { get; set; }
+        public uint CurrentKeepAliveCount => m_currentKeepAliveCount;
 
         /// <summary>
         /// The current lifetime count.
         /// </summary>
         [DataMember(Name = "CurrentLifetimeCount", Order = 17)]
-        public uint CurrentLifetimeCount { get; set; }
+        public uint CurrentLifetimeCount => m_currentLifetimeCount;
 
         /// <summary>
         /// Whether publishing is currently enabled.
@@ -720,7 +719,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    int keepAliveInterval = (int)(Math.Min(CurrentPublishingInterval * CurrentKeepAliveCount, Int32.MaxValue - 500));
+                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue - 500));
 
                     if (m_lastNotificationTime.AddMilliseconds(keepAliveInterval + 500) < DateTime.UtcNow)
                     {
@@ -771,6 +770,43 @@ namespace Opc.Ua.Client
             ChangesCompleted();
 
             TraceState("CREATED");
+        }
+
+        /// <summary>
+        /// Called after the subscription was transferred.
+        /// </summary>
+        /// <param name="id">Id of the transferred subscription.</param>
+        /// <param name="availableSequenceNumbers"></param>
+        public bool Transfer(uint id, UInt32Collection availableSequenceNumbers)
+        {
+            if (Created)
+            {
+                // TODO
+            }
+            else
+            {
+                var serverHandles = new UInt32Collection();
+                var clientHandles = new UInt32Collection();
+                GetMonitoredItems(serverHandles, clientHandles);
+
+                if (serverHandles.Count != m_monitoredItems.Count ||
+                    clientHandles.Count != m_monitoredItems.Count)
+                {
+                    // invalid state
+                    return false;
+                }
+
+                m_id = id;
+                m_availableSequenceNumbers = availableSequenceNumbers;
+                m_changeMask |= SubscriptionChangeMask.Transferred;
+
+                ChangesCompleted();
+
+                TraceState("TRANSFERRED");
+
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -1481,16 +1517,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        private void GetMonitoredItems()
+        private bool GetMonitoredItems(UInt32Collection serverHandles, UInt32Collection clientHandles)
         {
-            UInt32Collection serverHandles = null;
-            UInt32Collection clientHandles = null;
-            var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, Id);
+            var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
             if (outputArguments != null && outputArguments.Count == 2)
             {
-                serverHandles = new UInt32Collection((uint[])outputArguments[0]);
-                clientHandles = new UInt32Collection((uint[])outputArguments[1]); ;
+                serverHandles.AddRange((uint[])outputArguments[0]);
+                clientHandles.AddRange((uint[])outputArguments[1]);
+                return true;
             }
+            return false;
         }
 
         /// <summary>
@@ -1510,7 +1546,7 @@ namespace Opc.Ua.Client
                 m_lastNotificationTime = DateTime.MinValue;
             }
 
-            int keepAliveInterval = (int)(Math.Min(CurrentPublishingInterval * CurrentKeepAliveCount, Int32.MaxValue));
+            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
 
             m_lastNotificationTime = DateTime.UtcNow;
             m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
@@ -1559,7 +1595,7 @@ namespace Opc.Ua.Client
         internal void TraceState(string context)
         {
             CoreClientUtils.EventLog.SubscriptionState(context, m_id, m_lastNotificationTime, m_session?.GoodPublishRequestCount ?? 0,
-                CurrentPublishingInterval, CurrentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
+                m_currentPublishingInterval, m_currentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
         }
 
         /// <summary>
@@ -1601,9 +1637,9 @@ namespace Opc.Ua.Client
             )
         {
             // update current state.
-            CurrentPublishingInterval = revisedPublishingInterval;
-            CurrentKeepAliveCount = revisedKeepAliveCount;
-            CurrentLifetimeCount = revisedLifetimeCounter;
+            m_currentPublishingInterval = revisedPublishingInterval;
+            m_currentKeepAliveCount = revisedKeepAliveCount;
+            m_currentLifetimeCount = revisedLifetimeCounter;
             m_currentPriority = m_priority;
 
             if (!created)
@@ -1654,8 +1690,6 @@ namespace Opc.Ua.Client
         private void DeleteSubscription()
         {
             m_transferId = m_id = 0;
-            CurrentPublishingInterval = 0;
-            CurrentKeepAliveCount = 0;
             m_currentPublishingInterval = 0;
             m_currentKeepAliveCount = 0;
             m_currentPublishingEnabled = false;
@@ -2336,7 +2370,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Monitored items were modified on the server.
         /// </summary>
-        ItemsModified = 0x80
+        ItemsModified = 0x80,
+
+        /// <summary>
+        /// Subscriptions was transferred on the server.
+        /// </summary>
+        Transferred = 0x100
+
     }
     #endregion
 

@@ -1187,12 +1187,29 @@ namespace Opc.Ua.Server
 
                         bool invalidIdentity = !Utils.IsEqual(ownerSession.IdentityToken, context.Session.IdentityToken);
 
-                        // special case UserNameIdentityToken, technically only the user name is relevant.
+                        // special case UserNameIdentityToken, only the user name is relevant.
                         if (invalidIdentity &&
                             (ownerSession.IdentityToken is UserNameIdentityToken oldUser) &&
                             (context.Session.IdentityToken is UserNameIdentityToken newUser))
                         {
                             invalidIdentity = !string.Equals(oldUser.UserName, newUser.UserName, StringComparison.Ordinal);
+                        }
+
+                        // Test if anonymous user is using a matching application Uri
+                        // and Sign or SignAndEncrypt
+                        if (!invalidIdentity &&
+                            (context.Session.IdentityToken is AnonymousIdentityToken))
+                        {
+                            // validate anonymous user uses secure channel 
+                            var securityMode = context.ChannelContext.EndpointDescription.SecurityMode;
+                            if (securityMode != MessageSecurityMode.Sign &&
+                                securityMode != MessageSecurityMode.SignAndEncrypt)
+                            {
+                                invalidIdentity = true;
+                            }
+                            // validate the same client application Uri requests the transfer
+                            var applicationUri = context.ChannelContext.EndpointDescription.Server.ApplicationUri;
+                            // TODO: compare with previous app uri
                         }
 
                         if (invalidIdentity)

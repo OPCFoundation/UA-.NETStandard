@@ -105,7 +105,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The identifier assigned by the client.
         /// </summary>
-        public uint ClientHandle => m_clientHandle;
+        public uint ClientHandle { get => m_clientHandle; set => m_clientHandle = value; }
 
         /// <summary>
         /// The sampling interval.
