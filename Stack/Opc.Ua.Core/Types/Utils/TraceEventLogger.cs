@@ -44,12 +44,8 @@ namespace Opc.Ua
             {
                 return;
             }
-
-            if (Tracing.IsEnabled())
-            {
-                var message = formatter(state, exception);
-                Utils.Trace(exception, eventId.Id & Utils.TraceMasks.All, message, false, null);
-            }
+            int traceMask = Utils.GetTraceMask(eventId, logLevel);
+            Utils.Trace(state, exception, traceMask, formatter);
         }
     }
 }
