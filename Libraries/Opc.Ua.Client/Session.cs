@@ -3363,19 +3363,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Transfers a list of Subscriptions.
+        /// Transfers a list of Subscriptions from another session.
         /// </summary>
         public bool TransferSubscriptions(
             SubscriptionCollection subscriptions,
             bool sendInitialValues)
         {
-            // TODO: check if session is connected to the same server
-            // stop old publishing requests
             var subscriptionIds = new UInt32Collection();
             foreach (var subscription in subscriptions)
             {
-                subscription.PublishingEnabled = false;
-                subscriptionIds.Add(subscription.Id);
+                if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
+                }
+                if (subscription.TransferId == 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing Id."));
+                }
+                subscriptionIds.Add(subscription.TransferId);
             }
 
             ResponseHeader responseHeader = TransferSubscriptions(null, subscriptionIds, sendInitialValues, out var results, out var diagnosticInfos);
@@ -3387,6 +3392,14 @@ namespace Opc.Ua.Client
 
             ClientBase.ValidateResponse(results, subscriptionIds);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds);
+
+            for (int ii = 0; ii < subscriptions.Count; ii++)
+            {
+                if (StatusCode.IsGood(results[ii].StatusCode))
+                {
+                    subscriptions[ii].Transfer(subscriptionIds[ii], results[ii].AvailableSequenceNumbers);
+                }
+            }
 
             return true;
         }
