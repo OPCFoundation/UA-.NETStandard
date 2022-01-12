@@ -1268,6 +1268,26 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Function to republish
+        /// </summary>
+        public void Republish()
+        {
+            int publishCount = 0;
+            lock (SyncRoot)
+            {
+                publishCount = m_subscriptions.Count;
+            }
+
+            // refill pipeline.
+            for (int ii = 0; ii < publishCount; ii++)
+            {
+                BeginPublish(OperationTimeout);
+            }
+
+            StartKeepAliveTimer();
+        }
+
+        /// <summary>
         /// Saves all the subscriptions of the session.
         /// </summary>
         /// <param name="filePath">The file path.</param>
@@ -4675,8 +4695,8 @@ namespace Opc.Ua.Client
         private bool m_reconnecting;
         private LinkedList<AsyncRequestState> m_outstandingRequests;
 
-        private EndpointDescriptionCollection m_discoveryServerEndpoints;
-        private StringCollection m_discoveryProfileUris;
+        private readonly EndpointDescriptionCollection m_discoveryServerEndpoints;
+        private readonly StringCollection m_discoveryProfileUris;
 
         private class AsyncRequestState
         {
@@ -4687,7 +4707,7 @@ namespace Opc.Ua.Client
             public bool Defunct;
         }
 
-        private object m_eventLock = new object();
+        private readonly object m_eventLock = new object();
         private event KeepAliveEventHandler m_KeepAlive;
         private event NotificationEventHandler m_Publish;
         private event PublishErrorEventHandler m_PublishError;
@@ -4744,9 +4764,9 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private ServiceResult m_status;
-        private ServerState m_currentState;
-        private DateTime m_currentTime;
+        private readonly ServiceResult m_status;
+        private readonly ServerState m_currentState;
+        private readonly DateTime m_currentTime;
         private bool m_cancelKeepAlive;
         #endregion
     }
@@ -4796,9 +4816,9 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private Subscription m_subscription;
-        private NotificationMessage m_notificationMessage;
-        private IList<string> m_stringTable;
+        private readonly Subscription m_subscription;
+        private readonly NotificationMessage m_notificationMessage;
+        private readonly IList<string> m_stringTable;
         #endregion
     }
 
@@ -4852,9 +4872,9 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private uint m_subscriptionId;
-        private uint m_sequenceNumber;
-        private ServiceResult m_status;
+        private readonly uint m_subscriptionId;
+        private readonly uint m_sequenceNumber;
+        private readonly ServiceResult m_status;
         #endregion
     }
 

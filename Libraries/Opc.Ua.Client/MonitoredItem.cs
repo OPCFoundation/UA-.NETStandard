@@ -388,6 +388,16 @@ namespace Opc.Ua.Client
                 m_discardOldest = value;
             }
         }
+
+        /// <summary>
+        /// Source Id for the monitored item
+        /// </summary>
+        [DataMember(Order = 13)]
+        public uint Id
+        {
+            get { return m_status.Id; }
+            set { m_status.Id = value; }
+        }
         #endregion
 
         #region Dynamic Properties
@@ -1092,7 +1102,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private IEncodeable m_notificationValue;
+        private readonly IEncodeable m_notificationValue;
         #endregion
     }
 
@@ -1187,7 +1197,7 @@ namespace Opc.Ua.Client
         #region Private Fields
         private int m_queueSize;
         private DataValue m_lastValue;
-        private Queue<DataValue> m_values;
+        private readonly Queue<DataValue> m_values;
         #endregion
     }
 
@@ -1274,7 +1284,7 @@ namespace Opc.Ua.Client
         #region Private Fields
         private int m_queueSize;
         private EventFieldList m_lastEvent;
-        private Queue<EventFieldList> m_events;
+        private readonly Queue<EventFieldList> m_events;
         #endregion
     }
 }

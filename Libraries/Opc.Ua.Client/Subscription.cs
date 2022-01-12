@@ -543,7 +543,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The unique identifier assigned by the server.
         /// </summary>
-        public uint Id => m_id;
+        [DataMember(Name = "Id", Order = 14)]
+        public uint Id { get => m_id; set => m_id = value; }
 
         /// <summary>
         /// Whether the subscription has been created on the server.
@@ -553,17 +554,20 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The current publishing interval.
         /// </summary>
-        public double CurrentPublishingInterval => m_currentPublishingInterval;
+        [DataMember(Name = "CurrentPublishInterval", Order = 15)]
+        public double CurrentPublishingInterval { get; set; }
 
         /// <summary>
         /// The current keep alive count.
         /// </summary>
-        public uint CurrentKeepAliveCount => m_currentKeepAliveCount;
+        [DataMember(Name = "CurrentKeepAliveCount", Order = 16)]
+        public uint CurrentKeepAliveCount { get; set; }
 
         /// <summary>
         /// The current lifetime count.
         /// </summary>
-        public uint CurrentLifetimeCount => m_currentLifetimeCount;
+        [DataMember(Name = "CurrentLifetimeCount", Order = 17)]
+        public uint CurrentLifetimeCount { get; set; }
 
         /// <summary>
         /// Whether publishing is currently enabled.
@@ -716,7 +720,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue - 500));
+                    int keepAliveInterval = (int)(Math.Min(CurrentPublishingInterval * CurrentKeepAliveCount, Int32.MaxValue - 500));
 
                     if (m_lastNotificationTime.AddMilliseconds(keepAliveInterval + 500) < DateTime.UtcNow)
                     {
@@ -1506,7 +1510,7 @@ namespace Opc.Ua.Client
                 m_lastNotificationTime = DateTime.MinValue;
             }
 
-            int keepAliveInterval = (int)(Math.Min(m_currentPublishingInterval * m_currentKeepAliveCount, Int32.MaxValue));
+            int keepAliveInterval = (int)(Math.Min(CurrentPublishingInterval * CurrentKeepAliveCount, Int32.MaxValue));
 
             m_lastNotificationTime = DateTime.UtcNow;
             m_publishTimer = new Timer(OnKeepAlive, keepAliveInterval, keepAliveInterval, keepAliveInterval);
@@ -1555,7 +1559,7 @@ namespace Opc.Ua.Client
         internal void TraceState(string context)
         {
             CoreClientUtils.EventLog.SubscriptionState(context, m_id, m_lastNotificationTime, m_session?.GoodPublishRequestCount ?? 0,
-                m_currentPublishingInterval, m_currentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
+                CurrentPublishingInterval, CurrentKeepAliveCount, m_currentPublishingEnabled, MonitoredItemCount);
         }
 
         /// <summary>
@@ -1597,9 +1601,9 @@ namespace Opc.Ua.Client
             )
         {
             // update current state.
-            m_currentPublishingInterval = revisedPublishingInterval;
-            m_currentKeepAliveCount = revisedKeepAliveCount;
-            m_currentLifetimeCount = revisedLifetimeCounter;
+            CurrentPublishingInterval = revisedPublishingInterval;
+            CurrentKeepAliveCount = revisedKeepAliveCount;
+            CurrentLifetimeCount = revisedLifetimeCounter;
             m_currentPriority = m_priority;
 
             if (!created)
@@ -1650,6 +1654,8 @@ namespace Opc.Ua.Client
         private void DeleteSubscription()
         {
             m_transferId = m_id = 0;
+            CurrentPublishingInterval = 0;
+            CurrentKeepAliveCount = 0;
             m_currentPublishingInterval = 0;
             m_currentKeepAliveCount = 0;
             m_currentPublishingEnabled = false;
@@ -2368,7 +2374,7 @@ namespace Opc.Ua.Client
         #endregion
 
         #region Private Fields
-        private SubscriptionChangeMask m_changeMask;
+        private readonly SubscriptionChangeMask m_changeMask;
         #endregion
     }
 
