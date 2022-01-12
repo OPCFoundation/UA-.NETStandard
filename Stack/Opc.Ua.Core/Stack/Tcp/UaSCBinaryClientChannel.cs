@@ -240,7 +240,7 @@ namespace Opc.Ua.Bindings
 
                         default:
                         {
-                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={0}", ChannelId, e.Result.StatusCode);
+                            Utils.LogWarning(e, "ChannelId {0}: Could not gracefully close the channel. Reason={1}", ChannelId, e.Result.StatusCode);
                             break;
                         }
                     }
@@ -849,7 +849,7 @@ namespace Opc.Ua.Bindings
 
                     if (Socket != null)
                     {
-                        Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED: {0:X8}", ChannelId, Socket.Handle);
+                        Utils.LogInfo("ChannelId {0}: CLIENTCHANNEL SOCKET CLOSED: {1:X8}", ChannelId, Socket.Handle);
                         Socket.Close();
                         Socket = null;
                     }
