@@ -42,6 +42,7 @@ namespace Opc.Ua
             m_listeners = new List<ITransportListener>();
             m_endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
+            m_userTokenPolicyId = 0;
         }
         #endregion
 
@@ -805,7 +806,6 @@ namespace Opc.Ua
         /// <returns>Returns a collection of UserTokenPolicy objects, the return type is <seealso cref="UserTokenPolicyCollection"/> . </returns>
         public virtual UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
-            int policyId = 0;
             UserTokenPolicyCollection policies = new UserTokenPolicyCollection();
 
             if (configuration.ServerConfiguration == null || configuration.ServerConfiguration.UserTokenPolicies == null)
@@ -819,25 +819,15 @@ namespace Opc.Ua
 
                 if (String.IsNullOrEmpty(policy.SecurityPolicyUri))
                 {
-                    // ensure each policy has a unique id.
                     if (description.SecurityMode == MessageSecurityMode.None)
                     {
                         // ensure a security policy is specified for user tokens.
                         clone.SecurityPolicyUri = SecurityPolicies.Basic256;
-                        clone.PolicyId = Utils.Format("{0}", ++policyId);
                     }
-                    else
-                    {
-                        clone.PolicyId = Utils.Format("{0}", policyId++);
-                    }
-
-                    policyId++;
                 }
-                else
-                {
-                    clone.PolicyId = Utils.Format("{0}", policyId++);
-                }
-
+                // ensure each policy has a unique id within the context of the Server
+                clone.PolicyId = Utils.Format("{0}", ++m_userTokenPolicyId);
+                
                 policies.Add(clone);
             }
 
@@ -1577,6 +1567,8 @@ namespace Opc.Ua
         private List<ITransportListener> m_listeners;
         private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
+        // identifier for the UserTokenPolicy should be unique within the context of a single Server
+        private int m_userTokenPolicyId = 0;
         #endregion
     }
 }
