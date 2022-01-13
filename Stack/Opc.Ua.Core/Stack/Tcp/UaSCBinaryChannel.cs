@@ -282,7 +282,8 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            Utils.LogError("ChannelId {1}: {0} - Duplicate sequence number: {2} <= {3}", context, ChannelId, sequenceNumber, m_remoteSequenceNumber);
+            Utils.LogError("ChannelId {0}: {1} - Duplicate sequence number: {2} <= {3}",
+                ChannelId, context, sequenceNumber, m_remoteSequenceNumber);
             return false;
         }
 
