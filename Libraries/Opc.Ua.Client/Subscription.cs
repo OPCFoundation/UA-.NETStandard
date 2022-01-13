@@ -401,7 +401,11 @@ namespace Opc.Ua.Client
         /// The unique identifier assigned by the server which can be used to transfer a session.
         /// </summary>
         [DataMember(Name = "TransferId", Order = 14)]
-        public uint TransferId { get => m_transferId; set => m_transferId = value; }
+        public uint TransferId
+        {
+            get => m_transferId;
+            set => m_transferId = value;
+        }
 
         /// <summary>
         /// Gets or sets the fast data change callback.
@@ -554,19 +558,31 @@ namespace Opc.Ua.Client
         /// The current publishing interval.
         /// </summary>
         [DataMember(Name = "CurrentPublishInterval", Order = 15)]
-        public double CurrentPublishingInterval => m_currentPublishingInterval;
+        public double CurrentPublishingInterval
+        {
+            get => m_currentPublishingInterval;
+            set => m_currentPublishingInterval = value;
+        }
 
         /// <summary>
         /// The current keep alive count.
         /// </summary>
         [DataMember(Name = "CurrentKeepAliveCount", Order = 16)]
-        public uint CurrentKeepAliveCount => m_currentKeepAliveCount;
+        public uint CurrentKeepAliveCount
+        {
+            get => m_currentKeepAliveCount;
+            set => m_currentKeepAliveCount = value;
+        }
 
         /// <summary>
         /// The current lifetime count.
         /// </summary>
         [DataMember(Name = "CurrentLifetimeCount", Order = 17)]
-        public uint CurrentLifetimeCount => m_currentLifetimeCount;
+        public uint CurrentLifetimeCount
+        {
+            get => m_currentLifetimeCount;
+            set => m_currentLifetimeCount = value;
+        }
 
         /// <summary>
         /// Whether publishing is currently enabled.
@@ -776,11 +792,15 @@ namespace Opc.Ua.Client
         /// Called after the subscription was transferred.
         /// </summary>
         /// <param name="id">Id of the transferred subscription.</param>
-        /// <param name="availableSequenceNumbers"></param>
+        /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
         public bool Transfer(uint id, UInt32Collection availableSequenceNumbers)
         {
             if (Created)
             {
+                if (id != m_id)
+                {
+                    return false;
+                }
                 // TODO
             }
             else
