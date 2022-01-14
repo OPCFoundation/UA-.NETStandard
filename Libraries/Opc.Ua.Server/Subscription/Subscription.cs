@@ -858,10 +858,14 @@ namespace Opc.Ua.Server
             int overflowCount = messages.Count - (int)m_maxMessageCount;
             if (overflowCount > 0)
             {
+
                 Utils.LogWarning(
                     "WARNING: QUEUE OVERFLOW. Dropping {0} Messages. Increase MaxMessageQueueSize. SubId={1}, MaxMessageQueueSize={2}",
-                    overflowCount, m_id, m_maxMessageCount);
+                    overflowCount, m_id, m_maxMessageCount
+                    );
+
                 messages.RemoveRange(0, overflowCount);
+
             }
 
             // remove old messages if queue is full.

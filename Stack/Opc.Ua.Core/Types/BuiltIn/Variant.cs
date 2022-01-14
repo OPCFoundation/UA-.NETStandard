@@ -862,24 +862,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Append a ByteString as a hex string.
-        /// </summary>
-        private void AppendByteString(StringBuilder buffer, byte[] bytes, IFormatProvider formatProvider)
-        {
-            if (bytes != null)
-            {
-                for (int ii = 0; ii < bytes.Length; ii++)
-                {
-                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
-                }
-            }
-            else
-            {
-                buffer.Append("(null)");
-            }
-        }
-
-        /// <summary>
         /// Formats a value as a string.
         /// </summary>
         private void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
@@ -895,7 +877,12 @@ namespace Opc.Ua
             if (m_typeInfo.BuiltInType == BuiltInType.ByteString && m_typeInfo.ValueRank < 0)
             {
                 byte[] bytes = (byte[])value;
-                AppendByteString(buffer, bytes, formatProvider);
+
+                for (int ii = 0; ii < bytes.Length; ii++)
+                {
+                    buffer.AppendFormat(formatProvider, "{0:X2}", bytes[ii]);
+                }
+
                 return;
             }
 
@@ -914,34 +901,17 @@ namespace Opc.Ua
             {
                 buffer.Append('{');
 
-                if (m_typeInfo.BuiltInType == BuiltInType.ByteString)
+                if (array.Length > 0)
                 {
-                    if (array.Length > 0)
-                    {
-                        byte[] bytes = (byte[])array.GetValue(0);
-                        AppendByteString(buffer, bytes, formatProvider);
-                    }
-
-                    for (int ii = 1; ii < array.Length; ii++)
-                    {
-                        buffer.Append('|');
-                        byte[] bytes = (byte[])array.GetValue(ii);
-                        AppendByteString(buffer, bytes, formatProvider);
-                    }
+                    AppendFormat(buffer, array.GetValue(0), formatProvider);
                 }
-                else
+
+                for (int ii = 1; ii < array.Length; ii++)
                 {
-                    if (array.Length > 0)
-                    {
-                        AppendFormat(buffer, array.GetValue(0), formatProvider);
-                    }
-
-                    for (int ii = 1; ii < array.Length; ii++)
-                    {
-                        buffer.Append('|');
-                        AppendFormat(buffer, array.GetValue(ii), formatProvider);
-                    }
+                    buffer.Append(" |");
+                    AppendFormat(buffer, array.GetValue(ii), formatProvider);
                 }
+
                 buffer.Append('}');
                 return;
             }

@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
                     .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(hashSize))
-                    .SetCAConstraint()//kCaChainCount - 1 - i)
+                    .SetCAConstraint(kCaChainCount - 1 - i)
                     .SetIssuer(signingCert)
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
