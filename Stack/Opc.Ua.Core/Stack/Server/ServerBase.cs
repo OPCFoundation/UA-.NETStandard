@@ -825,7 +825,7 @@ namespace Opc.Ua
                     if (description.SecurityMode == MessageSecurityMode.None)
                     {
                         // ensure a security policy is specified for user tokens.
-                        clone.SecurityPolicyUri = SecurityPolicies.Basic256;
+                        clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
                     }
                 }
                 // ensure each policy has a unique id within the context of the Server
