@@ -398,16 +398,6 @@ namespace Opc.Ua.Client
             get { return m_status.Id; }
             set { m_status.Id = value; }
         }
-
-        /// <summary>
-        /// Client-supplied id of the MonitoredItem.
-        /// </summary>
-        [DataMember(Order = 14)]
-        public uint ClientId
-        {
-            get { return m_status.ClientHandle; }
-            set { m_status.ClientHandle = value; }
-        }
         #endregion
 
         #region Dynamic Properties
@@ -748,6 +738,16 @@ namespace Opc.Ua.Client
             }
 
             m_status.SetModifyResult(request, result, error);
+            m_attributesModified = false;
+        }
+
+        /// <summary>
+        /// Updates the object with the results of a transfer subscription request.
+        /// </summary>
+        public void SetTransferResult(uint clientHandle)
+        {
+            m_clientHandle = clientHandle;  
+            m_status.SetTransferResult(this);
             m_attributesModified = false;
         }
 

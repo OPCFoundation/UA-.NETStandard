@@ -156,13 +156,13 @@ namespace Opc.Ua.Client
             m_monitoredItems = new SortedDictionary<uint, MonitoredItem>();
             m_deletedItems = new List<MonitoredItem>();
 
-            m_defaultItem = new MonitoredItem();
-
-            m_defaultItem.DisplayName = "MonitoredItem";
-            m_defaultItem.SamplingInterval = -1;
-            m_defaultItem.MonitoringMode = MonitoringMode.Reporting;
-            m_defaultItem.QueueSize = 0;
-            m_defaultItem.DiscardOldest = true;
+            m_defaultItem = new MonitoredItem {
+                DisplayName = "MonitoredItem",
+                SamplingInterval = -1,
+                MonitoringMode = MonitoringMode.Reporting,
+                QueueSize = 0,
+                DiscardOldest = true
+            };
         }
         #endregion
 
@@ -234,7 +234,6 @@ namespace Opc.Ua.Client
         public string DisplayName
         {
             get => m_displayName;
-
             set => m_displayName = value;
         }
 
@@ -375,7 +374,8 @@ namespace Opc.Ua.Client
         /// <c>true</c> if incoming messages are handled sequentially; <c>false</c> otherwise.
         /// </value>
         /// <remarks>
-        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in a "single-threaded" manner and callbacks will not be invoked in parallel.
+        /// Setting <see cref="SequentialPublishing"/> to <c>true</c> means incoming messages are processed in
+        /// a "single-threaded" manner and callbacks will not be invoked in parallel.
         /// </remarks>
         [DataMember(Order = 13)]
         public bool SequentialPublishing
@@ -801,13 +801,16 @@ namespace Opc.Ua.Client
                 {
                     return false;
                 }
+
                 // TODO
+
             }
             else
             {
-                var serverHandles = new UInt32Collection();
-                var clientHandles = new UInt32Collection();
-                GetMonitoredItems(serverHandles, clientHandles);
+                if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
+                {
+                    return false;
+                }
 
                 if (serverHandles.Count != m_monitoredItems.Count ||
                     clientHandles.Count != m_monitoredItems.Count)
@@ -818,15 +821,20 @@ namespace Opc.Ua.Client
 
                 m_id = id;
                 m_availableSequenceNumbers = availableSequenceNumbers;
-                m_changeMask |= SubscriptionChangeMask.Transferred;
 
-                ChangesCompleted();
+                TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
 
-                TraceState("TRANSFERRED");
-
-                return true;
+                ModifyItems();
             }
-            return false;
+
+            m_changeMask |= SubscriptionChangeMask.Transferred;
+            ChangesCompleted();
+
+            StartKeepAliveTimer();
+
+            TraceState("TRANSFERRED");
+
+            return true;
         }
 
         /// <summary>
@@ -1537,14 +1545,23 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        private bool GetMonitoredItems(UInt32Collection serverHandles, UInt32Collection clientHandles)
+        private bool GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
         {
-            var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
-            if (outputArguments != null && outputArguments.Count == 2)
+            serverHandles = new UInt32Collection();
+            clientHandles = new UInt32Collection();
+            try
             {
-                serverHandles.AddRange((uint[])outputArguments[0]);
-                clientHandles.AddRange((uint[])outputArguments[1]);
-                return true;
+                var outputArguments = m_session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, m_transferId);
+                if (outputArguments != null && outputArguments.Count == 2)
+                {
+                    serverHandles.AddRange((uint[])outputArguments[0]);
+                    clientHandles.AddRange((uint[])outputArguments[1]);
+                    return true;
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                Utils.LogError(sre, "Failed to call GetMonitoredItems on server");
             }
             return false;
         }
@@ -2142,6 +2159,40 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Transfer all monitored items and prepares the modify
+        /// requests if transfer of client handles is not possible.
+        /// </summary>
+        private void TransferItems(
+            UInt32Collection serverHandles,
+            UInt32Collection clientHandles,
+            out IList<MonitoredItem> itemsToModify)
+        {
+            lock (m_cache)
+            {
+                itemsToModify = new List<MonitoredItem>();
+                var updatedMonitoredItems = new SortedDictionary<uint, MonitoredItem>();
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    var index = serverHandles.FindIndex(handle => handle == monitoredItem.Status.Id);
+                    if (index >= 0 && index < clientHandles.Count)
+                    {
+                        var clientHandle = clientHandles[index];
+                        updatedMonitoredItems[clientHandle] = monitoredItem;
+                        monitoredItem.SetTransferResult(clientHandle);
+                    }
+                    else
+                    {
+                        // modify client handle on server
+                        updatedMonitoredItems[monitoredItem.ClientHandle] = monitoredItem;
+                        itemsToModify.Add(monitoredItem);
+                    }
+                }
+                m_monitoredItems = updatedMonitoredItems;
+            }
+        }
+
 
         /// <summary>
         /// Prepare the ResolveItem to NodeId service call.

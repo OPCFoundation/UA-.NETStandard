@@ -444,30 +444,51 @@ namespace Opc.Ua.Client.Tests
         [Theory, Order(810)]
         public async Task TransferSubscription(bool closeOriginSession)
         {
+            const int kTestSubscriptions = 2;
+
             // create test session and subscription
             var originSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-            var subscription = new Subscription(originSession.DefaultSubscription) {
-                PublishingInterval = 1000,
-            };
-            originSession.AddSubscription(subscription);
-            subscription.Create();
 
-            // set defaults
-            subscription.DefaultItem.DiscardOldest = true;
-            subscription.DefaultItem.QueueSize = 5;
-            subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
+            // create subscriptions
+            var originSubscriptions = new SubscriptionCollection();
 
-            // create test set
-            var namespaceUris = m_session.NamespaceUris;
-            NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
-            subscription.AddItems(CreateMonitoredItemTestSet(subscription, testSet));
-            subscription.ApplyChanges();
+            for (int ii = 0; ii < kTestSubscriptions; ii++)
+            {
+                // create subscription with static monitored items
+                var subscription = new Subscription(originSession.DefaultSubscription) {
+                    PublishingInterval = 1_000,
+                    PublishingEnabled = true,
+                };
+
+                originSubscriptions.Add(subscription);
+                originSession.AddSubscription(subscription);
+                subscription.Create();
+
+                // set defaults
+                subscription.DefaultItem.DiscardOldest = true;
+                subscription.DefaultItem.QueueSize = (ii == 0) ? 0U : 5;
+                subscription.DefaultItem.MonitoringMode = MonitoringMode.Reporting;
+
+                // create test set
+                var namespaceUris = m_session.NamespaceUris;
+                var testSet = new List<NodeId>();
+                if (ii == 0)
+                {
+                    testSet.AddRange(CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
+                }
+                else//if ((ii & 1) != 0)
+                {
+                    testSet.AddRange(CommonTestWorkers.NodeIdTestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
+                }
+                subscription.AddItems(CreateMonitoredItemTestSet(subscription, testSet));
+                subscription.ApplyChanges();
+            }
 
             // settle
-            await Task.Delay(1_000).ConfigureAwait(false);
+            await Task.Delay(5_000).ConfigureAwait(false);
 
             // persist the subscription state
-            var filePath = "d:\\Subscriptions.xml";//Path.GetTempFileName();
+            var filePath = Path.GetTempFileName();
 
             // close session, do not delete subscription
             if (closeOriginSession)
@@ -477,30 +498,43 @@ namespace Opc.Ua.Client.Tests
                 originSession.Close();
             }
 
+            // wait 
+            await Task.Delay(1_000).ConfigureAwait(false);
+
             // create target session
             var targetSession = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
 
             // restore client state
-            var restoredSubscriptions = new SubscriptionCollection(targetSession.Load(filePath));
-
-            // hook notifications for log output
-            foreach (var s in restoredSubscriptions)
+            var transferSubscriptions = new SubscriptionCollection();
+            if (closeOriginSession)
             {
-                foreach (var monitoredItem in s.MonitoredItems)
+                // load
+                transferSubscriptions.AddRange(targetSession.Load(filePath));
+
+                // hook notifications for log output
+                foreach (var subscription in transferSubscriptions)
                 {
-                    monitoredItem.Notification += (_, args) => {
-                        TestContext.Out.WriteLine($"TransferredSession: Value: {(args?.NotificationValue as MonitoredItemNotification).Value.Value.ToString() ?? string.Empty}");
-                    };
+                    subscription.MonitoredItems.ToList().ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                        foreach (var value in item.DequeueValues())
+                        {
+                            TestContext.Out.WriteLine("Tra:{0}: {1:20}, {2}, {3}, {4}", subscription.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                        }
+                    });
                 }
+            }
+            else
+            {
+                transferSubscriptions.AddRange(originSubscriptions);
             }
 
             // transfer restored subscriptions
-            var result = targetSession.TransferSubscriptions(restoredSubscriptions, true);
+            var result = targetSession.TransferSubscriptions(transferSubscriptions, true);
             Assert.IsTrue(result);
 
-            for (int ii = 0; ii < restoredSubscriptions.Count; ii++)
+            // validate results
+            for (int ii = 0; ii < transferSubscriptions.Count; ii++)
             {
-                Assert.IsTrue(restoredSubscriptions[ii].Created);
+                Assert.IsTrue(transferSubscriptions[ii].Created);
             }
 
             // wait for some events
@@ -519,7 +553,7 @@ namespace Opc.Ua.Client.Tests
         #endregion
 
         #region Private Methods
-        private IList<MonitoredItem> CreateMonitoredItemTestSet(Subscription subscription, NodeId[] nodeIds)
+        private IList<MonitoredItem> CreateMonitoredItemTestSet(Subscription subscription, IList<NodeId> nodeIds)
         {
             var list = new List<MonitoredItem>();
 
@@ -534,7 +568,7 @@ namespace Opc.Ua.Client.Tests
             list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                 foreach (var value in item.DequeueValues())
                 {
-                    TestContext.Out.WriteLine("{0}: {1}, {2}, {3}", item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
+                    TestContext.Out.WriteLine("Org:{0}: {1:20}, {2}, {3}, {4}", subscription.Id, item.DisplayName, value.Value, value.SourceTimestamp, value.StatusCode);
                 }
             });
 
