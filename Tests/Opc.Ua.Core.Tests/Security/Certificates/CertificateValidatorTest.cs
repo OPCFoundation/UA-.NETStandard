@@ -182,7 +182,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             foreach (var app in m_NotYetValidCertsApplicationTestSet)
             {
                 var subject = app.Subject;
-                DateTime notBefore = rootCABaseTime.AddDays(2);
                 var expiredappcert = CertificateFactory.CreateCertificate(
                     app.ApplicationUri,
                     app.ApplicationName,
