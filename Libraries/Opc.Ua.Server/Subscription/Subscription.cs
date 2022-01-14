@@ -860,10 +860,9 @@ namespace Opc.Ua.Server
             {
 
                 Utils.LogWarning(
-                    "WARNING: QUEUE OVERFLOW. Dropping {2} Messages. Increase MaxMessageQueueSize. SubId={0}, MaxMessageQueueSize={1}",
-                    m_id,
-                    m_maxMessageCount,
-                    overflowCount);
+                    "WARNING: QUEUE OVERFLOW. Dropping {0} Messages. Increase MaxMessageQueueSize. SubId={1}, MaxMessageQueueSize={2}",
+                    overflowCount, m_id, m_maxMessageCount
+                    );
 
                 messages.RemoveRange(0, overflowCount);
 

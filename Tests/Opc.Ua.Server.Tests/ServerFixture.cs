@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
         public int ReverseConnectTimeout { get; set; }
-        public int TraceMasks { get; set; } = Utils.TraceMasks.All;
+        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
         public bool SecurityNone { get; set; } = false;
         public string UriScheme { get; set; } = Utils.UriSchemeOpcTcp;
         public int Port { get; private set; }
