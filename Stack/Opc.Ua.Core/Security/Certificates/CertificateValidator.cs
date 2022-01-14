@@ -918,7 +918,6 @@ namespace Opc.Ua
             }
 
             // build chain.
-            ServiceResult sresult = null;
             using (X509Chain chain = new X509Chain())
             {
                 chain.ChainPolicy = policy;
