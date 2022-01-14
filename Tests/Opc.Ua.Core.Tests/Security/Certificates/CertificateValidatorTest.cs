@@ -82,8 +82,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_appSelfSignedCerts = new X509Certificate2Collection();
             m_notYetValidAppCerts = new X509Certificate2Collection();
 
-            DateTime rootCABaseTime = DateTime.UtcNow;
-            rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1);
+            DateTime rootCABaseTime = DateTime.UtcNow.AddDays(-1);
+            rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             var rootCert = CertificateFactory.CreateCertificate(RootCASubject)
                 .SetNotBefore(rootCABaseTime)
                 .SetLifeTime(25 * 12)
@@ -106,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_crlRevokedChain[0] = null;
 
             var signingCert = rootCert;
-            DateTime subCABaseTime = DateTime.UtcNow;
+            DateTime subCABaseTime = DateTime.UtcNow.AddDays(-1);
             subCABaseTime = new DateTime(subCABaseTime.Year, subCABaseTime.Month, subCABaseTime.Day, 0, 0, 0, DateTimeKind.Utc);
             for (int i = 1; i < kCaChainCount; i++)
             {
@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetNotBefore(subCABaseTime)
                     .SetLifeTime(5 * 12)
                     .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(hashSize))
-                    .SetCAConstraint(kCaChainCount - 1 - i)
+                    .SetCAConstraint()//kCaChainCount - 1 - i)
                     .SetIssuer(signingCert)
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
@@ -395,7 +395,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     for (int i = 0; i < kCaChainCount; i++)
                     {
-                        ICertificateStore store = i != v ? validator.TrustedStore : validator.IssuerStore;
+                        ICertificateStore store = (i != v || kCaChainCount == 1) ? validator.TrustedStore : validator.IssuerStore;
                         await store.Add(m_caChain[i]).ConfigureAwait(false);
                         store.AddCRL(m_crlChain[i]);
                     }
@@ -1438,14 +1438,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     for (int i = 0; i < kCaChainCount; i++)
                     {
-                        if (i != v)
+                        if (i != v || kCaChainCount == 1)
                         {
-                            await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
+                            await validator.TrustedStore.Add(new X509Certificate2(m_caChain[i].RawData)).ConfigureAwait(false);
                             validator.TrustedStore.AddCRL(m_crlChain[i]);
                         }
                         else
                         {
-                            await validator.IssuerStore.Add(m_caChain[i]).ConfigureAwait(false);
+                            await validator.IssuerStore.Add(new X509Certificate2(m_caChain[i].RawData)).ConfigureAwait(false);
                             validator.IssuerStore.AddCRL(m_crlChain[i]);
                         }
                     }
@@ -1479,7 +1479,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     for (int i = 0; i < kCaChainCount; i++)
                     {
-                        if (i != v)
+                        if (i != v || kCaChainCount == 1)
                         {
                             await validator.TrustedStore.Add(m_caChain[i]).ConfigureAwait(false);
                         }

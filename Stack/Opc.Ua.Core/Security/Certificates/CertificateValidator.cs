@@ -1229,6 +1229,9 @@ namespace Opc.Ua
                     {
                         if ((issuer.ValidationOptions & CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                         {
+                            Utils.LogWarning(Utils.TraceMasks.Security, 
+                                "Error suppressed: {0}: {1}", 
+                                status.Status, status.StatusInformation);
                             break;
                         }
                     }
@@ -1259,7 +1262,9 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
-                        // TODO: add logging
+                        Utils.LogWarning(Utils.TraceMasks.Security, 
+                            "Error suppressed: {0}: {1}", 
+                            status.Status, status.StatusInformation);
                         break;
                     }
 
@@ -1274,7 +1279,9 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
-                        // TODO: add logging
+                        Utils.LogWarning(Utils.TraceMasks.Security, 
+                            "Error suppressed: {0}: {1}", 
+                            status.Status, status.StatusInformation);
                         break;
                     }
 
