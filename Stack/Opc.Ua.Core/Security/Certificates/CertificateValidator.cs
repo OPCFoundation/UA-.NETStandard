@@ -457,7 +457,7 @@ namespace Opc.Ua
         /// must not be supressed according to (e.g.) version 1.04 of the spec)
         /// </summary>
         /// <param name="sr"></param>
-        static private bool ContainsUnsuppressibleSC(ServiceResult sr)
+        private static bool ContainsUnsuppressibleSC(ServiceResult sr)
         {
             while (sr != null)
             {
@@ -1206,21 +1206,23 @@ namespace Opc.Ua
                 case X509ChainStatusFlags.UntrustedRoot:
                 {
                     // self signed cert signature validation 
-                    // .Net Core ChainStatus returns NotSignatureValid only on Windows, 
+                    // .NET Core ChainStatus returns NotSignatureValid only on Windows, 
                     // so we have to do the extra cert signature check on all platforms
-                    if (issuer == null && !isIssuer &&
-                        id.Certificate != null && X509Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Issuer))
+                    if (issuer == null && id.Certificate != null &&
+                        X509Utils.CompareDistinguishedName(id.Certificate.Subject, id.Certificate.Issuer))
                     {
                         if (!IsSignatureValid(id.Certificate))
                         {
                             goto case X509ChainStatusFlags.NotSignatureValid;
                         }
+                        break;
                     }
 
-                    // ignore this error because the root check is done
-                    // by looking the certificate up in the trusted issuer stores passed to the validator.
-                    // the ChainStatus uses the trusted issuer stores.
-                    break;
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateChainIncomplete,
+                        "Certificate chain validation failed. {0}: {1}",
+                        status.Status,
+                        status.StatusInformation);
                 }
 
                 case X509ChainStatusFlags.RevocationStatusUnknown:
@@ -1229,6 +1231,9 @@ namespace Opc.Ua
                     {
                         if ((issuer.ValidationOptions & CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                         {
+                            Utils.LogWarning(Utils.TraceMasks.Security, 
+                                "Error suppressed: {0}: {1}", 
+                                status.Status, status.StatusInformation);
                             break;
                         }
                     }
@@ -1259,7 +1264,9 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
-                        // TODO: add logging
+                        Utils.LogWarning(Utils.TraceMasks.Security, 
+                            "Error suppressed: {0}: {1}", 
+                            status.Status, status.StatusInformation);
                         break;
                     }
 
@@ -1274,7 +1281,9 @@ namespace Opc.Ua
                 {
                     if (id != null && ((id.ValidationOptions & CertificateValidationOptions.SuppressCertificateExpired) != 0))
                     {
-                        // TODO: add logging
+                        Utils.LogWarning(Utils.TraceMasks.Security, 
+                            "Error suppressed: {0}: {1}", 
+                            status.Status, status.StatusInformation);
                         break;
                     }
 
