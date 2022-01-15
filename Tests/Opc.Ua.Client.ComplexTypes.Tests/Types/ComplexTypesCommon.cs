@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Builds a complex type with all BuiltInTypes as properties.
         /// </summary>
         public Type BuildComplexTypeWithAllBuiltInTypes(
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             StructureType structureType,
             string testFunc,
             out ExpandedNodeId nodeId)
@@ -211,7 +211,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Create array of types for tests.
         /// </summary>
         public void CreateComplexTypes(
-            ServiceMessageContext context,
+            IServiceMessageContext context,
             Dictionary<StructureType, (ExpandedNodeId, Type)> dict,
             string nameExtension)
         {
@@ -270,7 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// Encode and decode a complex type, verify the result against expected data.
         /// </summary>
         protected void EncodeDecodeComplexType(
-            ServiceMessageContext encoderContext,
+            IServiceMessageContext encoderContext,
             EncodingType encoderType,
             StructureType structureType,
             ExpandedNodeId nodeId,

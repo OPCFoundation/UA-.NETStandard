@@ -389,7 +389,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <returns></returns>
         private void CompareEncodeDecode(UadpDataSetMessage uadpDataSetMessage)
         {
-            ServiceMessageContext messageContextEncode = new ServiceMessageContext();
+            IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             BinaryEncoder encoder = new BinaryEncoder(messageContextEncode);
             uadpDataSetMessage.Encode(encoder);
             byte[] bytes = ReadBytes(encoder.BaseStream);

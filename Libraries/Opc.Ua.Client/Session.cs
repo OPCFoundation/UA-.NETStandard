@@ -203,7 +203,7 @@ namespace Opc.Ua.Client
             }
 
             // initialize the message context.
-            ServiceMessageContext messageContext = channel.MessageContext;
+            IServiceMessageContext messageContext = channel.MessageContext;
 
             if (messageContext != null)
             {
@@ -547,7 +547,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the factory used to create encodeable objects that the server understands.
         /// </summary>
-        public EncodeableFactory Factory => m_factory;
+        public IEncodeableFactory Factory => m_factory;
 
         /// <summary>
         /// Gets the cache of the server's type tree.
@@ -572,7 +572,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the data type system dictionaries in use.
         /// </summary>
-        public Dictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
+        public IReadOnlyDictionary<NodeId, DataDictionary> DataTypeSystem => m_dictionaries;
 
         /// <summary>
         /// Gets the subscriptions owned by the session.
@@ -807,7 +807,7 @@ namespace Opc.Ua.Client
             }
 
             // create message context.
-            ServiceMessageContext messageContext = configuration.CreateMessageContext(true);
+            IServiceMessageContext messageContext = configuration.CreateMessageContext(true);
 
             // update endpoint description using the discovery endpoint.
             if (endpoint.UpdateBeforeConnect && connection == null)
@@ -948,7 +948,7 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static Session Recreate(Session template)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            var messageContext = template.m_configuration.CreateMessageContext();
             messageContext.Factory = template.Factory;
 
             // create the channel object used to connect to the server.
@@ -997,7 +997,7 @@ namespace Opc.Ua.Client
         /// <returns>The new session object.</returns>
         public static Session Recreate(Session template, ITransportWaitingConnection connection)
         {
-            ServiceMessageContext messageContext = template.m_configuration.CreateMessageContext();
+            var messageContext = template.m_configuration.CreateMessageContext();
             messageContext.Factory = template.Factory;
 
             // create the channel object used to connect to the server.
@@ -4585,7 +4585,7 @@ namespace Opc.Ua.Client
         private StringCollection m_preferredLocales;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private EncodeableFactory m_factory;
+        private IEncodeableFactory m_factory;
         private SystemContext m_systemContext;
         private NodeCache m_nodeCache;
         private ApplicationConfiguration m_configuration;
