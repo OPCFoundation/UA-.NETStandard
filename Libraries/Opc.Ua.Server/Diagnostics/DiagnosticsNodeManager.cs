@@ -182,7 +182,7 @@ namespace Opc.Ua.Server
                 }
 #else
                 // Subscription Durable mode not supported by the server.
-                ServerObjectState serverObject = (ServerObjectState) FindPredefinedNode(
+                ServerObjectState serverObject = (ServerObjectState)FindPredefinedNode(
                     ObjectIds.Server,
                     typeof(ServerObjectState));
 
@@ -1625,9 +1625,9 @@ namespace Opc.Ua.Server
                 }
             }
         }
-#endregion
+        #endregion
 
-#region Node Access Functions
+        #region Node Access Functions
 #if V1_Methods
         /// <summary>
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
@@ -1767,9 +1767,9 @@ namespace Opc.Ua.Server
             return null;
         }
 #endif
-#endregion
+        #endregion
 
-#region SessionDiagnosticsData Class
+        #region SessionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a session diagnostics structures.
         /// </summary>
@@ -1795,9 +1795,9 @@ namespace Opc.Ua.Server
             public SessionSecurityDiagnosticsValue SecurityValue;
             public NodeValueSimpleEventHandler SecurityUpdateCallback;
         }
-#endregion
+        #endregion
 
-#region SubscriptionDiagnosticsData Class
+        #region SubscriptionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a subscription diagnostics structure.
         /// </summary>
@@ -1814,9 +1814,9 @@ namespace Opc.Ua.Server
             public SubscriptionDiagnosticsValue Value;
             public NodeValueSimpleEventHandler UpdateCallback;
         }
-#endregion
+        #endregion
 
-#region Private Methods
+        #region Private Methods
         /// <summary>
         /// Creates a new sampled item.
         /// </summary>
@@ -1908,9 +1908,9 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
-#endregion
+        #endregion
 
-#region Private Fields
+        #region Private Fields
         private ushort m_namespaceIndex;
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
@@ -1926,6 +1926,6 @@ namespace Opc.Ua.Server
         private List<MonitoredItem> m_sampledItems;
         private double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
-#endregion
+        #endregion
     }
 }

@@ -998,11 +998,11 @@ namespace Opc.Ua.Server
         /// This method is used to delete bi-directional references to nodes from other node managers.
         /// </summary>
         public virtual ServiceResult DeleteReference(
-            object         sourceHandle,
-            NodeId         referenceTypeId,
-            bool           isInverse,
+            object sourceHandle,
+            NodeId referenceTypeId,
+            bool isInverse,
             ExpandedNodeId targetId,
-            bool           deleteBiDirectional)
+            bool deleteBiDirectional)
         {
             lock (Lock)
             {
@@ -1220,8 +1220,8 @@ namespace Opc.Ua.Server
         /// The node manager can store its state information in the Data and Index properties.
         /// </remarks>
         public virtual void Browse(
-            OperationContext            context,
-            ref ContinuationPoint       continuationPoint,
+            OperationContext context,
+            ref ContinuationPoint continuationPoint,
             IList<ReferenceDescription> references)
         {
             if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
@@ -1490,11 +1490,11 @@ namespace Opc.Ua.Server
         /// browse name.
         /// </remarks>
         public virtual void TranslateBrowsePath(
-            OperationContext      context,
-            object                sourceHandle,
-            RelativePathElement   relativePath,
+            OperationContext context,
+            object sourceHandle,
+            RelativePathElement relativePath,
             IList<ExpandedNodeId> targetIds,
-            IList<NodeId>         unresolvedTargetIds)
+            IList<NodeId> unresolvedTargetIds)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -1598,10 +1598,10 @@ namespace Opc.Ua.Server
         /// Reads the value for the specified attribute.
         /// </summary>
         public virtual void Read(
-            OperationContext     context,
-            double               maxAge,
-            IList<ReadValueId>   nodesToRead,
-            IList<DataValue>     values,
+            OperationContext context,
+            double maxAge,
+            IList<ReadValueId> nodesToRead,
+            IList<DataValue> values,
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -1840,8 +1840,8 @@ namespace Opc.Ua.Server
         /// Writes the value for the specified attributes.
         /// </summary>
         public virtual void Write(
-            OperationContext     context,
-            IList<WriteValue>    nodesToWrite,
+            OperationContext context,
+            IList<WriteValue> nodesToWrite,
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
@@ -2091,13 +2091,13 @@ namespace Opc.Ua.Server
         /// Reads the history for the specified nodes.
         /// </summary>
         public virtual void HistoryRead(
-            OperationContext          context,
-            HistoryReadDetails        details,
-            TimestampsToReturn        timestampsToReturn,
-            bool                      releaseContinuationPoints,
+            OperationContext context,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
             IList<HistoryReadValueId> nodesToRead,
-            IList<HistoryReadResult>  results,
-            IList<ServiceResult>      errors)
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -2129,9 +2129,9 @@ namespace Opc.Ua.Server
                     // create an initial result.
                     HistoryReadResult result = results[ii] = new HistoryReadResult();
 
-                    result.HistoryData       = null;
+                    result.HistoryData = null;
                     result.ContinuationPoint = null;
-                    result.StatusCode        = StatusCodes.Good;
+                    result.StatusCode = StatusCodes.Good;
 
                     // check if the node is a area in memory.
                     if (handle.Node == null)
@@ -2500,11 +2500,11 @@ namespace Opc.Ua.Server
         /// Updates the history for the specified nodes.
         /// </summary>
         public virtual void HistoryUpdate(
-            OperationContext            context,
-            Type                        detailsType,
+            OperationContext context,
+            Type detailsType,
             IList<HistoryUpdateDetails> nodesToUpdate,
-            IList<HistoryUpdateResult>  results,
-            IList<ServiceResult>        errors)
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -2601,11 +2601,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void HistoryUpdate(
             ServerSystemContext context,
-            Type                           detailsType,
-            IList<HistoryUpdateDetails>    nodesToUpdate,
-            IList<HistoryUpdateResult>     results,
-            IList<ServiceResult>           errors,
-            List<NodeHandle>               nodesToProcess,
+            Type detailsType,
+            IList<HistoryUpdateDetails> nodesToUpdate,
+            IList<HistoryUpdateResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
             IDictionary<NodeId, NodeState> cache)
         {
             // handle update data request.
@@ -2902,10 +2902,10 @@ namespace Opc.Ua.Server
         /// Calls a method on the specified nodes.
         /// </summary>
         public virtual void Call(
-            OperationContext         context,
+            OperationContext context,
             IList<CallMethodRequest> methodsToCall,
-            IList<CallMethodResult>  results,
-            IList<ServiceResult>     errors)
+            IList<CallMethodResult> results,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -2978,10 +2978,10 @@ namespace Opc.Ua.Server
         /// Calls a method on an object.
         /// </summary>
         protected virtual ServiceResult Call(
-            ISystemContext    context,
+            ISystemContext context,
             CallMethodRequest methodToCall,
-            MethodState       method,
-            CallMethodResult  result)
+            MethodState method,
+            CallMethodResult result)
         {
             ServerSystemContext systemContext = context as ServerSystemContext;
             List<ServiceResult> argumentErrors = new List<ServiceResult>();
@@ -3064,11 +3064,11 @@ namespace Opc.Ua.Server
         /// the notifier hierarchy.
         /// </remarks>
         public virtual ServiceResult SubscribeToEvents(
-            OperationContext    context,
-            object              sourceId,
-            uint                subscriptionId,
+            OperationContext context,
+            object sourceId,
+            uint subscriptionId,
             IEventMonitoredItem monitoredItem,
-            bool                unsubscribe)
+            bool unsubscribe)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
@@ -3103,10 +3103,10 @@ namespace Opc.Ua.Server
         /// manager must start/stop reporting events for all objects that it manages.
         /// </remarks>
         public virtual ServiceResult SubscribeToAllEvents(
-            OperationContext    context,
-            uint                subscriptionId,
+            OperationContext context,
+            uint subscriptionId,
             IEventMonitoredItem monitoredItem,
-            bool                unsubscribe)
+            bool unsubscribe)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
@@ -3237,9 +3237,9 @@ namespace Opc.Ua.Server
         /// <returns>Any error code.</returns>
         protected virtual ServiceResult SubscribeToEvents(
             ServerSystemContext context,
-            NodeState           source,
+            NodeState source,
             IEventMonitoredItem monitoredItem,
-            bool                unsubscribe)
+            bool unsubscribe)
         {
             MonitoredNode2 monitoredNode = null;
 
@@ -3313,8 +3313,8 @@ namespace Opc.Ua.Server
         /// <param name="unsubscribe">if set to <c>true</c> unsubscribing.</param>
         protected virtual void OnSubscribeToEvents(
             ServerSystemContext context,
-            MonitoredNode2       monitoredNode,
-            bool                unsubscribe)
+            MonitoredNode2 monitoredNode,
+            bool unsubscribe)
         {
             // defined by the sub-class
         }
@@ -3328,7 +3328,7 @@ namespace Opc.Ua.Server
         /// The node manager must create a refresh event for each condition monitored by the subscription.
         /// </remarks>
         public virtual ServiceResult ConditionRefresh(
-            OperationContext           context,
+            OperationContext context,
             IList<IEventMonitoredItem> monitoredItems)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
@@ -3395,15 +3395,15 @@ namespace Opc.Ua.Server
         /// This method only handles data change subscriptions. Event subscriptions are created by the SDK.
         /// </remarks>
         public virtual void CreateMonitoredItems(
-            OperationContext                  context,
-            uint                              subscriptionId,
-            double                            publishingInterval,
-            TimestampsToReturn                timestampsToReturn,
+            OperationContext context,
+            uint subscriptionId,
+            double publishingInterval,
+            TimestampsToReturn timestampsToReturn,
             IList<MonitoredItemCreateRequest> itemsToCreate,
-            IList<ServiceResult>              errors,
-            IList<MonitoringFilterResult>     filterResults,
-            IList<IMonitoredItem>             monitoredItems,
-            ref long                          globalIdCounter)
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults,
+            IList<IMonitoredItem> monitoredItems,
+            ref long globalIdCounter)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -3887,12 +3887,12 @@ namespace Opc.Ua.Server
         /// Modifies the parameters for a set of monitored items.
         /// </summary>
         public virtual void ModifyMonitoredItems(
-            OperationContext                  context,
-            TimestampsToReturn                timestampsToReturn,
-            IList<IMonitoredItem>             monitoredItems,
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            IList<IMonitoredItem> monitoredItems,
             IList<MonitoredItemModifyRequest> itemsToModify,
-            IList<ServiceResult>              errors,
-            IList<MonitoringFilterResult>     filterResults)
+            IList<ServiceResult> errors,
+            IList<MonitoringFilterResult> filterResults)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             List<IMonitoredItem> modifiedItems = new List<IMonitoredItem>();
@@ -4071,10 +4071,10 @@ namespace Opc.Ua.Server
         /// Deletes a set of monitored items.
         /// </summary>
         public virtual void DeleteMonitoredItems(
-            OperationContext      context,
+            OperationContext context,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool>           processedItems,
-            IList<ServiceResult>  errors)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             List<IMonitoredItem> deletedItems = new List<IMonitoredItem>();
@@ -4237,11 +4237,11 @@ namespace Opc.Ua.Server
         /// <param name="processedItems">Flags indicating which items have been processed.</param>
         /// <param name="errors">Any errors.</param>
         public virtual void SetMonitoringMode(
-            OperationContext      context,
-            MonitoringMode        monitoringMode,
+            OperationContext context,
+            MonitoringMode monitoringMode,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool>           processedItems,
-            IList<ServiceResult>  errors)
+            IList<bool> processedItems,
+            IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = m_systemContext.Copy(context);
             List<IMonitoredItem> changedItems = new List<IMonitoredItem>();
