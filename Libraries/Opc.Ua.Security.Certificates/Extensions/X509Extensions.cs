@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.Linq;
 using System.Numerics;
@@ -155,8 +156,17 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="distributionPoint">The CRL distribution point</param>
         public static X509Extension BuildX509CRLDistributionPoints(
-            string distributionPoint
-            )
+            string distributionPoint)
+        {
+            return BuildX509CRLDistributionPoints(new string[] { distributionPoint });
+        }
+
+        /// <summary>
+        /// Build the CRL Distribution Point extension with multiple distribution points.
+        /// </summary>
+        /// <param name="distributionPoints">The CRL distribution points</param>
+        public static X509Extension BuildX509CRLDistributionPoints(
+            IEnumerable<string> distributionPoints)
         {
             var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
             Asn1Tag distributionPointChoice = context0;
@@ -167,11 +177,14 @@ namespace Opc.Ua.Security.Certificates
             writer.PushSequence();
             writer.PushSequence(distributionPointChoice);
             writer.PushSequence(fullNameChoice);
-            writer.WriteCharacterString(
-                UniversalTagNumber.IA5String,
-                distributionPoint,
-                generalNameUriChoice
-                );
+            foreach (string distributionPoint in distributionPoints)
+            {
+                writer.WriteCharacterString(
+                    UniversalTagNumber.IA5String,
+                    distributionPoint,
+                    generalNameUriChoice
+                    );
+            }
             writer.PopSequence(fullNameChoice);
             writer.PopSequence(distributionPointChoice);
             writer.PopSequence();
@@ -243,7 +256,7 @@ namespace Opc.Ua.Security.Certificates
             var ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
             return new X509AuthorityKeyIdentifierExtension(
                 ski.SubjectKeyIdentifier.FromHexString(),
-                issuerCaCertificate.SubjectName,
+                issuerCaCertificate.IssuerName,
                 issuerCaCertificate.GetSerialNumber());
         }
 

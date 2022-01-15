@@ -58,23 +58,23 @@ namespace Opc.Ua.Gds.Server
             CertificateGroupConfiguration certificateGroupConfiguration
             )
         {
-            m_authoritiesStorePath = authoritiesStorePath;
-            m_authoritiesStoreType = CertificateStoreIdentifier.DetermineStoreType(m_authoritiesStorePath);
+            AuthoritiesStorePath = authoritiesStorePath;
+            AuthoritiesStoreType = CertificateStoreIdentifier.DetermineStoreType(AuthoritiesStorePath);
             Configuration = certificateGroupConfiguration;
-            m_subjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
+            SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName());
         }
 
         #region ICertificateGroupProvider
         public virtual async Task Init()
         {
-            Utils.Trace(Utils.TraceMasks.Information, "InitializeCertificateGroup: {0}", m_subjectName);
+            Utils.LogInfo("InitializeCertificateGroup: {0}", SubjectName);
 
-            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(m_authoritiesStorePath))
+            using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(AuthoritiesStorePath))
             {
                 X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
                 foreach (var certificate in certificates)
                 {
-                    if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
+                    if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                     {
                         if (X509Utils.GetRSAPublicKeySize(certificate) != Configuration.CACertificateKeySize)
                         {
@@ -98,15 +98,16 @@ namespace Opc.Ua.Gds.Server
 
             if (Certificate == null)
             {
-                Utils.Trace(Utils.TraceMasks.Security,
+                Utils.LogInfo(Utils.TraceMasks.Security,
                     "Create new CA Certificate: {0}, KeySize: {1}, HashSize: {2}, LifeTime: {3} months",
-                    m_subjectName,
+                    SubjectName,
                     Configuration.CACertificateKeySize,
                     Configuration.CACertificateHashSize,
                     Configuration.CACertificateLifetime
                     );
-                X509Certificate2 newCertificate = await CreateCACertificateAsync(m_subjectName).ConfigureAwait(false);
+                X509Certificate2 newCertificate = await CreateCACertificateAsync(SubjectName).ConfigureAwait(false);
                 Certificate = new X509Certificate2(newCertificate.RawData);
+                Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificate);
             }
         }
 
@@ -166,7 +167,7 @@ namespace Opc.Ua.Gds.Server
             X509Certificate2 certificate)
         {
             return RevokeCertificateAsync(
-                m_authoritiesStorePath,
+                AuthoritiesStorePath,
                 certificate,
                 null);
         }
@@ -286,14 +287,14 @@ namespace Opc.Ua.Gds.Server
                 .SetRSAKeySize(Configuration.CACertificateKeySize)
                 .CreateForRSA()
                 .AddToStore(
-                    m_authoritiesStoreType,
-                    m_authoritiesStorePath);
+                    AuthoritiesStoreType,
+                    AuthoritiesStorePath);
 
             // save only public key
             Certificate = new X509Certificate2(newCertificate.RawData);
 
             // initialize revocation list
-            await RevokeCertificateAsync(m_authoritiesStorePath, newCertificate, null).ConfigureAwait(false);
+            await RevokeCertificateAsync(AuthoritiesStorePath, newCertificate, null).ConfigureAwait(false);
 
             await UpdateAuthorityCertInTrustedList().ConfigureAwait(false);
 
@@ -309,8 +310,8 @@ namespace Opc.Ua.Gds.Server
         public virtual async Task<X509Certificate2> LoadSigningKeyAsync(X509Certificate2 signingCertificate, string signingKeyPassword)
         {
             CertificateIdentifier certIdentifier = new CertificateIdentifier(signingCertificate) {
-                StorePath = m_authoritiesStorePath,
-                StoreType = m_authoritiesStoreType
+                StorePath = AuthoritiesStorePath,
+                StoreType = AuthoritiesStoreType
             };
             return await certIdentifier.LoadPrivateKey(signingKeyPassword).ConfigureAwait(false);
         }
@@ -417,13 +418,13 @@ namespace Opc.Ua.Gds.Server
             string trustedListStorePath = Configuration.TrustedListPath;
             if (!String.IsNullOrEmpty(Configuration.TrustedListPath))
             {
-                using (ICertificateStore authorityStore = CertificateStoreIdentifier.OpenStore(m_authoritiesStorePath))
+                using (ICertificateStore authorityStore = CertificateStoreIdentifier.OpenStore(AuthoritiesStorePath))
                 using (ICertificateStore trustedStore = CertificateStoreIdentifier.OpenStore(trustedListStorePath))
                 {
                     X509Certificate2Collection certificates = await authorityStore.Enumerate().ConfigureAwait(false);
                     foreach (var certificate in certificates)
                     {
-                        if (X509Utils.CompareDistinguishedName(certificate.Subject, m_subjectName))
+                        if (X509Utils.CompareDistinguishedName(certificate.Subject, SubjectName))
                         {
                             X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
                             if (certs.Count == 0)
@@ -480,9 +481,9 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Protected Fields
-        protected readonly string m_subjectName;
-        protected readonly string m_authoritiesStorePath;
-        protected readonly string m_authoritiesStoreType;
+        protected readonly string SubjectName;
+        protected readonly string AuthoritiesStorePath;
+        protected readonly string AuthoritiesStoreType;
         #endregion 
 
     }

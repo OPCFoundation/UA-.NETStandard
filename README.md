@@ -26,7 +26,8 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 7. [Reverse Connect](Docs/ReverseConnect.md) for the UA-TCP transport (client and server).
 8. Folder & OS-level (X509Store) [Certificate Stores](Docs/Certificates.md) with *Global Discovery Server* and *Server Push* support.
 9. Sessions and Subscriptions.
-10. [PubSub](Docs/PubSub.md) Library.
+10. A [PubSub](Docs/PubSub.md) library with samples.
+11. Improved support for [Logging](Docs/Logging.md) with `ILogger` and `EventSource`. 
 
 ##### Samples and Nuget packages
 
@@ -48,26 +49,26 @@ More samples based on the official [Nuget](https://www.nuget.org/packages/OPCFou
 [![Nuget Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 
 ### Build Status
-[![Build Status](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=11&branchName=master)
+[![Build Status](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
 [![Build Status](https://img.shields.io/appveyor/build/opcfoundation-org/ua-netstandardlibrary/master?label=Appveyor)](https://ci.appveyor.com/project/opcfoundation-org/ua-netstandardlibrary)
 
 ### Code Quality
-[![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/11?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=11&contextType=build)
-[![Coverage Status](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/11/master?style=plastic)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master)
+[![Test Status](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14?style=plastic)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
+[![Coverage Status](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master)
 
 ## Getting Started
 All the tools you need for .NET Standard come with the .NET Core tools. See [Get started with .NET Core](https://docs.microsoft.com/en-us/dotnet/articles/core/getting-started) for what you need.
 
 ## How to build and run the reference samples in Visual Studio on Windows
 
-1. Open the UA Reference.sln solution file using Visual Studio 2017.  
+1. Open the UA Reference.sln solution file using Visual Studio 2019.  
 2. Choose a project in the Solution Explorer and set it with a right click as `Startup Project`.
 3. Hit `F5` to build and execute the sample.
 
 ## How to build and run the console samples on Windows, Linux and iOS
 This section describes how to run the **ConsoleReferenceServer** sample application.
 
-Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Core SDK 2.1 is required for Visual Studio 2017 and .NET Core SDK 3.1 is required for Visual Studio 2019.
+Please follow instructions in this [article](https://aka.ms/dotnetcoregs) to setup the dotnet command line environment for your platform. As of today .NET Core SDK 3.1 is required for Visual Studio 2019 and .NET SDK 6.0 is required for Visual Studio 2022.
 
 ### Prerequisites
 1. Once the `dotnet` command is available, navigate to the root folder in your local copy of the repository and execute `dotnet restore 'UA Reference.sln'`. This command calls into NuGet to restore the tree of dependencies.

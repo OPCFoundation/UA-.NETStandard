@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30523.141
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Server", "Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj", "{6C449A1E-244E-4515-9949-A7E22012537C}"
 EndProject
@@ -10,11 +10,39 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
-		nuget\Opc.Ua.Client.ComplexTypes.nuspec = nuget\Opc.Ua.Client.ComplexTypes.nuspec
+		azure-pipelines-preview.yml = azure-pipelines-preview.yml
+		azure-pipelines.yml = azure-pipelines.yml
+		Tests\benchmarks.cmd = Tests\benchmarks.cmd
+		Tests\codecoverage.cmd = Tests\codecoverage.cmd
+		Tests\codecoverage.sh = Tests\codecoverage.sh
+		common.props = common.props
+		Tests\coverlet.runsettings.xml = Tests\coverlet.runsettings.xml
+		Directory.Build.props = Directory.Build.props
+		lgtm.yml = lgtm.yml
+		README.md = README.md
+		targets.props = targets.props
+		version.json = version.json
+		version.props = version.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{F69ABCC3-ED93-446B-AC70-D6AA5F047781}"
+	ProjectSection(SolutionItems) = preProject
 		nuget\Opc.Ua.Client.ComplexTypes.Symbols.nuspec = nuget\Opc.Ua.Client.ComplexTypes.Symbols.nuspec
 		nuget\Opc.Ua.nuspec = nuget\Opc.Ua.nuspec
 		nuget\Opc.Ua.Symbols.nuspec = nuget\Opc.Ua.Symbols.nuspec
-		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azurepipelines", "azurepipelines", "{1C25BE72-C337-42AE-9F7C-D6B45F7B7079}"
+	ProjectSection(SolutionItems) = preProject
+		.azurepipelines\ci.yml = .azurepipelines\ci.yml
+		.azurepipelines\get-matrix.ps1 = .azurepipelines\get-matrix.ps1
+		.azurepipelines\get-root.ps1 = .azurepipelines\get-root.ps1
+		.azurepipelines\get-version.ps1 = .azurepipelines\get-version.ps1
+		.azurepipelines\preview.yml = .azurepipelines\preview.yml
+		.azurepipelines\set-version.ps1 = .azurepipelines\set-version.ps1
+		.azurepipelines\sln.yml = .azurepipelines\sln.yml
+		.azurepipelines\test.yml = .azurepipelines\test.yml
+		.azurepipelines\testcc.yml = .azurepipelines\testcc.yml
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Core", "Stack\Opc.Ua.Core\Opc.Ua.Core.csproj", "{D918C0F6-39BD-4ED0-8323-E5A2EB9A85DA}"
@@ -41,9 +69,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Bindings.Https", "St
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Opc.Ua.Security.Certificates", "Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj", "{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quickstarts.Servers", "Applications\Quickstarts.Servers\Quickstarts.Servers.csproj", "{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{ACBF012E-08A7-4939-88CF-D6B610E35AC5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Applications", "Applications", "{07AA31A3-97A1-4A6F-9E88-97B5198997B7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Stack", "Stack", "{2DC9F7F3-6698-4875-88A3-50678170A810}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -212,13 +244,27 @@ Global
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x64.Build.0 = Release|Any CPU
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x86.ActiveCfg = Release|Any CPU
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284}.Release|x86.Build.0 = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x64.Build.0 = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Debug|x86.Build.0 = Debug|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x64.ActiveCfg = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x64.Build.0 = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x86.ActiveCfg = Release|Any CPU
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6C449A1E-244E-4515-9949-A7E22012537C} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
-		{D918C0F6-39BD-4ED0-8323-E5A2EB9A85DA} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
+		{F69ABCC3-ED93-446B-AC70-D6AA5F047781} = {857A6774-6F49-4220-AC55-D53D60FCCB3B}
+		{1C25BE72-C337-42AE-9F7C-D6B45F7B7079} = {857A6774-6F49-4220-AC55-D53D60FCCB3B}
+		{D918C0F6-39BD-4ED0-8323-E5A2EB9A85DA} = {2DC9F7F3-6698-4875-88A3-50678170A810}
 		{15100583-BFEF-431B-A1EA-1E5A843A39B1} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
 		{A39614CA-8EBE-4408-A9D2-38C7E5AE2A1D} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
 		{FE9EEB39-0698-4A19-B770-E66836CE0002} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
@@ -228,8 +274,9 @@ Global
 		{9C1E7F15-2EE3-440D-8E17-00C38073822A} = {07AA31A3-97A1-4A6F-9E88-97B5198997B7}
 		{42EF4F25-29BF-4AB7-B403-8523694A3B36} = {07AA31A3-97A1-4A6F-9E88-97B5198997B7}
 		{8121879E-D2FD-4B6A-97D9-0F6CBC294411} = {07AA31A3-97A1-4A6F-9E88-97B5198997B7}
-		{92D98D3D-2A7D-4F4B-8C72-1A98908D0221} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
+		{92D98D3D-2A7D-4F4B-8C72-1A98908D0221} = {2DC9F7F3-6698-4875-88A3-50678170A810}
 		{4B72937F-5A57-4CEA-B9FE-B4C45CF7B284} = {ACBF012E-08A7-4939-88CF-D6B610E35AC5}
+		{83CC0D9C-40CD-487A-BF45-C4A8C1B8BF69} = {07AA31A3-97A1-4A6F-9E88-97B5198997B7}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {33FA5BCB-C827-4D44-AECF-F51342DFE64A}

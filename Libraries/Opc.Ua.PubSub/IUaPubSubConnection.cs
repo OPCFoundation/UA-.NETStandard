@@ -33,7 +33,7 @@ using System.Collections.Generic;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Interface for an UaPubsubConnection
+    /// Interface for an UaPubSubConnection
     /// </summary>
     public interface IUaPubSubConnection : IDisposable
     {
@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
-        IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration);
+        IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state);
 
         /// <summary>
         /// Publish the network message
@@ -86,5 +86,5 @@ namespace Opc.Ua.PubSub
         /// Get current list of dataset readers available in this UaSubscriber component
         /// </summary>
         List<DataSetReaderDataType> GetOperationalDataSetReaders();
-    }
+    }    
 }

@@ -38,6 +38,7 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public interface ICertificateBuilder
         : ICertificateBuilderConfig
+        , ICertificateBuilderPublicKey
         , ICertificateBuilderSetIssuer
         , ICertificateBuilderParameter
         , ICertificateBuilderCreateForRSA
@@ -240,7 +241,7 @@ namespace Opc.Ua.Security.Certificates
         /// Set the RSA key size in bits.
         /// </summary>
         /// <param name="keySize">The size of the RSA key.</param>
-        ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize);
+        ICertificateBuilderCreateForRSAAny SetRSAKeySize(ushort keySize);
     }
 
 #if ECC_SUPPORT

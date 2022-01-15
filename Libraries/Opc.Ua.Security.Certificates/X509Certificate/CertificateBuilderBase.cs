@@ -61,7 +61,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilderBase(X500DistinguishedName subjectName)
+        protected CertificateBuilderBase(X500DistinguishedName subjectName)
         {
             m_issuerName = m_subjectName = subjectName;
             Initialize();
@@ -70,7 +70,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
-        public CertificateBuilderBase(string subjectName)
+        protected CertificateBuilderBase(string subjectName)
         {
             m_issuerName = m_subjectName = new X500DistinguishedName(subjectName);
             Initialize();
@@ -196,7 +196,6 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public ICertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
-            if (hashAlgorithmName == null) throw new ArgumentNullException(nameof(hashAlgorithmName));
             m_hashAlgorithmName = hashAlgorithmName;
             return this;
         }
@@ -211,7 +210,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(int keySize)
+        public virtual ICertificateBuilderCreateForRSAAny SetRSAKeySize(ushort keySize)
         {
             if (keySize == 0)
             {
@@ -290,13 +289,13 @@ namespace Opc.Ua.Security.Certificates
             // lifetime must be in range of issuer
             if (m_issuerCAKeyCert != null)
             {
-                if (NotAfter > m_issuerCAKeyCert.NotAfter)
+                if (NotAfter.ToUniversalTime() > m_issuerCAKeyCert.NotAfter.ToUniversalTime())
                 {
-                    m_notAfter = m_issuerCAKeyCert.NotAfter;
+                    m_notAfter = m_issuerCAKeyCert.NotAfter.ToUniversalTime();
                 }
-                if (NotBefore < m_issuerCAKeyCert.NotBefore)
+                if (NotBefore.ToUniversalTime() < m_issuerCAKeyCert.NotBefore.ToUniversalTime())
                 {
-                    m_notBefore = m_issuerCAKeyCert.NotBefore;
+                    m_notBefore = m_issuerCAKeyCert.NotBefore.ToUniversalTime();
                 }
             }
         }

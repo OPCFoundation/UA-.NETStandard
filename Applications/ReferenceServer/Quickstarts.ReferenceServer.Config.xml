@@ -8,7 +8,7 @@
   <ApplicationUri>urn:localhost:UA:Quickstarts:ReferenceServer</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Quickstarts:ReferenceServer</ProductUri>
   <ApplicationType>Server_0</ApplicationType>
-  
+
   <SecurityConfiguration>
 
     <!-- Where the application instance certificate is stored-->
@@ -47,7 +47,7 @@
     <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SendCertificateChain>true</SendCertificateChain>
-    
+
     <!-- Where the User issuer certificates are stored -->
     <UserIssuerCertificates>
       <StoreType>Directory</StoreType>
@@ -60,7 +60,7 @@
       <StorePath>%CommonApplicationData%\OPC Foundation\pki\trustedUser</StorePath>
     </TrustedUserCertificates>
   </SecurityConfiguration>
-  
+
   <TransportConfigurations></TransportConfigurations>
   <TransportQuotas>
     <OperationTimeout>600000</OperationTimeout>
@@ -108,22 +108,22 @@
         <SecurityMode>SignAndEncrypt_3</SecurityMode>
         <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</SecurityPolicyUri>
       </ServerSecurityPolicy>
-      <!-- deprecated security policies for reference only
+      <!-- deprecated security policies for reference only 
       <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+          <SecurityMode>Sign_2</SecurityMode>
+          <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
+          <SecurityMode>SignAndEncrypt_3</SecurityMode>
+          <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
-        <SecurityMode>Sign_2</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+          <SecurityMode>Sign_2</SecurityMode>
+          <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
       </ServerSecurityPolicy>
       <ServerSecurityPolicy>
-        <SecurityMode>SignAndEncrypt_3</SecurityMode>
-        <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
+          <SecurityMode>SignAndEncrypt_3</SecurityMode>
+          <SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15</SecurityPolicyUri>
       </ServerSecurityPolicy>
       -->
       <ServerSecurityPolicy>
@@ -155,7 +155,7 @@
     <MinRequestThreadCount>5</MinRequestThreadCount>
     <MaxRequestThreadCount>100</MaxRequestThreadCount>
     <MaxQueuedRequestCount>2000</MaxQueuedRequestCount>
-    
+
     <!-- The SDK expects the server to support the same set of user tokens for every endpoint. -->
     <UserTokenPolicies>
       <!-- Allows anonymous users -->
@@ -178,6 +178,7 @@
         <ua:SecurityPolicyUri>http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256</ua:SecurityPolicyUri>
       </ua:UserTokenPolicy>
     </UserTokenPolicies>
+    
     <DiagnosticsEnabled>true</DiagnosticsEnabled>
     <MaxSessionCount>100</MaxSessionCount>
     <MinSessionTimeout>10000</MinSessionTimeout>
@@ -231,7 +232,7 @@
       <ua:UserIdentityTokens />
     </RegistrationEndpoint>
 
-    <MaxRegistrationInterval>30000</MaxRegistrationInterval>
+    <MaxRegistrationInterval>0</MaxRegistrationInterval>
     <NodeManagerSaveFile>Quickstarts.ReferenceServer.nodes.xml</NodeManagerSaveFile>
     <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
     <MaxPublishRequestCount>20</MaxPublishRequestCount>
@@ -255,18 +256,27 @@
     </SupportedPrivateKeyFormats>
     <MaxTrustListSize>0</MaxTrustListSize>
     <MultiCastDnsEnabled>false</MultiCastDnsEnabled>
+    <OperationLimits>
+      <MaxNodesPerRead>1000</MaxNodesPerRead>
+      <MaxNodesPerWrite>1000</MaxNodesPerWrite>
+      <MaxNodesPerMethodCall>250</MaxNodesPerMethodCall>
+      <MaxNodesPerBrowse>2500</MaxNodesPerBrowse>
+      <MaxNodesPerTranslateBrowsePathsToNodeIds>1000</MaxNodesPerTranslateBrowsePathsToNodeIds>
+      <MaxMonitoredItemsPerCall>1000</MaxMonitoredItemsPerCall>
+    </OperationLimits>
   </ServerConfiguration>
 
   <Extensions>
     <ua:XmlElement>
-      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceApplications">
-        <ShowCertificateValidationDialog>false</ShowCertificateValidationDialog>
+      <!-- For CTT testing set ShowCertificateValidationDialog to false -->
+      <ReferenceServerConfiguration xmlns="http://opcfoundation.org/Quickstarts/ReferenceServer">
+        <ShowCertificateValidationDialog>true</ShowCertificateValidationDialog>
       </ReferenceServerConfiguration>
     </ua:XmlElement>
   </Extensions>
 
   <TraceConfiguration>
-    <OutputFilePath>Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>
+    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Quickstarts.ReferenceServer.log.txt</OutputFilePath>
     <DeleteOnLoad>true</DeleteOnLoad>
     <!-- Show Only Errors -->
     <!-- <TraceMasks>1</TraceMasks> -->
@@ -279,7 +289,7 @@
     <!-- Show Only Security, Service Calls, Errors and Trace -->
     <!-- <TraceMasks>523</TraceMasks> -->
     <!-- Show Only Security, ServiceResultExceptions, Errors and Trace -->
-    <!-- <TraceMasks>519</TraceMasks> -->
+    <TraceMasks>519</TraceMasks>
   </TraceConfiguration>
-  
+
 </ApplicationConfiguration>

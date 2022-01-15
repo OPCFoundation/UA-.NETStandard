@@ -34,13 +34,12 @@ using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
-
 namespace Opc.Ua.Gds.Tests
 {
 
     public class GlobalDiscoveryTestClient
     {
-        public GlobalDiscoveryServerClient GDSClient => _client;
+        public GlobalDiscoveryServerClient GDSClient => m_client;
         public static bool AutoAccept = false;
 
         public GlobalDiscoveryTestClient(bool autoAccept)
@@ -50,7 +49,7 @@ namespace Opc.Ua.Gds.Tests
 
         public IUserIdentity AppUser { get; private set; }
         public IUserIdentity AdminUser { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
+        public ApplicationConfiguration Configuration { get; private set; }
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -62,31 +61,35 @@ namespace Opc.Ua.Gds.Tests
 
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+            Configuration = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
 #else
-            string pkiRoot = "%LocalApplicationData%/OPC/pki";
+            string root = Path.Combine("%LocalApplicationData%", "OPC");
+            string pkiRoot = Path.Combine(root, "pki");
             var clientConfig = new GlobalDiscoveryTestClientConfiguration() {
                 GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
-                AppUserName="appuser",
-                AppPassword="demo",
-                AdminUserName="appadmin",
-                AdminPassword="demo"
+                AppUserName = "appuser",
+                AppPassword = "demo",
+                AdminUserName = "appadmin",
+                AdminPassword = "demo"
             };
 
             // build the application configuration.
-            Config = await application
+            Configuration = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
                 .AsClient()
+                .SetDefaultSessionTimeout(600000)
+                .SetMinSubscriptionLifetime(10000)
                 .AddSecurityConfiguration(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
+                .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
                 .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
-                .SetOutputFilePath(pkiRoot + "/Logs/Opc.Ua.Gds.Tests.log.txt")
+                .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
                 .Create().ConfigureAwait(false);
 #endif
@@ -97,10 +100,10 @@ namespace Opc.Ua.Gds.Tests
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
-            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = application.ApplicationConfiguration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            _client = new GlobalDiscoveryServerClient(application, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
+            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
+            m_client = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (String.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
@@ -118,17 +121,17 @@ namespace Opc.Ua.Gds.Tests
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (_client != null)
+            if (m_client != null)
             {
-                GlobalDiscoveryServerClient gdsClient = _client;
-                _client = null;
+                GlobalDiscoveryServerClient gdsClient = m_client;
+                m_client = null;
                 gdsClient.Disconnect();
             }
         }
 
         public string ReadLogFile()
         {
-            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+            return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
 
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
@@ -147,7 +150,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private GlobalDiscoveryServerClient _client;
+        private GlobalDiscoveryServerClient m_client;
 
     }
 

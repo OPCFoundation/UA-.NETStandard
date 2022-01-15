@@ -267,7 +267,7 @@ dotnet_analyzer_diagnostic.category-security.severity                         = 
 # Suggest only non breaking warnings
 
 # CA1805: Do not initialize unnecessarily.
-dotnet_diagnostic.CA1805.severity                                             = suggestion
+dotnet_diagnostic.CA1805.severity                                             = silent
 dotnet_code_quality.CA1805.api_surface                                        = private, internal
 
 # CA1822: Mark members as static.
@@ -276,7 +276,9 @@ dotnet_code_quality.CA1822.api_surface                                        = 
 
 # CA3075: Insecure DTD processing in XML
 dotnet_diagnostic.CA3075.severity                                             = warning
+dotnet_diagnostic.CA3077.severity                                             = warning
 
 # RCS1090: Add call to 'ConfigureAwait' (or vice versa)
+# Opt-In to avoid many warnings in WinForms apps
 dotnet_diagnostic.RCS1090.severity                                            = silent
 

@@ -48,10 +48,10 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
         /// </summary>
-        /// <param name="application">The application.</param>
-        public ServerPushConfigurationClient(ApplicationInstance application)
+        /// <param name="configuration">The application configuration.</param>
+        public ServerPushConfigurationClient(ApplicationConfiguration configuration)
         {
-            m_application = application;
+            m_configuration = configuration;
         }
         #endregion
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The application instance.
         /// </value>
-        public ApplicationInstance Application => m_application;
+        public ApplicationConfiguration Configuration => m_configuration;
 
         /// <summary>
         /// Gets or sets the admin credentials.
@@ -204,8 +204,8 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
-            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_application.ApplicationConfiguration);
+            EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, endpointUrl, true);
+            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
             await Connect(endpoint).ConfigureAwait(false);
@@ -239,11 +239,11 @@ namespace Opc.Ua.Gds.Client
             }
 
             m_session = await Session.Create(
-                m_application.ApplicationConfiguration,
+                m_configuration,
                 endpoint,
                 false,
                 false,
-                m_application.ApplicationName,
+                m_configuration.ApplicationName,
                 60000,
                 m_adminCredentials,
                 m_preferredLocales).ConfigureAwait(false);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising ConnectionStatusChanged event.");
+                    Utils.LogError(exception, "Unexpected error raising ConnectionStatusChanged event.");
                 }
             }
         }
@@ -529,33 +529,6 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Add certificate.
-        /// </summary>
-        public void AddCrl(X509CRL crl, bool isTrustedCertificate)
-        {
-            if (!IsConnected)
-            {
-                Connect();
-            }
-
-            IUserIdentity oldUser = ElevatePermissions();
-            try
-            {
-                m_session.Call(
-                    ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, m_session.NamespaceUris),
-                    crl.RawData,
-                    isTrustedCertificate
-                    );
-            }
-            finally
-            {
-                RevertPermissions(oldUser);
-            }
-        }
-
-
-        /// <summary>
         /// Remove certificate.
         /// </summary>
         public void RemoveCertificate(string thumbprint, bool isTrustedCertificate)
@@ -786,7 +759,7 @@ namespace Opc.Ua.Gds.Client
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Error reverting to normal permissions.");
+                Utils.LogError(e, "Error reverting to normal permissions.");
             }
         }
 
@@ -807,7 +780,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising KeepAlive event.");
+                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
@@ -829,14 +802,14 @@ namespace Opc.Ua.Gds.Client
                 }
                 catch (Exception exception)
                 {
-                    Utils.Trace(exception, "Unexpected error raising KeepAlive event.");
+                    Utils.LogError(exception, "Unexpected error raising KeepAlive event.");
                 }
             }
         }
         #endregion
 
         #region Private Fields
-        private ApplicationInstance m_application;
+        private ApplicationConfiguration m_configuration;
         private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;
         private string[] m_preferredLocales;

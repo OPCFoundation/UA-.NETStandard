@@ -69,7 +69,8 @@ namespace Opc.Ua
                 }
                 catch (Exception)
                 {
-                    Utils.Trace("Could not load certificates from store: {0}.", this.StorePath);
+                    // TODO check all StorePath references to not leak information
+                    Utils.LogError("Could not load certificates from store: {0}.", this.StorePath);
                 }
             }
 

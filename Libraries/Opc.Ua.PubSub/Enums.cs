@@ -88,9 +88,17 @@ namespace Opc.Ua.PubSub
     public enum DataSetFlags2EncodingMask : byte
     {
         /// <summary>
-        /// No dataset flag usage.
+        /// No dataset flag usage. Key Frame message
         /// </summary>
-        None = 0,
+        DataKeyFrame = 0,
+        /// <summary>
+        /// Data Delta Frame message
+        /// </summary>
+        DataDeltaFrame = 1,
+        /// <summary>
+        /// Event DataSet message
+        /// </summary>
+        Event = 2,
         /// <summary>
         /// Dataset flag Timestamp is set.
         /// </summary>
@@ -155,6 +163,26 @@ namespace Opc.Ua.PubSub
         /// Discovery Response message
         /// </summary>
         DiscoveryResponse = 8
+    }
+
+    /// <summary>
+    /// The possible types of UADP network discovery response types
+    /// </summary>
+    [Flags]
+    public enum UADPNetworkMessageDiscoveryType
+    {
+        /// <summary>
+        /// Discovery Response message - PublisherEndpoint
+        /// </summary>
+        PublisherEndpoint = 2,
+        /// <summary>
+        /// Discovery Response message - MetaData
+        /// </summary>
+        DataSetMetaData = 4,
+        /// <summary>
+        /// Discovery Response message - MetaData
+        /// </summary>
+        DataSetWriterConfiguration = 8
     }
 
     /// <summary>
@@ -306,9 +334,9 @@ namespace Opc.Ua.PubSub
         /// </summary>
         NotAvailable,
         /// <summary>
-        /// UADP protocol.
+        /// UDP protocol.
         /// </summary>
-        UADP,
+        UDP,
         /// <summary>
         /// MQTT protocol.
         /// </summary>
@@ -381,8 +409,27 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Subscriber context call
         /// </summary>
-        Subscriber
+        Subscriber,
+        /// <summary>
+        /// Discovery context call
+        /// </summary>
+        Discovery,
     };
+
+    /// <summary>
+    /// The reason an error has been detected while decoding a DataSet
+    /// </summary>
+    public enum DataSetDecodeErrorReason
+    {
+        /// <summary>
+        /// There is no error detected
+        /// </summary>
+        NoError,
+        /// <summary>
+        /// The MetadataMajorVersion is different
+        /// </summary>
+        MetadataMajorVersion,
+    }
 
     /// <summary>
     /// Enum that specifies the message mapping for a UaPubSub connection
@@ -406,17 +453,36 @@ namespace Opc.Ua.PubSub
     public enum JSONNetworkMessageType
     {
         /// <summary>
+        /// The JSON message is invalid
+        /// </summary>
+        Invalid = 0,
+        /// <summary>
         /// DataSet message
         /// </summary>
-        DataSetMessage = 0,
+        DataSetMessage = 1,
         /// <summary>
-        /// Discovery Request message
+        /// DataSetMetaData message
         /// </summary>
-        DiscoveryRequest = 4,
-        /// <summary>
-        /// Discovery Response message
-        /// </summary>
-        DiscoveryResponse = 8
+        DataSetMetaData = 2,
     }
- 
+
+    /// <summary>
+    /// Enumeration that represents the possible Properties of an object from the <see cref="PubSubConfigurationDataType"/> that can be changed during runtime.
+    /// </summary>
+    public enum ConfigurationProperty
+    {
+        /// <summary>
+        /// None
+        /// </summary>
+        None,
+        /// <summary>
+        /// DataSetMetaData
+        /// </summary>
+        DataSetMetaData,
+        /// <summary>
+        /// ConfigurationVersion
+        /// </summary>
+        ConfigurationVersion,
+    }
+
 }

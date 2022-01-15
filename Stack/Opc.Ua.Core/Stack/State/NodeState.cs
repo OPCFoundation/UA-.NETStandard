@@ -16,7 +16,6 @@ using System.Xml;
 using System.Text;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 
 namespace Opc.Ua
 {
@@ -479,10 +478,10 @@ namespace Opc.Ua
                 case NodeClass.View: { node = new ViewNode(); break; }
 
                 default:
-                    {
-                        node = new Node();
-                        break;
-                    }
+                {
+                    node = new Node();
+                    break;
+                }
             }
 
             Export(context, node);
@@ -505,7 +504,7 @@ namespace Opc.Ua
                 children[ii].Export(context, table);
             }
         }
-    
+
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -653,7 +652,7 @@ namespace Opc.Ua
         /// Flags which control the serialization of a NodeState in a stream.
         /// </summary>
         [Flags]
-        public enum AttributesToSave
+        public enum AttributesToSave : uint
         {
             /// <summary>
             /// The default value.
@@ -2095,7 +2094,7 @@ namespace Opc.Ua
         /// Called when a reference gets removed from the node
         /// </summary>
         public NodeStateReferenceRemoved OnReferenceRemoved;
-        
+
         /// <summary>
         /// Called when a node produces an event that needs to be reported.
         /// </summary>
@@ -2448,7 +2447,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Returns any notifiers with the specified notifier type (NodeId) and direction.
-        /// </summary> 
+        /// </summary>
         public virtual void GetNotifiers(
             ISystemContext context,
             IList<Notifier> notifiers,
@@ -3322,6 +3321,7 @@ namespace Opc.Ua
                         context,
                         attributeId,
                         ref valueToRead);
+
                 }
                 catch (Exception e)
                 {
@@ -3862,7 +3862,7 @@ namespace Opc.Ua
                 {
                     ExtensionObject[] rolePermissionsArray = value as ExtensionObject[];
 
-                    if(rolePermissionsArray == null)
+                    if (rolePermissionsArray == null)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4124,7 +4124,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds a child to the node. 
+        /// Adds a child to the node.
         /// </summary>
         public void AddChild(BaseInstanceState child)
         {
@@ -4179,7 +4179,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Adds a child from the node. 
+        /// Removes a child from the node.
         /// </summary>
         public void RemoveChild(BaseInstanceState child)
         {
@@ -4492,7 +4492,7 @@ namespace Opc.Ua
                 .Select(r => r.Key)
                 .Where(r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
                 .ToList();
-            
+
             refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
 
             return refsToRemove.Count != 0;
@@ -4507,7 +4507,7 @@ namespace Opc.Ua
         /// <param name="children">The list of children to populate.</param>
         /// <remarks>
         /// This method returns the children that are in memory and does not attempt to
-        /// access an underlying system. The PopulateBrowser method is used to discover those references. 
+        /// access an underlying system. The PopulateBrowser method is used to discover those references.
         /// </remarks>
         public virtual void GetChildren(
             ISystemContext context,
@@ -4528,11 +4528,11 @@ namespace Opc.Ua
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="references">The list of references to populate.</param>
         /// <remarks>
-        /// This method only returns references that are not implied by the parent-child 
+        /// This method only returns references that are not implied by the parent-child
         /// relation or references which are intrinsic to the NodeState classes (e.g. HasTypeDefinition)
-        /// 
+        ///
         /// This method also only returns the reference that are in memory and does not attempt to
-        /// access an underlying system. The PopulateBrowser method is used to discover those references.        
+        /// access an underlying system. The PopulateBrowser method is used to discover those references.
         /// </remarks>
         public virtual void GetReferences(
             ISystemContext context,
@@ -4724,7 +4724,7 @@ namespace Opc.Ua
         ISystemContext context,
         NodeState node,
         NodeStateChangeMasks changes);
-    
+
     /// <summary>
     /// Used to receive notifications when a reference get added to the node
     /// </summary>
@@ -4733,7 +4733,7 @@ namespace Opc.Ua
         NodeId referenceTypeId,
         bool isInverse,
         ExpandedNodeId targetId);
-    
+
     /// <summary>
     /// Used to receive notifications when a reference get removed to the node
     /// </summary>

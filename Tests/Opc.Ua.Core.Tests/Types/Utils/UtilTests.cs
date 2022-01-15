@@ -27,7 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using NUnit.Framework;
@@ -222,6 +225,49 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             TestContext.Out.WriteLine(ex.Message);
 
         }
+
+        /// <summary>
+        /// Test the built-in type of the Simple data types
+        /// </summary>
+        [Test]
+        public void BuiltInTypeOfSimpleDataTypes()
+            
+        {
+            Assert.AreEqual(BuiltInType.DateTime, TypeInfo.GetBuiltInType(DataTypeIds.UtcTime));
+
+            List<string> bnList = new List<string> { BrowseNames.ApplicationInstanceCertificate, BrowseNames.AudioDataType,
+                BrowseNames.ContinuationPoint, BrowseNames.Image,
+                BrowseNames.ImageBMP, BrowseNames.ImageGIF,
+                BrowseNames.ImageJPG, BrowseNames.ImagePNG };
+            foreach (string name in bnList)
+            {
+                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                Assert.AreEqual(BuiltInType.ByteString, TypeInfo.GetBuiltInType((NodeId)staticValue));
+            }
+
+            Assert.AreEqual(BuiltInType.NodeId, TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
+            Assert.AreEqual(BuiltInType.Double, TypeInfo.GetBuiltInType(DataTypeIds.Duration));
+
+            bnList = new List<string> { BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter };
+            foreach (string name in bnList)
+            {
+                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                Assert.AreEqual(BuiltInType.UInt32, TypeInfo.GetBuiltInType((NodeId)staticValue));
+            }
+
+            Assert.AreEqual(BuiltInType.UInt64, TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
+
+            bnList = new List<string> { BrowseNames.DateString, BrowseNames.DecimalString,
+                BrowseNames.DurationString, BrowseNames.LocaleId,
+                BrowseNames.NormalizedString, BrowseNames.NumericRange,
+                BrowseNames.TimeString };
+            foreach (string name in bnList)
+            {
+                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                Assert.AreEqual(BuiltInType.String, TypeInfo.GetBuiltInType((NodeId)staticValue));
+            }
+        }
+      
         #endregion
     }
 

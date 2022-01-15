@@ -151,7 +151,7 @@ namespace Opc.Ua.Server.Controls
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Error stopping server.");
+                Utils.LogError(exception, "Error stopping server.");
             }
         }
 
@@ -167,7 +167,7 @@ namespace Opc.Ua.Server.Controls
             }
             catch (Exception exception)
             {
-                Utils.Trace(exception, "Error getting server status.");
+                Utils.LogError(exception, "Error getting server status.");
             }
         }
         #endregion

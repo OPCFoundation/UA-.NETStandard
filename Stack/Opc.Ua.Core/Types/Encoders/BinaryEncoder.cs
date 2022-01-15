@@ -33,6 +33,7 @@ namespace Opc.Ua
             m_ostrm = new MemoryStream();
             m_writer = new BinaryWriter(m_ostrm);
             m_context = context;
+            m_leaveOpen = false;
             m_nestingLevel = 0;
         }
 
@@ -46,19 +47,21 @@ namespace Opc.Ua
             m_ostrm = new MemoryStream(buffer, start, count);
             m_writer = new BinaryWriter(m_ostrm);
             m_context = context;
+            m_leaveOpen = false;
             m_nestingLevel = 0;
         }
 
         /// <summary>
         /// Creates an encoder that writes to the stream.
         /// </summary>
-        public BinaryEncoder(Stream stream, IServiceMessageContext context)
+        public BinaryEncoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
 
             m_ostrm = stream;
-            m_writer = new BinaryWriter(m_ostrm);
+            m_writer = new BinaryWriter(m_ostrm, Encoding.UTF8, leaveOpen);
             m_context = context;
+            m_leaveOpen = leaveOpen;
             m_nestingLevel = 0;
         }
         #endregion
@@ -121,9 +124,9 @@ namespace Opc.Ua
             m_writer.Flush();
             m_writer.Dispose();
 
-            if (m_ostrm is MemoryStream)
+            if (m_ostrm is MemoryStream memoryStream)
             {
-                return ((MemoryStream)m_ostrm).ToArray();
+                return memoryStream.ToArray();
             }
 
             return null;
@@ -155,11 +158,6 @@ namespace Opc.Ua
                 m_writer.Seek(value, SeekOrigin.Begin);
             }
         }
-
-        /// <summary>
-        /// Gets the stream that the encoder is writing to.
-        /// </summary>
-        public Stream BaseStream => m_writer.BaseStream;
 
         /// <summary>
         /// Writes raw bytes to the stream.
@@ -1760,7 +1758,7 @@ namespace Opc.Ua
                         }
                         break;
                     }
-                    case BuiltInType.Enumeration: 
+                    case BuiltInType.Enumeration:
                     case BuiltInType.Int32:
                     {
                         Int32[] values = (Int32[])matrix.Elements;
@@ -2353,6 +2351,7 @@ namespace Opc.Ua
         #region Private Fields
         private Stream m_ostrm;
         private BinaryWriter m_writer;
+        private bool m_leaveOpen;
         private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;

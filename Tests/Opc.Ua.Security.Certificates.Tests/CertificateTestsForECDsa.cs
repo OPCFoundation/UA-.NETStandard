@@ -191,7 +191,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var cert = CertificateBuilder.Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                .AddExtension(X509Extensions.BuildX509CRLDistributionPoints("http://myca/mycert.crl"))
+                .AddExtension(X509Extensions.BuildX509CRLDistributionPoints(new string[] { "http://myca/mycert.crl", "http://myaltca/mycert.crl" }))
                 .SetECCurve(ecCurveHashPair.Curve)
                 .CreateForECDsa();
             Assert.NotNull(cert);

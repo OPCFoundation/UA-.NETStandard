@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
@@ -44,6 +45,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// How long the tests are running.
         /// </summary>
         public const int HiResClockTestDuration = 2000;
+        /// <summary>
+        /// On MacOS allow higher margin due to flaky tests in CI builds.
+        /// </summary>
+        public readonly int Percent = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 5 : 2;
+
 
         #region Test Setup
         [OneTimeTearDown]
@@ -111,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             long elapsed = lastTickCount - firstTickCount;
             TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
-            Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(2).Percent);
+            Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
         }
 
         /// <summary>
@@ -144,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
             TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
             // test accuracy of counter vs. stop watch
-            Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(2).Percent);
+            Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
         }
         #endregion
     }

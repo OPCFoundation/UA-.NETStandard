@@ -31,6 +31,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.Extensions.Hosting;
 
 
 namespace Opc.Ua.Bindings
@@ -230,18 +231,42 @@ namespace Opc.Ua.Bindings
         {
             Startup.Listener = this;
             m_hostBuilder = new WebHostBuilder();
-
             HttpsConnectionAdapterOptions httpsOptions = new HttpsConnectionAdapterOptions();
             httpsOptions.CheckCertificateRevocation = false;
             httpsOptions.ClientCertificateMode = ClientCertificateMode.NoCertificate;
             httpsOptions.ServerCertificate = m_serverCert;
+
+            // note: although security tools recommend 'None' here,
+            // it only works on .NET 4.6.2 if Tls12 is used
+#if NET462
+            httpsOptions.SslProtocols = SslProtocols.Tls12;
+#else
             httpsOptions.SslProtocols = SslProtocols.None;
-            m_hostBuilder.UseKestrel(options => {
-                options.Listen(IPAddress.Any, m_uri.Port, listenOptions => {
-                    // listenOptions.NoDelay = true;
-                    listenOptions.UseHttps(httpsOptions);
+#endif
+            bool bindToSpecifiedAddress = true;
+            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            if (hostType == UriHostNameType.Dns || hostType == UriHostNameType.Unknown || hostType == UriHostNameType.Basic)
+            {
+                bindToSpecifiedAddress = false;
+            }
+
+            if (bindToSpecifiedAddress)
+            {
+                IPAddress ipAddress = IPAddress.Parse(m_uri.Host);
+                m_hostBuilder.UseKestrel(options => {
+                    options.Listen(ipAddress, m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
                 });
-            });
+            }
+            else
+            {
+                m_hostBuilder.UseKestrel(options => {
+                    options.ListenAnyIP(m_uri.Port, listenOptions => {
+                        listenOptions.UseHttps(httpsOptions);
+                    });
+                });
+            }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
@@ -307,27 +332,52 @@ namespace Opc.Ua.Bindings
 
                 if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) && input.TypeId != DataTypeIds.CreateSessionRequest)
                 {
-                    if (context.Request.Headers.Keys.Contains("Authorization"))
+                    if (context.Request.Headers.ContainsKey("Authorization"))
                     {
                         foreach (string value in context.Request.Headers["Authorization"])
                         {
                             if (value.StartsWith("Bearer"))
                             {
-                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim());
+                                // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
+                                input.RequestHeader.AuthenticationToken = new NodeId(value.Substring("Bearer ".Length).Trim(), 0);
                             }
                         }
                     }
                 }
 
-                EndpointDescription endpoint = null;
+                if (!context.Request.Headers.TryGetValue("OPCUA-SecurityPolicy", out var header))
+                {
+                    header = SecurityPolicies.None;
+                }
 
+                EndpointDescription endpoint = null;
                 foreach (var ep in m_descriptions)
                 {
                     if (ep.EndpointUrl.StartsWith(Utils.UriSchemeHttps))
                     {
+                        if (!string.IsNullOrEmpty(header))
+                        {
+                            if (string.Compare(ep.SecurityPolicyUri, header) != 0)
+                            {
+                                continue;
+                            }
+                        }
+
                         endpoint = ep;
                         break;
                     }
+                }
+
+                if (endpoint == null &&
+                    input.TypeId != DataTypeIds.GetEndpointsRequest &&
+                    input.TypeId != DataTypeIds.FindServersRequest)
+                {
+                    var message = "Connection refused, invalid security policy.";
+                    Utils.LogError(message);
+                    context.Response.ContentLength = message.Length;
+                    context.Response.ContentType = "text/plain";
+                    context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                    await context.Response.WriteAsync(message).ConfigureAwait(false);
                 }
 
                 result = m_callback.BeginProcessRequest(
@@ -343,7 +393,7 @@ namespace Opc.Ua.Bindings
                 context.Response.ContentLength = response.Length;
                 context.Response.ContentType = context.Request.ContentType;
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
                 await context.Response.Body.WriteAsync(response.AsMemory(0, response.Length)).ConfigureAwait(false);
 #else
                 await context.Response.Body.WriteAsync(response, 0, response.Length).ConfigureAwait(false);
@@ -351,7 +401,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "HTTPSLISTENER - Unexpected error processing request.");
+                Utils.LogError(e, "HTTPSLISTENER - Unexpected error processing request.");
                 context.Response.ContentLength = e.Message.Length;
                 context.Response.ContentType = "text/plain";
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
@@ -382,7 +432,7 @@ namespace Opc.Ua.Bindings
             Start();
         }
 
-        private async Task<byte[]> ReadBodyAsync(HttpRequest req)
+        private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
         {
             using (var memory = new MemoryStream())
             using (var reader = new StreamReader(req.Body))

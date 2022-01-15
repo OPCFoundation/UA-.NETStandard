@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2020 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2021 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation members in good-standing
      - GPL V2: everybody else
@@ -32,46 +32,46 @@ namespace Opc.Ua
     /// <summary>
     /// Defines various static utility functions.
     /// </summary>
-    public static class Utils
+    public static partial class Utils
     {
         #region Public Constants
         /// <summary>
-        /// The URI scheme for the HTTP protocol. 
+        /// The URI scheme for the HTTP protocol.
         /// </summary>
         public const string UriSchemeHttp = "http";
 
         /// <summary>
-        /// The URI scheme for the HTTPS protocol. 
+        /// The URI scheme for the HTTPS protocol.
         /// </summary>
         public const string UriSchemeHttps = "https";
 
         /// <summary>
-        /// The URI scheme for the UA TCP protocol. 
+        /// The URI scheme for the UA TCP protocol.
         /// </summary>
         public const string UriSchemeOpcTcp = "opc.tcp";
 
         /// <summary>
-        /// The URI scheme for the UA TCP protocol over Secure WebSockets. 
+        /// The URI scheme for the UA TCP protocol over Secure WebSockets.
         /// </summary>
         public const string UriSchemeOpcWss = "opc.wss";
 
         /// <summary>
-        /// The URI scheme for the UDP protocol. 
+        /// The URI scheme for the UDP protocol.
         /// </summary>
         public const string UriSchemeOpcUdp = "opc.udp";
 
         /// <summary>
-        /// The URI scheme for the MQTT protocol. 
+        /// The URI scheme for the MQTT protocol.
         /// </summary>
         public const string UriSchemeMqtt = "mqtt";
 
         /// <summary>
-        /// The URI scheme for the MQTTS protocol. 
+        /// The URI scheme for the MQTTS protocol.
         /// </summary>
         public const string UriSchemeMqtts = "mqtts";
 
         /// <summary>
-        /// The URI schemes which are supported in the core server. 
+        /// The URI schemes which are supported in the core server.
         /// </summary>
         public static readonly string[] DefaultUriSchemes = new string[]
         {
@@ -114,7 +114,8 @@ namespace Opc.Ua
         /// <summary>
         /// The path to the default certificate store.
         /// </summary>
-        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/CertificateStores/MachineDefault";
+        [Obsolete("Use CertificateStoreIdentifier.DefaultPKIRoot instead.")]
+        public const string DefaultStorePath = "%CommonApplicationData%/OPC Foundation/pki/own";
 
         /// <summary>
         /// The default LocalFolder.
@@ -150,7 +151,6 @@ namespace Opc.Ua
 #endif
 
         private static string s_traceFileName = string.Empty;
-        private static long s_BaseLineTicks = DateTime.UtcNow.Ticks;
         private static object s_traceFileLock = new object();
 
         /// <summary>
@@ -239,11 +239,11 @@ namespace Opc.Ua
             /// <summary>
             /// Output all messages.
             /// </summary>
-            public const int All = 0x7FFFFFFF;
+            public const int All = 0x3FF;
         }
 
         /// <summary>
-        /// Sets the output for tracing (thead safe).
+        /// Sets the output for tracing (thread safe).
         /// </summary>
         public static void SetTraceOutput(TraceOutput output)
         {
@@ -262,7 +262,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the mask for tracing (thead safe).
+        /// Sets the mask for tracing (thread safe).
         /// </summary>
         public static void SetTraceMask(int masks)
         {
@@ -303,13 +303,21 @@ namespace Opc.Ua
                 }
             }
 
+            TraceWriteLine(output);
+        }
+
+        /// <summary>
+        /// Writes a trace statement.
+        /// </summary>
+        private static void TraceWriteLine(string output)
+        {
             // write to the log file.
             lock (s_traceFileLock)
             {
                 // write to debug trace listeners.
                 if (s_traceOutput == (int)TraceOutput.DebugAndFile)
                 {
-                    System.Diagnostics.Debug.WriteLine(output);
+                    Debug.WriteLine(output);
                 }
 
                 string traceFileName = s_traceFileName;
@@ -389,7 +397,7 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    TraceWriteLine(e.Message, null);
+                    TraceWriteLine(e.Message);
                 }
             }
         }
@@ -397,9 +405,17 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an informational message to the trace log.
         /// </summary>
+        public static void Trace(string message)
+        {
+            LogInfo(message);
+        }
+
+        /// <summary>
+        /// Writes an informational message to the trace log.
+        /// </summary>
         public static void Trace(string format, params object[] args)
         {
-            Trace((int)TraceMasks.Information, format, false, args);
+            LogInfo(format, args);
         }
 
         /// <summary>
@@ -408,7 +424,15 @@ namespace Opc.Ua
         [Conditional("DEBUG")]
         public static void TraceDebug(string format, params object[] args)
         {
-            Trace((int)TraceMasks.OperationDetail, format, false, args);
+            LogDebug(format, args);
+        }
+
+        /// <summary>
+        /// Writes an exception/error message to the trace log.
+        /// </summary>
+        public static void Trace(Exception e, string message)
+        {
+            LogError(e, message);
         }
 
         /// <summary>
@@ -416,13 +440,13 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(Exception e, string format, params object[] args)
         {
-            Trace(e, format, false, args);
+            LogError(e, format, args);
         }
 
         /// <summary>
-        /// Writes an exception/error message to the trace log.
+        /// Create an exception/error message for a log.
         /// </summary>
-        public static void Trace(Exception e, string format, bool handled, params object[] args)
+        internal static StringBuilder TraceExceptionMessage(Exception e, string format, params object[] args)
         {
             StringBuilder message = new StringBuilder();
 
@@ -471,6 +495,16 @@ namespace Opc.Ua
                 }
             }
 
+            return message;
+        }
+
+        /// <summary>
+        /// Writes an exception/error message to the trace log.
+        /// </summary>
+        public static void Trace(Exception e, string format, bool handled, params object[] args)
+        {
+            StringBuilder message = TraceExceptionMessage(e, format, args);
+
             // trace message.
             Trace(e, (int)TraceMasks.Error, message.ToString(), handled, null);
         }
@@ -480,7 +514,20 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
-            Trace(traceMask, format, false, args);
+            const int InformationMask = (TraceMasks.Information | TraceMasks.StartStop | TraceMasks.Security);
+            const int ErrorMask = (TraceMasks.Error | TraceMasks.StackTrace);
+            if ((traceMask & ErrorMask) != 0)
+            {
+                LogError(traceMask, format, args);
+            }
+            else if ((traceMask & InformationMask) != 0)
+            {
+                LogInfo(traceMask, format, args);
+            }
+            else
+            {
+                LogTrace(traceMask, format, args);
+            }
         }
 
         /// <summary>
@@ -489,6 +536,42 @@ namespace Opc.Ua
         public static void Trace(int traceMask, string format, bool handled, params object[] args)
         {
             Trace(null, traceMask, format, handled, args);
+        }
+
+        /// <summary>
+        /// Writes a message to the trace log.
+        /// </summary>
+        public static void Trace<TState>(TState state, Exception exception, int traceMask, Func<TState, Exception, string> formatter)
+        {
+            // do nothing if mask not enabled.
+            bool tracingEnabled = Tracing.IsEnabled();
+            bool traceMaskEnabled = (s_traceMasks & traceMask) != 0;
+            if (!traceMaskEnabled && !tracingEnabled)
+            {
+                return;
+            }
+
+            StringBuilder message = new StringBuilder();
+            try
+            {
+                // append process and timestamp.
+                message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
+                message.Append(formatter(state, exception));
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            var output = message.ToString();
+            if (tracingEnabled)
+            {
+                Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, output, string.Empty, exception, Array.Empty<object>()));
+            }
+            if (traceMaskEnabled)
+            {
+                TraceWriteLine(output);
+            }
         }
 
         /// <summary>
@@ -510,7 +593,7 @@ namespace Opc.Ua
             StringBuilder message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat("{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
+            message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
 
             // format message.
             if (args != null && args.Length > 0)
@@ -529,7 +612,7 @@ namespace Opc.Ua
                 message.Append(format);
             }
 
-            TraceWriteLine(message.ToString(), null);
+            TraceWriteLine(message.ToString());
         }
         #endregion
 
@@ -561,7 +644,6 @@ namespace Opc.Ua
         /// </summary>
         public static string ReplaceSpecialFolderNames(string input)
         {
-
             // nothing to do for nulls.
             if (String.IsNullOrEmpty(input))
             {
@@ -785,7 +867,7 @@ namespace Opc.Ua
             }
             catch (Exception e)
             {
-                Utils.Trace(e, "Could not create file: {0}", filePath);
+                Utils.LogError(e, "Could not create file: {0}", filePath);
 
                 if (throwOnError)
                 {
@@ -950,7 +1032,7 @@ namespace Opc.Ua
 #if DEBUG
             catch (Exception e)
             {
-                Utils.Trace(e, "Error disposing object: {0}", disposable.GetType().Name);
+                Utils.LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
             }
 #else
             catch (Exception) {;}
@@ -1020,13 +1102,13 @@ namespace Opc.Ua
             return (int)timeSpan.TotalMilliseconds;
         }
 
-        /// <inheritdoc cref="Dns.GetHostAddressesAsync"/>
+        /// <inheritdoc cref="Dns.GetHostAddressesAsync(string)"/>
         public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress)
         {
             return Dns.GetHostAddressesAsync(hostNameOrAddress);
         }
 
-        /// <inheritdoc cref="Dns.GetHostAddresses"/>
+        /// <inheritdoc cref="Dns.GetHostAddresses(string)"/>
         public static IPAddress[] GetHostAddresses(string hostNameOrAddress)
         {
             return Dns.GetHostAddresses(hostNameOrAddress);
@@ -1075,7 +1157,6 @@ namespace Opc.Ua
             }
         }
 
-
         /// <summary>
         /// Replaces the localhost domain with the current host name.
         /// </summary>
@@ -1104,11 +1185,16 @@ namespace Opc.Ua
             }
 
             // construct new uri.
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+            buffer.Append(uri.AsSpan(0, index))
+                .Append(hostname ?? GetHostName())
+                .Append(uri.AsSpan(index + localhost.Length));
+#else
             buffer.Append(uri.Substring(0, index))
-                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(hostname ?? GetHostName())
                 .Append(uri.Substring(index + localhost.Length));
-
+#endif
             return buffer.ToString();
         }
 
@@ -1140,12 +1226,16 @@ namespace Opc.Ua
             }
 
             // construct new uri.
-            StringBuilder buffer = new StringBuilder();
-
+            var buffer = new StringBuilder();
+#if NET5_0_OR_GREATER || NETSTANDARD2_1
+            buffer.Append(subjectName.AsSpan(0, index + 3))
+                .Append(hostname == null ? GetHostName() : hostname)
+                .Append(subjectName.AsSpan(index + dclocalhost.Length));
+#else
             buffer.Append(subjectName.Substring(0, index + 3))
                 .Append(hostname == null ? GetHostName() : hostname)
                 .Append(subjectName.Substring(index + dclocalhost.Length));
-
+#endif
             return buffer.ToString();
         }
 
@@ -1322,11 +1412,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a multidimension array to a flat array. 
+        /// Converts a multidimension array to a flat array.
         /// </summary>
         /// <remarks>
         /// The higher rank dimensions are written first.
-        /// e.g. a array with dimensions [2,2,2] is written in this order: 
+        /// e.g. a array with dimensions [2,2,2] is written in this order:
         /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
         /// </remarks>
         public static Array FlattenArray(Array array)
@@ -1466,7 +1556,6 @@ namespace Opc.Ua
         {
             return String.Format(CultureInfo.InvariantCulture, text, args);
         }
-
 
         /// <summary>
         /// Checks if a string is a valid locale identifier.
@@ -2450,7 +2539,7 @@ namespace Opc.Ua
                 }
 
                 // type found.
-                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml));
+                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
 
                 try
                 {
@@ -2459,7 +2548,7 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace("Exception parsing extension: " + ex.Message);
+                    Utils.LogError("Exception parsing extension: " + ex.Message);
                     throw;
                 }
                 finally
@@ -2621,7 +2710,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the linker timestamp for an assembly. 
+        /// Returns the linker timestamp for an assembly.
         /// </summary>
         public static DateTime GetAssemblyTimestamp()
         {
@@ -2658,7 +2747,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a XmlReaderSetting with safe defaults.
         /// DtdProcessing Prohibited, XmlResolver disabled and
-        /// ConformanceLevel Document. 
+        /// ConformanceLevel Document.
         /// </summary>
         internal static XmlReaderSettings DefaultXmlReaderSettings()
         {
@@ -2786,7 +2875,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Cryptographic Nonce helper functions. 
+        /// Cryptographic Nonce helper functions.
         /// </summary>
         public static class Nonce
         {
@@ -3009,121 +3098,5 @@ namespace Opc.Ua
             return IsRunningOnMonoValue.Value;
         }
         #endregion
-    }
-
-    /// <summary>
-    /// Used as underlying tracing object for event processing.
-    /// </summary>
-    public class Tracing
-    {
-        #region Private Members
-        private static object m_syncRoot = new Object();
-        private static Tracing s_instance;
-        #endregion Private Members
-
-        #region Singleton Instance
-        /// <summary>
-        /// Private constructor.
-        /// </summary>
-        private Tracing()
-        { }
-
-        /// <summary>
-        /// Public Singleton Instance getter.
-        /// </summary>
-        public static Tracing Instance
-        {
-            get
-            {
-                if (s_instance == null)
-                {
-                    lock (m_syncRoot)
-                    {
-                        if (s_instance == null)
-                        {
-                            s_instance = new Tracing();
-                        }
-                    }
-                }
-                return s_instance;
-            }
-        }
-        #endregion Singleton Instance
-
-        #region Public Events
-        /// <summary>
-        /// Occurs when a trace call is made.
-        /// </summary>
-        public event EventHandler<TraceEventArgs> TraceEventHandler;
-        #endregion Public Events
-
-        #region Internal Members
-        internal void RaiseTraceEvent(TraceEventArgs eventArgs)
-        {
-            if (TraceEventHandler != null)
-            {
-                try
-                {
-                    TraceEventHandler(this, eventArgs);
-                }
-                catch (Exception ex)
-                {
-                    Utils.Trace(ex, "Exception invoking Trace Event Handler", true, null);
-                }
-            }
-        }
-        #endregion
-    }
-
-    /// <summary>
-    /// The event arguments provided when a trace event is raised.
-    /// </summary>
-    public class TraceEventArgs : EventArgs
-    {
-        #region Constructors
-        /// <summary>
-        /// Initializes a new instance of the TraceEventArgs class.
-        /// </summary>
-        /// <param name="traceMask">The trace mask.</param>
-        /// <param name="format">The format.</param>
-        /// <param name="message">The message.</param>
-        /// <param name="exception">The exception.</param>
-        /// <param name="args">The arguments.</param>
-        internal TraceEventArgs(int traceMask, string format, string message, Exception exception, object[] args)
-        {
-            TraceMask = traceMask;
-            Format = format;
-            Message = message;
-            Exception = exception;
-            Arguments = args;
-        }
-        #endregion Constructors
-
-        #region Public Properties
-        /// <summary>
-        /// Gets the trace mask.
-        /// </summary>
-        public int TraceMask { get; private set; }
-
-        /// <summary>
-        /// Gets the format.
-        /// </summary>
-        public string Format { get; private set; }
-
-        /// <summary>
-        /// Gets the arguments.
-        /// </summary>
-        public object[] Arguments { get; private set; }
-
-        /// <summary>
-        /// Gets the message.
-        /// </summary>
-        public string Message { get; private set; }
-
-        /// <summary>
-        /// Gets the exception.
-        /// </summary>
-        public Exception Exception { get; private set; }
-        #endregion Public Properties
     }
 }

@@ -43,7 +43,7 @@ namespace Opc.Ua
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             Initialize();
-            m_reader = XmlReader.Create(new StringReader(element.OuterXml));
+            m_reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
             m_context = context;
             m_nestingLevel = 0;
         }
@@ -249,7 +249,6 @@ namespace Opc.Ua
                         depth--;
                     }
                 }
-
                 else if (m_reader.NodeType == XmlNodeType.Element)
                 {
                     if (m_reader.LocalName == qname.Name && m_reader.NamespaceURI == qname.Namespace)
@@ -810,7 +809,6 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true))
             {
-
                 string xml = ReadString();
 
                 if (!String.IsNullOrEmpty(xml))
@@ -1357,7 +1355,7 @@ namespace Opc.Ua
                     }
                     catch (Exception ex)
                     {
-                        Utils.Trace(ex, "Error reading variant.");
+                        Utils.LogError(ex, "XmlDecoder: Error reading variant.");
                         value = new Variant(StatusCodes.BadEncodingError);
                     }
                     EndField("Value");
@@ -1426,7 +1424,7 @@ namespace Opc.Ua
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
             {
-                Utils.Trace(
+                Utils.LogWarning(
                     "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
                     typeId);
             }
@@ -2920,7 +2918,6 @@ namespace Opc.Ua
                         return null;
                     }
                 }
-
             }
             finally
             {

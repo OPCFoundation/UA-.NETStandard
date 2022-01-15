@@ -30,11 +30,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Client;
 
-namespace Quickstarts.ConsoleReferenceClient
+namespace Quickstarts
 {
     /// <summary>
     /// OPC UA Client with examples of basic functionality.
@@ -45,10 +46,10 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <summary>
         /// Initializes a new instance of the UAClient class.
         /// </summary>
-        public UAClient(ApplicationConfiguration configuration, IOutput output, Action<IList, IList> validateResponse)
+        public UAClient(ApplicationConfiguration configuration, TextWriter writer, Action<IList, IList> validateResponse)
         {
             m_validateResponse = validateResponse;
-            m_output = output;
+            m_output = writer;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
         }
@@ -61,17 +62,19 @@ namespace Quickstarts.ConsoleReferenceClient
         public Session Session => m_session;
 
         /// <summary>
-        /// Gets or sets the server URL.
+        /// Auto accept untrusted certificates.
         /// </summary>
-        public string ServerUrl { get; set; } = "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+        public bool AutoAccept { get; set; } = false;
         #endregion
 
         #region Public Methods
         /// <summary>
         /// Creates a session with the UA server
         /// </summary>
-        public async Task<bool> ConnectAsync()
+        public async Task<bool> ConnectAsync(string serverUrl)
         {
+            if (serverUrl == null) throw new ArgumentNullException(nameof(serverUrl));
+
             try
             {
                 if (m_session != null && m_session.Connected == true)
@@ -80,12 +83,11 @@ namespace Quickstarts.ConsoleReferenceClient
                 }
                 else
                 {
-                    m_output.WriteLine("Connecting...");
+                    m_output.WriteLine("Connecting to... {0}", serverUrl);
 
                     // Get the endpoint by connecting to server's discovery endpoint.
-                    // Try to find the first endopint without security.
-                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(ServerUrl, false);
-
+                    // Try to find the first endopint with security.
+                    EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, true);
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
@@ -108,7 +110,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     }
 
                     // Session created successfully.
-                    m_output.WriteLine($"New Session Created with SessionName = {m_session.SessionName}");
+                    m_output.WriteLine("New Session Created with SessionName = {0}", m_session.SessionName);
                 }
 
                 return true;
@@ -116,7 +118,7 @@ namespace Quickstarts.ConsoleReferenceClient
             catch (Exception ex)
             {
                 // Log Error
-                m_output.WriteLine($"Create Session Error : {ex.Message}");
+                m_output.WriteLine("Create Session Error : {0}", ex.Message);
                 return false;
             }
         }
@@ -395,7 +397,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 subscription.Create();
                 m_output.WriteLine("New Subscription created with SubscriptionId = {0}.", subscription.Id);
 
-                // Create MonitoredItems for data changes
+                // Create MonitoredItems for data changes (Reference Server)
 
                 MonitoredItem intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
                 // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
@@ -439,7 +441,6 @@ namespace Quickstarts.ConsoleReferenceClient
         #endregion
 
         #region Private Methods
-
         /// <summary>
         /// Handle DataChange notifications from Server
         /// </summary>
@@ -463,7 +464,7 @@ namespace Quickstarts.ConsoleReferenceClient
         /// </summary>
         private void CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
         {
-            bool certificateAccepted = true;
+            bool certificateAccepted = false;
 
             // ****
             // Implement a custom logic to decide if the certificate should be
@@ -472,31 +473,29 @@ namespace Quickstarts.ConsoleReferenceClient
             // ***
 
             ServiceResult error = e.Error;
-            while (error != null)
+            m_output.WriteLine(error);
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
             {
-                m_output.WriteLine(error);
-                error = error.InnerResult;
+                certificateAccepted = true;
             }
 
             if (certificateAccepted)
             {
-                m_output.WriteLine("Untrusted Certificate accepted. SubjectName = {0}", e.Certificate.SubjectName);
+                m_output.WriteLine("Untrusted Certificate accepted. Subject = {0}", e.Certificate.Subject);
+                e.Accept = true;
             }
-
-            e.AcceptAll = certificateAccepted;
+            else
+            {
+                m_output.WriteLine("Untrusted Certificate rejected. Subject = {0}", e.Certificate.Subject);
+            }
         }
         #endregion
 
         #region Private Fields
-
         private ApplicationConfiguration m_configuration;
-
         private Session m_session;
-
-        private readonly IOutput m_output;
-
+        private readonly TextWriter m_output;
         private readonly Action<IList, IList> m_validateResponse;
-
         #endregion
     }
 }

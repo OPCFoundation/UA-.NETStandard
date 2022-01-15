@@ -3,7 +3,6 @@
   <PropertyGroup>
     <AssemblyName>Opc.Ua.PubSub</AssemblyName>
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <LangVersion>7</LangVersion>
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.PubSub</PackageId>
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>
     <Description>OPC UA PubSub Class Library</Description>
@@ -35,7 +34,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="3.0.15" />
+    <PackageReference Include="MQTTnet" Version="3.1.1" />
     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
   </ItemGroup>
 

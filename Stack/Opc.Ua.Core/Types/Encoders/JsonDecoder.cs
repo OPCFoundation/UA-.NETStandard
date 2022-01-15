@@ -929,7 +929,6 @@ namespace Opc.Ua
                         {
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                         }
-
                     }
                 }
                 return DefaultNodeId(idType, namespaceIndex);
@@ -1055,7 +1054,6 @@ namespace Opc.Ua
 
                 // read the uint code
                 return ReadUInt32(null);
-
             }
             finally
             {
@@ -1399,7 +1397,7 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
-                    Utils.Trace("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
+                    Utils.LogWarning("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
                 }
                 else
                 {
@@ -1448,13 +1446,12 @@ namespace Opc.Ua
                 }
 
                 var ostrm = new MemoryStream();
-
-                using (JsonTextWriter writer = new JsonTextWriter(new StreamWriter(ostrm)))
+                using (var stream = new StreamWriter(ostrm))
+                using (JsonTextWriter writer = new JsonTextWriter(stream))
                 {
                     EncodeAsJson(writer, token);
+                    return new ExtensionObject(typeId, ostrm.ToArray());
                 }
-
-                return new ExtensionObject(typeId, ostrm.ToArray());
             }
             finally
             {

@@ -333,7 +333,7 @@ namespace Opc.Ua.Client.Controls
             catch (Exception e)
             {
                 UpdateStatus(true, DateTime.Now, "Connected, failed to load complex type system.");
-                Utils.Trace(e, "Failed to load complex type system.");
+                Utils.LogWarning(e, "Failed to load complex type system.");
             }
 
             // return the new session.
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client.Controls
             InternalDisconnect();
 
             // select the best endpoint.
-            var endpointDescription = CoreClientUtils.SelectEndpoint(serverUrl, useSecurity, DiscoverTimeout);
+            var endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, serverUrl, useSecurity, DiscoverTimeout);
             var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.Controls
             catch (Exception e)
             {
                 UpdateStatus(true, DateTime.Now, "Connected, failed to load complex type system.");
-                Utils.Trace(e, "Failed to load complex type system.");
+                Utils.LogError(e, "Failed to load complex type system.");
             }
 
             // return the new session.
@@ -565,7 +565,7 @@ namespace Opc.Ua.Client.Controls
                 }
 
                 // return the selected endpoint.
-                return CoreClientUtils.SelectEndpoint(discoveryUrl, UseSecurityCK.Checked, DiscoverTimeout);
+                return CoreClientUtils.SelectEndpoint(m_configuration, discoveryUrl, UseSecurityCK.Checked, DiscoverTimeout);
             }
             finally
             {
