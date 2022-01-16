@@ -26,7 +26,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertifcateStoreTypeConfigTest()
         {
             var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, @"Security\Certificates\CertificateStoreTypeTestConfig.xml"));
-            var appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null);
+            var appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
@@ -51,8 +51,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     {
         public TestCertStore()
         {
-            _instancesCreated++;
-            _innerStore = new X509CertificateStore();
+            s_instancesCreated++;
+            m_innerStore = new X509CertificateStore();
         }
 
         public void Open(string location)
@@ -65,51 +65,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 throw new ArgumentException($"Expected argument {nameof(location)} starting with {StoreTypePrefix}");
             }
-            _innerStore.Open(location.Substring(StoreTypePrefix.Length));
+            m_innerStore.Open(location.Substring(StoreTypePrefix.Length));
         }
 
         public void Close()
-            => _innerStore.Close();
+            => m_innerStore.Close();
 
         public void Dispose()
-            => _innerStore.Dispose();
+            => m_innerStore.Dispose();
 
         public Task Add(X509Certificate2 certificate, string password = null)
-            => _innerStore.Add(certificate, password);
+            => m_innerStore.Add(certificate, password);
 
         public Task<bool> Delete(string thumbprint)
-            => _innerStore.Delete(thumbprint);
+            => m_innerStore.Delete(thumbprint);
 
         public Task<X509Certificate2Collection> Enumerate()
-            => _innerStore.Enumerate();
+            => m_innerStore.Enumerate();
 
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
-            => _innerStore.FindByThumbprint(thumbprint);
+            => m_innerStore.FindByThumbprint(thumbprint);
 
         public bool SupportsCRLs
-            => _innerStore.SupportsCRLs;
+            => m_innerStore.SupportsCRLs;
 
         public void AddCRL(X509CRL crl)
-            => _innerStore.AddCRL(crl);
+            => m_innerStore.AddCRL(crl);
 
         public bool DeleteCRL(X509CRL crl)
-            => _innerStore.DeleteCRL(crl);
+            => m_innerStore.DeleteCRL(crl);
 
-        public List<X509CRL> EnumerateCRLs()
-            => _innerStore.EnumerateCRLs();
+        public X509CRLCollection EnumerateCRLs()
+            => m_innerStore.EnumerateCRLs();
 
-        public List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
-            => _innerStore.EnumerateCRLs(issuer, validateUpdateTime);
+        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+            => m_innerStore.EnumerateCRLs(issuer, validateUpdateTime);
 
         public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
-            => _innerStore.IsRevoked(issuer, certificate);
+            => m_innerStore.IsRevoked(issuer, certificate);
 
-        public static int InstancesCreated => _instancesCreated;
+        public static int InstancesCreated => s_instancesCreated;
 
         #region data members
         internal const string StoreTypePrefix = "testStoreType:";
-        private static int _instancesCreated = 0;
-        private readonly X509CertificateStore _innerStore;
+        private static int s_instancesCreated = 0;
+        private readonly X509CertificateStore m_innerStore;
         #endregion data members
     }
 }

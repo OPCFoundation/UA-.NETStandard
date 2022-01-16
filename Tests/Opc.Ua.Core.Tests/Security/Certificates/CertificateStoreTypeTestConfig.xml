@@ -24,55 +24,9 @@
       <StorePath>testStoreType:CurrentUser\AuthRoot</StorePath>
     </TrustedIssuerCertificates>
 
-    <!-- Where the trust list is stored -->
-    <TrustedPeerCertificates>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\trusted</StorePath>
-    </TrustedPeerCertificates>
-
-    <!-- The directory used to store invalid certficates for later review by the administrator. -->
-    <RejectedCertificateStore>
-      <StoreType>Directory</StoreType>
-      <StorePath>%CommonApplicationData%\OPC Foundation\pki\rejected</StorePath>
-    </RejectedCertificateStore>
-
-    <!-- WARNING: The following setting (to automatically accept untrusted certificates) should be used
-    for easy debugging purposes ONLY and turned off for production deployments! -->
-    <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
-
   </SecurityConfiguration>
 
-  <TransportConfigurations></TransportConfigurations>
-
-  <TransportQuotas>
-    <OperationTimeout>600000</OperationTimeout>
-    <MaxStringLength>1048576</MaxStringLength>
-    <MaxByteStringLength>1048576</MaxByteStringLength>
-    <MaxArrayLength>65535</MaxArrayLength>
-    <MaxMessageSize>4194304</MaxMessageSize>
-    <MaxBufferSize>65535</MaxBufferSize>
-    <ChannelLifetime>300000</ChannelLifetime>
-    <SecurityTokenLifetime>3600000</SecurityTokenLifetime>
-  </TransportQuotas>
-
   <ClientConfiguration>
-    <DefaultSessionTimeout>60000</DefaultSessionTimeout>
-    <WellKnownDiscoveryUrls>
-      <ua:String>opc.tcp://{0}:4840</ua:String>
-      <ua:String>http://{0}:52601/UADiscovery</ua:String>
-      <ua:String>http://{0}/UADiscovery/Default.svc</ua:String>
-    </WellKnownDiscoveryUrls>
-    <DiscoveryServers></DiscoveryServers>
-    <EndpointCacheFilePath>Quickstarts.ReferenceClient.Endpoints.xml</EndpointCacheFilePath>
-    <MinSubscriptionLifetime>10000</MinSubscriptionLifetime>
   </ClientConfiguration>
-
-  <Extensions>
-  </Extensions>
-
-  <TraceConfiguration>
-    <OutputFilePath>%CommonApplicationData%\OPC Foundation\Logs\Quickstarts.ReferenceClient.log.txt</OutputFilePath>
-    <DeleteOnLoad>true</DeleteOnLoad>
-  </TraceConfiguration>
 
 </ApplicationConfiguration>
