@@ -790,12 +790,12 @@ namespace Opc.Ua.Gds.Tests
             {
                 using (ICertificateStore store = CertificateStoreIdentifier.OpenStore(storePath))
                 {
-                    var storeCrls = store.EnumerateCRLs();
+                    var storeCrls = store.EnumerateCRLs().Result;
                     foreach (var crl in storeCrls)
                     {
                         if (!updatedCrls.Contains(crl))
                         {
-                            if (!store.DeleteCRL(crl))
+                            if (!store.DeleteCRL(crl).Result)
                             {
                                 result = false;
                             }
@@ -807,7 +807,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     foreach (var crl in updatedCrls)
                     {
-                        store.AddCRL(crl);
+                        store.AddCRL(crl).Wait();
                     }
                 }
             }
@@ -892,10 +892,10 @@ namespace Opc.Ua.Gds.Tests
                             result = false;
                         }
                     }
-                    var storeCrls = store.EnumerateCRLs();
+                    var storeCrls = store.EnumerateCRLs().Result;
                     foreach (var crl in storeCrls)
                     {
-                        if (!store.DeleteCRL(crl))
+                        if (!store.DeleteCRL(crl).Result)
                         {
                             result = false;
                         }

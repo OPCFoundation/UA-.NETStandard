@@ -89,19 +89,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public bool SupportsCRLs
             => m_innerStore.SupportsCRLs;
 
-        public void AddCRL(X509CRL crl)
+        public Task AddCRL(X509CRL crl)
             => m_innerStore.AddCRL(crl);
 
-        public bool DeleteCRL(X509CRL crl)
+        public Task<bool> DeleteCRL(X509CRL crl)
             => m_innerStore.DeleteCRL(crl);
 
-        public X509CRLCollection EnumerateCRLs()
+        public Task<X509CRLCollection> EnumerateCRLs()
             => m_innerStore.EnumerateCRLs();
 
-        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
             => m_innerStore.EnumerateCRLs(issuer, validateUpdateTime);
 
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
             => m_innerStore.IsRevoked(issuer, certificate);
 
         public static int InstancesCreated => s_instancesCreated;

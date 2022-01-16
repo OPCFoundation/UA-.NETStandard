@@ -387,7 +387,7 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
                 }
 
-                List<X509CRL> certCACrl = store.EnumerateCRLs(certCA, false);
+                List<X509CRL> certCACrl = await store.EnumerateCRLs(certCA, false).ConfigureAwait(false);
 
                 var certificateCollection = new X509Certificate2Collection() { };
                 if (!isCACert)
@@ -396,12 +396,12 @@ namespace Opc.Ua.Gds.Server
                 }
                 updatedCRL = CertificateFactory.RevokeCertificate(certCAWithPrivateKey, certCACrl, certificateCollection);
 
-                store.AddCRL(updatedCRL);
+                await store.AddCRL(updatedCRL).ConfigureAwait(false);
 
                 // delete outdated CRLs from store
                 foreach (X509CRL caCrl in certCACrl)
                 {
-                    store.DeleteCRL(caCrl);
+                    await store.DeleteCRL(caCrl).ConfigureAwait(false);
                 }
                 store.Close();
             }
@@ -433,18 +433,18 @@ namespace Opc.Ua.Gds.Server
                             }
 
                             // delete existing CRL in trusted list
-                            foreach (var crl in trustedStore.EnumerateCRLs(certificate, false))
+                            foreach (var crl in await trustedStore.EnumerateCRLs(certificate, false).ConfigureAwait(false))
                             {
                                 if (crl.VerifySignature(certificate, false))
                                 {
-                                    trustedStore.DeleteCRL(crl);
+                                    await trustedStore.DeleteCRL(crl).ConfigureAwait(false);
                                 }
                             }
 
                             // copy latest CRL to trusted list
-                            foreach (var crl in authorityStore.EnumerateCRLs(certificate, true))
+                            foreach (var crl in await authorityStore.EnumerateCRLs(certificate, true).ConfigureAwait(false))
                             {
-                                trustedStore.AddCRL(crl);
+                                await trustedStore.AddCRL(crl).ConfigureAwait(false);
                             }
                         }
                     }

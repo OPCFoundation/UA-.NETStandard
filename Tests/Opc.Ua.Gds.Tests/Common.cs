@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 store.Delete(cert.Thumbprint);
             }
-            var crls = store.EnumerateCRLs();
+            var crls = store.EnumerateCRLs().Result;
             foreach (var crl in crls)
             {
                 store.DeleteCRL(crl);

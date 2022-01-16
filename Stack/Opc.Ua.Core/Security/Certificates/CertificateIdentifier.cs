@@ -737,31 +737,31 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            return StatusCodes.BadNotSupported;
+            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
 
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
-        public X509CRLCollection EnumerateCRLs()
+        public Task<X509CRLCollection> EnumerateCRLs()
         {
-            return new X509CRLCollection();
+            return Task.FromResult(new X509CRLCollection());
         }
 
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
-            return new X509CRLCollection();
+            return Task.FromResult(new X509CRLCollection());
         }
 
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>
-        public void AddCRL(X509CRL crl)
+        public Task AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
@@ -769,7 +769,7 @@ namespace Opc.Ua
         /// <summary>
         /// Removes a CRL from the store.
         /// </summary>
-        public bool DeleteCRL(X509CRL crl)
+        public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

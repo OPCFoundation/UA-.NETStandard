@@ -391,7 +391,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             if (issuer == null)
             {
@@ -436,7 +436,7 @@ namespace Opc.Ua
 
                     if (crl.IsRevoked(certificate))
                     {
-                        return StatusCodes.BadCertificateRevoked;
+                        return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevoked);
                     }
 
                     if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
@@ -448,12 +448,12 @@ namespace Opc.Ua
                 // certificate is fine.
                 if (!crlExpired)
                 {
-                    return StatusCodes.Good;
+                    return Task.FromResult((StatusCode)StatusCodes.Good);
                 }
             }
 
             // can't find a valid CRL.
-            return StatusCodes.BadCertificateRevocationUnknown;
+            return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevocationUnknown);
         }
 
         /// <summary>
@@ -464,7 +464,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
-        public X509CRLCollection EnumerateCRLs()
+        public Task<X509CRLCollection> EnumerateCRLs()
         {
             var crls = new X509CRLCollection();
 
@@ -480,13 +480,13 @@ namespace Opc.Ua
                 }
             }
 
-            return crls;
+            return Task.FromResult(crls);
         }
 
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public async Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             if (issuer == null)
             {
@@ -494,7 +494,7 @@ namespace Opc.Ua
             }
 
             var crls = new X509CRLCollection();
-            foreach (X509CRL crl in EnumerateCRLs())
+            foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
             {
                 if (!X509Utils.CompareDistinguishedName(crl.Issuer, issuer.Subject))
                 {
@@ -519,7 +519,7 @@ namespace Opc.Ua
         /// <summary>
         /// Adds a CRL to the store.
         /// </summary>
-        public void AddCRL(X509CRL crl)
+        public async Task AddCRL(X509CRL crl)
         {
             if (crl == null)
             {
@@ -528,7 +528,7 @@ namespace Opc.Ua
 
             X509Certificate2 issuer = null;
             X509Certificate2Collection certificates = null;
-            certificates = Enumerate().Result;
+            certificates = await Enumerate().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.Subject, crl.Issuer))
@@ -548,7 +548,6 @@ namespace Opc.Ua
 
             StringBuilder builder = new StringBuilder();
             builder.Append(m_directory.FullName);
-
             builder.Append(Path.DirectorySeparatorChar).Append("crl").Append(Path.DirectorySeparatorChar);
             builder.Append(GetFileName(issuer));
             builder.Append(".crl");
@@ -566,7 +565,7 @@ namespace Opc.Ua
         /// <summary>
         /// Removes a CRL from the store.
         /// </summary>
-        public bool DeleteCRL(X509CRL crl)
+        public Task<bool> DeleteCRL(X509CRL crl)
         {
             if (crl == null)
             {
@@ -589,13 +588,13 @@ namespace Opc.Ua
                         if (Utils.IsEqual(bytes, crl.RawData))
                         {
                             fileInfo.Delete();
-                            return true;
+                            return Task.FromResult(true);
                         }
                     }
                 }
             }
 
-            return false;
+            return Task.FromResult(false);
         }
         #endregion
 

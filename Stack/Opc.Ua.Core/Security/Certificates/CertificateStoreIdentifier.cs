@@ -204,7 +204,7 @@ namespace Opc.Ua
     {
         static CertificateStoreType()
         {
-            _registeredStoreTypes = new Dictionary<string, ICertificateStoreType>();
+            s_registeredStoreTypes = new Dictionary<string, ICertificateStoreType>();
         }
 
         #region public methods
@@ -215,7 +215,7 @@ namespace Opc.Ua
         /// <param name="storeType"></param>
         public static void RegisterCertificateStoreType(string storeTypeName, ICertificateStoreType storeType)
         {
-            _registeredStoreTypes.Add(storeTypeName, storeType);
+            s_registeredStoreTypes.Add(storeTypeName, storeType);
         }
         #endregion public methods
 
@@ -223,11 +223,11 @@ namespace Opc.Ua
         internal static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)
         {
             ICertificateStoreType result;
-            _registeredStoreTypes.TryGetValue(storeTypeName, out result);
+            s_registeredStoreTypes.TryGetValue(storeTypeName, out result);
             return result;
         }
 
-        internal static IReadOnlyCollection<string> ResisteredStoreTypeNames => _registeredStoreTypes.Keys;
+        internal static IReadOnlyCollection<string> ResisteredStoreTypeNames => s_registeredStoreTypes.Keys;
         #endregion internal methods
 
         #region data members
@@ -240,9 +240,11 @@ namespace Opc.Ua
         /// A directory certificate store.
         /// </summary>
         public const string Directory = "Directory";
-
-        private static Dictionary<string, ICertificateStoreType> _registeredStoreTypes;
         #endregion data members
+
+        #region Static Members
+        private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes;
+        #endregion
     }
     #endregion
 }

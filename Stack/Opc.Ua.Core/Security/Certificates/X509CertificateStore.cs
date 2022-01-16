@@ -201,35 +201,35 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public StatusCode IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
-            return StatusCodes.BadNotSupported;
+            return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public X509CRLCollection EnumerateCRLs()
-        {
-            throw new ServiceResultException(StatusCodes.BadNotSupported);
-        }
-
-        /// <inheritdoc/>
-        /// <remarks>CRLs are not supported here.</remarks>
-        public X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLs()
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public void AddCRL(X509CRL crl)
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are not supported here.</remarks>
-        public bool DeleteCRL(X509CRL crl)
+        public Task AddCRL(X509CRL crl)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are not supported here.</remarks>
+        public Task<bool> DeleteCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }

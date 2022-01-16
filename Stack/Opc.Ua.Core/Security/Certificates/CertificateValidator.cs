@@ -804,7 +804,7 @@ namespace Opc.Ua
 
                                 if (checkRecovationStatus)
                                 {
-                                    StatusCode status = store.IsRevoked(issuer, certificate);
+                                    StatusCode status = await store.IsRevoked(issuer, certificate).ConfigureAwait(false);
 
                                     if (StatusCode.IsBad(status) && status != StatusCodes.BadNotSupported)
                                     {
