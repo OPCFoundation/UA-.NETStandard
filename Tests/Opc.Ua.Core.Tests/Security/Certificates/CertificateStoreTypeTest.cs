@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -25,7 +24,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task CertifcateStoreTypeConfigTest()
         {
-            var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, @"Security\Certificates\CertificateStoreTypeTestConfig.xml"));
+            var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
             var appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
@@ -42,9 +41,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
     internal sealed class TestStoreType : ICertificateStoreType
     {
-        public ICertificateStore CreateStore() => new TestCertStore();
+        public ICertificateStore CreateStore()
+        {
+            return new TestCertStore();
+        }
 
-        public bool SupportsStorePath(string storePath) => storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix);
+        public bool SupportsStorePath(string storePath)
+        {
+            return storePath != null && storePath.StartsWith(TestCertStore.StoreTypePrefix);
+        }
     }
 
     internal sealed class TestCertStore : ICertificateStore
@@ -69,22 +74,34 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         public void Close()
-            => m_innerStore.Close();
+        {
+            m_innerStore.Close();
+        }
 
         public void Dispose()
-            => m_innerStore.Dispose();
+        {
+            m_innerStore.Dispose();
+        }
 
         public Task Add(X509Certificate2 certificate, string password = null)
-            => m_innerStore.Add(certificate, password);
+        {
+            return m_innerStore.Add(certificate, password);
+        }
 
         public Task<bool> Delete(string thumbprint)
-            => m_innerStore.Delete(thumbprint);
+        {
+            return m_innerStore.Delete(thumbprint);
+        }
 
         public Task<X509Certificate2Collection> Enumerate()
-            => m_innerStore.Enumerate();
+        {
+            return m_innerStore.Enumerate();
+        }
 
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
-            => m_innerStore.FindByThumbprint(thumbprint);
+        {
+            return m_innerStore.FindByThumbprint(thumbprint);
+        }
 
         public bool SupportsCRLs
             => m_innerStore.SupportsCRLs;

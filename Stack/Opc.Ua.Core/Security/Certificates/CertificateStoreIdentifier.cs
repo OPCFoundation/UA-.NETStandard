@@ -122,7 +122,7 @@ namespace Opc.Ua
                 return CertificateStoreType.X509Store;
             }
 
-            foreach (string storeTypeName in CertificateStoreType.ResisteredStoreTypeNames)
+            foreach (string storeTypeName in CertificateStoreType.RegisteredStoreTypeNames)
             {
                 ICertificateStoreType storeType = CertificateStoreType.GetCertificateStoreTypeByName(storeTypeName);
                 if (storeType.SupportsStorePath(storePath))
@@ -227,7 +227,7 @@ namespace Opc.Ua
             return result;
         }
 
-        internal static IReadOnlyCollection<string> ResisteredStoreTypeNames => s_registeredStoreTypes.Keys;
+        internal static IReadOnlyCollection<string> RegisteredStoreTypeNames => s_registeredStoreTypes.Keys;
         #endregion internal methods
 
         #region data members
