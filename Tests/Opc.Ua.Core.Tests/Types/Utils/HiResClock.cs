@@ -39,6 +39,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     /// </summary>
     [TestFixture, Category("Utils")]
     [SetCulture("en-us"), SetUICulture("en-us")]
+    [NonParallelizable]
     public class HiResClockTests
     {
         /// <summary>
@@ -52,6 +53,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
 
         #region Test Setup
+        [OneTimeSetUp]
+        protected void OneTimeSetup()
+        {
+            HiResClock.Reset();
+        }
+
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {

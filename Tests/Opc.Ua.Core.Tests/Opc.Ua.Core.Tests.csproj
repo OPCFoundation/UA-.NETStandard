@@ -31,5 +31,11 @@
     <ProjectReference Include="..\..\Stack\Opc.Ua.Bindings.Https\Opc.Ua.Bindings.Https.csproj" />
     <ProjectReference Include="..\Opc.Ua.Security.Certificates.Tests\Opc.Ua.Security.Certificates.Tests.csproj" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <None Update="Security\Certificates\CertificateStoreTypeTestConfig.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>
