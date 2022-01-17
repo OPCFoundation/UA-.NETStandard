@@ -78,7 +78,7 @@ namespace Opc.Ua
         #endregion
 
         #region ICertificateStore Members
-        /// <summary cref="ICertificateStore.Open(string)" />
+        /// <inheritdoc/>
         public void Open(string location)
         {
             lock (m_lock)
@@ -90,7 +90,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Close()" />
+        /// <inheritdoc/>
         public void Close()
         {
             lock (m_lock)
@@ -103,7 +103,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Enumerate()" />
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
             lock (m_lock)
@@ -127,7 +127,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICertificateStore.Add(X509Certificate2, String)" />
+        /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
@@ -171,7 +171,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
-        /// <summary cref="ICertificateStore.Delete(string)" />
+        /// <inheritdoc/>
         public async Task<bool> Delete(string thumbprint)
         {
             const int kRetries = 5;
@@ -226,7 +226,7 @@ namespace Opc.Ua
             return found;
         }
 
-        /// <summary cref="ICertificateStore.FindByThumbprint(string)" />
+        /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
             X509Certificate2Collection certificates = new X509Certificate2Collection();
@@ -293,7 +293,6 @@ namespace Opc.Ua
 
             return entry.PrivateKeyFile.FullName;
         }
-
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
@@ -388,9 +387,7 @@ namespace Opc.Ua
             return null;
         }
 
-        /// <summary>
-        /// Checks if issuer has revoked the certificate.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             if (issuer == null)
@@ -456,14 +453,10 @@ namespace Opc.Ua
             return Task.FromResult((StatusCode)StatusCodes.BadCertificateRevocationUnknown);
         }
 
-        /// <summary>
-        /// Whether the store support CRLs.
-        /// </summary>
+        /// <inheritdoc/>
         public bool SupportsCRLs { get { return true; } }
 
-        /// <summary>
-        /// Returns the CRLs in the store.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLs()
         {
             var crls = new X509CRLCollection();
@@ -483,9 +476,7 @@ namespace Opc.Ua
             return Task.FromResult(crls);
         }
 
-        /// <summary>
-        /// Returns the CRLs for the issuer.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             if (issuer == null)
@@ -516,9 +507,7 @@ namespace Opc.Ua
             return crls;
         }
 
-        /// <summary>
-        /// Adds a CRL to the store.
-        /// </summary>
+        /// <inheritdoc/>
         public async Task AddCRL(X509CRL crl)
         {
             if (crl == null)
@@ -562,9 +551,7 @@ namespace Opc.Ua
             File.WriteAllBytes(fileInfo.FullName, crl.RawData);
         }
 
-        /// <summary>
-        /// Removes a CRL from the store.
-        /// </summary>
+        /// <inheritdoc/>
         public Task<bool> DeleteCRL(X509CRL crl)
         {
             if (crl == null)
