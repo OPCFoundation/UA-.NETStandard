@@ -11,14 +11,11 @@
 */
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
-using System.IO;
 using System.Runtime.Serialization;
 using System.Reflection;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -38,6 +35,7 @@ namespace Opc.Ua
             m_timestamp = DateTime.MinValue;
             m_accessLevel = m_userAccessLevel = AccessLevels.CurrentRead;
             m_copyPolicy = VariableCopyPolicy.CopyOnRead;
+            m_statusCode = StatusCodes.BadWaitingForInitialData;
         }
         #endregion
 
@@ -466,7 +464,14 @@ namespace Opc.Ua
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
 
+                if ((m_value == null) && (StatusCode == StatusCodes.BadWaitingForInitialData))
+                {
+                    StatusCode = StatusCodes.Good;
+                }
+
                 m_value = value;
+
+                
             }
         }
 
