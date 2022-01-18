@@ -198,7 +198,6 @@ namespace Opc.Ua
         {
             if (value == null)
             {
-                //return null;
                 return default(T);
             }
 
