@@ -51,9 +51,9 @@ namespace Opc.Ua
 
             if (instance != null)
             {
+                // The value will be set to default(T) if the originating value is null
                 m_value = ExtractValueFromVariant(context, instance.m_value, false);
                 m_timestamp = instance.m_timestamp;
-                m_statusCode = instance.m_statusCode;
                 m_dataType = instance.m_dataType;
                 m_valueRank = instance.m_valueRank;
                 m_arrayDimensions = null;
@@ -61,6 +61,14 @@ namespace Opc.Ua
                 m_userAccessLevel = instance.m_userAccessLevel;
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
+                // Allow initalization from variable states with status code BadWaitingForInitialData
+                if (instance.m_statusCode == StatusCodes.BadWaitingForInitialData)
+                {
+                    m_statusCode = StatusCodes.Good;
+                }else
+                {
+                    m_statusCode = instance.m_statusCode;
+                }
 
                 if (instance.m_arrayDimensions != null)
                 {
@@ -190,6 +198,7 @@ namespace Opc.Ua
         {
             if (value == null)
             {
+                //return null;
                 return default(T);
             }
 
@@ -2033,6 +2042,7 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState(NodeState parent) : base(parent)
         {
+            StatusCode = StatusCodes.BadWaitingForInitialData;
         }
 
         /// <summary>
@@ -2154,6 +2164,7 @@ namespace Opc.Ua
         {
             if (parent != null)
             {
+                StatusCode = StatusCodes.BadWaitingForInitialData;
                 ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
             }
         }
