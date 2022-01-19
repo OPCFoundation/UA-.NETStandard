@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Security.Cryptography;
 using System.Formats.Asn1;
+using System.Runtime.Serialization;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -352,5 +353,85 @@ namespace Opc.Ua.Security.Certificates
         private List<RevokedCertificate> m_revokedCertificates;
         private X509ExtensionCollection m_crlExtensions;
         #endregion
+    }
+
+    /// <summary>
+    /// A collection of X509CRL.
+    /// </summary>
+    [CollectionDataContract(Name = "ListOfX509CRL", ItemName = "X509CRL")]
+    public class X509CRLCollection : List<X509CRL>
+    {
+        /// <summary>
+        /// Gets or sets the element at the specified index.
+        /// </summary>
+        /// <param name="index">The zero-based index of the element to get or set.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public new X509CRL this[int index]
+        {
+            get
+            {
+                return (X509CRL)base[index];
+            }
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                base[index] = value;
+            }
+        }
+
+        /// <summary>
+        /// Create an empty X509CRL collection.
+        /// </summary>
+        public X509CRLCollection()
+        {
+        }
+
+        /// <summary>
+        /// Create a crl collection from a single CRL.
+        /// </summary>
+        public X509CRLCollection(X509CRL crl)
+        {
+            Add(crl);
+        }
+
+        /// <summary>
+        /// Create a crl collection from a CRL collection.
+        /// </summary>
+        public X509CRLCollection(X509CRLCollection crls)
+        {
+            AddRange(crls);
+        }
+
+        /// <summary>
+        /// Create a collection from an array.
+        /// </summary>
+        public X509CRLCollection(X509CRL[] crls)
+        {
+            AddRange(crls);
+        }
+
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static X509CRLCollection ToX509CRLCollection(X509CRL[] crls)
+        {
+            if (crls != null)
+            {
+                return new X509CRLCollection(crls);
+            }
+            return new X509CRLCollection();
+        }
+
+        /// <summary>
+        /// Converts an array to a collection.
+        /// </summary>
+        public static implicit operator X509CRLCollection(X509CRL[] crls)
+        {
+            return ToX509CRLCollection(crls);
+        }
     }
 }

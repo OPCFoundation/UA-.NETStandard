@@ -76,12 +76,12 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the CRLs in the store.
         /// </summary>
-        List<X509CRL> EnumerateCRLs();
+        X509CRLCollection EnumerateCRLs();
 
         /// <summary>
         /// Returns the CRLs for the issuer.
         /// </summary>
-        List<X509CRL> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
+        X509CRLCollection EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true);
 
         /// <summary>
         /// Adds a CRL to the store.
