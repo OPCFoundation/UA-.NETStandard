@@ -256,7 +256,7 @@ namespace Opc.Ua.Security.Certificates
             var ski = issuerCaCertificate.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
             return new X509AuthorityKeyIdentifierExtension(
                 ski.SubjectKeyIdentifier.FromHexString(),
-                issuerCaCertificate.SubjectName,
+                issuerCaCertificate.IssuerName,
                 issuerCaCertificate.GetSerialNumber());
         }
 
