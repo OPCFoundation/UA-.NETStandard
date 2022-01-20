@@ -883,7 +883,7 @@ namespace Opc.Ua
             }
             catch (System.Net.Sockets.SocketException e)
             {
-                Utils.LogError(e, "Unable to check aliases for hostname {0}.", computerName);
+                Utils.Trace(e, "Unable to check aliases for hostname {0}.", computerName);
             }
 
             if (entry != null)
