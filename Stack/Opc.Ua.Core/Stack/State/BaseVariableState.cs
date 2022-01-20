@@ -35,6 +35,7 @@ namespace Opc.Ua
             m_timestamp = DateTime.MinValue;
             m_accessLevel = m_userAccessLevel = AccessLevels.CurrentRead;
             m_copyPolicy = VariableCopyPolicy.CopyOnRead;
+            m_valueTouched = false;
             m_statusCode = StatusCodes.BadWaitingForInitialData;
         }
         #endregion
@@ -61,14 +62,7 @@ namespace Opc.Ua
                 m_userAccessLevel = instance.m_userAccessLevel;
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
-                // Allow initalization from variable states with status code BadWaitingForInitialData
-                if (instance.m_statusCode == StatusCodes.BadWaitingForInitialData)
-                {
-                    m_statusCode = StatusCodes.Good;
-                }else
-                {
-                    m_statusCode = instance.m_statusCode;
-                }
+                m_valueTouched = instance.m_valueTouched;
 
                 if (instance.m_arrayDimensions != null)
                 {
@@ -472,14 +466,14 @@ namespace Opc.Ua
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
 
-                if ((m_value == null) && (StatusCode == StatusCodes.BadWaitingForInitialData))
+                if (!m_valueTouched)
                 {
                     StatusCode = StatusCodes.Good;
                 }
 
                 m_value = value;
 
-                
+                m_valueTouched = true;
             }
         }
 
@@ -2016,6 +2010,7 @@ namespace Opc.Ua
         private object m_value;
         private bool m_isValueType;
         private DateTime m_timestamp;
+        private bool m_valueTouched;
         private StatusCode m_statusCode;
         private NodeId m_dataType;
         private int m_valueRank;
